@@ -21,8 +21,14 @@ case "$event" in
       # Shallow checkout: fetch the one parent we need.
       git fetch -q --no-tags --depth=2 origin "$(git rev-parse "$head")"
     fi
-    changed=$(git diff --name-only "$base" "$head")
     other=false
+    if git rev-parse -q --verify "$base^{commit}" > /dev/null; then
+      changed=$(git diff --name-only "$base" "$head")
+    else
+      # The repository's first commit has no parent: everything in it is new.
+      changed=""
+      other=true
+    fi
     while IFS= read -r path; do
       [ -n "$path" ] || continue
       case "$path" in
