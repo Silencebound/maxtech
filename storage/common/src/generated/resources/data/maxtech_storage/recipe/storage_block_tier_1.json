@@ -1,0 +1,17 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "C": "#maxtech_storage:small_cell_casing",
+    "M": "#maxtech_storage:memory_module_1",
+    "P": "#c:plates/signal_alloy"
+  },
+  "pattern": [
+    "PMP",
+    "MCM",
+    "PMP"
+  ],
+  "result": {
+    "id": "maxtech_storage:storage_block_tier_1"
+  }
+}

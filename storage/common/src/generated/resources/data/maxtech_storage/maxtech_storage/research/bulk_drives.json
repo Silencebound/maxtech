@@ -1,0 +1,29 @@
+{
+  "any_of": [
+    {
+      "type": "task",
+      "count": 8,
+      "task": "drives_running"
+    },
+    {
+      "type": "puzzle",
+      "difficulty": 2,
+      "puzzle": "maxtech_storage:byte_packing"
+    },
+    {
+      "type": "points",
+      "cost": 1500
+    }
+  ],
+  "branch": "void",
+  "icon": "maxtech_storage:void_lattice",
+  "order": 3,
+  "requires": [
+    "maxtech_storage:void_crystal",
+    "maxtech_storage:large_casings"
+  ],
+  "tier": 5,
+  "unlocks": [
+    "maxtech_storage:bulk_drive"
+  ]
+}

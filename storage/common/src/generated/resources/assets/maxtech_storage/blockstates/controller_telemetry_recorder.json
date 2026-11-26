@@ -1,0 +1,16 @@
+{
+  "variants": {
+    "load=0": {
+      "model": "maxtech_storage:block/controller_telemetry_recorder"
+    },
+    "load=1": {
+      "model": "maxtech_storage:block/controller_telemetry_recorder"
+    },
+    "load=2": {
+      "model": "maxtech_storage:block/controller_telemetry_recorder"
+    },
+    "load=3": {
+      "model": "maxtech_storage:block/controller_telemetry_recorder"
+    }
+  }
+}

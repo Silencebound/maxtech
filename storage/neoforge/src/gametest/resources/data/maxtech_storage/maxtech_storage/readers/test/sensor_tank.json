@@ -1,0 +1,11 @@
+{
+  "blocks": ["maxtech_storage:test_sensor_tank"],
+  "values": {
+    "level": "Level",
+    "stored": {"path": "Energy.stored", "unit": "kFE", "scale": 0.001},
+    "active": {"path": "Active", "type": "yes_no"},
+    "mode": {"path": "Mode", "type": "text"},
+    "second_int": "Ints[1]",
+    "missing": "Nope.not.here"
+  }
+}

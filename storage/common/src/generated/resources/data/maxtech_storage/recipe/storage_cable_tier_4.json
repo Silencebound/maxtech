@@ -1,0 +1,18 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "redstone",
+  "key": {
+    "C": "#maxtech_storage:storage_cable_tier_3",
+    "P": "#c:ingots/niobium",
+    "S": "#maxtech_storage:advanced_io_processor"
+  },
+  "pattern": [
+    "CPC",
+    "CSC",
+    "CPC"
+  ],
+  "result": {
+    "count": 4,
+    "id": "maxtech_storage:storage_cable_tier_4"
+  }
+}

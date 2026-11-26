@@ -1,0 +1,8 @@
+{
+  "parent": "minecraft:block/orientable",
+  "textures": {
+    "front": "maxtech_storage:block/network_chest_front",
+    "side": "maxtech_storage:block/network_chest_side",
+    "top": "maxtech_storage:block/network_chest_top"
+  }
+}

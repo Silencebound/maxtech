@@ -1,0 +1,18 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "redstone",
+  "key": {
+    "D": "#maxtech_storage:display_glass",
+    "O": "#maxtech_storage:basic_io_processor",
+    "P": "#c:plates/signal_alloy",
+    "X": "#c:chests"
+  },
+  "pattern": [
+    "PDP",
+    "OXO",
+    "PPP"
+  ],
+  "result": {
+    "id": "maxtech_storage:network_chest"
+  }
+}

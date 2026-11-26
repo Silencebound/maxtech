@@ -1,0 +1,24 @@
+{
+  "type": "maxtech_storage:fabricator",
+  "duration": 120,
+  "energy_per_tick": 10,
+  "inputs": [
+    {
+      "ingredient": "#c:raw_materials/tantalite"
+    }
+  ],
+  "mode": "refine",
+  "outputs": [
+    {
+      "item": {
+        "id": "maxtech_storage:tantalum_dust"
+      }
+    },
+    {
+      "chance": 2500,
+      "item": {
+        "id": "maxtech_storage:niobium_dust"
+      }
+    }
+  ]
+}

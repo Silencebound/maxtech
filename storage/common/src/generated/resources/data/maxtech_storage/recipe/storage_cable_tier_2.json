@@ -1,0 +1,18 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "redstone",
+  "key": {
+    "C": "#maxtech_storage:storage_cable_tier_1",
+    "P": "#c:plates/signal_alloy",
+    "S": "#maxtech_storage:basic_signal_processor"
+  },
+  "pattern": [
+    "CPC",
+    "CSC",
+    "CPC"
+  ],
+  "result": {
+    "count": 4,
+    "id": "maxtech_storage:storage_cable_tier_2"
+  }
+}

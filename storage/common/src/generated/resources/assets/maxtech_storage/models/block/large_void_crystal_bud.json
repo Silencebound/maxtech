@@ -1,0 +1,6 @@
+{
+  "parent": "minecraft:block/cross",
+  "textures": {
+    "cross": "maxtech_storage:block/large_void_crystal_bud"
+  }
+}

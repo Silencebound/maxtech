@@ -1,0 +1,29 @@
+{
+  "any_of": [
+    {
+      "type": "task",
+      "count": 10000,
+      "task": "ports_throughput"
+    },
+    {
+      "type": "puzzle",
+      "difficulty": 1,
+      "puzzle": "maxtech_storage:signal_routing"
+    },
+    {
+      "type": "points",
+      "cost": 250
+    }
+  ],
+  "branch": "network",
+  "icon": "maxtech_storage:condition_switch",
+  "order": 16,
+  "requires": [
+    "maxtech_storage:network_telemetry",
+    "maxtech_storage:port_tier_2"
+  ],
+  "tier": 2,
+  "unlocks": [
+    "maxtech_storage:alarm_module"
+  ]
+}

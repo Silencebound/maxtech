@@ -1,0 +1,19 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "redstone",
+  "key": {
+    "O": "#maxtech_storage:oscillator",
+    "P": "#c:plates/signal_alloy",
+    "R": "minecraft:lightning_rod",
+    "S": "#maxtech_storage:basic_signal_processor",
+    "W": "#maxtech_storage:insulated_copper_wire"
+  },
+  "pattern": [
+    "PRP",
+    "OSO",
+    "PWP"
+  ],
+  "result": {
+    "id": "maxtech_storage:antenna_tier_1"
+  }
+}

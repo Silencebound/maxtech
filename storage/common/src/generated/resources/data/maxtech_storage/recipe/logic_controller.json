@@ -1,0 +1,18 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "redstone",
+  "key": {
+    "L": "#maxtech_storage:basic_logic_processor",
+    "P": "#c:plates/signal_alloy",
+    "R": "#c:dusts/redstone",
+    "S": "#maxtech_storage:condition_switch"
+  },
+  "pattern": [
+    "PLP",
+    "SRS",
+    "PLP"
+  ],
+  "result": {
+    "id": "maxtech_storage:logic_controller"
+  }
+}

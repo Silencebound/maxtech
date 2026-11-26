@@ -1,0 +1,29 @@
+{
+  "any_of": [
+    {
+      "type": "task",
+      "fraction": 0.04,
+      "max": 400,
+      "task": "store_kinds"
+    },
+    {
+      "type": "puzzle",
+      "difficulty": 2,
+      "puzzle": "maxtech_storage:waveform_tuning"
+    },
+    {
+      "type": "points",
+      "cost": 600
+    }
+  ],
+  "branch": "network",
+  "icon": "maxtech_storage:antenna_tier_1",
+  "order": 2,
+  "requires": [
+    "maxtech_storage:port_tier_2"
+  ],
+  "tier": 3,
+  "unlocks": [
+    "maxtech_storage:antenna"
+  ]
+}

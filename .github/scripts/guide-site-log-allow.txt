@@ -1,0 +1,16 @@
+# Error lines in the guide export's game log that do not fail the guide website build (guide-site-check.sh). One
+# extended regex per line, matched anywhere in the log line. Give each entry its reason; keep the list short.
+
+# The CI runner has no sound device, so the client turns sound off.
+SoundEngine|OpenAL|SoundSystem
+
+# The runner has no flite speech library, so the narrator does not load.
+Narrator/\]: Error while loading the narrator
+
+# Deliberately broken GameTest fixtures (logic_templates and readers test/broken.json) are on the dev classpath of
+# the export run; players never load them.
+Couldn't parse data file 'maxtech_storage:test/broken'
+
+# GuideME 26.1.15-beta logs every referenced stack with a component patch (here a cell from a recipe result) and
+# still draws its icon; the components only matter in game.
+SiteExporter/\]: Couldn't handle stack with NBT tag

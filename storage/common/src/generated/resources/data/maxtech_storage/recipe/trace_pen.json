@@ -1,0 +1,17 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "equipment",
+  "key": {
+    "L": "#maxtech_storage:basic_logic_processor",
+    "P": "#c:plates/signal_alloy",
+    "W": "#c:wires/copper"
+  },
+  "pattern": [
+    "  L",
+    " W ",
+    "P  "
+  ],
+  "result": {
+    "id": "maxtech_storage:trace_pen"
+  }
+}

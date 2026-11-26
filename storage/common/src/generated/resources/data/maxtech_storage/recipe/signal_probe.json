@@ -1,0 +1,18 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "equipment",
+  "key": {
+    "D": "#maxtech_storage:display_glass",
+    "P": "#c:plates/signal_alloy",
+    "S": "#maxtech_storage:basic_signal_processor",
+    "W": "#c:wires/copper"
+  },
+  "pattern": [
+    " S ",
+    "PDP",
+    " W "
+  ],
+  "result": {
+    "id": "maxtech_storage:signal_probe"
+  }
+}

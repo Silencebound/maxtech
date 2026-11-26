@@ -1,0 +1,12 @@
+{
+  "values": [
+    "maxtech_storage:budding_data_crystal",
+    "maxtech_storage:budding_void_crystal",
+    "#minecraft:wither_immune",
+    "minecraft:budding_amethyst",
+    "minecraft:spawner",
+    "minecraft:trial_spawner",
+    "minecraft:vault",
+    "minecraft:reinforced_deepslate"
+  ]
+}

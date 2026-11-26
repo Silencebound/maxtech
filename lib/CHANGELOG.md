@@ -1,0 +1,136 @@
+# MaxTech Lib changelog
+
+Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow semver (PRD §5.8).
+Entries before 2026-10-06 are not recorded; 0.2.0 is the first version in this repository's history.
+Api changes are marked **Api**.
+
+## [Unreleased]
+
+### Added
+- NeoForge's config screen (Mods, Config) for Lib's client and server files: every option and section has a name and
+  a tooltip with its unit, range, default and, for `workers.threads`, that it applies after a world reload. Sections
+  come in order of how often they are changed. `ConfigScreens` registers the same screen for an addon.
+- `MenuHelper.craftingRemainders(player, recipe, input)` (Platform, not api): a crafting recipe's remainders worked
+  out with the crafting player set, as vanilla's result slot does (NeoForge's `CommonHooks.setCraftingPlayer`).
+- `ConfigBuilder.worldRestart()` and `gameRestart()` mark a value the game reads only at world load or startup.
+  `ConfigHelper.builder(modId)` replaces `builder()`: values and sections get the translation key
+  `<modid>.configuration.<path>`, and datagen writes their tooltips from the comments.
+- `SyncedListIndex`: `$text` search words match a tooltip text from the new default method
+  `EntryDescriber.tooltip`, built lazily with a per-rebuild budget; `setFilter` limits the view by a predicate.
+- The Accent widget set for every MaxTech screen (`lib.client.gui.accent`, client only, not api): the Accent Frame
+  look moved here from Storage, a text button (16 high, compact 12), icon buttons (plain, toggle, cycle), side tabs with
+  flyouts, changed dots and badges, one scroll bar, an in-screen toast and a notice hook for outside screens. Dev runs
+  show them with `/maxtech_lib accent_demo`.
+- Accent pieces for screens that lay out their own lists and tables (`AccentPanel`, `AccentInset`, `AccentRow`,
+  `AccentTabRow`, `AccentReadout`, `AccentTag`, `AccentStatus`), and `ScrollBar.draw` for a bar without a widget;
+  `SidePanel` draws its scroll bar with it.
+- **Api** Additive: `BlockInfoSink` gets structured entries as default methods that fall back to `line`: `status`
+  (with a `Tone` and an optional sprite), `progress` (optionally with a sprite), `pips`, `stacks` (new record
+  `InfoStack`) and `icon`. `BlockInfoRequest.Detail.BRIEF` is now a few short entries; the details go to `FULL`.
+- Jade's compact view for every block with a `BlockInfoProvider`: a status dot next to the name, then one row of bars
+  coloured by fill, item and fluid icons and mode icons; sneaking shows the details as text. Client options
+  `overlay.detailLevel` (`compact` or `full`) and `overlay.sneakForDetails` (on).
+
+### Changed
+- Config lang keys use the full path (`maxtech_lib.configuration.overlay.detailLevel`); the old last-segment keys are
+  gone.
+- The accessibility option is now called "Cable colour labels"; the word "conduit" no longer appears in player-facing text.
+- Energy blocks show one entry in Jade's compact view (a stored-energy bar, or what they produce or use); the
+  network's lines moved to the details.
+- The task scheduler no longer allocates on ticks where a group's queue fills and drains, and a key registry interns
+  with one hash probe and shrinks once after a large release instead of at every halving.
+
+### Removed
+- The device-casing GUI pieces (`lib.client.gui.casing`, client only, not api) and `/maxtech_lib gui_demo`: nothing
+  uses them since the logic screens moved to the Accent look.
+
+## [0.14.0] - unreleased (beta)
+
+Ships with MaxTech Storage 0.9.0 (public beta). Report bugs on the issue tracker.
+
+### Removed
+- **Api** Breaking, Lib 0.13.0: Lib's guide is retired (MGM item 3); mods draw their guides with GuideME. Gone:
+  `lib.guide` and `lib.client.guide` (guide screen, page parser, search, scenes, hold key, book item, live values,
+  recipe sync, hot reload and the dev reload command), the Lib test guide, and `Guides`, `GuideElements`,
+  `GuideColumns`, `GuideLiveValues` and `GuideScreens` from `lib.api.guide`. `GuideConfigValues` stays. The client
+  config key `guide.hotReload` is removed.
+
+### Added
+- **Api** Experimental, Lib 0.12.0: energy diagnostics (MLE item 3). `EnergyNetwork.readout()` returns an
+  `EnergyReadout` (supply, demand, delivered, brownout fraction, stored and capacity, time to full or empty, last pass
+  cost) from fields the pass fills, without waking the network. Blocks show their endpoint through the new
+  `EnergyNetworks.ENDPOINT_CAPABILITY` block capability; Jade and the scanner then add MU lines for them
+  ("64 MU/t").
+- **Api** Experimental, Lib 0.11.0: FE edges for MaxTech energy (MLE item 2). `EnergyEdge` puts another mod's block into
+  an energy network as a producer and a consumer; Lib's `FeEdge` reaches it through a cached FE capability lookup and
+  moves FE in transactions, counting only what moved. `FeEndpointHandler` exposes a MaxTech buffer as an FE handler.
+  Conversion keeps exact units of the FE rate, so no round trip creates energy at any rate. New server config keys
+  `energy.exportEnabled`, `energy.exportPerEdge`, `energy.exportPerNetwork` (0 = no limit) and
+  `energy.edgePollTicks`; energy coming in is never limited. New: `FeRate.unitsOfFe`/`unitsOfMu`/`wholeFe`/`wholeMu`/
+  `muCovering`, `EnergyEndpoint.exportLeft`/`countExport`, `EnergyNetwork.edgeExport`/`edgeCount`,
+  `EnergyScheduler.edgeCount`/`activeEdgeCount`.
+- **Api** Experimental, Lib 0.10.0: MaxTech energy core (`lib.api.energy`, MLE item 1): MaxTech Units (MU) with an
+  FE rate in the server config (`energy.feRateFe`, `energy.feRateMu`, default 1:1, rounding never creates energy),
+  producer, consumer and buffer endpoints, and energy networks with one pass per tick by priority, linear brownout,
+  leftovers-only buffers, and sleep until something changes. Nothing uses it yet; Storage stays on FE.
+
+### Changed
+- `PresetConfig.presetProblems(Predicate)` also reports keys that must be in every built-in preset; Lib's `energy.*`
+  keys are checked that way. Lib's energy system and its config keys are documented in `docs/context/energy.md`.
+- **Api** Breaking, Lib 0.9.0: `ConduitType.createState()` and `CarriedItems.locate` / `CarriedItemSource.locate`
+  return `Optional`; `ConduitType.placeholderColour()` is renamed `baseColour()`; `lib.api.guide` and
+  `lib.api.carried` are experimental at package level and stay so after 1.0. Conduit types from other mods are not
+  supported in 1.0.
+- **Api** Javadoc on every public api type and member, checked by the build (`checkApiJavadoc` and doclint);
+  `OwnerSecurity.setOpsBypassSource` is marked `@ApiStatus.Internal`. No signature changed. Inventory and open
+  questions for 1.0 in `docs/api/lib-1.0.md`.
+
+## [0.8.0] - 2026-10-15
+
+### Added
+- Guide scenes and step-by-step boxes for guide pages.
+- Larger text option for MaxTech screens.
+- Client option `accessibility.conduitColorLabels`: conduits show their dye letter and mode arrows or a diamond, and
+  Jade names the colour and modes.
+- Save format versions with migration steps and a versioned block entity base (`lib.save`), for save compatibility
+  after 1.0.
+
+## [0.7.0] - 2026-10-09
+
+### Added
+- Guide screens with markers and live network values.
+
+## [0.6.0] - 2026-10-09
+
+### Added
+- Guide page elements: recipe layouts, `RecipeFor` and the guide layout tags.
+- Guide search and a guided-progress start page.
+- Guide pages open from items; guides hot reload.
+
+### Fixed
+- Guide recipe boxes are sized to their content.
+
+## [0.5.0] - 2026-10-09
+
+### Added
+- Guide core: markdown pages and a device-book screen.
+
+## [0.4.0] - 2026-10-08
+
+### Added
+- **Api:** carried gadgets are found through Lib, including in Curios slots.
+- Device casing GUI pieces and a dev demo screen.
+- Canvas widgets used by the logic node editor.
+
+### Changed
+- Tasks that idle together spread their backoff wake-ups.
+
+## [0.3.0] - 2026-10-06
+
+### Removed
+- Leftover code from a shelved mod suite.
+
+## [0.2.0] - 2026-10-06
+
+Baseline: Lib imported into this repository (conduit networks, scheduler, content builder, widget toolkit, config
+and presets).

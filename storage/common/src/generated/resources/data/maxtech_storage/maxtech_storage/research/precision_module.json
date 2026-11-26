@@ -1,0 +1,28 @@
+{
+  "any_of": [
+    {
+      "type": "task",
+      "count": 256,
+      "task": "machine_runs"
+    },
+    {
+      "type": "task",
+      "count": 64,
+      "task": "refine_amount"
+    },
+    {
+      "type": "points",
+      "cost": 400
+    }
+  ],
+  "branch": "processors",
+  "icon": "maxtech_storage:oscillator",
+  "order": 3,
+  "requires": [
+    "maxtech_storage:advanced_doping"
+  ],
+  "tier": 2,
+  "unlocks": [
+    "maxtech_storage:precision_module"
+  ]
+}

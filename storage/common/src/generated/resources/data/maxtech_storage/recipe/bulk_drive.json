@@ -1,0 +1,18 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "D": "maxtech_storage:storage_drive",
+    "E": "#maxtech_storage:elite_memory_processor",
+    "M": "#maxtech_storage:memory_module_4",
+    "P": "#c:plates/signal_alloy"
+  },
+  "pattern": [
+    "PEP",
+    "MDM",
+    "PEP"
+  ],
+  "result": {
+    "id": "maxtech_storage:bulk_drive"
+  }
+}

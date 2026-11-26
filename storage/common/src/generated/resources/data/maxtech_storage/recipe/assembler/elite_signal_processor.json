@@ -1,0 +1,28 @@
+{
+  "type": "maxtech_storage:assembler",
+  "duration": 200,
+  "energy_per_tick": 20,
+  "inputs": [
+    {
+      "ingredient": "#maxtech_storage:elite_signal_die"
+    },
+    {
+      "count": 2,
+      "ingredient": "#maxtech_storage:superconductor_wire"
+    },
+    {
+      "ingredient": "#maxtech_storage:tantalum_capacitor"
+    },
+    {
+      "ingredient": "#maxtech_storage:circuit_board"
+    }
+  ],
+  "outputs": [
+    {
+      "item": {
+        "id": "maxtech_storage:elite_signal_processor"
+      }
+    }
+  ],
+  "research": "maxtech_storage:elite_processors"
+}

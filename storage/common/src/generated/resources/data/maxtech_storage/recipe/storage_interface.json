@@ -1,0 +1,19 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "redstone",
+  "key": {
+    "C": "#c:chests",
+    "H": "minecraft:hopper",
+    "O": "#maxtech_storage:basic_io_processor",
+    "P": "#c:plates/signal_alloy",
+    "W": "#maxtech_storage:insulated_copper_wire"
+  },
+  "pattern": [
+    "PHP",
+    "OCO",
+    "PWP"
+  ],
+  "result": {
+    "id": "maxtech_storage:storage_interface"
+  }
+}

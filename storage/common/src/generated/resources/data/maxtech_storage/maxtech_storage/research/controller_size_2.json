@@ -1,0 +1,34 @@
+{
+  "any_of": [
+    {
+      "type": "task",
+      "count": 4,
+      "task": "drives_running"
+    },
+    {
+      "type": "task",
+      "count": 25000,
+      "task": "ports_throughput"
+    },
+    {
+      "type": "puzzle",
+      "difficulty": 1,
+      "puzzle": "maxtech_storage:signal_routing"
+    },
+    {
+      "type": "points",
+      "cost": 400
+    }
+  ],
+  "branch": "network",
+  "icon": "maxtech_storage:storage_controller",
+  "order": 6,
+  "requires": [
+    "maxtech_storage:controller_size_1",
+    "maxtech_storage:port_tier_2"
+  ],
+  "tier": 3,
+  "unlocks": [
+    "maxtech_storage:controller_size_2"
+  ]
+}

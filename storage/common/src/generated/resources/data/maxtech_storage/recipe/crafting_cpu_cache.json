@@ -1,0 +1,17 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "P": "#c:plates/signal_alloy",
+    "T": "#c:ingots/tantalum",
+    "X": "#maxtech_storage:advanced_signal_processor"
+  },
+  "pattern": [
+    "PXP",
+    "XTX",
+    "PXP"
+  ],
+  "result": {
+    "id": "maxtech_storage:crafting_cpu_cache"
+  }
+}

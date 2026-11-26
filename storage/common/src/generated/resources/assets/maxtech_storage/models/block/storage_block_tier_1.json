@@ -1,0 +1,8 @@
+{
+  "parent": "minecraft:block/orientable",
+  "textures": {
+    "front": "maxtech_storage:block/storage_block/front_tier_1",
+    "side": "maxtech_storage:block/storage_block/side",
+    "top": "maxtech_storage:block/storage_block/side"
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "parent": "minecraft:block/cross",
+  "textures": {
+    "cross": "maxtech_storage:block/data_crystal_cluster"
+  }
+}

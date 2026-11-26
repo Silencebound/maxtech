@@ -1,0 +1,73 @@
+{
+  "variants": {
+    "facing=down,mode=export": {
+      "model": "maxtech_storage:block/storage_port_tier_3_export",
+      "x": 90
+    },
+    "facing=down,mode=import": {
+      "model": "maxtech_storage:block/storage_port_tier_3",
+      "x": 90
+    },
+    "facing=down,mode=storage": {
+      "model": "maxtech_storage:block/storage_port_tier_3_storage",
+      "x": 90
+    },
+    "facing=east,mode=export": {
+      "model": "maxtech_storage:block/storage_port_tier_3_export",
+      "y": 90
+    },
+    "facing=east,mode=import": {
+      "model": "maxtech_storage:block/storage_port_tier_3",
+      "y": 90
+    },
+    "facing=east,mode=storage": {
+      "model": "maxtech_storage:block/storage_port_tier_3_storage",
+      "y": 90
+    },
+    "facing=north,mode=export": {
+      "model": "maxtech_storage:block/storage_port_tier_3_export"
+    },
+    "facing=north,mode=import": {
+      "model": "maxtech_storage:block/storage_port_tier_3"
+    },
+    "facing=north,mode=storage": {
+      "model": "maxtech_storage:block/storage_port_tier_3_storage"
+    },
+    "facing=south,mode=export": {
+      "model": "maxtech_storage:block/storage_port_tier_3_export",
+      "y": 180
+    },
+    "facing=south,mode=import": {
+      "model": "maxtech_storage:block/storage_port_tier_3",
+      "y": 180
+    },
+    "facing=south,mode=storage": {
+      "model": "maxtech_storage:block/storage_port_tier_3_storage",
+      "y": 180
+    },
+    "facing=up,mode=export": {
+      "model": "maxtech_storage:block/storage_port_tier_3_export",
+      "x": 270
+    },
+    "facing=up,mode=import": {
+      "model": "maxtech_storage:block/storage_port_tier_3",
+      "x": 270
+    },
+    "facing=up,mode=storage": {
+      "model": "maxtech_storage:block/storage_port_tier_3_storage",
+      "x": 270
+    },
+    "facing=west,mode=export": {
+      "model": "maxtech_storage:block/storage_port_tier_3_export",
+      "y": 270
+    },
+    "facing=west,mode=import": {
+      "model": "maxtech_storage:block/storage_port_tier_3",
+      "y": 270
+    },
+    "facing=west,mode=storage": {
+      "model": "maxtech_storage:block/storage_port_tier_3_storage",
+      "y": 270
+    }
+  }
+}

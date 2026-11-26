@@ -1,0 +1,86 @@
+{
+  "permissions": {
+    "additionalDirectories": [
+      "~/mc-reference"
+    ],
+    "allow": [
+      "Bash(./gradlew *)",
+      "Bash(git *)",
+      "Bash(gh *)",
+      "Bash(unzip *)",
+      "Bash(rg *)",
+      "Bash(grep *)",
+      "Bash(find *)",
+      "Bash(ls *)",
+      "Bash(cat *)",
+      "Bash(scripts/pr.sh *)",
+      "Bash(scripts/stop-dev-games.sh*)",
+      "Bash(./gradlew.bat *)",
+      "Bash(gradlew.bat *)"
+    ],
+    "deny": [
+      "Bash(git push --force*)",
+      "Bash(git push -f*)",
+      "Bash(git push origin main*)",
+      "Bash(gh pr merge --admin*)"
+    ]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$(git rev-parse --show-toplevel 2>/dev/null || pwd)/.claude/hooks/format-java.sh\"",
+            "timeout": 120,
+            "statusMessage": "Formatting Java"
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$(git rev-parse --show-toplevel 2>/dev/null || pwd)/.claude/hooks/git-sync.sh\" start",
+            "timeout": 60,
+            "statusMessage": "Syncing with GitHub"
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$(git rev-parse --show-toplevel 2>/dev/null || pwd)/.claude/hooks/git-sync.sh\" end",
+            "timeout": 60
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Write|Edit|MultiEdit|NotebookEdit|Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cd \"$(git rev-parse --show-toplevel 2>/dev/null || pwd)\" && for p in python3 python py; do if \"$p\" -c \"\" >/dev/null 2>&1; then exec \"$p\" .claude/hooks/guard.py; fi; done; exit 0",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  },
+  "worktree": {
+    "baseRef": "head"
+  },
+  "statusLine": {
+    "type": "command",
+    "command": "bash \"$(git rev-parse --show-toplevel 2>/dev/null || pwd)/.claude/statusline.sh\"",
+    "padding": 0
+  }
+}

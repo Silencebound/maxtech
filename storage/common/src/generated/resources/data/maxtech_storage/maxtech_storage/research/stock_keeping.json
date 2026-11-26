@@ -1,0 +1,29 @@
+{
+  "any_of": [
+    {
+      "type": "task",
+      "count": 65536,
+      "task": "store_items"
+    },
+    {
+      "type": "puzzle",
+      "difficulty": 1,
+      "puzzle": "maxtech_storage:byte_packing"
+    },
+    {
+      "type": "points",
+      "cost": 500
+    }
+  ],
+  "branch": "crafting",
+  "icon": "maxtech_storage:stock_keeper",
+  "order": 3,
+  "requires": [
+    "maxtech_storage:autocrafting",
+    "maxtech_storage:interface"
+  ],
+  "tier": 3,
+  "unlocks": [
+    "maxtech_storage:stock_keeper"
+  ]
+}

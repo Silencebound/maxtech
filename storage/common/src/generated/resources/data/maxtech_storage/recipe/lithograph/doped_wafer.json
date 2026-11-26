@@ -1,0 +1,21 @@
+{
+  "type": "maxtech_storage:lithograph",
+  "duration": 120,
+  "energy_per_tick": 10,
+  "inputs": [
+    {
+      "ingredient": "#maxtech_storage:silicon_wafer"
+    },
+    {
+      "ingredient": "#c:dusts/redstone"
+    }
+  ],
+  "mode": "dope",
+  "outputs": [
+    {
+      "item": {
+        "id": "maxtech_storage:doped_wafer"
+      }
+    }
+  ]
+}

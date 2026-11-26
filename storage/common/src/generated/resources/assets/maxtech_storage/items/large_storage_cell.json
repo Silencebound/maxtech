@@ -1,0 +1,6 @@
+{
+  "model": {
+    "type": "minecraft:model",
+    "model": "maxtech_storage:item/large_storage_cell"
+  }
+}

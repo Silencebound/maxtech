@@ -1,0 +1,22 @@
+{
+  "type": "maxtech_storage:lithograph",
+  "duration": 120,
+  "energy_per_tick": 14,
+  "inputs": [
+    {
+      "ingredient": "#maxtech_storage:silicon_wafer"
+    },
+    {
+      "ingredient": "#c:dusts/glowstone"
+    }
+  ],
+  "mode": "dope",
+  "outputs": [
+    {
+      "item": {
+        "id": "maxtech_storage:advanced_doped_wafer"
+      }
+    }
+  ],
+  "research": "maxtech_storage:advanced_processors"
+}

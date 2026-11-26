@@ -1,0 +1,32 @@
+{
+  "parent": "minecraft:recipes/root",
+  "criteria": {
+    "has_research_terminal_part": {
+      "conditions": {
+        "items": [
+          {
+            "items": "#maxtech_storage:research_terminal_part"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "has_the_recipe": {
+      "conditions": {
+        "recipe": "maxtech_storage:research_terminal_from_part"
+      },
+      "trigger": "minecraft:recipe_unlocked"
+    }
+  },
+  "requirements": [
+    [
+      "has_the_recipe",
+      "has_research_terminal_part"
+    ]
+  ],
+  "rewards": {
+    "recipes": [
+      "maxtech_storage:research_terminal_from_part"
+    ]
+  }
+}

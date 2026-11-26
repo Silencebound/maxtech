@@ -1,0 +1,9 @@
+{
+  "values": [
+    "maxtech_storage:storage_cable_tier_1",
+    "maxtech_storage:covered_storage_cable_tier_1",
+    "maxtech_storage:smart_storage_cable_tier_1",
+    "maxtech_storage:glass_storage_cable_tier_1",
+    "maxtech_storage:fiber_storage_cable_tier_1"
+  ]
+}

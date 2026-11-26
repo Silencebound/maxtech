@@ -1,0 +1,19 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "G": "minecraft:glass_pane",
+    "L": "#c:gems/lumen_quartz",
+    "M": "#maxtech_storage:basic_memory_processor",
+    "P": "#c:plates/signal_alloy"
+  },
+  "pattern": [
+    "GLG",
+    "LML",
+    "PPP"
+  ],
+  "result": {
+    "count": 4,
+    "id": "maxtech_storage:blank_pattern"
+  }
+}

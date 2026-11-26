@@ -1,0 +1,16 @@
+{
+  "neoforge:conditions": [
+    {
+      "type": "maxtech_lib:content_enabled",
+      "toggle": "maxtech_lib:gametest_toggle_off"
+    }
+  ],
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "ingredients": [
+    "minecraft:dead_bush"
+  ],
+  "result": {
+    "id": "minecraft:stick"
+  }
+}

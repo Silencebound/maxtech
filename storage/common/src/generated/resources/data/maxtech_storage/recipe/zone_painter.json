@@ -1,0 +1,17 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "equipment",
+  "key": {
+    "G": "#c:dusts/glowstone",
+    "L": "#maxtech_storage:basic_logic_processor",
+    "P": "#c:plates/signal_alloy"
+  },
+  "pattern": [
+    " GG",
+    " LG",
+    "P  "
+  ],
+  "result": {
+    "id": "maxtech_storage:zone_painter"
+  }
+}

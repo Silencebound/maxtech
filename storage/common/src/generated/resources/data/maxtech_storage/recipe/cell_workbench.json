@@ -1,0 +1,18 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "C": "#c:player_workstations/crafting_tables",
+    "D": "#maxtech_storage:display_glass",
+    "L": "#maxtech_storage:basic_logic_processor",
+    "P": "#c:plates/signal_alloy"
+  },
+  "pattern": [
+    "PDP",
+    "LCL",
+    "PPP"
+  ],
+  "result": {
+    "id": "maxtech_storage:cell_workbench"
+  }
+}

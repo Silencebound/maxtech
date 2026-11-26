@@ -1,0 +1,19 @@
+{
+  "type": "maxtech_storage:fabricator",
+  "duration": 120,
+  "energy_per_tick": 12,
+  "inputs": [
+    {
+      "ingredient": "#c:ingots/niobium"
+    }
+  ],
+  "mode": "draw",
+  "outputs": [
+    {
+      "item": {
+        "count": 2,
+        "id": "maxtech_storage:superconductor_wire"
+      }
+    }
+  ]
+}

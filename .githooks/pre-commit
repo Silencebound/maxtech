@@ -1,0 +1,13 @@
+#!/usr/bin/env sh
+# Enabled with `git config core.hooksPath .githooks`. Fails the commit if staged Java sources are not
+# Spotless-clean, so formatting problems surface here instead of in CI.
+set -eu
+
+if ! git diff --cached --name-only --diff-filter=ACMR | grep -q '\.java$'; then
+    exit 0
+fi
+
+if ! ./gradlew --quiet spotlessCheck >/dev/null 2>&1; then
+    echo "pre-commit: Java formatting violations. Run ./gradlew spotlessApply, re-stage and commit again." >&2
+    exit 1
+fi

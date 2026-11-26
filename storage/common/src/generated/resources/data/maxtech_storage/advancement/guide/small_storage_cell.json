@@ -1,0 +1,32 @@
+{
+  "parent": "maxtech_storage:guide/storage_cable_tier_1",
+  "criteria": {
+    "has_small_storage_cell": {
+      "conditions": {
+        "items": [
+          {
+            "items": "maxtech_storage:small_storage_cell"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    }
+  },
+  "display": {
+    "description": {
+      "translate": "advancements.maxtech_storage.guide.small_storage_cell.description"
+    },
+    "icon": {
+      "id": "maxtech_storage:small_storage_cell"
+    },
+    "title": {
+      "translate": "advancements.maxtech_storage.guide.small_storage_cell.title"
+    }
+  },
+  "requirements": [
+    [
+      "has_small_storage_cell"
+    ]
+  ],
+  "sends_telemetry_event": true
+}

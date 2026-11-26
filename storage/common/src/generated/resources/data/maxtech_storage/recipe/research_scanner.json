@@ -1,0 +1,19 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "equipment",
+  "key": {
+    "D": "#maxtech_storage:display_glass",
+    "O": "#maxtech_storage:oscillator",
+    "P": "#c:plates/signal_alloy",
+    "S": "#maxtech_storage:basic_signal_processor",
+    "W": "#maxtech_storage:insulated_copper_wire"
+  },
+  "pattern": [
+    "PDP",
+    "OSO",
+    "PWP"
+  ],
+  "result": {
+    "id": "maxtech_storage:research_scanner"
+  }
+}

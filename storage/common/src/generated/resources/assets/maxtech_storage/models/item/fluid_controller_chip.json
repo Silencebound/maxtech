@@ -1,0 +1,6 @@
+{
+  "parent": "minecraft:item/generated",
+  "textures": {
+    "layer0": "maxtech_storage:item/fluid_controller_chip"
+  }
+}

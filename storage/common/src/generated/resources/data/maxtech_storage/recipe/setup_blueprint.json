@@ -1,0 +1,16 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "equipment",
+  "key": {
+    "L": "#maxtech_storage:basic_logic_processor",
+    "M": "#maxtech_storage:basic_memory_processor",
+    "P": "#c:plates/signal_alloy"
+  },
+  "pattern": [
+    "PMP",
+    " L "
+  ],
+  "result": {
+    "id": "maxtech_storage:setup_blueprint"
+  }
+}

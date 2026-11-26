@@ -1,0 +1,19 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "redstone",
+  "key": {
+    "C": "#maxtech_storage:tantalum_capacitor",
+    "I": "#maxtech_storage:advanced_io_processor",
+    "L": "#maxtech_storage:advanced_logic_processor",
+    "O": "#maxtech_storage:oscillator",
+    "P": "#c:plates/signal_alloy"
+  },
+  "pattern": [
+    "PLP",
+    "OCO",
+    "PIP"
+  ],
+  "result": {
+    "id": "maxtech_storage:subnet_controller"
+  }
+}

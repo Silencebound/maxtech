@@ -1,0 +1,19 @@
+{
+  "type": "maxtech_storage:lithograph",
+  "duration": 120,
+  "energy_per_tick": 8,
+  "inputs": [
+    {
+      "ingredient": "#c:gems/lumen_quartz"
+    }
+  ],
+  "mode": "slice",
+  "outputs": [
+    {
+      "item": {
+        "count": 2,
+        "id": "maxtech_storage:oscillator"
+      }
+    }
+  ]
+}

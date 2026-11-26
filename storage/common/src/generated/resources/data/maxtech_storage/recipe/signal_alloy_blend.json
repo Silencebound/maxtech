@@ -1,0 +1,14 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "ingredients": [
+    "#c:ingots/iron",
+    "#c:ingots/copper",
+    "#c:dusts/lumen_quartz",
+    "#c:dusts/lumen_quartz"
+  ],
+  "result": {
+    "count": 2,
+    "id": "maxtech_storage:signal_alloy_blend"
+  }
+}

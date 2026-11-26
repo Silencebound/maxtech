@@ -1,0 +1,17 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "redstone",
+  "key": {
+    "G": "#c:dusts/glowstone",
+    "P": "#c:plates/signal_alloy",
+    "W": "#c:wires/copper"
+  },
+  "pattern": [
+    " G ",
+    "PWP"
+  ],
+  "result": {
+    "count": 4,
+    "id": "maxtech_storage:smart_label"
+  }
+}

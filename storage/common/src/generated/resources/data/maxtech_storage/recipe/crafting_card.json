@@ -1,0 +1,18 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "redstone",
+  "key": {
+    "B": "maxtech_storage:blank_pattern",
+    "L": "#maxtech_storage:basic_logic_processor",
+    "P": "#c:plates/signal_alloy",
+    "R": "#c:dusts/redstone"
+  },
+  "pattern": [
+    " B ",
+    "RLR",
+    "PPP"
+  ],
+  "result": {
+    "id": "maxtech_storage:crafting_card"
+  }
+}

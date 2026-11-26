@@ -1,0 +1,18 @@
+{
+  "type": "maxtech_storage:fabricator",
+  "duration": 60,
+  "energy_per_tick": 6,
+  "inputs": [
+    {
+      "ingredient": "#c:gems/lumen_quartz"
+    }
+  ],
+  "mode": "press",
+  "outputs": [
+    {
+      "item": {
+        "id": "maxtech_storage:lumen_quartz_dust"
+      }
+    }
+  ]
+}

@@ -1,0 +1,47 @@
+{
+  "category": "alerts",
+  "description": "Posts a notice to the network log, the team and bound displays when a crafting job for sticks finishes.",
+  "graph": {
+    "nodes": [
+      {
+        "type": "job_finished",
+        "id": 1,
+        "settings": {
+          "item": {
+            "kind": "item",
+            "value": {
+              "id": "minecraft:stick",
+              "kind": "item"
+            }
+          }
+        }
+      },
+      {
+        "type": "notify",
+        "id": 2,
+        "settings": {
+          "displays": {
+            "kind": "flag",
+            "value": true
+          },
+          "text": {
+            "kind": "text",
+            "value": "Sticks are ready"
+          }
+        },
+        "x": 96
+      }
+    ],
+    "version": 1,
+    "wires": [
+      {
+        "from": 1,
+        "in": "do",
+        "out": "finished",
+        "to": 2
+      }
+    ]
+  },
+  "icon": "minecraft:bell",
+  "name": "Notice when a craft finishes"
+}

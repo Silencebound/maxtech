@@ -1,0 +1,30 @@
+{
+  "any_of": [
+    {
+      "type": "task",
+      "count": 32,
+      "machine": "lithograph",
+      "task": "machine_runs"
+    },
+    {
+      "type": "puzzle",
+      "puzzle": "maxtech_storage:mask_alignment"
+    },
+    {
+      "type": "points",
+      "cost": 100
+    }
+  ],
+  "branch": "processors",
+  "icon": "maxtech_storage:logic_mask",
+  "order": 1,
+  "requires": [
+    "maxtech_storage:logic_mask"
+  ],
+  "tier": 2,
+  "unlocks": [
+    "maxtech_storage:memory_mask",
+    "maxtech_storage:signal_mask",
+    "maxtech_storage:io_mask"
+  ]
+}

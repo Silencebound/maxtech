@@ -1,0 +1,19 @@
+{
+  "type": "maxtech_storage:fabricator",
+  "duration": 60,
+  "energy_per_tick": 6,
+  "inputs": [
+    {
+      "ingredient": "#c:glass_blocks"
+    }
+  ],
+  "mode": "draw",
+  "outputs": [
+    {
+      "item": {
+        "count": 2,
+        "id": "maxtech_storage:glass_fibre"
+      }
+    }
+  ]
+}

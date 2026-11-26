@@ -1,0 +1,6 @@
+{
+  "parent": "minecraft:block/cube_all",
+  "textures": {
+    "all": "maxtech_storage:block/data_crystal_block"
+  }
+}

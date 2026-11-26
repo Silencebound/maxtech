@@ -1,0 +1,29 @@
+{
+  "any_of": [
+    {
+      "type": "task",
+      "count": 32768,
+      "task": "store_items"
+    },
+    {
+      "type": "puzzle",
+      "difficulty": 2,
+      "puzzle": "maxtech_storage:byte_packing"
+    },
+    {
+      "type": "points",
+      "cost": 400
+    }
+  ],
+  "branch": "memory",
+  "icon": "maxtech_storage:memory_module_1",
+  "order": 2,
+  "requires": [
+    "maxtech_storage:medium_casing",
+    "maxtech_storage:advanced_doping"
+  ],
+  "tier": 2,
+  "unlocks": [
+    "maxtech_storage:memory_module_3"
+  ]
+}

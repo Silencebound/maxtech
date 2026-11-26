@@ -1,0 +1,8 @@
+{
+  "type": "maxtech_storage:component_copying",
+  "category": "misc",
+  "ingredient": "#maxtech_storage:pattern_provider",
+  "result": {
+    "id": "maxtech_storage:pattern_provider_part"
+  }
+}

@@ -1,0 +1,32 @@
+{
+  "criteria": {
+    "has_fuel_generator": {
+      "conditions": {
+        "items": [
+          {
+            "items": "maxtech_storage:fuel_generator"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    }
+  },
+  "display": {
+    "background": "minecraft:gui/advancements/backgrounds/stone",
+    "description": {
+      "translate": "advancements.maxtech_storage.guide.fuel_generator.description"
+    },
+    "icon": {
+      "id": "maxtech_storage:fuel_generator"
+    },
+    "title": {
+      "translate": "advancements.maxtech_storage.guide.fuel_generator.title"
+    }
+  },
+  "requirements": [
+    [
+      "has_fuel_generator"
+    ]
+  ],
+  "sends_telemetry_event": true
+}

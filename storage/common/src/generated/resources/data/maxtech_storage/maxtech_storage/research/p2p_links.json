@@ -1,0 +1,28 @@
+{
+  "any_of": [
+    {
+      "type": "task",
+      "count": 25000,
+      "task": "ports_throughput"
+    },
+    {
+      "type": "puzzle",
+      "difficulty": 1,
+      "puzzle": "maxtech_storage:waveform_tuning"
+    },
+    {
+      "type": "points",
+      "cost": 500
+    }
+  ],
+  "branch": "network",
+  "icon": "maxtech_storage:p2p_item_link",
+  "order": 8,
+  "requires": [
+    "maxtech_storage:antennas"
+  ],
+  "tier": 3,
+  "unlocks": [
+    "maxtech_storage:p2p_links"
+  ]
+}

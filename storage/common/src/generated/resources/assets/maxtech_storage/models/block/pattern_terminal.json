@@ -1,0 +1,8 @@
+{
+  "parent": "minecraft:block/orientable",
+  "textures": {
+    "front": "maxtech_storage:block/pattern_terminal_front",
+    "side": "maxtech_storage:block/terminal/bezel",
+    "top": "maxtech_storage:block/terminal/bezel"
+  }
+}

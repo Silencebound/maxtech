@@ -1,0 +1,17 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "redstone",
+  "key": {
+    "C": "#maxtech_storage:storage_cable_tier_3",
+    "X": "#c:dusts/glowstone"
+  },
+  "pattern": [
+    "CCC",
+    "CXC",
+    "CCC"
+  ],
+  "result": {
+    "count": 8,
+    "id": "maxtech_storage:smart_storage_cable_tier_3"
+  }
+}

@@ -1,0 +1,40 @@
+{
+  "category": "redstone",
+  "description": "Sets the priority of the storage labelled \"bank\" to the redstone strength on the controller: 15 with a lever on, 0 off.",
+  "graph": {
+    "nodes": [
+      {
+        "type": "redstone_changes",
+        "id": 1
+      },
+      {
+        "type": "set_priority",
+        "id": 2,
+        "settings": {
+          "label": {
+            "kind": "text",
+            "value": "bank"
+          }
+        },
+        "x": 96
+      }
+    ],
+    "version": 1,
+    "wires": [
+      {
+        "from": 1,
+        "in": "do",
+        "out": "changed",
+        "to": 2
+      },
+      {
+        "from": 1,
+        "in": "priority",
+        "out": "strength",
+        "to": 2
+      }
+    ]
+  },
+  "icon": "minecraft:comparator",
+  "name": "Priority follows a lever"
+}

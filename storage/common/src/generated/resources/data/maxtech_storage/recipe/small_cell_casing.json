@@ -1,0 +1,17 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "D": "#maxtech_storage:display_glass",
+    "P": "#c:plates/signal_alloy",
+    "X": "#c:ingots/iron"
+  },
+  "pattern": [
+    "PDP",
+    "X X",
+    "PPP"
+  ],
+  "result": {
+    "id": "maxtech_storage:small_cell_casing"
+  }
+}

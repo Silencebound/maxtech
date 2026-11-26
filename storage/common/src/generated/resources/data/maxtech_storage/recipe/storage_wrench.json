@@ -1,0 +1,17 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "equipment",
+  "key": {
+    "I": "#c:ingots/iron",
+    "L": "#maxtech_storage:basic_logic_processor",
+    "P": "#c:plates/signal_alloy"
+  },
+  "pattern": [
+    "P P",
+    " L ",
+    " I "
+  ],
+  "result": {
+    "id": "maxtech_storage:storage_wrench"
+  }
+}

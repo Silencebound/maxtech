@@ -1,0 +1,24 @@
+{
+  "type": "maxtech_storage:lithograph",
+  "duration": 200,
+  "energy_per_tick": 12,
+  "inputs": [
+    {
+      "ingredient": "#maxtech_storage:doped_wafer"
+    },
+    {
+      "consumed": false,
+      "ingredient": "#maxtech_storage:io_mask"
+    }
+  ],
+  "mode": "print",
+  "outputs": [
+    {
+      "item": {
+        "count": 2,
+        "id": "maxtech_storage:io_die"
+      }
+    }
+  ],
+  "research": "maxtech_storage:io_mask"
+}

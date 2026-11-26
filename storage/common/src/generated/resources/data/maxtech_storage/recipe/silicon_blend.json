@@ -1,0 +1,11 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "ingredients": [
+    "#c:gems/lumen_quartz",
+    "#minecraft:coals"
+  ],
+  "result": {
+    "id": "maxtech_storage:silicon_blend"
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "neoforge:conditions": [
+    {
+      "type": "maxtech_lib:content_enabled",
+      "toggle": "maxtech_storage:void_geodes"
+    }
+  ],
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "L": "#maxtech_storage:void_lattice",
+    "P": "#maxtech_storage:elite_logic_processor",
+    "S": "#maxtech_storage:superconductor_wire",
+    "V": "#c:gems/void_crystal"
+  },
+  "pattern": [
+    "VLV",
+    "SPS",
+    "VLV"
+  ],
+  "result": {
+    "id": "maxtech_storage:void_module"
+  }
+}

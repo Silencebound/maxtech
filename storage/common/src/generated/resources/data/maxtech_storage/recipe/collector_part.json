@@ -1,0 +1,14 @@
+{
+  "neoforge:conditions": [
+    {
+      "type": "maxtech_lib:content_enabled",
+      "toggle": "maxtech_storage:collector"
+    }
+  ],
+  "type": "maxtech_storage:component_copying",
+  "category": "redstone",
+  "ingredient": "#maxtech_storage:collector",
+  "result": {
+    "id": "maxtech_storage:collector_part"
+  }
+}

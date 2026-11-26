@@ -1,0 +1,12 @@
+{
+  "model": {
+    "type": "minecraft:model",
+    "model": "maxtech_storage:item/material/gem",
+    "tints": [
+      {
+        "type": "minecraft:constant",
+        "value": -6657328
+      }
+    ]
+  }
+}

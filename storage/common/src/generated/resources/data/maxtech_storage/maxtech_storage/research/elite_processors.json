@@ -1,0 +1,29 @@
+{
+  "any_of": [
+    {
+      "type": "task",
+      "count": 64,
+      "tag": "c:gems/data_crystal",
+      "task": "store_items"
+    },
+    {
+      "type": "puzzle",
+      "difficulty": 2,
+      "puzzle": "maxtech_storage:signal_routing"
+    },
+    {
+      "type": "points",
+      "cost": 800
+    }
+  ],
+  "branch": "processors",
+  "icon": "maxtech_storage:data_crystal",
+  "order": 5,
+  "requires": [
+    "maxtech_storage:advanced_doping"
+  ],
+  "tier": 5,
+  "unlocks": [
+    "maxtech_storage:elite_processors"
+  ]
+}

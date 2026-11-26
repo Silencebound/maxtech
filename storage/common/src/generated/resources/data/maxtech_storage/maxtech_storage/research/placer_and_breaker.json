@@ -1,0 +1,30 @@
+{
+  "any_of": [
+    {
+      "type": "task",
+      "count": 16384,
+      "task": "ports_throughput"
+    },
+    {
+      "type": "task",
+      "fraction": 0.02,
+      "max": 200,
+      "task": "store_kinds"
+    },
+    {
+      "type": "points",
+      "cost": 300
+    }
+  ],
+  "branch": "network",
+  "icon": "maxtech_storage:storage_port_tier_1",
+  "order": 14,
+  "requires": [
+    "maxtech_storage:world_devices"
+  ],
+  "tier": 2,
+  "unlocks": [
+    "maxtech_storage:placer_port",
+    "maxtech_storage:breaker_port"
+  ]
+}

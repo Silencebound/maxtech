@@ -1,0 +1,19 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "I": "#c:ingots/iron",
+    "R": "#c:dusts/redstone",
+    "S": "#c:silicon",
+    "T": "minecraft:crafting_table",
+    "W": "#c:wires/copper"
+  },
+  "pattern": [
+    "ITI",
+    "SWS",
+    "IRI"
+  ],
+  "result": {
+    "id": "maxtech_storage:assembler"
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "any_of": [
+    {
+      "type": "task",
+      "count": 2,
+      "task": "drives_running"
+    },
+    {
+      "type": "task",
+      "count": 2048,
+      "task": "ports_throughput"
+    },
+    {
+      "type": "points",
+      "cost": 150
+    }
+  ],
+  "branch": "network",
+  "icon": "maxtech_storage:network_analyzer",
+  "order": 20,
+  "requires": [
+    "maxtech_storage:logic_mask"
+  ],
+  "tier": 2,
+  "unlocks": [
+    "maxtech_storage:telemetry_recorder"
+  ]
+}

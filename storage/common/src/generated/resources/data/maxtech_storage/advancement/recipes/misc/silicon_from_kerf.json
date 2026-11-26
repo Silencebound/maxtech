@@ -1,0 +1,32 @@
+{
+  "parent": "minecraft:recipes/root",
+  "criteria": {
+    "has_kerf": {
+      "conditions": {
+        "items": [
+          {
+            "items": "#c:dusts/silicon"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "has_the_recipe": {
+      "conditions": {
+        "recipe": "maxtech_storage:silicon_from_kerf"
+      },
+      "trigger": "minecraft:recipe_unlocked"
+    }
+  },
+  "requirements": [
+    [
+      "has_the_recipe",
+      "has_kerf"
+    ]
+  ],
+  "rewards": {
+    "recipes": [
+      "maxtech_storage:silicon_from_kerf"
+    ]
+  }
+}

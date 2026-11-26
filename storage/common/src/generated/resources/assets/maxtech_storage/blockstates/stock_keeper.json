@@ -1,0 +1,7 @@
+{
+  "variants": {
+    "": {
+      "model": "maxtech_storage:block/stock_keeper"
+    }
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "type": "minecraft:block",
+  "pools": [
+    {
+      "bonus_rolls": 0.0,
+      "conditions": [
+        {
+          "condition": "minecraft:survives_explosion"
+        }
+      ],
+      "entries": [
+        {
+          "type": "minecraft:item",
+          "name": "maxtech_storage:controller_wireless_access_mount"
+        }
+      ],
+      "rolls": 1.0
+    }
+  ],
+  "random_sequence": "maxtech_storage:blocks/controller_wireless_access_mount"
+}

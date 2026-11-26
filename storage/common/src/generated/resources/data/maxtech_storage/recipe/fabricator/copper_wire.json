@@ -1,0 +1,19 @@
+{
+  "type": "maxtech_storage:fabricator",
+  "duration": 60,
+  "energy_per_tick": 6,
+  "inputs": [
+    {
+      "ingredient": "#c:ingots/copper"
+    }
+  ],
+  "mode": "draw",
+  "outputs": [
+    {
+      "item": {
+        "count": 3,
+        "id": "maxtech_storage:copper_wire"
+      }
+    }
+  ]
+}

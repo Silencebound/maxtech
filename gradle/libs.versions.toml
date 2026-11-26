@@ -1,0 +1,70 @@
+[versions]
+minecraft = "26.1.2"
+minecraft-range = "[26.1.2]"
+neoforge = "26.1.2.109"
+neoforge-range = "[26.1.2,26.2)"
+# javafml language loader version, not the FML version (docs: gettingstarted/modfiles.md).
+javafml-range = "[1,)"
+# Also pinned in settings.gradle.kts for the repositories settings plugin.
+moddev = "2.0.147"
+errorprone = "2.50.0"
+errorprone-plugin = "5.1.1"
+nullaway = "0.14.2"
+spotless = "8.10.3"
+junit = "6.1.3"
+# JEI for 26.1.2 (M2 task 10); compileOnly API, runtime only in dev runs. The jei-26.1 line stops at 26.1.
+jei = "29.43.0.106"
+# Roughly Enough Items for 26.1.2 (M7C item 25); compileOnly API, runtime only with withRei=true. REI needs Architectury and Cloth Config at runtime.
+rei = "26.1.819"
+architectury = "20.0.6"
+cloth-config = "26.1.154"
+basic-math = "0.6.1"
+# KubeJS for 26.1.2 and its Rhino engine (owner 2026-10-04); compileOnly, from Modrinth's maven.
+kubejs = "26.1.2-8.0.6+neoforge"
+rhino = "2101.2.8-build.91+Rhino-1.21"
+# Better Advanced Tooltips (MIT): KubeJS 8.0.6 marks it optional but fails to start without it; dev runtime only,
+# beside KubeJS (-PwithKubeJS=true).
+better-advanced-tooltips = "2601.1.0-build.9"
+# Jade for 26.1.x NeoForge (M3 task 11); compileOnly, runtime only in dev runs.
+jade = "26.1.11+neoforge"
+# GuideME for 26.1.2 (Storage's guide, MGM): required by Storage and bundled in its jar. From Maven Central.
+# Its range [26.1.15-beta,26.2-) also lives in storage/neoforge/build.gradle.kts (jarJar) and neoforge.mods.toml.
+guideme = "26.1.15-beta"
+# FTB Teams for 26.1.2 (optional team compat, owner decision 2026-10-03). All Rights Reserved: compileOnly against
+# FTB's maven only, never bundled, shaded or copied, and not in dev runs (it needs FTB Library at runtime).
+ftb-teams = "26.1.2.4"
+# FTB Chunks and FTB Library for 26.1.2 (claim tests in the dev client). All Rights Reserved: a dev-only, opt-in
+# runtime (-PwithFtbChunks=true) from FTB's maven; never bundled, shaded, copied, committed, published or run in CI.
+ftb-chunks = "26.1.2.8"
+ftb-library = "26.1.2.9"
+# Curios API for 26.1.2 (optional accessory slots for carried gadgets, owner decision 2026-10-09). LGPL-3.0-or-later:
+# compileOnly from Modrinth's maven, never bundled; dev runtime only with -PwithCurios=true.
+curios = "15.0.0+26.1.2"
+
+[libraries]
+errorprone-core = { module = "com.google.errorprone:error_prone_core", version.ref = "errorprone" }
+nullaway = { module = "com.uber.nullaway:nullaway", version.ref = "nullaway" }
+junit-bom = { module = "org.junit:junit-bom", version.ref = "junit" }
+junit-jupiter = { module = "org.junit.jupiter:junit-jupiter" }
+junit-launcher = { module = "org.junit.platform:junit-platform-launcher" }
+jei-common-api = { module = "mezz.jei:jei-26.1.2-common-api", version.ref = "jei" }
+jei-neoforge-api = { module = "mezz.jei:jei-26.1.2-neoforge-api", version.ref = "jei" }
+jei-neoforge = { module = "mezz.jei:jei-26.1.2-neoforge", version.ref = "jei" }
+rei-neoforge = { module = "me.shedaniel:RoughlyEnoughItems-neoforge", version.ref = "rei" }
+architectury-neoforge = { module = "dev.architectury:architectury-neoforge", version.ref = "architectury" }
+cloth-config-neoforge = { module = "me.shedaniel.cloth:cloth-config-neoforge", version.ref = "cloth-config" }
+basic-math = { module = "me.shedaniel.cloth:basic-math", version.ref = "basic-math" }
+kubejs = { module = "maven.modrinth:kubejs", version.ref = "kubejs" }
+rhino = { module = "maven.modrinth:rhino", version.ref = "rhino" }
+better-advanced-tooltips = { module = "maven.modrinth:better-advanced-tooltips", version.ref = "better-advanced-tooltips" }
+jade-neoforge = { module = "maven.modrinth:jade", version.ref = "jade" }
+guideme = { module = "org.appliedenergistics:guideme", version.ref = "guideme" }
+ftb-teams-neoforge = { module = "dev.ftb.mods:ftb-teams-neoforge", version.ref = "ftb-teams" }
+ftb-chunks-neoforge = { module = "dev.ftb.mods:ftb-chunks-neoforge", version.ref = "ftb-chunks" }
+ftb-library-neoforge = { module = "dev.ftb.mods:ftb-library-neoforge", version.ref = "ftb-library" }
+curios = { module = "maven.modrinth:curios", version.ref = "curios" }
+
+# Plugin artifacts, consumed by build-logic.
+moddev-gradle = { module = "net.neoforged:moddev-gradle", version.ref = "moddev" }
+errorprone-gradle = { module = "net.ltgt.gradle:gradle-errorprone-plugin", version.ref = "errorprone-plugin" }
+spotless-gradle = { module = "com.diffplug.spotless:spotless-plugin-gradle", version.ref = "spotless" }

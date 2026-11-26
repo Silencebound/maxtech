@@ -1,0 +1,23 @@
+{
+  "type": "maxtech_storage:fabricator",
+  "duration": 120,
+  "energy_per_tick": 12,
+  "inputs": [
+    {
+      "ingredient": "#c:ingots/tantalum"
+    },
+    {
+      "ingredient": "#c:wires/copper"
+    }
+  ],
+  "mode": "press",
+  "outputs": [
+    {
+      "item": {
+        "count": 2,
+        "id": "maxtech_storage:tantalum_capacitor"
+      }
+    }
+  ],
+  "research": "maxtech_storage:advanced_processors"
+}

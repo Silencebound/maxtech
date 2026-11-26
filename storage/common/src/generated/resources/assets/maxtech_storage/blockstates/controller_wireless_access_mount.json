@@ -1,0 +1,16 @@
+{
+  "variants": {
+    "load=0": {
+      "model": "maxtech_storage:block/controller_wireless_access_mount_load_0"
+    },
+    "load=1": {
+      "model": "maxtech_storage:block/controller_wireless_access_mount"
+    },
+    "load=2": {
+      "model": "maxtech_storage:block/controller_wireless_access_mount"
+    },
+    "load=3": {
+      "model": "maxtech_storage:block/controller_wireless_access_mount"
+    }
+  }
+}

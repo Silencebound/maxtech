@@ -1,0 +1,30 @@
+{
+  "variants": {
+    "facing=down": {
+      "model": "maxtech_storage:block/small_data_crystal_bud",
+      "x": 180
+    },
+    "facing=east": {
+      "model": "maxtech_storage:block/small_data_crystal_bud",
+      "x": 90,
+      "y": 90
+    },
+    "facing=north": {
+      "model": "maxtech_storage:block/small_data_crystal_bud",
+      "x": 90
+    },
+    "facing=south": {
+      "model": "maxtech_storage:block/small_data_crystal_bud",
+      "x": 90,
+      "y": 180
+    },
+    "facing=up": {
+      "model": "maxtech_storage:block/small_data_crystal_bud"
+    },
+    "facing=west": {
+      "model": "maxtech_storage:block/small_data_crystal_bud",
+      "x": 90,
+      "y": 270
+    }
+  }
+}

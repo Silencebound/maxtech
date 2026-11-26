@@ -1,0 +1,12 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "redstone",
+  "ingredients": [
+    "#maxtech_storage:storage_cable_tier_1",
+    "#c:dusts/redstone",
+    "minecraft:lever"
+  ],
+  "result": {
+    "id": "maxtech_storage:toggle_bus"
+  }
+}

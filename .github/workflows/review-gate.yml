@@ -1,0 +1,37 @@
+name: Review gate
+
+# Sets the review-gate commit status that branch protection requires (see .github/scripts/review-gate.sh).
+# pull_request_target runs this file from main and never checks out the PR's code, so it is safe for fork PRs too;
+# pull_request_review on a fork PR gets a read-only token and cannot set the status (the owner merges those by hand).
+# pull_request_review runs this workflow file from the PR's merge ref, so a same-repo branch could change it; the
+# script itself always comes from main, and only people with write access can push such a branch.
+on:
+  pull_request_target:
+    types: [opened, reopened, synchronize, labeled, unlabeled, ready_for_review]
+  pull_request_review:
+    types: [submitted, edited, dismissed]
+
+permissions:
+  contents: read
+  pull-requests: read
+  statuses: write
+
+concurrency:
+  group: review-gate-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout the gate script from main
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          sparse-checkout: .github/scripts/review-gate.sh
+          sparse-checkout-cone-mode: false
+      - name: Set the review-gate status
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: bash .github/scripts/review-gate.sh "${{ github.repository }}" "${{ github.event.pull_request.number }}"

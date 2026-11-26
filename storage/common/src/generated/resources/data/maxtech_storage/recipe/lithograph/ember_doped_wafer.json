@@ -1,0 +1,22 @@
+{
+  "type": "maxtech_storage:lithograph",
+  "duration": 120,
+  "energy_per_tick": 18,
+  "inputs": [
+    {
+      "ingredient": "#maxtech_storage:data_crystal_wafer"
+    },
+    {
+      "ingredient": "#c:gems/ember_quartz"
+    }
+  ],
+  "mode": "dope",
+  "outputs": [
+    {
+      "item": {
+        "id": "maxtech_storage:ember_doped_wafer"
+      }
+    }
+  ],
+  "research": "maxtech_storage:elite_processors"
+}

@@ -1,0 +1,19 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "redstone",
+  "key": {
+    "F": "#maxtech_storage:glass_fibre",
+    "H": "minecraft:hopper",
+    "O": "#maxtech_storage:basic_io_processor",
+    "P": "#c:plates/signal_alloy",
+    "S": "#maxtech_storage:basic_signal_processor"
+  },
+  "pattern": [
+    "PHP",
+    "SOS",
+    "PFP"
+  ],
+  "result": {
+    "id": "maxtech_storage:storage_port_tier_2"
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "any_of": [
+    {
+      "type": "task",
+      "count": 10000,
+      "task": "ports_throughput"
+    },
+    {
+      "type": "task",
+      "count": 16384,
+      "task": "store_items"
+    },
+    {
+      "type": "points",
+      "cost": 250
+    }
+  ],
+  "branch": "network",
+  "icon": "maxtech_storage:storage_terminal",
+  "order": 21,
+  "requires": [
+    "maxtech_storage:network_telemetry"
+  ],
+  "tier": 2,
+  "unlocks": [
+    "maxtech_storage:ledger"
+  ]
+}

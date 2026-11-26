@@ -1,0 +1,173 @@
+{
+  "parent": "minecraft:block/block",
+  "elements": [
+    {
+      "faces": {
+        "down": {
+          "texture": "#step",
+          "uv": [
+            0.0,
+            0.0,
+            2.0,
+            2.0
+          ]
+        },
+        "east": {
+          "texture": "#step",
+          "uv": [
+            0.0,
+            0.0,
+            2.0,
+            2.0
+          ]
+        },
+        "north": {
+          "cullface": "north",
+          "texture": "#step"
+        },
+        "south": {
+          "texture": "#step"
+        },
+        "up": {
+          "texture": "#step",
+          "uv": [
+            0.0,
+            0.0,
+            2.0,
+            2.0
+          ]
+        },
+        "west": {
+          "texture": "#step",
+          "uv": [
+            0.0,
+            0.0,
+            2.0,
+            2.0
+          ]
+        }
+      },
+      "from": [
+        3,
+        3,
+        0
+      ],
+      "to": [
+        13,
+        13,
+        2
+      ]
+    },
+    {
+      "faces": {
+        "down": {
+          "texture": "#step",
+          "uv": [
+            0.0,
+            0.0,
+            2.0,
+            2.0
+          ]
+        },
+        "east": {
+          "texture": "#step",
+          "uv": [
+            0.0,
+            0.0,
+            2.0,
+            2.0
+          ]
+        },
+        "south": {
+          "texture": "#step"
+        },
+        "up": {
+          "texture": "#step",
+          "uv": [
+            0.0,
+            0.0,
+            2.0,
+            2.0
+          ]
+        },
+        "west": {
+          "texture": "#step",
+          "uv": [
+            0.0,
+            0.0,
+            2.0,
+            2.0
+          ]
+        }
+      },
+      "from": [
+        5,
+        5,
+        2
+      ],
+      "to": [
+        11,
+        11,
+        4
+      ]
+    },
+    {
+      "faces": {
+        "down": {
+          "texture": "#tip",
+          "uv": [
+            0.0,
+            0.0,
+            2.0,
+            2.0
+          ]
+        },
+        "east": {
+          "texture": "#tip",
+          "uv": [
+            0.0,
+            0.0,
+            2.0,
+            2.0
+          ]
+        },
+        "south": {
+          "texture": "#tip"
+        },
+        "up": {
+          "texture": "#tip",
+          "uv": [
+            0.0,
+            0.0,
+            2.0,
+            2.0
+          ]
+        },
+        "west": {
+          "texture": "#tip",
+          "uv": [
+            0.0,
+            0.0,
+            2.0,
+            2.0
+          ]
+        }
+      },
+      "from": [
+        7,
+        7,
+        4
+      ],
+      "to": [
+        9,
+        9,
+        6
+      ]
+    }
+  ],
+  "textures": {
+    "particle": "maxtech_storage:block/port/part_step_tier_3",
+    "step": "maxtech_storage:block/port/part_step_tier_3",
+    "tip": "maxtech_storage:block/port/step_tip"
+  }
+}

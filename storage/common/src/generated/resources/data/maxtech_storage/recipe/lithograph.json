@@ -1,0 +1,19 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "G": "#c:glass_blocks",
+    "I": "#c:ingots/iron",
+    "Q": "#c:gems/lumen_quartz",
+    "R": "#c:dusts/redstone",
+    "S": "#c:silicon"
+  },
+  "pattern": [
+    "IGI",
+    "QSQ",
+    "IRI"
+  ],
+  "result": {
+    "id": "maxtech_storage:lithograph"
+  }
+}

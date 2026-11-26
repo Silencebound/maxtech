@@ -1,0 +1,28 @@
+{
+  "any_of": [
+    {
+      "type": "task",
+      "count": 64,
+      "tag": "c:gems/void_crystal",
+      "task": "store_items"
+    },
+    {
+      "type": "puzzle",
+      "difficulty": 2,
+      "puzzle": "maxtech_storage:waveform_tuning"
+    },
+    {
+      "type": "points",
+      "cost": 1200
+    }
+  ],
+  "branch": "void",
+  "icon": "maxtech_storage:void_crystal",
+  "requires": [
+    "maxtech_storage:elite_processors"
+  ],
+  "tier": 5,
+  "unlocks": [
+    "maxtech_storage:void_lattice"
+  ]
+}

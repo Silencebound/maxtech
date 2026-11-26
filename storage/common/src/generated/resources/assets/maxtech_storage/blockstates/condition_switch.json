@@ -1,0 +1,10 @@
+{
+  "variants": {
+    "powered=false": {
+      "model": "maxtech_storage:block/condition_switch"
+    },
+    "powered=true": {
+      "model": "maxtech_storage:block/condition_switch_on"
+    }
+  }
+}

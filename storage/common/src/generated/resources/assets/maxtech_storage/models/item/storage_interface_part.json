@@ -1,0 +1,80 @@
+{
+  "parent": "minecraft:block/block",
+  "elements": [
+    {
+      "faces": {
+        "down": {
+          "texture": "#side"
+        },
+        "east": {
+          "texture": "#side"
+        },
+        "north": {
+          "texture": "#front",
+          "uv": [
+            0.0,
+            0.0,
+            16.0,
+            16.0
+          ]
+        },
+        "south": {
+          "texture": "#side"
+        },
+        "up": {
+          "texture": "#side"
+        },
+        "west": {
+          "texture": "#side"
+        }
+      },
+      "from": [
+        2,
+        2,
+        0
+      ],
+      "to": [
+        14,
+        14,
+        2
+      ]
+    },
+    {
+      "faces": {
+        "down": {
+          "texture": "#side"
+        },
+        "east": {
+          "texture": "#side"
+        },
+        "north": {
+          "texture": "#side"
+        },
+        "south": {
+          "texture": "#side"
+        },
+        "up": {
+          "texture": "#side"
+        },
+        "west": {
+          "texture": "#side"
+        }
+      },
+      "from": [
+        4,
+        4,
+        2
+      ],
+      "to": [
+        12,
+        12,
+        4
+      ]
+    }
+  ],
+  "textures": {
+    "front": "maxtech_storage:block/interface/face",
+    "particle": "maxtech_storage:block/port/side",
+    "side": "maxtech_storage:block/port/side"
+  }
+}

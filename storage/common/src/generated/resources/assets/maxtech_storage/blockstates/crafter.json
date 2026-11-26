@@ -1,0 +1,19 @@
+{
+  "variants": {
+    "facing=east": {
+      "model": "maxtech_storage:block/crafter",
+      "y": 90
+    },
+    "facing=north": {
+      "model": "maxtech_storage:block/crafter"
+    },
+    "facing=south": {
+      "model": "maxtech_storage:block/crafter",
+      "y": 180
+    },
+    "facing=west": {
+      "model": "maxtech_storage:block/crafter",
+      "y": 270
+    }
+  }
+}

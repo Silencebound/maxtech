@@ -1,0 +1,23 @@
+{
+  "neoforge:conditions": [
+    {
+      "type": "maxtech_lib:content_enabled",
+      "toggle": "maxtech_storage:p2p_energy"
+    }
+  ],
+  "type": "minecraft:crafting_shaped",
+  "category": "redstone",
+  "key": {
+    "O": "#maxtech_storage:advanced_signal_processor",
+    "P": "#c:plates/signal_alloy",
+    "X": "minecraft:lightning_rod"
+  },
+  "pattern": [
+    "PXP",
+    "POP",
+    "PPP"
+  ],
+  "result": {
+    "id": "maxtech_storage:p2p_energy_link"
+  }
+}

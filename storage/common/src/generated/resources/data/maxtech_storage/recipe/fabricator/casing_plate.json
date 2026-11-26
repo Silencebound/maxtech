@@ -1,0 +1,18 @@
+{
+  "type": "maxtech_storage:fabricator",
+  "duration": 120,
+  "energy_per_tick": 10,
+  "inputs": [
+    {
+      "ingredient": "#c:ingots/signal_alloy"
+    }
+  ],
+  "mode": "press",
+  "outputs": [
+    {
+      "item": {
+        "id": "maxtech_storage:casing_plate"
+      }
+    }
+  ]
+}

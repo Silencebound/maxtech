@@ -1,0 +1,19 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "equipment",
+  "key": {
+    "D": "#maxtech_storage:display_glass",
+    "L": "#maxtech_storage:basic_logic_processor",
+    "O": "#maxtech_storage:oscillator",
+    "P": "#c:plates/signal_alloy",
+    "R": "#c:dusts/redstone"
+  },
+  "pattern": [
+    "PDP",
+    "OLO",
+    "PRP"
+  ],
+  "result": {
+    "id": "maxtech_storage:logic_remote"
+  }
+}

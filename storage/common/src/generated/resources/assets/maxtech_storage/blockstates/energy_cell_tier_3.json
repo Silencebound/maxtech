@@ -1,0 +1,19 @@
+{
+  "variants": {
+    "charge=0": {
+      "model": "maxtech_storage:block/energy_cell_tier_3"
+    },
+    "charge=1": {
+      "model": "maxtech_storage:block/energy_cell_tier_3_charge_1"
+    },
+    "charge=2": {
+      "model": "maxtech_storage:block/energy_cell_tier_3_charge_2"
+    },
+    "charge=3": {
+      "model": "maxtech_storage:block/energy_cell_tier_3_charge_3"
+    },
+    "charge=4": {
+      "model": "maxtech_storage:block/energy_cell_tier_3_charge_4"
+    }
+  }
+}

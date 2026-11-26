@@ -1,0 +1,8 @@
+{
+  "type": "maxtech_storage:component_copying",
+  "category": "redstone",
+  "ingredient": "#maxtech_storage:storage_port_tier_1",
+  "result": {
+    "id": "maxtech_storage:storage_port_tier_1_part"
+  }
+}

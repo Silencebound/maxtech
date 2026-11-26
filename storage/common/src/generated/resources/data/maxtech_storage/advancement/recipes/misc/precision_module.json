@@ -1,0 +1,32 @@
+{
+  "parent": "minecraft:recipes/root",
+  "criteria": {
+    "has_tantalum_capacitor": {
+      "conditions": {
+        "items": [
+          {
+            "items": "#maxtech_storage:tantalum_capacitor"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "has_the_recipe": {
+      "conditions": {
+        "recipe": "maxtech_storage:precision_module"
+      },
+      "trigger": "minecraft:recipe_unlocked"
+    }
+  },
+  "requirements": [
+    [
+      "has_the_recipe",
+      "has_tantalum_capacitor"
+    ]
+  ],
+  "rewards": {
+    "recipes": [
+      "maxtech_storage:precision_module"
+    ]
+  }
+}

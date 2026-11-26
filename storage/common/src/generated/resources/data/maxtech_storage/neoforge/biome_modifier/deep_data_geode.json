@@ -1,0 +1,6 @@
+{
+  "type": "neoforge:add_features",
+  "biomes": "#maxtech_storage:has_deep_data_geode",
+  "features": "maxtech_storage:deep_data_geode",
+  "step": "local_modifications"
+}

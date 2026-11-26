@@ -1,0 +1,13 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "ingredients": [
+    "#maxtech_storage:basic_logic_processor",
+    "#maxtech_storage:circuit_board",
+    "#c:obsidians",
+    "#c:ender_pearls"
+  ],
+  "result": {
+    "id": "maxtech_storage:void_overflow_addon"
+  }
+}

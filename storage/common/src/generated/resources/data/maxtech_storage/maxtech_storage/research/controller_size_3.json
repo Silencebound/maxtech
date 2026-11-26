@@ -1,0 +1,28 @@
+{
+  "any_of": [
+    {
+      "type": "task",
+      "count": 8,
+      "task": "drives_running"
+    },
+    {
+      "type": "task",
+      "count": 100000,
+      "task": "ports_throughput"
+    },
+    {
+      "type": "points",
+      "cost": 700
+    }
+  ],
+  "branch": "network",
+  "icon": "maxtech_storage:storage_controller",
+  "order": 7,
+  "requires": [
+    "maxtech_storage:controller_size_2"
+  ],
+  "tier": 4,
+  "unlocks": [
+    "maxtech_storage:controller_size_3"
+  ]
+}

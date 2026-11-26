@@ -1,0 +1,13 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "ingredients": [
+    "#maxtech_storage:basic_logic_processor",
+    "#maxtech_storage:circuit_board",
+    "#c:gems/lumen_quartz",
+    "#c:dusts/redstone"
+  ],
+  "result": {
+    "id": "maxtech_storage:partition_addon"
+  }
+}

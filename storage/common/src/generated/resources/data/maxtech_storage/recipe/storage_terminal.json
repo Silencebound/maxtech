@@ -1,0 +1,19 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "D": "#maxtech_storage:display_glass",
+    "I": "#maxtech_storage:basic_io_processor",
+    "L": "#maxtech_storage:basic_logic_processor",
+    "P": "#c:plates/signal_alloy",
+    "W": "#maxtech_storage:insulated_copper_wire"
+  },
+  "pattern": [
+    "PDP",
+    "WIW",
+    "PLP"
+  ],
+  "result": {
+    "id": "maxtech_storage:storage_terminal"
+  }
+}

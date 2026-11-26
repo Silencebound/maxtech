@@ -1,0 +1,6 @@
+{
+  "type": "neoforge:add_features",
+  "biomes": "#maxtech_storage:has_ore/lumen_quartz",
+  "features": "maxtech_storage:lumen_quartz_ore",
+  "step": "underground_ores"
+}

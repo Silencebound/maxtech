@@ -1,0 +1,51 @@
+{
+  "parent": "minecraft:block/block",
+  "elements": [
+    {
+      "faces": {
+        "down": {
+          "cullface": "down",
+          "texture": "#bezel"
+        },
+        "east": {
+          "cullface": "east",
+          "texture": "#bezel"
+        },
+        "north": {
+          "cullface": "north",
+          "neoforge_data": {
+            "light_emission": 15
+          },
+          "texture": "#screen"
+        },
+        "south": {
+          "cullface": "south",
+          "texture": "#bezel"
+        },
+        "up": {
+          "cullface": "up",
+          "texture": "#bezel"
+        },
+        "west": {
+          "cullface": "west",
+          "texture": "#bezel"
+        }
+      },
+      "from": [
+        0,
+        0,
+        0
+      ],
+      "to": [
+        16,
+        16,
+        16
+      ]
+    }
+  ],
+  "textures": {
+    "bezel": "maxtech_storage:block/terminal/bezel",
+    "particle": "maxtech_storage:block/terminal/bezel",
+    "screen": "maxtech_storage:block/terminal/screen"
+  }
+}

@@ -1,0 +1,32 @@
+{
+  "parent": "minecraft:recipes/root",
+  "criteria": {
+    "has_antenna": {
+      "conditions": {
+        "items": [
+          {
+            "items": "#maxtech_storage:antenna_tier_2"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "has_the_recipe": {
+      "conditions": {
+        "recipe": "maxtech_storage:antenna_tier_3"
+      },
+      "trigger": "minecraft:recipe_unlocked"
+    }
+  },
+  "requirements": [
+    [
+      "has_the_recipe",
+      "has_antenna"
+    ]
+  ],
+  "rewards": {
+    "recipes": [
+      "maxtech_storage:antenna_tier_3"
+    ]
+  }
+}

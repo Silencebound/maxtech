@@ -1,0 +1,19 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "C": "minecraft:crafting_table",
+    "D": "#maxtech_storage:display_glass",
+    "M": "#maxtech_storage:basic_memory_processor",
+    "P": "#c:plates/signal_alloy",
+    "W": "#maxtech_storage:insulated_copper_wire"
+  },
+  "pattern": [
+    "PDP",
+    "MCM",
+    "PWP"
+  ],
+  "result": {
+    "id": "maxtech_storage:pattern_terminal"
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "neoforge:conditions": [
+    {
+      "type": "maxtech_lib:content_enabled",
+      "toggle": "maxtech_storage:void_geodes"
+    }
+  ],
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "L": "#maxtech_storage:void_lattice",
+    "M": "#maxtech_storage:memory_module_5"
+  },
+  "pattern": [
+    "MLM",
+    "LLL",
+    "MLM"
+  ],
+  "result": {
+    "id": "maxtech_storage:memory_module_6"
+  }
+}

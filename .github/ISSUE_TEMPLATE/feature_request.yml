@@ -1,0 +1,23 @@
+name: Feature request
+description: An idea or a change you would like in MaxTech Storage or MaxTech Lib
+labels: ["enhancement"]
+body:
+  - type: dropdown
+    id: mod
+    attributes:
+      label: Mod
+      options: [MaxTech Storage, MaxTech Lib]
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: What you want to do
+      description: The situation in your world or modpack, and what gets in the way today.
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: Your idea
+      description: How it could work. Mods that already do something similar help too.

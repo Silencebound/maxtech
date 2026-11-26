@@ -1,0 +1,92 @@
+modLoader = "javafml"
+loaderVersion = "${loader_version_range}"
+license = "LGPL-3.0-only"
+# Shown in crash reports. public_repo_url is a Gradle property (gradle.properties).
+issueTrackerURL = "${public_repo_url}/issues"
+
+[[mods]]
+modId = "maxtech_storage"
+logoFile = "maxtech_storage_logo.png"
+version = "${mod_version}"
+displayName = "MaxTech Storage"
+displayURL = "${public_repo_url}"
+authors = "Silencebound"
+description = '''
+Digital storage network and autocrafting for MaxTech.
+
+Public beta: please report bugs on the issue tracker.
+'''
+
+[[dependencies.maxtech_storage]]
+modId = "maxtech_lib"
+type = "required"
+versionRange = "${lib_version_range}"
+ordering = "AFTER"
+side = "BOTH"
+
+[[dependencies.maxtech_storage]]
+modId = "neoforge"
+type = "required"
+versionRange = "${neoforge_version_range}"
+ordering = "NONE"
+side = "BOTH"
+
+[[dependencies.maxtech_storage]]
+modId = "minecraft"
+type = "required"
+versionRange = "${minecraft_version_range}"
+ordering = "NONE"
+side = "BOTH"
+
+# GuideME draws Storage's guide. Bundled in Storage's jar (jar-in-jar), so a player needs no separate download; a newer
+# GuideME from another mod replaces the bundled one. BOTH: the manual and GuideME's recipe sync run on the server too.
+[[dependencies.maxtech_storage]]
+modId = "guideme"
+type = "required"
+versionRange = "[26.1.15-beta,26.2-)"
+ordering = "NONE"
+side = "BOTH"
+
+# Machine recipe schemas and the logic script events and node types. compat.kubejs is loaded only by KubeJS, through
+# kubejs.plugins.txt.
+[[dependencies.maxtech_storage]]
+modId = "kubejs"
+type = "optional"
+versionRange = "[26.1.2-8.0.6,)"
+ordering = "NONE"
+side = "BOTH"
+
+# Carried gadgets in accessory slots (compat.curios), installed only when Curios is loaded; the slot data is inert
+# without it.
+[[dependencies.maxtech_storage]]
+modId = "curios"
+type = "optional"
+versionRange = "[15.0.0,)"
+ordering = "NONE"
+side = "BOTH"
+
+# The network bridge's AE2 side (compat.ae2): reads and moves through an AE2 grid and mounts the Storage network into
+# it, installed only when AE2 is loaded.
+[[dependencies.maxtech_storage]]
+modId = "ae2"
+type = "optional"
+versionRange = "[26.1.13-beta,)"
+ordering = "NONE"
+side = "BOTH"
+
+# Logic budgets and team notices follow FTB party teams (compat.ftbteams), installed only when FTB Teams is loaded.
+[[dependencies.maxtech_storage]]
+modId = "ftbteams"
+type = "optional"
+versionRange = "[26.1.2.4,)"
+ordering = "NONE"
+side = "BOTH"
+
+# Network bridges reach Refined Storage networks and mount Storage into them (compat.refinedstorage), installed only
+# when Refined Storage is loaded.
+[[dependencies.maxtech_storage]]
+modId = "refinedstorage"
+type = "optional"
+versionRange = "[3.2.1,)"
+ordering = "NONE"
+side = "BOTH"

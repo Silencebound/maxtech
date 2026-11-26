@@ -1,0 +1,17 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "redstone",
+  "key": {
+    "C": "#maxtech_storage:storage_cable_tier_2",
+    "X": "#minecraft:wool"
+  },
+  "pattern": [
+    "CCC",
+    "CXC",
+    "CCC"
+  ],
+  "result": {
+    "count": 8,
+    "id": "maxtech_storage:covered_storage_cable_tier_2"
+  }
+}

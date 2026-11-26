@@ -1,0 +1,6 @@
+{
+  "type": "neoforge:add_features",
+  "biomes": "#maxtech_storage:has_void_geode",
+  "features": "maxtech_storage:void_geode",
+  "step": "local_modifications"
+}

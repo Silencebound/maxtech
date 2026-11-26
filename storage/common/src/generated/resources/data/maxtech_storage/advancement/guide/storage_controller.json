@@ -1,0 +1,33 @@
+{
+  "parent": "maxtech_storage:guide/storage_terminal",
+  "criteria": {
+    "has_storage_controller": {
+      "conditions": {
+        "items": [
+          {
+            "items": "maxtech_storage:storage_controller"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    }
+  },
+  "display": {
+    "description": {
+      "translate": "advancements.maxtech_storage.guide.storage_controller.description"
+    },
+    "frame": "goal",
+    "icon": {
+      "id": "maxtech_storage:storage_controller"
+    },
+    "title": {
+      "translate": "advancements.maxtech_storage.guide.storage_controller.title"
+    }
+  },
+  "requirements": [
+    [
+      "has_storage_controller"
+    ]
+  ],
+  "sends_telemetry_event": true
+}

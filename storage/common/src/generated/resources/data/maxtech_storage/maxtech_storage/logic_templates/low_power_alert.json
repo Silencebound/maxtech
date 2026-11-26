@@ -1,0 +1,59 @@
+{
+  "category": "alerts",
+  "description": "Posts a notice when the network's stored energy falls below 20 percent; it can fire again once the store is back over 30 percent.",
+  "graph": {
+    "nodes": [
+      {
+        "type": "energy",
+        "id": 1
+      },
+      {
+        "type": "compare",
+        "id": 2,
+        "settings": {
+          "mode": {
+            "kind": "text",
+            "value": "below"
+          },
+          "switch_back": {
+            "kind": "number",
+            "value": 30
+          },
+          "threshold": {
+            "kind": "number",
+            "value": 20
+          }
+        },
+        "x": 96
+      },
+      {
+        "type": "notify",
+        "id": 3,
+        "settings": {
+          "text": {
+            "kind": "text",
+            "value": "Network power is low"
+          }
+        },
+        "x": 192
+      }
+    ],
+    "version": 1,
+    "wires": [
+      {
+        "from": 1,
+        "in": "value",
+        "out": "percent",
+        "to": 2
+      },
+      {
+        "from": 2,
+        "in": "do",
+        "out": "turned_yes",
+        "to": 3
+      }
+    ]
+  },
+  "icon": "minecraft:redstone_torch",
+  "name": "Alert when power is low"
+}

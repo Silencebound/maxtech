@@ -1,0 +1,58 @@
+{
+  "multipart": [
+    {
+      "apply": {
+        "model": "maxtech_storage:block/smart_label",
+        "x": 90
+      },
+      "when": {
+        "facing": "down"
+      }
+    },
+    {
+      "apply": {
+        "model": "maxtech_storage:block/smart_label",
+        "x": 270,
+        "y": 180
+      },
+      "when": {
+        "facing": "up"
+      }
+    },
+    {
+      "apply": {
+        "model": "maxtech_storage:block/smart_label"
+      },
+      "when": {
+        "facing": "north"
+      }
+    },
+    {
+      "apply": {
+        "model": "maxtech_storage:block/smart_label",
+        "y": 180
+      },
+      "when": {
+        "facing": "south"
+      }
+    },
+    {
+      "apply": {
+        "model": "maxtech_storage:block/smart_label",
+        "y": 270
+      },
+      "when": {
+        "facing": "west"
+      }
+    },
+    {
+      "apply": {
+        "model": "maxtech_storage:block/smart_label",
+        "y": 90
+      },
+      "when": {
+        "facing": "east"
+      }
+    }
+  ]
+}

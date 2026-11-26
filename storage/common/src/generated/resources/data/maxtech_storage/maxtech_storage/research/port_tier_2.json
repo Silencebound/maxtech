@@ -1,0 +1,26 @@
+{
+  "any_of": [
+    {
+      "type": "task",
+      "count": 2048,
+      "task": "ports_throughput"
+    },
+    {
+      "type": "puzzle",
+      "puzzle": "maxtech_storage:signal_routing"
+    },
+    {
+      "type": "points",
+      "cost": 150
+    }
+  ],
+  "branch": "network",
+  "icon": "maxtech_storage:storage_port_tier_1",
+  "requires": [
+    "maxtech_storage:logic_mask"
+  ],
+  "tier": 2,
+  "unlocks": [
+    "maxtech_storage:port_tier_2"
+  ]
+}

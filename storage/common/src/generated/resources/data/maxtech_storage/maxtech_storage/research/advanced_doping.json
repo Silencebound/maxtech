@@ -1,0 +1,28 @@
+{
+  "any_of": [
+    {
+      "type": "task",
+      "count": 16,
+      "task": "processors_made"
+    },
+    {
+      "type": "puzzle",
+      "difficulty": 1,
+      "puzzle": "maxtech_storage:signal_routing"
+    },
+    {
+      "type": "points",
+      "cost": 250
+    }
+  ],
+  "branch": "processors",
+  "icon": "maxtech_storage:doped_wafer",
+  "order": 2,
+  "requires": [
+    "maxtech_storage:family_masks"
+  ],
+  "tier": 2,
+  "unlocks": [
+    "maxtech_storage:advanced_processors"
+  ]
+}

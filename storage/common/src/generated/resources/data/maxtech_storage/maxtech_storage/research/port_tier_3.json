@@ -1,0 +1,29 @@
+{
+  "any_of": [
+    {
+      "type": "task",
+      "count": 20000,
+      "task": "ports_throughput"
+    },
+    {
+      "type": "puzzle",
+      "difficulty": 2,
+      "puzzle": "maxtech_storage:signal_routing"
+    },
+    {
+      "type": "points",
+      "cost": 500
+    }
+  ],
+  "branch": "network",
+  "icon": "maxtech_storage:storage_port_tier_2",
+  "order": 4,
+  "requires": [
+    "maxtech_storage:port_tier_2",
+    "maxtech_storage:advanced_doping"
+  ],
+  "tier": 2,
+  "unlocks": [
+    "maxtech_storage:port_tier_3"
+  ]
+}

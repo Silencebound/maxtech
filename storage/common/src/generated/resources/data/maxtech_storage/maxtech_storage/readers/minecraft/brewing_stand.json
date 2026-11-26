@@ -1,0 +1,14 @@
+{
+  "blocks": [
+    "minecraft:brewing_stand"
+  ],
+  "values": {
+    "brew_left": {
+      "path": "BrewTime",
+      "unit": "ticks"
+    },
+    "fuel": {
+      "path": "Fuel"
+    }
+  }
+}

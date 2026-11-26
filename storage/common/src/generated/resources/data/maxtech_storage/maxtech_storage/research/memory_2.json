@@ -1,0 +1,26 @@
+{
+  "any_of": [
+    {
+      "type": "task",
+      "count": 4096,
+      "task": "store_items"
+    },
+    {
+      "type": "puzzle",
+      "puzzle": "maxtech_storage:byte_packing"
+    },
+    {
+      "type": "points",
+      "cost": 150
+    }
+  ],
+  "branch": "memory",
+  "icon": "maxtech_storage:memory_module_1",
+  "requires": [
+    "maxtech_storage:logic_mask"
+  ],
+  "tier": 2,
+  "unlocks": [
+    "maxtech_storage:memory_module_2"
+  ]
+}

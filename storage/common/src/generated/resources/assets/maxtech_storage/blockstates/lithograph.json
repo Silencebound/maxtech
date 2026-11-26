@@ -1,0 +1,34 @@
+{
+  "variants": {
+    "active=false,facing=east": {
+      "model": "maxtech_storage:block/lithograph",
+      "y": 90
+    },
+    "active=false,facing=north": {
+      "model": "maxtech_storage:block/lithograph"
+    },
+    "active=false,facing=south": {
+      "model": "maxtech_storage:block/lithograph",
+      "y": 180
+    },
+    "active=false,facing=west": {
+      "model": "maxtech_storage:block/lithograph",
+      "y": 270
+    },
+    "active=true,facing=east": {
+      "model": "maxtech_storage:block/lithograph_active",
+      "y": 90
+    },
+    "active=true,facing=north": {
+      "model": "maxtech_storage:block/lithograph_active"
+    },
+    "active=true,facing=south": {
+      "model": "maxtech_storage:block/lithograph_active",
+      "y": 180
+    },
+    "active=true,facing=west": {
+      "model": "maxtech_storage:block/lithograph_active",
+      "y": 270
+    }
+  }
+}

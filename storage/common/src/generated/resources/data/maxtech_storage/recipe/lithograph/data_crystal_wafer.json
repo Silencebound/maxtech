@@ -1,0 +1,19 @@
+{
+  "type": "maxtech_storage:lithograph",
+  "duration": 120,
+  "energy_per_tick": 16,
+  "inputs": [
+    {
+      "ingredient": "#c:gems/data_crystal"
+    }
+  ],
+  "mode": "slice",
+  "outputs": [
+    {
+      "item": {
+        "count": 2,
+        "id": "maxtech_storage:data_crystal_wafer"
+      }
+    }
+  ]
+}

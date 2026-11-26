@@ -1,0 +1,8 @@
+{
+  "branch": "test",
+  "any_of": [
+    {"type": "puzzle", "puzzle": "maxtech_storage:test_guess", "difficulty": 1},
+    {"type": "puzzle", "puzzle": "maxtech_storage:no_such_puzzle"},
+    {"type": "points", "cost": 10}
+  ]
+}

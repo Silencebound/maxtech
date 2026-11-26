@@ -1,0 +1,7 @@
+{
+  "parent": "minecraft:block/cube_column",
+  "textures": {
+    "end": "maxtech_storage:block/subnet_controller_end",
+    "side": "maxtech_storage:block/storage_controller_side"
+  }
+}

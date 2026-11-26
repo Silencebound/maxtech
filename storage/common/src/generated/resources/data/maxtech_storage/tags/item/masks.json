@@ -1,0 +1,8 @@
+{
+  "values": [
+    "#maxtech_storage:logic_mask",
+    "#maxtech_storage:memory_mask",
+    "#maxtech_storage:signal_mask",
+    "#maxtech_storage:io_mask"
+  ]
+}

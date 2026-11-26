@@ -1,0 +1,62 @@
+{
+  "category": "items",
+  "description": "A button on the port labelled \"outbox\" moves 16 cobblestone from the network into the block that port faces.",
+  "graph": {
+    "nodes": [
+      {
+        "type": "redstone_changes",
+        "id": 1,
+        "settings": {
+          "label": {
+            "kind": "text",
+            "value": "outbox"
+          }
+        }
+      },
+      {
+        "type": "compare",
+        "id": 2,
+        "x": 96
+      },
+      {
+        "type": "move_items",
+        "id": 3,
+        "settings": {
+          "amount": {
+            "kind": "number",
+            "value": 16
+          },
+          "item": {
+            "kind": "item",
+            "value": {
+              "id": "minecraft:cobblestone",
+              "kind": "item"
+            }
+          },
+          "to": {
+            "kind": "text",
+            "value": "outbox"
+          }
+        },
+        "x": 192
+      }
+    ],
+    "version": 1,
+    "wires": [
+      {
+        "from": 1,
+        "in": "value",
+        "out": "strength",
+        "to": 2
+      },
+      {
+        "from": 2,
+        "in": "do",
+        "out": "turned_yes",
+        "to": 3
+      }
+    ]
+  },
+  "icon": "minecraft:stone_button",
+  "name": "Button moves items out"
+}

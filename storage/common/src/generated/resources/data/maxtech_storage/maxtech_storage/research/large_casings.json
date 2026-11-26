@@ -1,0 +1,30 @@
+{
+  "any_of": [
+    {
+      "type": "task",
+      "fraction": 0.03,
+      "max": 300,
+      "task": "store_kinds"
+    },
+    {
+      "type": "task",
+      "count": 4,
+      "task": "drives_running"
+    },
+    {
+      "type": "points",
+      "cost": 500
+    }
+  ],
+  "branch": "memory",
+  "icon": "maxtech_storage:casing_plate",
+  "order": 3,
+  "requires": [
+    "maxtech_storage:memory_3"
+  ],
+  "tier": 3,
+  "unlocks": [
+    "maxtech_storage:large_casing",
+    "maxtech_storage:bulk_casing"
+  ]
+}

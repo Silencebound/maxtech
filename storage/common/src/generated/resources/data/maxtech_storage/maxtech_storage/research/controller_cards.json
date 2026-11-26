@@ -1,0 +1,27 @@
+{
+  "any_of": [
+    {
+      "type": "task",
+      "count": 4096,
+      "task": "ports_throughput"
+    },
+    {
+      "type": "puzzle",
+      "puzzle": "maxtech_storage:mask_alignment"
+    },
+    {
+      "type": "points",
+      "cost": 150
+    }
+  ],
+  "branch": "network",
+  "icon": "maxtech_storage:batch_amplifier_card",
+  "order": 19,
+  "requires": [
+    "maxtech_storage:logic_mask"
+  ],
+  "tier": 2,
+  "unlocks": [
+    "maxtech_storage:controller_cards"
+  ]
+}

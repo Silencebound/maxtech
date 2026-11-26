@@ -1,0 +1,12 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "equipment",
+  "ingredients": [
+    "minecraft:paper",
+    "minecraft:string",
+    "#maxtech_storage:basic_logic_processor"
+  ],
+  "result": {
+    "id": "maxtech_storage:quarantine_tag"
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "redstone",
+  "key": {
+    "A": "#maxtech_storage:antenna_tier_2",
+    "C": "#c:gems/data_crystal",
+    "P": "#c:plates/signal_alloy",
+    "S": "#maxtech_storage:elite_signal_processor"
+  },
+  "pattern": [
+    "PSP",
+    "CAC",
+    "PSP"
+  ],
+  "result": {
+    "id": "maxtech_storage:antenna_tier_3"
+  }
+}

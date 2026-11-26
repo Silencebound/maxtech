@@ -1,0 +1,25 @@
+{
+  "type": "maxtech_storage:lithograph",
+  "duration": 120,
+  "energy_per_tick": 8,
+  "inputs": [
+    {
+      "ingredient": "#c:silicon"
+    }
+  ],
+  "mode": "slice",
+  "outputs": [
+    {
+      "item": {
+        "count": 3,
+        "id": "maxtech_storage:silicon_wafer"
+      }
+    },
+    {
+      "chance": 2500,
+      "item": {
+        "id": "maxtech_storage:silicon_kerf"
+      }
+    }
+  ]
+}

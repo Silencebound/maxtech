@@ -1,0 +1,7 @@
+{
+  "name": "Broken on purpose",
+  "graph": {
+    "version": 1,
+    "nodes": [{ "id": 1, "type": "no_such_node" }]
+  }
+}

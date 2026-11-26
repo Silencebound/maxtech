@@ -1,0 +1,8 @@
+{
+  "branch": "processors",
+  "icon": "maxtech_storage:logic_mask",
+  "tier": 1,
+  "unlocks": [
+    "maxtech_storage:logic_mask"
+  ]
+}

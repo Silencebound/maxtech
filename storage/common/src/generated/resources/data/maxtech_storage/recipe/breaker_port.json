@@ -1,0 +1,24 @@
+{
+  "neoforge:conditions": [
+    {
+      "type": "maxtech_lib:content_enabled",
+      "toggle": "maxtech_storage:placer_breaker"
+    }
+  ],
+  "type": "minecraft:crafting_shaped",
+  "category": "redstone",
+  "key": {
+    "H": "minecraft:iron_pickaxe",
+    "M": "#maxtech_storage:basic_logic_processor",
+    "O": "#maxtech_storage:basic_io_processor",
+    "P": "#c:plates/signal_alloy"
+  },
+  "pattern": [
+    "PHP",
+    "OMO",
+    "PPP"
+  ],
+  "result": {
+    "id": "maxtech_storage:breaker_port"
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "any_of": [
+    {
+      "type": "task",
+      "count": 4096,
+      "task": "ports_throughput"
+    },
+    {
+      "type": "task",
+      "count": 2,
+      "task": "drives_running"
+    },
+    {
+      "type": "points",
+      "cost": 200
+    }
+  ],
+  "branch": "network",
+  "icon": "maxtech_storage:energy_cell_tier_1",
+  "order": 10,
+  "requires": [
+    "maxtech_storage:logic_mask"
+  ],
+  "tier": 2,
+  "unlocks": [
+    "maxtech_storage:energy_cell_tier_2"
+  ]
+}

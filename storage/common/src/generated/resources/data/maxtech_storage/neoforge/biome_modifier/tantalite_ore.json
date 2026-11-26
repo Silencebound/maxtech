@@ -1,0 +1,6 @@
+{
+  "type": "neoforge:add_features",
+  "biomes": "#maxtech_storage:has_ore/tantalite",
+  "features": "maxtech_storage:tantalite_ore",
+  "step": "underground_ores"
+}

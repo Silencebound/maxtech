@@ -1,0 +1,24 @@
+{
+  "neoforge:conditions": [
+    {
+      "type": "maxtech_lib:content_enabled",
+      "toggle": "maxtech_storage:collector"
+    }
+  ],
+  "type": "minecraft:crafting_shaped",
+  "category": "redstone",
+  "key": {
+    "H": "minecraft:hopper",
+    "M": "#c:gems/lumen_quartz",
+    "O": "#maxtech_storage:basic_io_processor",
+    "P": "#c:plates/signal_alloy"
+  },
+  "pattern": [
+    "PHP",
+    "OMO",
+    "PPP"
+  ],
+  "result": {
+    "id": "maxtech_storage:collector"
+  }
+}

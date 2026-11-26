@@ -1,0 +1,28 @@
+{
+  "neoforge:conditions": [
+    {
+      "type": "maxtech_lib:content_enabled",
+      "toggle": "maxtech_storage:wireless"
+    },
+    {
+      "type": "maxtech_lib:content_enabled",
+      "toggle": "maxtech_storage:void_geodes"
+    }
+  ],
+  "type": "minecraft:crafting_shaped",
+  "category": "redstone",
+  "key": {
+    "L": "#maxtech_storage:void_lattice",
+    "P": "#c:plates/signal_alloy",
+    "X": "#maxtech_storage:advanced_io_processor",
+    "Y": "#maxtech_storage:superconductor_wire"
+  },
+  "pattern": [
+    "LXL",
+    "YXY",
+    "PXP"
+  ],
+  "result": {
+    "id": "maxtech_storage:controller_dimension_bridge"
+  }
+}

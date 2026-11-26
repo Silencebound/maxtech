@@ -1,0 +1,29 @@
+{
+  "any_of": [
+    {
+      "type": "task",
+      "count": 4,
+      "task": "drives_running"
+    },
+    {
+      "type": "task",
+      "count": 65536,
+      "task": "store_items"
+    },
+    {
+      "type": "points",
+      "cost": 600
+    }
+  ],
+  "branch": "network",
+  "icon": "maxtech_storage:display_panel",
+  "order": 15,
+  "requires": [
+    "maxtech_storage:port_tier_2",
+    "maxtech_storage:memory_3"
+  ],
+  "tier": 4,
+  "unlocks": [
+    "maxtech_storage:holo_graphs"
+  ]
+}

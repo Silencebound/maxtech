@@ -1,0 +1,16 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "equipment",
+  "key": {
+    "G": "#maxtech_storage:display_glass",
+    "L": "#maxtech_storage:basic_logic_processor",
+    "Q": "#c:gems/lumen_quartz"
+  },
+  "pattern": [
+    " G ",
+    "QLQ"
+  ],
+  "result": {
+    "id": "maxtech_storage:view_filter"
+  }
+}

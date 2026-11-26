@@ -1,0 +1,14 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "building",
+  "key": {
+    "D": "#c:gems/data_crystal"
+  },
+  "pattern": [
+    "DD",
+    "DD"
+  ],
+  "result": {
+    "id": "maxtech_storage:data_crystal_block"
+  }
+}

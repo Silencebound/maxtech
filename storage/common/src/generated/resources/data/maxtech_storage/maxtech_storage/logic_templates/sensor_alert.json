@@ -1,0 +1,60 @@
+{
+  "category": "alerts",
+  "description": "Posts a notice when the sensor labelled \"chest sensor\" sees more than 32 items in its block; it can fire again after it fell to 16.",
+  "graph": {
+    "nodes": [
+      {
+        "type": "sensor_crosses",
+        "id": 1,
+        "settings": {
+          "label": {
+            "kind": "text",
+            "value": "chest sensor"
+          },
+          "switch_back": {
+            "kind": "number",
+            "value": 16
+          },
+          "threshold": {
+            "kind": "number",
+            "value": 32
+          },
+          "value": {
+            "kind": "text",
+            "value": "items.total"
+          }
+        }
+      },
+      {
+        "type": "notify",
+        "id": 2,
+        "settings": {
+          "displays": {
+            "kind": "flag",
+            "value": true
+          },
+          "text": {
+            "kind": "text",
+            "value": "The sensed chest holds over 32 items"
+          },
+          "toast": {
+            "kind": "flag",
+            "value": false
+          }
+        },
+        "x": 96
+      }
+    ],
+    "version": 1,
+    "wires": [
+      {
+        "from": 1,
+        "in": "do",
+        "out": "crossed",
+        "to": 2
+      }
+    ]
+  },
+  "icon": "minecraft:observer",
+  "name": "Notice on a sensor value"
+}

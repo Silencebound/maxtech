@@ -1,0 +1,16 @@
+{
+  "variants": {
+    "load=0": {
+      "model": "maxtech_storage:block/controller_alarm_module"
+    },
+    "load=1": {
+      "model": "maxtech_storage:block/controller_alarm_module"
+    },
+    "load=2": {
+      "model": "maxtech_storage:block/controller_alarm_module"
+    },
+    "load=3": {
+      "model": "maxtech_storage:block/controller_alarm_module"
+    }
+  }
+}

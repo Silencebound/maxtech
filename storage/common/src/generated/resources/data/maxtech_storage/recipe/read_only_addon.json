@@ -1,0 +1,13 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "ingredients": [
+    "#maxtech_storage:basic_logic_processor",
+    "#maxtech_storage:circuit_board",
+    "#c:ingots/iron",
+    "#c:obsidians"
+  ],
+  "result": {
+    "id": "maxtech_storage:read_only_addon"
+  }
+}

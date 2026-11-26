@@ -1,0 +1,18 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "P": "#c:plates/signal_alloy",
+    "S": "#maxtech_storage:basic_signal_processor",
+    "W": "#maxtech_storage:insulated_copper_wire",
+    "X": "#c:chests"
+  },
+  "pattern": [
+    "PSP",
+    "WXW",
+    "PPP"
+  ],
+  "result": {
+    "id": "maxtech_storage:mail_port"
+  }
+}

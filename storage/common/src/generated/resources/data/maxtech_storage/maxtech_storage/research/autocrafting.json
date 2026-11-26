@@ -1,0 +1,11 @@
+{
+  "branch": "crafting",
+  "icon": "maxtech_storage:blank_pattern",
+  "requires": [
+    "maxtech_storage:logic_mask"
+  ],
+  "tier": 2,
+  "unlocks": [
+    "maxtech_storage:cpu_tier_1"
+  ]
+}

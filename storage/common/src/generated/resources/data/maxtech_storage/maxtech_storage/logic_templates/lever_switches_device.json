@@ -1,0 +1,45 @@
+{
+  "category": "redstone",
+  "description": "A lever on the controller turns the device labelled \"intake\" on, and off again when the lever goes off.",
+  "graph": {
+    "nodes": [
+      {
+        "type": "redstone_changes",
+        "id": 1
+      },
+      {
+        "type": "compare",
+        "id": 2,
+        "x": 96
+      },
+      {
+        "type": "device_switch",
+        "id": 3,
+        "settings": {
+          "label": {
+            "kind": "text",
+            "value": "intake"
+          }
+        },
+        "x": 192
+      }
+    ],
+    "version": 1,
+    "wires": [
+      {
+        "from": 1,
+        "in": "value",
+        "out": "strength",
+        "to": 2
+      },
+      {
+        "from": 2,
+        "in": "on",
+        "out": "result",
+        "to": 3
+      }
+    ]
+  },
+  "icon": "minecraft:lever",
+  "name": "Turn a device on with a lever"
+}

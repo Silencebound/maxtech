@@ -1,0 +1,18 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "D": "#maxtech_storage:display_glass",
+    "I": "#c:ingots/iron",
+    "O": "#maxtech_storage:oscillator",
+    "R": "#c:dusts/redstone"
+  },
+  "pattern": [
+    "IRI",
+    "ODO",
+    "IRI"
+  ],
+  "result": {
+    "id": "maxtech_storage:signal_mask"
+  }
+}

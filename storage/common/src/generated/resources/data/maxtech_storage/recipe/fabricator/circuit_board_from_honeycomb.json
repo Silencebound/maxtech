@@ -1,0 +1,22 @@
+{
+  "type": "maxtech_storage:fabricator",
+  "duration": 120,
+  "energy_per_tick": 10,
+  "inputs": [
+    {
+      "count": 2,
+      "ingredient": "#maxtech_storage:glass_fibre"
+    },
+    {
+      "ingredient": "minecraft:honeycomb"
+    }
+  ],
+  "mode": "press",
+  "outputs": [
+    {
+      "item": {
+        "id": "maxtech_storage:circuit_board"
+      }
+    }
+  ]
+}

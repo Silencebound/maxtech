@@ -1,0 +1,13 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "ingredients": [
+    "#maxtech_storage:basic_logic_processor",
+    "#maxtech_storage:basic_io_processor",
+    "#maxtech_storage:circuit_board",
+    "#c:chests"
+  ],
+  "result": {
+    "id": "maxtech_storage:item_controller_chip"
+  }
+}

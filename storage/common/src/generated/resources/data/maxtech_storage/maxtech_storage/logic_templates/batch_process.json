@@ -1,0 +1,200 @@
+{
+  "category": "items",
+  "description": "Three steps in turn: the device labelled \"inlet\" runs until the storage labelled \"batch\" holds 64 cobblestone, the batch then waits 30 seconds, and \"outlet\" runs until \"batch\" is empty; then it starts again. Change the labels, item, amounts and time.",
+  "graph": {
+    "nodes": [
+      {
+        "type": "item_count",
+        "id": 1,
+        "settings": {
+          "item": {
+            "kind": "item",
+            "value": {
+              "id": "minecraft:cobblestone",
+              "kind": "item"
+            }
+          },
+          "label": {
+            "kind": "text",
+            "value": "batch"
+          }
+        }
+      },
+      {
+        "type": "compare",
+        "id": 2,
+        "settings": {
+          "mode": {
+            "kind": "text",
+            "value": "above"
+          },
+          "threshold": {
+            "kind": "number",
+            "value": 63
+          }
+        },
+        "x": 96
+      },
+      {
+        "type": "compare",
+        "id": 3,
+        "settings": {
+          "mode": {
+            "kind": "text",
+            "value": "below"
+          },
+          "threshold": {
+            "kind": "number",
+            "value": 1
+          }
+        },
+        "x": 96,
+        "y": 112
+      },
+      {
+        "type": "sequence",
+        "id": 4,
+        "settings": {
+          "name_1": {
+            "kind": "text",
+            "value": "fill"
+          },
+          "name_2": {
+            "kind": "text",
+            "value": "wait"
+          },
+          "name_3": {
+            "kind": "text",
+            "value": "empty"
+          },
+          "steps": {
+            "kind": "number",
+            "value": 3
+          },
+          "timeout_2": {
+            "kind": "number",
+            "value": 30
+          }
+        },
+        "x": 192
+      },
+      {
+        "type": "step_is",
+        "id": 5,
+        "settings": {
+          "which": {
+            "kind": "text",
+            "value": "fill"
+          }
+        },
+        "x": 384
+      },
+      {
+        "type": "step_is",
+        "id": 6,
+        "settings": {
+          "which": {
+            "kind": "text",
+            "value": "empty"
+          }
+        },
+        "x": 384,
+        "y": 112
+      },
+      {
+        "type": "device_switch",
+        "id": 7,
+        "settings": {
+          "label": {
+            "kind": "text",
+            "value": "inlet"
+          }
+        },
+        "x": 480
+      },
+      {
+        "type": "device_switch",
+        "id": 8,
+        "settings": {
+          "label": {
+            "kind": "text",
+            "value": "outlet"
+          }
+        },
+        "x": 480,
+        "y": 112
+      },
+      {
+        "type": "notify",
+        "id": 9,
+        "settings": {
+          "text": {
+            "kind": "text",
+            "value": "Batch ready, emptying it"
+          }
+        },
+        "x": 480,
+        "y": 224
+      }
+    ],
+    "version": 1,
+    "wires": [
+      {
+        "from": 1,
+        "in": "value",
+        "out": "count",
+        "to": 2
+      },
+      {
+        "from": 1,
+        "in": "value",
+        "out": "count",
+        "to": 3
+      },
+      {
+        "from": 2,
+        "in": "next_1",
+        "out": "result",
+        "to": 4
+      },
+      {
+        "from": 3,
+        "in": "next_3",
+        "out": "result",
+        "to": 4
+      },
+      {
+        "from": 4,
+        "in": "step",
+        "out": "step",
+        "to": 5
+      },
+      {
+        "from": 4,
+        "in": "step",
+        "out": "step",
+        "to": 6
+      },
+      {
+        "from": 5,
+        "in": "on",
+        "out": "result",
+        "to": 7
+      },
+      {
+        "from": 6,
+        "in": "on",
+        "out": "result",
+        "to": 8
+      },
+      {
+        "from": 4,
+        "in": "do",
+        "out": "entered_3",
+        "to": 9
+      }
+    ]
+  },
+  "icon": "minecraft:cauldron",
+  "name": "Batch process: fill, wait, empty"
+}

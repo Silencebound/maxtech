@@ -1,0 +1,32 @@
+{
+  "parent": "maxtech_storage:guide/small_storage_cell",
+  "criteria": {
+    "has_storage_terminal": {
+      "conditions": {
+        "items": [
+          {
+            "items": "maxtech_storage:storage_terminal"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    }
+  },
+  "display": {
+    "description": {
+      "translate": "advancements.maxtech_storage.guide.storage_terminal.description"
+    },
+    "icon": {
+      "id": "maxtech_storage:storage_terminal"
+    },
+    "title": {
+      "translate": "advancements.maxtech_storage.guide.storage_terminal.title"
+    }
+  },
+  "requirements": [
+    [
+      "has_storage_terminal"
+    ]
+  ],
+  "sends_telemetry_event": true
+}

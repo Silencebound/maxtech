@@ -1,0 +1,24 @@
+{
+  "type": "maxtech_storage:lithograph",
+  "duration": 200,
+  "energy_per_tick": 16,
+  "inputs": [
+    {
+      "ingredient": "#maxtech_storage:advanced_doped_wafer"
+    },
+    {
+      "consumed": false,
+      "ingredient": "#maxtech_storage:memory_mask"
+    }
+  ],
+  "mode": "print",
+  "outputs": [
+    {
+      "item": {
+        "count": 2,
+        "id": "maxtech_storage:advanced_memory_die"
+      }
+    }
+  ],
+  "research": "maxtech_storage:memory_mask"
+}

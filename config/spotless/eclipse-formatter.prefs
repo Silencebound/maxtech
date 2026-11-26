@@ -1,0 +1,6 @@
+# Eclipse JDT defaults, except spaces instead of tabs and a 120-column limit (CLAUDE.md, Code quality).
+org.eclipse.jdt.core.formatter.tabulation.char=space
+org.eclipse.jdt.core.formatter.tabulation.size=4
+org.eclipse.jdt.core.formatter.indentation.size=4
+org.eclipse.jdt.core.formatter.lineSplit=120
+org.eclipse.jdt.core.formatter.comment.line_length=120

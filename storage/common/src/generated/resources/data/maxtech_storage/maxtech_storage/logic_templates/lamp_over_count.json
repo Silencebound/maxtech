@@ -1,0 +1,51 @@
+{
+  "category": "items",
+  "description": "Lights the lamp labelled \"lamp\" while the network holds over 100 cobblestone, and turns it off again at 64. Pick your item, limits and label.",
+  "graph": {
+    "nodes": [
+      {
+        "type": "count_crosses",
+        "id": 1,
+        "settings": {
+          "item": {
+            "kind": "item",
+            "value": {
+              "id": "minecraft:cobblestone",
+              "kind": "item"
+            }
+          },
+          "switch_back": {
+            "kind": "number",
+            "value": 64
+          },
+          "threshold": {
+            "kind": "number",
+            "value": 100
+          }
+        }
+      },
+      {
+        "type": "redstone_out",
+        "id": 2,
+        "settings": {
+          "label": {
+            "kind": "text",
+            "value": "lamp"
+          }
+        },
+        "x": 96
+      }
+    ],
+    "version": 1,
+    "wires": [
+      {
+        "from": 1,
+        "in": "on",
+        "out": "past",
+        "to": 2
+      }
+    ]
+  },
+  "icon": "minecraft:redstone_lamp",
+  "name": "Lamp over a count"
+}

@@ -1,0 +1,32 @@
+{
+  "parent": "minecraft:recipes/root",
+  "criteria": {
+    "has_display_glass": {
+      "conditions": {
+        "items": [
+          {
+            "items": "#maxtech_storage:display_glass"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "has_the_recipe": {
+      "conditions": {
+        "recipe": "maxtech_storage:signal_mask"
+      },
+      "trigger": "minecraft:recipe_unlocked"
+    }
+  },
+  "requirements": [
+    [
+      "has_the_recipe",
+      "has_display_glass"
+    ]
+  ],
+  "rewards": {
+    "recipes": [
+      "maxtech_storage:signal_mask"
+    ]
+  }
+}

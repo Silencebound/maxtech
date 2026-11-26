@@ -1,0 +1,48 @@
+{
+  "parent": "minecraft:block/block",
+  "elements": [
+    {
+      "faces": {
+        "down": {
+          "cullface": "down",
+          "texture": "#end"
+        },
+        "east": {
+          "cullface": "east",
+          "texture": "#side"
+        },
+        "north": {
+          "cullface": "north",
+          "texture": "#side"
+        },
+        "south": {
+          "cullface": "south",
+          "texture": "#side"
+        },
+        "up": {
+          "cullface": "up",
+          "texture": "#end"
+        },
+        "west": {
+          "cullface": "west",
+          "texture": "#side"
+        }
+      },
+      "from": [
+        0,
+        0,
+        0
+      ],
+      "to": [
+        16,
+        16,
+        16
+      ]
+    }
+  ],
+  "textures": {
+    "end": "maxtech_storage:block/storage_controller_side",
+    "particle": "maxtech_storage:block/controller/telemetry_recorder",
+    "side": "maxtech_storage:block/controller/telemetry_recorder"
+  }
+}

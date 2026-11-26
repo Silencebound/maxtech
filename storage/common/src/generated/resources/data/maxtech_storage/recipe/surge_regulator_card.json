@@ -1,0 +1,17 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "redstone",
+  "key": {
+    "P": "#c:plates/signal_alloy",
+    "X": "#maxtech_storage:advanced_io_processor",
+    "Y": "#maxtech_storage:tantalum_capacitor"
+  },
+  "pattern": [
+    "PXP",
+    "YXY",
+    "PXP"
+  ],
+  "result": {
+    "id": "maxtech_storage:surge_regulator_card"
+  }
+}

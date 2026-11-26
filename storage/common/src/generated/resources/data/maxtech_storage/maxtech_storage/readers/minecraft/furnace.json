@@ -1,0 +1,25 @@
+{
+  "blocks": [
+    "minecraft:furnace",
+    "minecraft:smoker",
+    "minecraft:blast_furnace"
+  ],
+  "values": {
+    "burn_left": {
+      "path": "lit_time_remaining",
+      "unit": "ticks"
+    },
+    "burn_total": {
+      "path": "lit_total_time",
+      "unit": "ticks"
+    },
+    "cook_time": {
+      "path": "cooking_time_spent",
+      "unit": "ticks"
+    },
+    "cook_total": {
+      "path": "cooking_total_time",
+      "unit": "ticks"
+    }
+  }
+}

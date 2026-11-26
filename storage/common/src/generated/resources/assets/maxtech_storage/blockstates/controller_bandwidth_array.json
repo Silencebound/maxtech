@@ -1,0 +1,16 @@
+{
+  "variants": {
+    "load=0": {
+      "model": "maxtech_storage:block/controller_bandwidth_array"
+    },
+    "load=1": {
+      "model": "maxtech_storage:block/controller_bandwidth_array"
+    },
+    "load=2": {
+      "model": "maxtech_storage:block/controller_bandwidth_array"
+    },
+    "load=3": {
+      "model": "maxtech_storage:block/controller_bandwidth_array"
+    }
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "variants": {
+    "facing=down": {
+      "model": "maxtech_storage:block/void_crystal_cluster",
+      "x": 180
+    },
+    "facing=east": {
+      "model": "maxtech_storage:block/void_crystal_cluster",
+      "x": 90,
+      "y": 90
+    },
+    "facing=north": {
+      "model": "maxtech_storage:block/void_crystal_cluster",
+      "x": 90
+    },
+    "facing=south": {
+      "model": "maxtech_storage:block/void_crystal_cluster",
+      "x": 90,
+      "y": 180
+    },
+    "facing=up": {
+      "model": "maxtech_storage:block/void_crystal_cluster"
+    },
+    "facing=west": {
+      "model": "maxtech_storage:block/void_crystal_cluster",
+      "x": 90,
+      "y": 270
+    }
+  }
+}

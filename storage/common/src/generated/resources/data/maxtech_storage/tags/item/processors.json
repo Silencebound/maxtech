@@ -1,0 +1,16 @@
+{
+  "values": [
+    "#maxtech_storage:elite_logic_processor",
+    "#maxtech_storage:elite_memory_processor",
+    "#maxtech_storage:elite_signal_processor",
+    "#maxtech_storage:elite_io_processor",
+    "#maxtech_storage:basic_logic_processor",
+    "#maxtech_storage:basic_memory_processor",
+    "#maxtech_storage:basic_signal_processor",
+    "#maxtech_storage:basic_io_processor",
+    "#maxtech_storage:advanced_logic_processor",
+    "#maxtech_storage:advanced_memory_processor",
+    "#maxtech_storage:advanced_signal_processor",
+    "#maxtech_storage:advanced_io_processor"
+  ]
+}

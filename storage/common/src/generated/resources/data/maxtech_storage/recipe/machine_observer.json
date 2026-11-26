@@ -1,0 +1,18 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "D": "#maxtech_storage:display_glass",
+    "M": "#maxtech_storage:basic_memory_processor",
+    "P": "#c:plates/signal_alloy",
+    "R": "#c:dusts/redstone"
+  },
+  "pattern": [
+    "PDP",
+    "RMR",
+    "PPP"
+  ],
+  "result": {
+    "id": "maxtech_storage:machine_observer"
+  }
+}

@@ -1,0 +1,17 @@
+# Log lines scripts/smoke-server.sh accepts although they match its error pattern: one extended regex per line,
+# matched against "<line number>:<log line>". A "[windows] ", "[linux] " or "[macos] " prefix limits an entry to that
+# OS. Each entry says why it is harmless. Blank lines and # lines are ignored.
+
+# online-mode=false (the smoke server has no Mojang login): vanilla warns about offline mode in four lines.
+/WARN\] \[minecraft/DedicatedServer\]: (\*\*\*\* SERVER IS RUNNING IN OFFLINE/INSECURE MODE!|The server will make no attempt|While this makes the game possible|To change this, set "online-mode")
+
+# Netty probes its native transports on start; rendering that debug trace into debug.log fails to load the transport
+# classes of other operating systems (kqueue is macOS/BSD only, epoll Linux only). Log4j reports the failed append and
+# goes on. Only the other OS's transport is allowed, so a real epoll failure on Linux still fails the run.
+ERROR An exception occurred processing Appender DebugFile$
+[windows] io\.netty\.channel\.(kqueue|epoll)\.Native
+[windows] Only supported on (OSX/BSD|Linux) \[in thread
+[linux] io\.netty\.channel\.kqueue\.Native
+[linux] Only supported on OSX/BSD \[in thread
+[macos] io\.netty\.channel\.epoll\.Native
+[macos] Only supported on Linux \[in thread

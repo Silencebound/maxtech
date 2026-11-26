@@ -1,0 +1,17 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "D": "#maxtech_storage:display_glass",
+    "I": "#c:ingots/iron",
+    "R": "#c:dusts/redstone"
+  },
+  "pattern": [
+    "IRI",
+    "RDR",
+    "IRI"
+  ],
+  "result": {
+    "id": "maxtech_storage:logic_mask"
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "any_of": [
+    {
+      "type": "task",
+      "count": 50000,
+      "task": "ports_throughput"
+    },
+    {
+      "type": "task",
+      "count": 4,
+      "task": "drives_running"
+    },
+    {
+      "type": "points",
+      "cost": 500
+    }
+  ],
+  "branch": "network",
+  "icon": "maxtech_storage:energy_cell_tier_2",
+  "order": 11,
+  "requires": [
+    "maxtech_storage:energy_cells_2",
+    "maxtech_storage:advanced_doping"
+  ],
+  "tier": 3,
+  "unlocks": [
+    "maxtech_storage:energy_cell_tier_3"
+  ]
+}

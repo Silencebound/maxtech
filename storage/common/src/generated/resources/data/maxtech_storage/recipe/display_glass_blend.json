@@ -1,0 +1,11 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "ingredients": [
+    "#c:dusts/lumen_quartz",
+    "#c:glass_blocks"
+  ],
+  "result": {
+    "id": "maxtech_storage:display_glass_blend"
+  }
+}

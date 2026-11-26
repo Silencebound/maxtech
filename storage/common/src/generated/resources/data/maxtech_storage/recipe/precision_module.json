@@ -1,0 +1,17 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "A": "#maxtech_storage:advanced_logic_processor",
+    "C": "#maxtech_storage:tantalum_capacitor",
+    "T": "#c:ingots/tantalum"
+  },
+  "pattern": [
+    "TCT",
+    "CAC",
+    "TCT"
+  ],
+  "result": {
+    "id": "maxtech_storage:precision_module"
+  }
+}

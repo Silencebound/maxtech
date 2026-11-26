@@ -1,0 +1,17 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "redstone",
+  "key": {
+    "A": "#maxtech_storage:advanced_logic_processor",
+    "C": "#maxtech_storage:tantalum_capacitor",
+    "E": "#maxtech_storage:energy_cell_tier_1"
+  },
+  "pattern": [
+    "ECE",
+    "CAC",
+    "ECE"
+  ],
+  "result": {
+    "id": "maxtech_storage:energy_cell_tier_2"
+  }
+}

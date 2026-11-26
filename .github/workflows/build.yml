@@ -1,0 +1,171 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+  schedule:
+    # 01:00 UTC is 02:00 or 03:00 in Berlin depending on DST. Runs on the default branch.
+    - cron: '0 1 * * *'
+
+concurrency:
+  # The nightly run gets its own group so a push to main cannot cancel it.
+  group: build-${{ github.ref }}-${{ github.event_name == 'schedule' }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  issues: write # only the nightly failure report uses it
+
+defaults:
+  run:
+    # Every step script is bash; keep scripts portable across Linux, macOS and Git Bash for local runs.
+    shell: bash
+
+jobs:
+  build:
+    name: build
+    # GitHub-hosted runners only (owner 2026-11-25): nothing to maintain, and fork pull requests run like any other.
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      # What runs when (see .claude/skills/pr-flow/SKILL.md):
+      # - docs-only PR or push: conflict markers (and the doc size guard on PRs) only;
+      # - other PR: build always; GameTests and datagen for the flagged mods (a lib change flags storage too);
+      # - push to main: conflict markers and build (the build is skipped for docs-only commits);
+      # - nightly and manual runs: everything, including datagen and the dedicated-server smoke.
+      PUSH: ${{ github.event_name == 'push' }}
+      # Perf budgets only warn in CI (PerfBudget.WARN_ENV): hosted runners vary too much to block on. They fail locally.
+      MAXTECH_PERF_BUDGETS_WARN: 'true'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          # The classification and the doc size guard diff against the first parent.
+          fetch-depth: 2
+
+      - name: Classify changed files
+        id: areas
+        run: .github/scripts/changed-areas.sh
+
+      - name: No merge conflict markers
+        # Nothing compiles docs or skill files, so a merge that commits markers there would otherwise pass.
+        run: |
+          if git grep -nE '^(<{7}|>{7})( |$)|^={7}$' -- ':!*.nbt' ':!*.png'; then
+            echo "::error::Merge conflict markers are committed"
+            exit 1
+          fi
+
+      - name: Docs did not balloon
+        # A looped replace once grew a milestone doc from 168 to 41,694 lines. A pull_request checkout is the merge
+        # of the PR into its base, so its first parent is the base.
+        if: github.event_name == 'pull_request'
+        run: |
+          # python3 is a Microsoft Store stub on Windows and python is missing on some Linux images: take the first that runs.
+          for candidate in python3 python py; do
+            if "$candidate" -c 'import sys' > /dev/null 2>&1; then
+              "$candidate" .github/scripts/doc-size-guard.py HEAD^1
+              exit $?
+            fi
+          done
+          echo "::error::no working python found"
+          exit 1
+
+      - name: Set up JDK 25
+        if: steps.areas.outputs.docs_only != 'true'
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+
+      - name: Set up Gradle
+        if: steps.areas.outputs.docs_only != 'true'
+        uses: gradle/actions/setup-gradle@v6
+
+      # --no-daemon: one Gradle call per step, so a daemon would only cost memory.
+      # The build is cheap with the build cache and catches compile breaks in every module, so it always runs.
+      - name: Build
+        if: steps.areas.outputs.docs_only != 'true'
+        run: ./gradlew build --no-daemon
+
+      - name: GameTests (lib)
+        if: env.PUSH != 'true' && steps.areas.outputs.lib == 'true'
+        run: ./gradlew :lib:neoforge:runGameTestServer --no-daemon
+
+      - name: GameTests (storage)
+        if: env.PUSH != 'true' && steps.areas.outputs.storage == 'true'
+        run: ./gradlew :storage:neoforge:runGameTestServer --no-daemon
+
+      # The network bridge against the real AE2 and Refined Storage (dev-only runtime deps from Maven Central and
+      # Modrinth's maven, never in the jar or datagen): nightly, manual, and PRs that touch the bridge.
+      - name: GameTests (storage, AE2 bridge)
+        if: env.PUSH != 'true' && steps.areas.outputs.ae2 == 'true'
+        run: ./gradlew :storage:neoforge:runGameTestServer -PwithAe2=true "-Pgametest=maxtech_storage:ae2_*" --no-daemon
+
+      - name: GameTests (storage, RS bridge)
+        if: env.PUSH != 'true' && steps.areas.outputs.rs == 'true'
+        run: ./gradlew :storage:neoforge:runGameTestServer -PwithRs=true "-Pgametest=maxtech_storage:rs_*" --no-daemon
+
+      - name: Dedicated server starts (storage)
+        if: (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && steps.areas.outputs.storage == 'true'
+        run: .github/scripts/server-smoke.sh storage
+
+      # The release jars on a production NeoForge server from the official installer: Lib alone, then Lib + Storage
+      # (with its bundled GuideME). Fails on any warning or error the allow-list does not name (scripts/smoke-server.sh).
+      # No step timeout: the script bounds each scenario and kills a hung server itself.
+      - name: Release jars on a NeoForge server
+        if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+        run: scripts/smoke-server.sh
+
+      # Generated resources are committed; fail if a generator change was not re-run, or datagen itself broke.
+      # Datagen skips files its hash cache says are unchanged; without the cache every file is written.
+      - name: Datagen (lib)
+        if: env.PUSH != 'true' && steps.areas.outputs.lib == 'true'
+        run: |
+          rm -rf lib/common/src/generated/resources/.cache
+          ./gradlew :lib:neoforge:runData --no-daemon
+
+      - name: Datagen (storage)
+        if: env.PUSH != 'true' && steps.areas.outputs.storage == 'true'
+        run: |
+          rm -rf storage/common/src/generated/resources/.cache
+          ./gradlew :storage:neoforge:runData --no-daemon
+
+      - name: Datagen up to date
+        # A mod whose datagen did not run has an unchanged tree, so checking both paths is harmless.
+        if: env.PUSH != 'true' && steps.areas.outputs.docs_only != 'true'
+        run: |
+          # A mod may have no generated data yet; keep the pathspecs valid.
+          mkdir -p lib/common/src/generated storage/common/src/generated
+          git add -N lib/common/src/generated storage/common/src/generated
+          git diff --exit-code -- lib/common/src/generated storage/common/src/generated
+
+      - name: Upload jars
+        if: steps.areas.outputs.docs_only != 'true'
+        # GitHub recounts artifact storage only every 6 to 12 hours, so a full quota must not fail the build.
+        continue-on-error: true
+        uses: actions/upload-artifact@v7
+        with:
+          name: jars
+          path: |
+            */neoforge/build/libs/*.jar
+            */common/build/libs/*-api-*.jar
+          if-no-files-found: error
+          # Old jars filled the artifact storage quota; three days covers checking a PR's build.
+          retention-days: 3
+
+      - name: Report nightly failure
+        if: failure() && github.event_name == 'schedule'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          title="Nightly CI failed"
+          number=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --limit 100 --json number,title \
+            --jq "[.[] | select(.title == \"$title\")][0].number // empty")
+          if [ -n "$number" ]; then
+            gh issue comment "$number" --repo "$GITHUB_REPOSITORY" --body "Failed again: $RUN_URL"
+          else
+            gh issue create --repo "$GITHUB_REPOSITORY" --title "$title" --body "The nightly run failed: $RUN_URL"
+          fi

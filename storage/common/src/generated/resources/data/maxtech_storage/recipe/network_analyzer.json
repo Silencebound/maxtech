@@ -1,0 +1,18 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "equipment",
+  "key": {
+    "D": "#maxtech_storage:display_glass",
+    "L": "#maxtech_storage:basic_logic_processor",
+    "P": "#c:plates/signal_alloy",
+    "W": "#c:wires/copper"
+  },
+  "pattern": [
+    " D ",
+    "PLP",
+    "PWP"
+  ],
+  "result": {
+    "id": "maxtech_storage:network_analyzer"
+  }
+}

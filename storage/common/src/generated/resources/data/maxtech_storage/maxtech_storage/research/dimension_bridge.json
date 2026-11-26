@@ -1,0 +1,29 @@
+{
+  "any_of": [
+    {
+      "type": "task",
+      "count": 250000,
+      "task": "ports_throughput"
+    },
+    {
+      "type": "puzzle",
+      "difficulty": 2,
+      "puzzle": "maxtech_storage:waveform_tuning"
+    },
+    {
+      "type": "points",
+      "cost": 1500
+    }
+  ],
+  "branch": "void",
+  "icon": "maxtech_storage:void_lattice",
+  "order": 4,
+  "requires": [
+    "maxtech_storage:void_crystal",
+    "maxtech_storage:wireless"
+  ],
+  "tier": 5,
+  "unlocks": [
+    "maxtech_storage:dimension_bridge"
+  ]
+}

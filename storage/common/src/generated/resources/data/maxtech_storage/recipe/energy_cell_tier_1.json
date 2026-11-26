@@ -1,0 +1,18 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "redstone",
+  "key": {
+    "L": "#maxtech_storage:basic_logic_processor",
+    "P": "#c:plates/signal_alloy",
+    "R": "#c:storage_blocks/redstone",
+    "W": "#maxtech_storage:insulated_copper_wire"
+  },
+  "pattern": [
+    "PRP",
+    "RLR",
+    "PWP"
+  ],
+  "result": {
+    "id": "maxtech_storage:energy_cell_tier_1"
+  }
+}

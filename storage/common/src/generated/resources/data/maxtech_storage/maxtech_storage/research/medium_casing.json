@@ -1,0 +1,29 @@
+{
+  "any_of": [
+    {
+      "type": "task",
+      "fraction": 0.01,
+      "max": 100,
+      "task": "store_kinds"
+    },
+    {
+      "type": "task",
+      "count": 75,
+      "task": "cell_fill"
+    },
+    {
+      "type": "points",
+      "cost": 150
+    }
+  ],
+  "branch": "memory",
+  "icon": "maxtech_storage:casing_plate",
+  "order": 1,
+  "requires": [
+    "maxtech_storage:memory_2"
+  ],
+  "tier": 2,
+  "unlocks": [
+    "maxtech_storage:medium_casing"
+  ]
+}

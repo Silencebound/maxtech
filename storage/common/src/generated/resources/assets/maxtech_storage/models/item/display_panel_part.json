@@ -1,0 +1,48 @@
+{
+  "parent": "minecraft:block/block",
+  "elements": [
+    {
+      "faces": {
+        "down": {
+          "texture": "#side"
+        },
+        "east": {
+          "texture": "#side"
+        },
+        "north": {
+          "texture": "#front",
+          "uv": [
+            0.0,
+            0.0,
+            16.0,
+            16.0
+          ]
+        },
+        "south": {
+          "texture": "#side"
+        },
+        "up": {
+          "texture": "#side"
+        },
+        "west": {
+          "texture": "#side"
+        }
+      },
+      "from": [
+        2,
+        2,
+        0
+      ],
+      "to": [
+        14,
+        14,
+        2
+      ]
+    }
+  ],
+  "textures": {
+    "front": "maxtech_storage:block/display/part_screen",
+    "particle": "maxtech_storage:block/display/edge",
+    "side": "maxtech_storage:block/display/edge"
+  }
+}

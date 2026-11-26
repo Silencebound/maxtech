@@ -1,0 +1,24 @@
+{
+  "neoforge:conditions": [
+    {
+      "type": "maxtech_lib:content_enabled",
+      "toggle": "maxtech_storage:wireless"
+    }
+  ],
+  "type": "minecraft:crafting_shaped",
+  "category": "equipment",
+  "key": {
+    "I": "#maxtech_storage:advanced_io_processor",
+    "O": "#maxtech_storage:oscillator",
+    "P": "#c:plates/signal_alloy",
+    "T": "#maxtech_storage:storage_terminal"
+  },
+  "pattern": [
+    "POP",
+    "PTP",
+    "PIP"
+  ],
+  "result": {
+    "id": "maxtech_storage:wireless_terminal"
+  }
+}

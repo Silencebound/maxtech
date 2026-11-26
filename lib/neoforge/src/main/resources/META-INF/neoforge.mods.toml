@@ -1,0 +1,50 @@
+modLoader = "javafml"
+loaderVersion = "${loader_version_range}"
+license = "LGPL-3.0-only"
+# Shown in crash reports. public_repo_url is a Gradle property (gradle.properties).
+issueTrackerURL = "${public_repo_url}/issues"
+
+[[mods]]
+modId = "maxtech_lib"
+logoFile = "maxtech_lib_logo.png"
+version = "${mod_version}"
+displayName = "MaxTech Lib"
+displayURL = "${public_repo_url}"
+authors = "Silencebound"
+description = '''
+Code library for MaxTech Storage: cable and network frameworks, FE helpers, GUI components, config and content helpers.
+
+Public beta: please report bugs on the issue tracker.
+'''
+
+[[dependencies.maxtech_lib]]
+modId = "neoforge"
+type = "required"
+versionRange = "${neoforge_version_range}"
+ordering = "NONE"
+side = "BOTH"
+
+[[dependencies.maxtech_lib]]
+modId = "minecraft"
+type = "required"
+versionRange = "${minecraft_version_range}"
+ordering = "NONE"
+side = "BOTH"
+
+# Block overlay; Lib's plugin lives in compat.jade and loads only through Jade's @WailaPlugin scan. BOTH, not CLIENT:
+# its server data providers run on the server.
+[[dependencies.maxtech_lib]]
+modId = "jade"
+type = "optional"
+versionRange = "[26.1.11,)"
+ordering = "NONE"
+side = "BOTH"
+
+# Team access for owned blocks (compat.ftbteams), registered only when FTB Teams is loaded. BOTH: checks run on the
+# server.
+[[dependencies.maxtech_lib]]
+modId = "ftbteams"
+type = "optional"
+versionRange = "[26.1.2.4,)"
+ordering = "NONE"
+side = "BOTH"

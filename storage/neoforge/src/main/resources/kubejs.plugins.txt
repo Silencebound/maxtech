@@ -1,0 +1,2 @@
+# Read by KubeJS only; without KubeJS nothing loads these classes.
+dev.silencebound.maxtech.storage.neoforge.compat.kubejs.StorageKubeJSPlugin

@@ -1,0 +1,19 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "C": "#c:chests",
+    "I": "#maxtech_storage:basic_io_processor",
+    "L": "#maxtech_storage:basic_logic_processor",
+    "P": "#c:plates/signal_alloy",
+    "W": "#maxtech_storage:insulated_copper_wire"
+  },
+  "pattern": [
+    "PIP",
+    "CWC",
+    "PLP"
+  ],
+  "result": {
+    "id": "maxtech_storage:io_port"
+  }
+}

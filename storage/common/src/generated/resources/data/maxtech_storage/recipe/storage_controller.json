@@ -1,0 +1,19 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "redstone",
+  "key": {
+    "D": "#maxtech_storage:display_glass",
+    "L": "#maxtech_storage:basic_logic_processor",
+    "M": "#maxtech_storage:basic_memory_processor",
+    "P": "#c:plates/signal_alloy",
+    "Q": "#c:gems/lumen_quartz"
+  },
+  "pattern": [
+    "PLP",
+    "QDQ",
+    "PMP"
+  ],
+  "result": {
+    "id": "maxtech_storage:storage_controller"
+  }
+}

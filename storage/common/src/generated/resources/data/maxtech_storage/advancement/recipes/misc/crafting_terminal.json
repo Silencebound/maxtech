@@ -1,0 +1,32 @@
+{
+  "parent": "minecraft:recipes/root",
+  "criteria": {
+    "has_terminal": {
+      "conditions": {
+        "items": [
+          {
+            "items": "#maxtech_storage:storage_terminal"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "has_the_recipe": {
+      "conditions": {
+        "recipe": "maxtech_storage:crafting_terminal"
+      },
+      "trigger": "minecraft:recipe_unlocked"
+    }
+  },
+  "requirements": [
+    [
+      "has_the_recipe",
+      "has_terminal"
+    ]
+  ],
+  "rewards": {
+    "recipes": [
+      "maxtech_storage:crafting_terminal"
+    ]
+  }
+}

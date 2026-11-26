@@ -1,0 +1,14 @@
+{
+  "neoforge:conditions": [
+    {
+      "type": "maxtech_lib:content_enabled",
+      "toggle": "maxtech_storage:placer_breaker"
+    }
+  ],
+  "type": "maxtech_storage:component_copying",
+  "category": "redstone",
+  "ingredient": "#maxtech_storage:breaker_port",
+  "result": {
+    "id": "maxtech_storage:breaker_port_part"
+  }
+}

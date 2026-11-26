@@ -1,0 +1,30 @@
+{
+  "any_of": [
+    {
+      "type": "task",
+      "count": 4,
+      "task": "drives_running"
+    },
+    {
+      "type": "task",
+      "count": 25000,
+      "task": "ports_throughput"
+    },
+    {
+      "type": "points",
+      "cost": 350
+    }
+  ],
+  "branch": "network",
+  "icon": "maxtech_storage:efficiency_core_card",
+  "order": 17,
+  "requires": [
+    "maxtech_storage:controller_cards",
+    "maxtech_storage:energy_cells_2"
+  ],
+  "tier": 2,
+  "unlocks": [
+    "maxtech_storage:efficiency_core",
+    "maxtech_storage:surge_regulator"
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "C": "#maxtech_storage:crafting_cpu_tier_1",
+    "D": "#c:gems/data_crystal",
+    "E": "#maxtech_storage:elite_logic_processor"
+  },
+  "pattern": [
+    "DED",
+    "ECE",
+    "DED"
+  ],
+  "result": {
+    "id": "maxtech_storage:crafting_cpu_tier_2"
+  }
+}

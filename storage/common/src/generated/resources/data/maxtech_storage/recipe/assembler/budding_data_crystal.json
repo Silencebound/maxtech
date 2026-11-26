@@ -1,0 +1,42 @@
+{
+  "neoforge:conditions": [
+    {
+      "type": "maxtech_lib:content_enabled",
+      "toggle": "maxtech_storage:data_geodes"
+    }
+  ],
+  "type": "maxtech_storage:assembler",
+  "duration": 1000,
+  "energy_per_tick": 40,
+  "inputs": [
+    {
+      "count": 32,
+      "ingredient": "#c:gems/data_crystal"
+    },
+    {
+      "ingredient": "#maxtech_storage:elite_logic_processor"
+    },
+    {
+      "ingredient": "#maxtech_storage:elite_memory_processor"
+    },
+    {
+      "ingredient": "#maxtech_storage:elite_signal_processor"
+    },
+    {
+      "count": 8,
+      "ingredient": "#maxtech_storage:superconductor_wire"
+    },
+    {
+      "count": 16,
+      "ingredient": "#c:gems/ember_quartz"
+    }
+  ],
+  "outputs": [
+    {
+      "item": {
+        "id": "maxtech_storage:budding_data_crystal"
+      }
+    }
+  ],
+  "research": "maxtech_storage:elite_processors"
+}

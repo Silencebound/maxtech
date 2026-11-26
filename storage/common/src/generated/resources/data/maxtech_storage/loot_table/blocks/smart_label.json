@@ -1,0 +1,21 @@
+{
+  "type": "minecraft:block",
+  "pools": [
+    {
+      "bonus_rolls": 0.0,
+      "conditions": [
+        {
+          "condition": "minecraft:survives_explosion"
+        }
+      ],
+      "entries": [
+        {
+          "type": "minecraft:item",
+          "name": "maxtech_storage:smart_label"
+        }
+      ],
+      "rolls": 1.0
+    }
+  ],
+  "random_sequence": "maxtech_storage:blocks/smart_label"
+}

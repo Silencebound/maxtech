@@ -1,0 +1,28 @@
+{
+  "any_of": [
+    {
+      "type": "task",
+      "count": 256,
+      "tag": "c:ores",
+      "task": "store_items"
+    },
+    {
+      "type": "task",
+      "count": 90,
+      "task": "cell_fill"
+    },
+    {
+      "type": "points",
+      "cost": 150
+    }
+  ],
+  "branch": "cells",
+  "icon": "maxtech_storage:small_storage_cell",
+  "requires": [
+    "maxtech_storage:memory_2"
+  ],
+  "tier": 2,
+  "unlocks": [
+    "maxtech_storage:partition_addon"
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "equipment",
+  "key": {
+    "D": "#maxtech_storage:display_glass",
+    "P": "#c:plates/signal_alloy",
+    "S": "#maxtech_storage:basic_signal_processor"
+  },
+  "pattern": [
+    "  D",
+    " S ",
+    "P  "
+  ],
+  "result": {
+    "id": "maxtech_storage:p2p_linker"
+  }
+}

@@ -1,0 +1,52 @@
+{
+  "parent": "minecraft:block/block",
+  "elements": [
+    {
+      "faces": {
+        "down": {
+          "cullface": "down",
+          "rotation": 180,
+          "texture": "#side"
+        },
+        "east": {
+          "cullface": "east",
+          "rotation": 90,
+          "texture": "#side"
+        },
+        "north": {
+          "cullface": "north",
+          "texture": "#front"
+        },
+        "south": {
+          "cullface": "south",
+          "texture": "#back"
+        },
+        "up": {
+          "cullface": "up",
+          "texture": "#side"
+        },
+        "west": {
+          "cullface": "west",
+          "rotation": 270,
+          "texture": "#side"
+        }
+      },
+      "from": [
+        0,
+        0,
+        0
+      ],
+      "to": [
+        16,
+        16,
+        16
+      ]
+    }
+  ],
+  "textures": {
+    "back": "maxtech_storage:block/port/stub_end",
+    "front": "maxtech_storage:block/sensor/front",
+    "particle": "maxtech_storage:block/sensor/side",
+    "side": "maxtech_storage:block/sensor/side"
+  }
+}

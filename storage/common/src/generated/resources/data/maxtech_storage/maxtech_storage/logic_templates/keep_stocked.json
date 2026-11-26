@@ -1,0 +1,58 @@
+{
+  "category": "crafting",
+  "description": "When the network has fewer than 16 sticks, asks the crafting system for 32 more. Change the item, the limit and the amount.",
+  "graph": {
+    "nodes": [
+      {
+        "type": "count_crosses",
+        "id": 1,
+        "settings": {
+          "item": {
+            "kind": "item",
+            "value": {
+              "id": "minecraft:stick",
+              "kind": "item"
+            }
+          },
+          "mode": {
+            "kind": "text",
+            "value": "below"
+          },
+          "threshold": {
+            "kind": "number",
+            "value": 16
+          }
+        }
+      },
+      {
+        "type": "request_craft",
+        "id": 2,
+        "settings": {
+          "amount": {
+            "kind": "number",
+            "value": 32
+          },
+          "item": {
+            "kind": "item",
+            "value": {
+              "id": "minecraft:stick",
+              "kind": "item"
+            }
+          }
+        },
+        "x": 96
+      }
+    ],
+    "version": 1,
+    "wires": [
+      {
+        "from": 1,
+        "in": "do",
+        "out": "crossed",
+        "to": 2
+      }
+    ]
+  },
+  "icon": "minecraft:crafting_table",
+  "name": "Keep N of an item"
+}

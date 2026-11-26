@@ -1,0 +1,11 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "equipment",
+  "ingredients": [
+    "minecraft:writable_book",
+    "#maxtech_storage:basic_logic_processor"
+  ],
+  "result": {
+    "id": "maxtech_storage:usage_report_book"
+  }
+}

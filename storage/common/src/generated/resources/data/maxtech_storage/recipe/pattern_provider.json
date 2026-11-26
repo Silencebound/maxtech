@@ -1,0 +1,19 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "C": "minecraft:crafting_table",
+    "M": "#maxtech_storage:basic_memory_processor",
+    "O": "#maxtech_storage:basic_io_processor",
+    "P": "#c:plates/signal_alloy",
+    "W": "#maxtech_storage:insulated_copper_wire"
+  },
+  "pattern": [
+    "PMP",
+    "OCO",
+    "PWP"
+  ],
+  "result": {
+    "id": "maxtech_storage:pattern_provider"
+  }
+}

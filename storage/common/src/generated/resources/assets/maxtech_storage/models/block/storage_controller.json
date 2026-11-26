@@ -1,0 +1,87 @@
+{
+  "parent": "minecraft:block/block",
+  "elements": [
+    {
+      "faces": {
+        "down": {
+          "cullface": "down",
+          "texture": "#plate"
+        },
+        "east": {
+          "cullface": "east",
+          "texture": "#plate"
+        },
+        "north": {
+          "cullface": "north",
+          "texture": "#plate"
+        },
+        "south": {
+          "cullface": "south",
+          "texture": "#plate"
+        },
+        "up": {
+          "cullface": "up",
+          "texture": "#plate"
+        },
+        "west": {
+          "cullface": "west",
+          "texture": "#plate"
+        }
+      },
+      "from": [
+        0,
+        0,
+        0
+      ],
+      "to": [
+        16,
+        16,
+        16
+      ]
+    },
+    {
+      "faces": {
+        "down": {
+          "cullface": "down",
+          "texture": "#glow"
+        },
+        "east": {
+          "cullface": "east",
+          "texture": "#glow"
+        },
+        "north": {
+          "cullface": "north",
+          "texture": "#glow"
+        },
+        "south": {
+          "cullface": "south",
+          "texture": "#glow"
+        },
+        "up": {
+          "cullface": "up",
+          "texture": "#glow"
+        },
+        "west": {
+          "cullface": "west",
+          "texture": "#glow"
+        }
+      },
+      "from": [
+        0.25,
+        0.25,
+        0.25
+      ],
+      "light_emission": 15,
+      "to": [
+        15.75,
+        15.75,
+        15.75
+      ]
+    }
+  ],
+  "textures": {
+    "glow": "maxtech_storage:block/controller/face/glow_online_0",
+    "particle": "maxtech_storage:block/controller/face/plate_15",
+    "plate": "maxtech_storage:block/controller/face/plate_15"
+  }
+}

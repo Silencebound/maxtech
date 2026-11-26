@@ -1,0 +1,130 @@
+import dev.silencebound.maxtech.gradle.MaxtechNeoForgeExtension
+import dev.silencebound.maxtech.gradle.maxtechModId
+import dev.silencebound.maxtech.gradle.modGroupName
+import dev.silencebound.maxtech.gradle.runDirectory
+
+plugins {
+    id("maxtech.java")
+    id("net.neoforged.moddev")
+}
+
+val libs = the<VersionCatalogsExtension>().named("libs")
+val modId = maxtechModId
+
+version = providers.gradleProperty("${modGroupName}_version").get()
+base.archivesName = modId
+
+val maxtech = extensions.create<MaxtechNeoForgeExtension>("maxtech", project)
+val common = maxtech.commonProject(project.parent!!.path)
+
+// GameTests (CLAUDE.md, Testing). Loaded as part of this project's mod in dev runs, never packed into the jar.
+val gametest = sourceSets.create("gametest")
+
+configurations.named(gametest.compileOnlyConfigurationName) {
+    extendsFrom(configurations.compileOnly.get())
+}
+
+dependencies {
+    // compileOnly: at dev runtime common is loaded as part of the mod through fml.modFolders (ADR-0001).
+    compileOnly(project(common.path))
+    "gametestImplementation"(sourceSets.main.get().output)
+}
+
+neoForge {
+    version = libs.findVersion("neoforge").get().requiredVersion
+    addModdingDependenciesTo(gametest)
+
+    runs {
+        register("client") {
+            client()
+        }
+        register("server") {
+            server()
+            programArgument("--nogui")
+        }
+        register("gameTestServer") {
+            type = "gameTestServer"
+            // Vanilla's GameTest server options, for iterating on or re-running one test instead of the whole suite:
+            // -Pgametest=<modid>:foo (wildcards allowed, e.g. maxtech_storage:cable_*) and -Pgametest.repeat=25, which
+            // the game only applies together with a selector.
+            // CI passes neither and runs everything.
+            programArguments.addAll(providers.gradleProperty("gametest").map { listOf("--tests", it) }
+                .orElse(emptyList()))
+            programArguments.addAll(providers.gradleProperty("gametest.repeat").map { listOf("--repeatCount", it) }
+                .orElse(emptyList()))
+            // -Pgametest.jfr=<file.jfr> records a Java Flight Recording of the run for profiling (the perf skill).
+            jvmArguments.addAll(providers.gradleProperty("gametest.jfr")
+                .map { listOf("-XX:StartFlightRecording=settings=profile,filename=$it") }
+                .orElse(emptyList()))
+        }
+        register("data") {
+            clientData()
+            programArguments.addAll(
+                "--mod", modId, "--all",
+                "--output", common.file("src/generated/resources").absolutePath,
+                "--existing", common.file("src/main/resources").absolutePath,
+            )
+        }
+        configureEach {
+            // MDG's default is "<project name> - <Run>", and every mod's project is called "neoforge".
+            ideName.convention("${modGroupName.replaceFirstChar { it.uppercase() }} ${name.replaceFirstChar { it.uppercase() }}")
+            gameDirectory = runDirectory(name)
+            logLevel = org.slf4j.event.Level.INFO
+        }
+    }
+}
+
+// Every other mod builds on Lib, so every run loads it and every neoforge project compiles against Lib's
+// loader glue (datagen helpers, the Platform implementation's lookups). compileOnly: at dev runtime lib/neoforge is
+// loaded as the Lib mod, and in a pack it is Lib's jar.
+if (modGroupName != "lib") {
+    maxtech.loadMod(":lib")
+    dependencies {
+        compileOnly(project(":lib:neoforge"))
+    }
+}
+maxtech.loadMod(project.parent!!.path)
+neoForge.mods.named(modId) {
+    sourceSet(gametest)
+}
+
+// The GameTest source set is part of the mod in every dev run, so every run must compile it first; otherwise a client
+// run loads stale GameTest classes compiled against old main code (NoSuchFieldError at startup).
+tasks.matching { it.name.startsWith("run") || (it.name.startsWith("prepare") && it.name.endsWith("Run")) }.configureEach {
+    dependsOn(tasks.named(gametest.classesTaskName))
+}
+
+// Keep GameTest code under Error Prone/NullAway even when only `build` runs.
+tasks.check {
+    dependsOn(tasks.named(gametest.classesTaskName))
+}
+
+// The LGPL requires the license texts to travel with the binaries.
+val licenseFiles = rootProject.files("LICENSE", "COPYING", "COPYING.LESSER")
+
+tasks.jar {
+    from(maxtech.sourceSetsOf(common).map { it.output })
+    from(licenseFiles) { into("META-INF") }
+}
+
+tasks.named<Jar>("sourcesJar") {
+    from(maxtech.sourceSetsOf(common).map { it.allSource })
+}
+
+val versionProperties = mapOf(
+    "mod_version" to version.toString(),
+    "minecraft_version_range" to libs.findVersion("minecraft-range").get().requiredVersion,
+    "neoforge_version_range" to libs.findVersion("neoforge-range").get().requiredVersion,
+    "loader_version_range" to libs.findVersion("javafml-range").get().requiredVersion,
+    "lib_version_range" to providers.gradleProperty("lib_version_range").get(),
+    "public_repo_url" to providers.gradleProperty("public_repo_url").get(),
+)
+
+tasks.processResources {
+    // A local copy, so the action below captures a plain map instead of the script (configuration cache).
+    val properties = versionProperties
+    inputs.properties(properties)
+    filesMatching("META-INF/neoforge.mods.toml") {
+        expand(properties)
+    }
+}

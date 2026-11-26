@@ -1,0 +1,28 @@
+{
+  "any_of": [
+    {
+      "type": "task",
+      "count": 512,
+      "task": "machine_runs"
+    },
+    {
+      "type": "puzzle",
+      "difficulty": 1,
+      "puzzle": "maxtech_storage:byte_packing"
+    },
+    {
+      "type": "points",
+      "cost": 400
+    }
+  ],
+  "branch": "crafting",
+  "icon": "maxtech_storage:blank_pattern",
+  "order": 2,
+  "requires": [
+    "maxtech_storage:autocrafting"
+  ],
+  "tier": 3,
+  "unlocks": [
+    "maxtech_storage:provider_slots"
+  ]
+}

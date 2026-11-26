@@ -1,0 +1,19 @@
+{
+  "variants": {
+    "facing=east": {
+      "model": "maxtech_storage:block/cell_workbench",
+      "y": 90
+    },
+    "facing=north": {
+      "model": "maxtech_storage:block/cell_workbench"
+    },
+    "facing=south": {
+      "model": "maxtech_storage:block/cell_workbench",
+      "y": 180
+    },
+    "facing=west": {
+      "model": "maxtech_storage:block/cell_workbench",
+      "y": 270
+    }
+  }
+}

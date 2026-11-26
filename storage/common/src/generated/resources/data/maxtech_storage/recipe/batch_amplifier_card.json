@@ -1,0 +1,17 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "redstone",
+  "key": {
+    "P": "#c:plates/signal_alloy",
+    "X": "#maxtech_storage:basic_io_processor",
+    "Y": "#maxtech_storage:oscillator"
+  },
+  "pattern": [
+    "PXP",
+    "YXY",
+    "PXP"
+  ],
+  "result": {
+    "id": "maxtech_storage:batch_amplifier_card"
+  }
+}

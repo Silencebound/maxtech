@@ -1,0 +1,17 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "redstone",
+  "key": {
+    "C": "#maxtech_storage:storage_cable_tier_4",
+    "X": "#maxtech_storage:glass_fibre"
+  },
+  "pattern": [
+    "CCC",
+    "CXC",
+    "CCC"
+  ],
+  "result": {
+    "count": 8,
+    "id": "maxtech_storage:fiber_storage_cable_tier_4"
+  }
+}

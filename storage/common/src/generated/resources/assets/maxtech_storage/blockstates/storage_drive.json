@@ -1,0 +1,19 @@
+{
+  "variants": {
+    "facing=east": {
+      "model": "maxtech_storage:block/storage_drive",
+      "y": 90
+    },
+    "facing=north": {
+      "model": "maxtech_storage:block/storage_drive"
+    },
+    "facing=south": {
+      "model": "maxtech_storage:block/storage_drive",
+      "y": 180
+    },
+    "facing=west": {
+      "model": "maxtech_storage:block/storage_drive",
+      "y": 270
+    }
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "any_of": [
+    {
+      "type": "task",
+      "count": 10000,
+      "task": "ports_throughput"
+    },
+    {
+      "type": "puzzle",
+      "difficulty": 1,
+      "puzzle": "maxtech_storage:waveform_tuning"
+    },
+    {
+      "type": "points",
+      "cost": 300
+    }
+  ],
+  "branch": "cells",
+  "icon": "maxtech_storage:small_storage_cell",
+  "order": 1,
+  "requires": [
+    "maxtech_storage:partition"
+  ],
+  "tier": 2,
+  "unlocks": [
+    "maxtech_storage:void_addon",
+    "maxtech_storage:lock_addon"
+  ]
+}

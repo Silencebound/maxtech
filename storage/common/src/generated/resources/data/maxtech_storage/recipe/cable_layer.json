@@ -1,0 +1,25 @@
+{
+  "neoforge:conditions": [
+    {
+      "type": "maxtech_lib:content_enabled",
+      "toggle": "maxtech_storage:wireless"
+    }
+  ],
+  "type": "minecraft:crafting_shaped",
+  "category": "equipment",
+  "key": {
+    "C": "#maxtech_storage:storage_cable_tier_1",
+    "I": "#maxtech_storage:advanced_io_processor",
+    "L": "#maxtech_storage:basic_logic_processor",
+    "P": "#c:plates/signal_alloy",
+    "S": "minecraft:piston"
+  },
+  "pattern": [
+    "PCP",
+    "SIS",
+    "PLP"
+  ],
+  "result": {
+    "id": "maxtech_storage:cable_layer"
+  }
+}

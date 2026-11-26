@@ -1,0 +1,12 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "ingredients": [
+    "maxtech_storage:test_worn_tool",
+    "minecraft:oak_log"
+  ],
+  "result": {
+    "id": "minecraft:stick",
+    "count": 2
+  }
+}

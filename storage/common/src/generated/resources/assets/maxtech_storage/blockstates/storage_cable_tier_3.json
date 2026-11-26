@@ -1,0 +1,9 @@
+{
+  "variants": {
+    "": {
+      "type": "maxtech_lib:conduit",
+      "end": "maxtech_lib:block/conduit/flat",
+      "look": "solid"
+    }
+  }
+}

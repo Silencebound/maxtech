@@ -1,0 +1,18 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "redstone",
+  "key": {
+    "L": "#maxtech_storage:superconductor_wire",
+    "O": "#maxtech_storage:advanced_io_processor",
+    "P": "#c:plates/signal_alloy",
+    "S": "#maxtech_storage:advanced_signal_processor"
+  },
+  "pattern": [
+    "PSP",
+    "LOL",
+    "PSP"
+  ],
+  "result": {
+    "id": "maxtech_storage:network_bridge_tier_3"
+  }
+}

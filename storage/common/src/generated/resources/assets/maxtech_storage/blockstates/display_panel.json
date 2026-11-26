@@ -1,0 +1,730 @@
+{
+  "multipart": [
+    {
+      "apply": {
+        "model": "maxtech_storage:block/display_panel",
+        "x": 90
+      },
+      "when": {
+        "facing": "down"
+      }
+    },
+    {
+      "apply": {
+        "model": "maxtech_storage:block/display_panel_frame_left",
+        "x": 90
+      },
+      "when": {
+        "facing": "down",
+        "frame_left": "true"
+      }
+    },
+    {
+      "apply": {
+        "model": "maxtech_storage:block/display_panel_frame_right",
+        "x": 90
+      },
+      "when": {
+        "facing": "down",
+        "frame_right": "true"
+      }
+    },
+    {
+      "apply": {
+        "model": "maxtech_storage:block/display_panel_frame_bottom",
+        "x": 90
+      },
+      "when": {
+        "facing": "down",
+        "frame_bottom": "true"
+      }
+    },
+    {
+      "apply": {
+        "model": "maxtech_storage:block/display_panel_frame_top",
+        "x": 90
+      },
+      "when": {
+        "facing": "down",
+        "frame_top": "true"
+      }
+    },
+    {
+      "apply": {
+        "model": "maxtech_storage:block/display_panel_corner_bottom_left",
+        "x": 90
+      },
+      "when": {
+        "OR": [
+          {
+            "facing": "down",
+            "frame_bottom": "true"
+          },
+          {
+            "facing": "down",
+            "frame_left": "true"
+          }
+        ]
+      }
+    },
+    {
+      "apply": {
+        "model": "maxtech_storage:block/display_panel_corner_bottom_right",
+        "x": 90
+      },
+      "when": {
+        "OR": [
+          {
+            "facing": "down",
+            "frame_bottom": "true"
+          },
+          {
+            "facing": "down",
+            "frame_right": "true"
+          }
+        ]
+      }
+    },
+    {
+      "apply": {
+        "model": "maxtech_storage:block/display_panel_corner_top_left",
+        "x": 90
+      },
+      "when": {
+        "OR": [
+          {
+            "facing": "down",
+            "frame_top": "true"
+          },
+          {
+            "facing": "down",
+            "frame_left": "true"
+          }
+        ]
+      }
+    },
+    {
+      "apply": {
+        "model": "maxtech_storage:block/display_panel_corner_top_right",
+        "x": 90
+      },
+      "when": {
+        "OR": [
+          {
+            "facing": "down",
+            "frame_top": "true"
+          },
+          {
+            "facing": "down",
+            "frame_right": "true"
+          }
+        ]
+      }
+    },
+    {
+      "apply": {
+        "model": "maxtech_storage:block/display_panel",
+        "x": 270,
+        "y": 180
+      },
+      "when": {
+        "facing": "up"
+      }
+    },
+    {
+      "apply": {
+        "model": "maxtech_storage:block/display_panel_frame_left",
+        "x": 270,
+        "y": 180
+      },
+      "when": {
+        "facing": "up",
+        "frame_left": "true"
+      }
+    },
+    {
+      "apply": {
+        "model": "maxtech_storage:block/display_panel_frame_right",
+        "x": 270,
+        "y": 180
+      },
+      "when": {
+        "facing": "up",
+        "frame_right": "true"
+      }
+    },
+    {
+      "apply": {
+        "model": "maxtech_storage:block/display_panel_frame_bottom",
+        "x": 270,
+        "y": 180
+      },
+      "when": {
+        "facing": "up",
+        "frame_bottom": "true"
+      }
+    },
+    {
+      "apply": {
+        "model": "maxtech_storage:block/display_panel_frame_top",
+        "x": 270,
+        "y": 180
+      },
+      "when": {
+        "facing": "up",
+        "frame_top": "true"
+      }
+    },
+    {
+      "apply": {
+        "model": "maxtech_storage:block/display_panel_corner_bottom_left",
+        "x": 270,
+        "y": 180
+      },
+      "when": {
+        "OR": [
+          {
+            "facing": "up",
+            "frame_bottom": "true"
+          },
+          {
+            "facing": "up",
+            "frame_left": "true"
+          }
+        ]
+      }
+    },
+    {
+      "apply": {
+        "model": "maxtech_storage:block/display_panel_corner_bottom_right",
+        "x": 270,
+        "y": 180
+      },
+      "when": {
+        "OR": [
+          {
+            "facing": "up",
+            "frame_bottom": "true"
+          },
+          {
+            "facing": "up",
+            "frame_right": "true"
+          }
+        ]
+      }
+    },
+    {
+      "apply": {
+        "model": "maxtech_storage:block/display_panel_corner_top_left",
+        "x": 270,
+        "y": 180
+      },
+      "when": {
+        "OR": [
+          {
+            "facing": "up",
+            "frame_top": "true"
+          },
+          {
+            "facing": "up",
+            "frame_left": "true"
+          }
+        ]
+      }
+    },
+    {
+      "apply": {
+        "model": "maxtech_storage:block/display_panel_corner_top_right",
+        "x": 270,
+        "y": 180
+      },
+      "when": {
+        "OR": [
+          {
+            "facing": "up",
+            "frame_top": "true"
+          },
+          {
+            "facing": "up",
+            "frame_right": "true"
+          }
+        ]
+      }
+    },
+    {
+      "apply": {
+        "model": "maxtech_storage:block/display_panel"
+      },
+      "when": {
+        "facing": "north"
+      }
+    },
+    {
+      "apply": {
+        "model": "maxtech_storage:block/display_panel_frame_left"
+      },
+      "when": {
+        "facing": "north",
+        "frame_left": "true"
+      }
+    },
+    {
+      "apply": {
+        "model": "maxtech_storage:block/display_panel_frame_right"
+      },
+      "when": {
+        "facing": "north",
+        "frame_right": "true"
+      }
+    },
+    {
+      "apply": {
+        "model": "maxtech_storage:block/display_panel_frame_bottom"
+      },
+      "when": {
+        "facing": "north",
+        "frame_bottom": "true"
+      }
+    },
+    {
+      "apply": {
+        "model": "maxtech_storage:block/display_panel_frame_top"
+      },
+      "when": {
+        "facing": "north",
+        "frame_top": "true"
+      }
+    },
+    {
+      "apply": {
+        "model": "maxtech_storage:block/display_panel_corner_bottom_left"
+      },
+      "when": {
+        "OR": [
+          {
+            "facing": "north",
+            "frame_bottom": "true"
+          },
+          {
+            "facing": "north",
+            "frame_left": "true"
+          }
+        ]
+      }
+    },
+    {
+      "apply": {
+        "model": "maxtech_storage:block/display_panel_corner_bottom_right"
+      },
+      "when": {
+        "OR": [
+          {
+            "facing": "north",
+            "frame_bottom": "true"
+          },
+          {
+            "facing": "north",
+            "frame_right": "true"
+          }
+        ]
+      }
+    },
+    {
+      "apply": {
+        "model": "maxtech_storage:block/display_panel_corner_top_left"
+      },
+      "when": {
+        "OR": [
+          {
+            "facing": "north",
+            "frame_top": "true"
+          },
+          {
+            "facing": "north",
+            "frame_left": "true"
+          }
+        ]
+      }
+    },
+    {
+      "apply": {
+        "model": "maxtech_storage:block/display_panel_corner_top_right"
+      },
+      "when": {
+        "OR": [
+          {
+            "facing": "north",
+            "frame_top": "true"
+          },
+          {
+            "facing": "north",
+            "frame_right": "true"
+          }
+        ]
+      }
+    },
+    {
+      "apply": {
+        "model": "maxtech_storage:block/display_panel",
+        "y": 180
+      },
+      "when": {
+        "facing": "south"
+      }
+    },
+    {
+      "apply": {
+        "model": "maxtech_storage:block/display_panel_frame_left",
+        "y": 180
+      },
+      "when": {
+        "facing": "south",
+        "frame_left": "true"
+      }
+    },
+    {
+      "apply": {
+        "model": "maxtech_storage:block/display_panel_frame_right",
+        "y": 180
+      },
+      "when": {
+        "facing": "south",
+        "frame_right": "true"
+      }
+    },
+    {
+      "apply": {
+        "model": "maxtech_storage:block/display_panel_frame_bottom",
+        "y": 180
+      },
+      "when": {
+        "facing": "south",
+        "frame_bottom": "true"
+      }
+    },
+    {
+      "apply": {
+        "model": "maxtech_storage:block/display_panel_frame_top",
+        "y": 180
+      },
+      "when": {
+        "facing": "south",
+        "frame_top": "true"
+      }
+    },
+    {
+      "apply": {
+        "model": "maxtech_storage:block/display_panel_corner_bottom_left",
+        "y": 180
+      },
+      "when": {
+        "OR": [
+          {
+            "facing": "south",
+            "frame_bottom": "true"
+          },
+          {
+            "facing": "south",
+            "frame_left": "true"
+          }
+        ]
+      }
+    },
+    {
+      "apply": {
+        "model": "maxtech_storage:block/display_panel_corner_bottom_right",
+        "y": 180
+      },
+      "when": {
+        "OR": [
+          {
+            "facing": "south",
+            "frame_bottom": "true"
+          },
+          {
+            "facing": "south",
+            "frame_right": "true"
+          }
+        ]
+      }
+    },
+    {
+      "apply": {
+        "model": "maxtech_storage:block/display_panel_corner_top_left",
+        "y": 180
+      },
+      "when": {
+        "OR": [
+          {
+            "facing": "south",
+            "frame_top": "true"
+          },
+          {
+            "facing": "south",
+            "frame_left": "true"
+          }
+        ]
+      }
+    },
+    {
+      "apply": {
+        "model": "maxtech_storage:block/display_panel_corner_top_right",
+        "y": 180
+      },
+      "when": {
+        "OR": [
+          {
+            "facing": "south",
+            "frame_top": "true"
+          },
+          {
+            "facing": "south",
+            "frame_right": "true"
+          }
+        ]
+      }
+    },
+    {
+      "apply": {
+        "model": "maxtech_storage:block/display_panel",
+        "y": 270
+      },
+      "when": {
+        "facing": "west"
+      }
+    },
+    {
+      "apply": {
+        "model": "maxtech_storage:block/display_panel_frame_left",
+        "y": 270
+      },
+      "when": {
+        "facing": "west",
+        "frame_left": "true"
+      }
+    },
+    {
+      "apply": {
+        "model": "maxtech_storage:block/display_panel_frame_right",
+        "y": 270
+      },
+      "when": {
+        "facing": "west",
+        "frame_right": "true"
+      }
+    },
+    {
+      "apply": {
+        "model": "maxtech_storage:block/display_panel_frame_bottom",
+        "y": 270
+      },
+      "when": {
+        "facing": "west",
+        "frame_bottom": "true"
+      }
+    },
+    {
+      "apply": {
+        "model": "maxtech_storage:block/display_panel_frame_top",
+        "y": 270
+      },
+      "when": {
+        "facing": "west",
+        "frame_top": "true"
+      }
+    },
+    {
+      "apply": {
+        "model": "maxtech_storage:block/display_panel_corner_bottom_left",
+        "y": 270
+      },
+      "when": {
+        "OR": [
+          {
+            "facing": "west",
+            "frame_bottom": "true"
+          },
+          {
+            "facing": "west",
+            "frame_left": "true"
+          }
+        ]
+      }
+    },
+    {
+      "apply": {
+        "model": "maxtech_storage:block/display_panel_corner_bottom_right",
+        "y": 270
+      },
+      "when": {
+        "OR": [
+          {
+            "facing": "west",
+            "frame_bottom": "true"
+          },
+          {
+            "facing": "west",
+            "frame_right": "true"
+          }
+        ]
+      }
+    },
+    {
+      "apply": {
+        "model": "maxtech_storage:block/display_panel_corner_top_left",
+        "y": 270
+      },
+      "when": {
+        "OR": [
+          {
+            "facing": "west",
+            "frame_top": "true"
+          },
+          {
+            "facing": "west",
+            "frame_left": "true"
+          }
+        ]
+      }
+    },
+    {
+      "apply": {
+        "model": "maxtech_storage:block/display_panel_corner_top_right",
+        "y": 270
+      },
+      "when": {
+        "OR": [
+          {
+            "facing": "west",
+            "frame_top": "true"
+          },
+          {
+            "facing": "west",
+            "frame_right": "true"
+          }
+        ]
+      }
+    },
+    {
+      "apply": {
+        "model": "maxtech_storage:block/display_panel",
+        "y": 90
+      },
+      "when": {
+        "facing": "east"
+      }
+    },
+    {
+      "apply": {
+        "model": "maxtech_storage:block/display_panel_frame_left",
+        "y": 90
+      },
+      "when": {
+        "facing": "east",
+        "frame_left": "true"
+      }
+    },
+    {
+      "apply": {
+        "model": "maxtech_storage:block/display_panel_frame_right",
+        "y": 90
+      },
+      "when": {
+        "facing": "east",
+        "frame_right": "true"
+      }
+    },
+    {
+      "apply": {
+        "model": "maxtech_storage:block/display_panel_frame_bottom",
+        "y": 90
+      },
+      "when": {
+        "facing": "east",
+        "frame_bottom": "true"
+      }
+    },
+    {
+      "apply": {
+        "model": "maxtech_storage:block/display_panel_frame_top",
+        "y": 90
+      },
+      "when": {
+        "facing": "east",
+        "frame_top": "true"
+      }
+    },
+    {
+      "apply": {
+        "model": "maxtech_storage:block/display_panel_corner_bottom_left",
+        "y": 90
+      },
+      "when": {
+        "OR": [
+          {
+            "facing": "east",
+            "frame_bottom": "true"
+          },
+          {
+            "facing": "east",
+            "frame_left": "true"
+          }
+        ]
+      }
+    },
+    {
+      "apply": {
+        "model": "maxtech_storage:block/display_panel_corner_bottom_right",
+        "y": 90
+      },
+      "when": {
+        "OR": [
+          {
+            "facing": "east",
+            "frame_bottom": "true"
+          },
+          {
+            "facing": "east",
+            "frame_right": "true"
+          }
+        ]
+      }
+    },
+    {
+      "apply": {
+        "model": "maxtech_storage:block/display_panel_corner_top_left",
+        "y": 90
+      },
+      "when": {
+        "OR": [
+          {
+            "facing": "east",
+            "frame_top": "true"
+          },
+          {
+            "facing": "east",
+            "frame_left": "true"
+          }
+        ]
+      }
+    },
+    {
+      "apply": {
+        "model": "maxtech_storage:block/display_panel_corner_top_right",
+        "y": 90
+      },
+      "when": {
+        "OR": [
+          {
+            "facing": "east",
+            "frame_top": "true"
+          },
+          {
+            "facing": "east",
+            "frame_right": "true"
+          }
+        ]
+      }
+    }
+  ]
+}

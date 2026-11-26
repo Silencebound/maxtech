@@ -1,0 +1,15 @@
+# Generic private-detail patterns for scripts/privacy-sweep.sh: a label, whitespace, then a regular expression (Python
+# syntax, matched case-insensitively). Personal values (the owner's name, private email, host names) never go here; they
+# live in the private pattern file outside the repository, and so do the names of the owner's private
+# repositories and shelved projects. Write each regex so it does not match its own text (hence
+# the `[s]` and `[h]` below).
+windows-user-path   [a-z]:[\\/]+(users|documents and settings)[\\/]
+mac-user-path       /users/[a-z0-9._-]+/
+linux-home-path     /home/[a-z_][a-z0-9._-]*/
+netbird-host        \.netbird\.
+private-ipv4        (^|[^0-9.])(10(\.[0-9]{1,3}){3}|192\.168(\.[0-9]{1,3}){2}|172\.(1[6-9]|2[0-9]|3[01])(\.[0-9]{1,3}){2}|100\.(6[4-9]|[7-9][0-9]|1[01][0-9]|12[0-7])(\.[0-9]{1,3}){2})\.?([^0-9.]|$)
+github-token        gh[pousr]_[a-z0-9]{36}
+github-pat          github_pat_[a-z0-9_]{20,}
+aws-key             akia[0-9a-z]{16}
+private-key         -----begin ([a-z0-9]+ )*private key-----
+planning-link       claude\.ai/(artifact|chat|project)s?/

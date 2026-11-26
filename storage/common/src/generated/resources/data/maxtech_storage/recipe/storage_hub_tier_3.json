@@ -1,0 +1,16 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "redstone",
+  "key": {
+    "C": "#maxtech_storage:storage_cable_tier_3",
+    "P": "#maxtech_storage:advanced_signal_processor"
+  },
+  "pattern": [
+    " C ",
+    "CPC",
+    " C "
+  ],
+  "result": {
+    "id": "maxtech_storage:storage_hub_tier_3"
+  }
+}

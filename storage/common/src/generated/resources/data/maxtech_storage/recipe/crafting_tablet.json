@@ -1,0 +1,25 @@
+{
+  "neoforge:conditions": [
+    {
+      "type": "maxtech_lib:content_enabled",
+      "toggle": "maxtech_storage:wireless"
+    }
+  ],
+  "type": "minecraft:crafting_shaped",
+  "category": "equipment",
+  "key": {
+    "C": "minecraft:crafting_table",
+    "D": "#maxtech_storage:display_glass",
+    "I": "#maxtech_storage:advanced_io_processor",
+    "O": "#maxtech_storage:oscillator",
+    "P": "#c:plates/signal_alloy"
+  },
+  "pattern": [
+    "PDP",
+    "OCO",
+    "PIP"
+  ],
+  "result": {
+    "id": "maxtech_storage:crafting_tablet"
+  }
+}

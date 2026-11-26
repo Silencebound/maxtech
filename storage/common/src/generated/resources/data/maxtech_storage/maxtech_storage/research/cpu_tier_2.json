@@ -1,0 +1,30 @@
+{
+  "any_of": [
+    {
+      "type": "task",
+      "count": 128,
+      "tag": "c:gems/data_crystal",
+      "task": "store_items"
+    },
+    {
+      "type": "puzzle",
+      "difficulty": 2,
+      "puzzle": "maxtech_storage:mask_alignment"
+    },
+    {
+      "type": "points",
+      "cost": 900
+    }
+  ],
+  "branch": "crafting",
+  "icon": "maxtech_storage:data_crystal",
+  "order": 4,
+  "requires": [
+    "maxtech_storage:autocrafting",
+    "maxtech_storage:elite_processors"
+  ],
+  "tier": 4,
+  "unlocks": [
+    "maxtech_storage:cpu_tier_2"
+  ]
+}

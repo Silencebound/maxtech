@@ -1,0 +1,27 @@
+{
+  "variants": {
+    "facing=down": {
+      "model": "maxtech_storage:block/placer_port",
+      "x": 90
+    },
+    "facing=east": {
+      "model": "maxtech_storage:block/placer_port",
+      "y": 90
+    },
+    "facing=north": {
+      "model": "maxtech_storage:block/placer_port"
+    },
+    "facing=south": {
+      "model": "maxtech_storage:block/placer_port",
+      "y": 180
+    },
+    "facing=up": {
+      "model": "maxtech_storage:block/placer_port",
+      "x": 270
+    },
+    "facing=west": {
+      "model": "maxtech_storage:block/placer_port",
+      "y": 270
+    }
+  }
+}

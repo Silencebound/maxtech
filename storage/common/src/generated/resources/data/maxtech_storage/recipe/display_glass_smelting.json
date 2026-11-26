@@ -1,0 +1,10 @@
+{
+  "type": "minecraft:smelting",
+  "category": "misc",
+  "cookingtime": 200,
+  "experience": 0.1,
+  "ingredient": "#maxtech_storage:display_glass_blend",
+  "result": {
+    "id": "maxtech_storage:display_glass"
+  }
+}

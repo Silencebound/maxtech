@@ -1,0 +1,16 @@
+{
+  "type": "minecraft:block",
+  "pools": [
+    {
+      "bonus_rolls": 0.0,
+      "entries": [
+        {
+          "type": "minecraft:item",
+          "name": "maxtech_storage:efficiency_core_card"
+        }
+      ],
+      "rolls": 1.0
+    }
+  ],
+  "random_sequence": "maxtech_storage:blocks/controller_efficiency_core"
+}

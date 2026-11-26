@@ -1,0 +1,29 @@
+{
+  "neoforge:conditions": [
+    {
+      "type": "maxtech_lib:content_enabled",
+      "toggle": "maxtech_storage:void_geodes"
+    }
+  ],
+  "type": "maxtech_storage:lithograph",
+  "duration": 200,
+  "energy_per_tick": 24,
+  "inputs": [
+    {
+      "ingredient": "#maxtech_storage:data_crystal_wafer"
+    },
+    {
+      "count": 2,
+      "ingredient": "#c:gems/void_crystal"
+    }
+  ],
+  "mode": "dope",
+  "outputs": [
+    {
+      "item": {
+        "id": "maxtech_storage:void_lattice"
+      }
+    }
+  ],
+  "research": "maxtech_storage:void_lattice"
+}

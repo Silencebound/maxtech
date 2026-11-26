@@ -1,0 +1,129 @@
+{
+  "category": "crafting",
+  "description": "A rule with inputs: when the network's count of the item drops below the amount, asks the crafting system for a batch. Adding it asks for the item, the amount and the batch; Copy with values makes more rules like it for other items.",
+  "graph": {
+    "nodes": [
+      {
+        "type": "parameter",
+        "id": 1,
+        "settings": {
+          "item": {
+            "kind": "item",
+            "value": {
+              "id": "minecraft:stick",
+              "kind": "item"
+            }
+          },
+          "kind": {
+            "kind": "text",
+            "value": "item"
+          },
+          "name": {
+            "kind": "text",
+            "value": "item"
+          }
+        }
+      },
+      {
+        "type": "parameter",
+        "id": 2,
+        "settings": {
+          "kind": {
+            "kind": "text",
+            "value": "number"
+          },
+          "name": {
+            "kind": "text",
+            "value": "amount"
+          },
+          "value": {
+            "kind": "number",
+            "value": 64
+          }
+        },
+        "y": 56
+      },
+      {
+        "type": "parameter",
+        "id": 3,
+        "settings": {
+          "kind": {
+            "kind": "text",
+            "value": "number"
+          },
+          "name": {
+            "kind": "text",
+            "value": "batch"
+          },
+          "value": {
+            "kind": "number",
+            "value": 32
+          }
+        },
+        "y": 112
+      },
+      {
+        "type": "item_count",
+        "id": 4,
+        "x": 96
+      },
+      {
+        "type": "compare",
+        "id": 5,
+        "settings": {
+          "mode": {
+            "kind": "text",
+            "value": "below"
+          }
+        },
+        "x": 192
+      },
+      {
+        "type": "request_craft",
+        "id": 6,
+        "x": 288
+      }
+    ],
+    "version": 1,
+    "wires": [
+      {
+        "from": 1,
+        "in": "item",
+        "out": "value",
+        "to": 4
+      },
+      {
+        "from": 4,
+        "in": "value",
+        "out": "count",
+        "to": 5
+      },
+      {
+        "from": 2,
+        "in": "threshold",
+        "out": "value",
+        "to": 5
+      },
+      {
+        "from": 5,
+        "in": "do",
+        "out": "turned_yes",
+        "to": 6
+      },
+      {
+        "from": 1,
+        "in": "item",
+        "out": "value",
+        "to": 6
+      },
+      {
+        "from": 3,
+        "in": "amount",
+        "out": "value",
+        "to": 6
+      }
+    ]
+  },
+  "icon": "minecraft:crafter",
+  "name": "Keep an item above an amount"
+}

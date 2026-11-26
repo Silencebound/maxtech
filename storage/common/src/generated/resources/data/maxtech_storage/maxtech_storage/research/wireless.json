@@ -1,0 +1,23 @@
+{
+  "any_of": [
+    {
+      "type": "task",
+      "count": 100000,
+      "task": "ports_throughput"
+    },
+    {
+      "type": "points",
+      "cost": 800
+    }
+  ],
+  "branch": "network",
+  "icon": "maxtech_storage:wireless_terminal",
+  "order": 3,
+  "requires": [
+    "maxtech_storage:antennas"
+  ],
+  "tier": 3,
+  "unlocks": [
+    "maxtech_storage:wireless_terminal"
+  ]
+}

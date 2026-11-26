@@ -1,0 +1,47 @@
+package dev.silencebound.maxtech.lib;
+
+import dev.silencebound.maxtech.lib.api.guide.GuideConfigValues;
+import dev.silencebound.maxtech.lib.api.security.OwnerSecurity;
+import dev.silencebound.maxtech.lib.concurrent.WorkerPool;
+import dev.silencebound.maxtech.lib.conduit.ConduitFaceModes;
+import dev.silencebound.maxtech.lib.config.ClientConfig;
+import dev.silencebound.maxtech.lib.config.ServerConfig;
+import dev.silencebound.maxtech.lib.energy.LevelEnergy;
+import dev.silencebound.maxtech.lib.gui.transfer.CraftingGridMenus;
+import dev.silencebound.maxtech.lib.highlight.Highlights;
+import dev.silencebound.maxtech.lib.network.NetworkManager;
+import dev.silencebound.maxtech.lib.platform.Platform;
+import dev.silencebound.maxtech.lib.registry.ModContent;
+import dev.silencebound.maxtech.lib.schedule.LevelTasks;
+import net.minecraft.resources.Identifier;
+
+/** MaxTech Lib: the shared code every MaxTech mod builds on, with no player-facing content of its own (ADR-0014). */
+public final class MaxtechLib {
+    public static final String MOD_ID = "maxtech_lib";
+
+    private MaxtechLib() {
+    }
+
+    public static Identifier id(String path) {
+        return Identifier.fromNamespaceAndPath(MOD_ID, path);
+    }
+
+    /** Called once from the loader entrypoint during mod construction, before any other MaxTech mod's. */
+    public static void init() {
+        // Resolve the platform now so a missing or duplicate implementation fails at startup, not on first use.
+        Platform.get();
+        ServerConfig.register();
+        OwnerSecurity.setOpsBypassSource(() -> ServerConfig.loadedOr(ServerConfig.OPS_BYPASS_OWNERSHIP, true));
+        ClientConfig.register();
+        ModContent.init();
+        Highlights.register();
+        CraftingGridMenus.register();
+        NetworkManager.bootstrap();
+        LevelTasks.bootstrap();
+        LevelEnergy.bootstrap();
+        WorkerPool.bootstrap();
+        GuideConfigValues.register(MOD_ID, ServerConfig.guideSource());
+        // Other mods register conduit types too, so check them all once registration is over.
+        Platform.get().lifecycle().onCommonSetup(MOD_ID, ConduitFaceModes::validateRegistered);
+    }
+}

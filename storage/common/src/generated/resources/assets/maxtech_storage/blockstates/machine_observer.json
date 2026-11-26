@@ -1,0 +1,27 @@
+{
+  "variants": {
+    "facing=down": {
+      "model": "maxtech_storage:block/machine_observer",
+      "x": 90
+    },
+    "facing=east": {
+      "model": "maxtech_storage:block/machine_observer",
+      "y": 90
+    },
+    "facing=north": {
+      "model": "maxtech_storage:block/machine_observer"
+    },
+    "facing=south": {
+      "model": "maxtech_storage:block/machine_observer",
+      "y": 180
+    },
+    "facing=up": {
+      "model": "maxtech_storage:block/machine_observer",
+      "x": 270
+    },
+    "facing=west": {
+      "model": "maxtech_storage:block/machine_observer",
+      "y": 270
+    }
+  }
+}

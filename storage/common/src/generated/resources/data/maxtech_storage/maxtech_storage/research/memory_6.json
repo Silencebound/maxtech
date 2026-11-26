@@ -1,0 +1,28 @@
+{
+  "any_of": [
+    {
+      "type": "task",
+      "count": 8388608,
+      "task": "store_items"
+    },
+    {
+      "type": "puzzle",
+      "difficulty": 2,
+      "puzzle": "maxtech_storage:byte_packing"
+    },
+    {
+      "type": "points",
+      "cost": 2500
+    }
+  ],
+  "branch": "void",
+  "icon": "maxtech_storage:memory_module_6",
+  "order": 2,
+  "requires": [
+    "maxtech_storage:memory_5"
+  ],
+  "tier": 5,
+  "unlocks": [
+    "maxtech_storage:memory_module_6"
+  ]
+}

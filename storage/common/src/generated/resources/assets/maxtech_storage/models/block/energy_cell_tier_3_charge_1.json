@@ -1,0 +1,7 @@
+{
+  "parent": "minecraft:block/cube_column",
+  "textures": {
+    "end": "maxtech_storage:block/energy_cell/end_tier_3",
+    "side": "maxtech_storage:block/energy_cell/side_1"
+  }
+}

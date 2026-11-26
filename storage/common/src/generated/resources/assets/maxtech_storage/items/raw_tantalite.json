@@ -1,0 +1,12 @@
+{
+  "model": {
+    "type": "minecraft:model",
+    "model": "maxtech_storage:item/material/raw",
+    "tints": [
+      {
+        "type": "minecraft:constant",
+        "value": -4157312
+      }
+    ]
+  }
+}

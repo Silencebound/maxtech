@@ -1,0 +1,12 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "ingredients": [
+    "#maxtech_storage:storage_terminal",
+    "#c:player_workstations/crafting_tables",
+    "#maxtech_storage:basic_logic_processor"
+  ],
+  "result": {
+    "id": "maxtech_storage:crafting_terminal"
+  }
+}

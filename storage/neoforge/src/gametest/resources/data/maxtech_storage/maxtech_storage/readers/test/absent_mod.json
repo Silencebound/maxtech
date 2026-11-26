@@ -1,0 +1,7 @@
+{
+  "neoforge:conditions": [{"type": "neoforge:mod_loaded", "modid": "maxtech_absent_test_mod"}],
+  "blocks": ["maxtech_storage:test_sensor_tank"],
+  "values": {
+    "absent": "Level"
+  }
+}

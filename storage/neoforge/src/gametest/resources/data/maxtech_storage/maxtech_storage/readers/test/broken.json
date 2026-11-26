@@ -1,0 +1,6 @@
+{
+  "blocks": ["maxtech_storage:test_sensor_tank"],
+  "values": {
+    "broken": "Level..oops"
+  }
+}

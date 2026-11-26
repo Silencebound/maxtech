@@ -1,0 +1,107 @@
+{
+  "category": "items",
+  "description": "Sends raw iron to the furnaces labelled \"furnaces\": 8 to one as soon as it stops burning, and 16 every 30 seconds spread over those not burning. Put a port labelled \"furnaces\" on top of each furnace; it reads whether its furnace burns.",
+  "graph": {
+    "nodes": [
+      {
+        "type": "pool_member_idle",
+        "id": 1,
+        "settings": {
+          "idle_value": {
+            "kind": "text",
+            "value": "state.lit"
+          },
+          "label": {
+            "kind": "text",
+            "value": "furnaces"
+          }
+        }
+      },
+      {
+        "type": "move_to_pool",
+        "id": 2,
+        "settings": {
+          "amount": {
+            "kind": "number",
+            "value": 8
+          },
+          "idle_value": {
+            "kind": "text",
+            "value": "state.lit"
+          },
+          "item": {
+            "kind": "item",
+            "value": {
+              "id": "minecraft:raw_iron",
+              "kind": "item"
+            }
+          },
+          "label": {
+            "kind": "text",
+            "value": "furnaces"
+          }
+        },
+        "x": 96
+      },
+      {
+        "type": "timer",
+        "id": 3,
+        "settings": {
+          "interval": {
+            "kind": "number",
+            "value": 30
+          }
+        },
+        "y": 112
+      },
+      {
+        "type": "move_to_pool",
+        "id": 4,
+        "settings": {
+          "amount": {
+            "kind": "number",
+            "value": 16
+          },
+          "idle_value": {
+            "kind": "text",
+            "value": "state.lit"
+          },
+          "item": {
+            "kind": "item",
+            "value": {
+              "id": "minecraft:raw_iron",
+              "kind": "item"
+            }
+          },
+          "label": {
+            "kind": "text",
+            "value": "furnaces"
+          },
+          "strategy": {
+            "kind": "text",
+            "value": "spread_evenly"
+          }
+        },
+        "x": 96,
+        "y": 112
+      }
+    ],
+    "version": 1,
+    "wires": [
+      {
+        "from": 1,
+        "in": "do",
+        "out": "turned_idle",
+        "to": 2
+      },
+      {
+        "from": 3,
+        "in": "do",
+        "out": "fired",
+        "to": 4
+      }
+    ]
+  },
+  "icon": "minecraft:furnace",
+  "name": "Feed a furnace array"
+}

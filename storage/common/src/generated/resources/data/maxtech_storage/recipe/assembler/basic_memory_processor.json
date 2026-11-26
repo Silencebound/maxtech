@@ -1,0 +1,27 @@
+{
+  "type": "maxtech_storage:assembler",
+  "duration": 200,
+  "energy_per_tick": 12,
+  "inputs": [
+    {
+      "ingredient": "#maxtech_storage:memory_die"
+    },
+    {
+      "count": 2,
+      "ingredient": "#maxtech_storage:insulated_copper_wire"
+    },
+    {
+      "ingredient": "#maxtech_storage:oscillator"
+    },
+    {
+      "ingredient": "#maxtech_storage:circuit_board"
+    }
+  ],
+  "outputs": [
+    {
+      "item": {
+        "id": "maxtech_storage:basic_memory_processor"
+      }
+    }
+  ]
+}

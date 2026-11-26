@@ -1,0 +1,16 @@
+{
+  "networks.unloadedChunkMode": "truncate",
+  "networks.allowAnchors": true,
+  "security.opsBypassOwnership": true,
+  "scheduler.ownerBudgetMicros": 150,
+  "scheduler.ownerOpsPerTick": 256,
+  "scheduler.maxBackoffTicks": 200,
+  "workers.threads": 2,
+  "sync.listUpdatesPerSecond": 4,
+  "energy.feRateFe": 1,
+  "energy.feRateMu": 1,
+  "energy.exportEnabled": true,
+  "energy.exportPerEdge": 0,
+  "energy.exportPerNetwork": 0,
+  "energy.edgePollTicks": 20
+}

@@ -1,0 +1,19 @@
+{
+  "variants": {
+    "facing=east": {
+      "model": "maxtech_storage:block/storage_block_tier_2",
+      "y": 90
+    },
+    "facing=north": {
+      "model": "maxtech_storage:block/storage_block_tier_2"
+    },
+    "facing=south": {
+      "model": "maxtech_storage:block/storage_block_tier_2",
+      "y": 180
+    },
+    "facing=west": {
+      "model": "maxtech_storage:block/storage_block_tier_2",
+      "y": 270
+    }
+  }
+}

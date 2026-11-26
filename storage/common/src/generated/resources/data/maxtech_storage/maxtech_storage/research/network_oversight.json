@@ -1,0 +1,29 @@
+{
+  "any_of": [
+    {
+      "type": "task",
+      "count": 4,
+      "task": "drives_running"
+    },
+    {
+      "type": "task",
+      "count": 50000,
+      "task": "ports_throughput"
+    },
+    {
+      "type": "points",
+      "cost": 500
+    }
+  ],
+  "branch": "network",
+  "icon": "maxtech_storage:controller_security_module",
+  "order": 18,
+  "requires": [
+    "maxtech_storage:network_tuning"
+  ],
+  "tier": 3,
+  "unlocks": [
+    "maxtech_storage:network_anchor",
+    "maxtech_storage:security_module"
+  ]
+}

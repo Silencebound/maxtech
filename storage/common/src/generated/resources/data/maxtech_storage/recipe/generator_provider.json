@@ -1,0 +1,18 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "O": "#maxtech_storage:basic_io_processor",
+    "P": "#c:plates/signal_alloy",
+    "R": "#c:dusts/redstone",
+    "W": "#maxtech_storage:insulated_copper_wire"
+  },
+  "pattern": [
+    "PRP",
+    "ROR",
+    "PWP"
+  ],
+  "result": {
+    "id": "maxtech_storage:generator_provider"
+  }
+}

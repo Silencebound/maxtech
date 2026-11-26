@@ -1,0 +1,57 @@
+name: Bug report
+description: Something in MaxTech Storage or MaxTech Lib does not work as it should
+labels: ["bug"]
+body:
+  - type: dropdown
+    id: mod
+    attributes:
+      label: Mod
+      options: [MaxTech Storage, MaxTech Lib, Not sure]
+    validations:
+      required: true
+  - type: input
+    id: minecraft
+    attributes:
+      label: Minecraft version
+      placeholder: "26.1.2"
+    validations:
+      required: true
+  - type: input
+    id: neoforge
+    attributes:
+      label: NeoForge version
+      placeholder: "26.1.2.109"
+    validations:
+      required: true
+  - type: input
+    id: versions
+    attributes:
+      label: MaxTech Storage and MaxTech Lib versions
+      description: As shown in the mod list or the jar names.
+    validations:
+      required: true
+  - type: textarea
+    id: mods
+    attributes:
+      label: Other mods
+      description: The modpack name and version, or the other mods installed. Say if it also happens with only Storage and Lib.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened, and what you expected
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Place a controller and a drive
+        2. ...
+    validations:
+      required: true
+  - type: input
+    id: log
+    attributes:
+      label: Log or crash report
+      description: A link to `logs/latest.log` or the crash report on a paste site (for example mclo.gs or a GitHub gist).

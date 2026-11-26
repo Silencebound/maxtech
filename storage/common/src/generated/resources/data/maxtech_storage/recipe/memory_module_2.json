@@ -1,0 +1,17 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "B": "#maxtech_storage:circuit_board",
+    "C": "#maxtech_storage:tantalum_capacitor",
+    "M": "#maxtech_storage:memory_module_1",
+    "P": "#maxtech_storage:advanced_memory_processor"
+  },
+  "pattern": [
+    "MPM",
+    "CBC"
+  ],
+  "result": {
+    "id": "maxtech_storage:memory_module_2"
+  }
+}

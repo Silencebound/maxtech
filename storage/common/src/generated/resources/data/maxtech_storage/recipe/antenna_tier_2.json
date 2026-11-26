@@ -1,0 +1,18 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "redstone",
+  "key": {
+    "A": "#maxtech_storage:antenna_tier_1",
+    "P": "#c:plates/signal_alloy",
+    "S": "#maxtech_storage:advanced_signal_processor",
+    "W": "#maxtech_storage:superconductor_wire"
+  },
+  "pattern": [
+    "PSP",
+    "WAW",
+    "PSP"
+  ],
+  "result": {
+    "id": "maxtech_storage:antenna_tier_2"
+  }
+}

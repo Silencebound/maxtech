@@ -1,0 +1,25 @@
+{
+  "neoforge:conditions": [
+    {
+      "type": "maxtech_lib:content_enabled",
+      "toggle": "maxtech_storage:wireless"
+    }
+  ],
+  "type": "minecraft:crafting_shaped",
+  "category": "equipment",
+  "key": {
+    "C": "#c:chests",
+    "I": "#maxtech_storage:advanced_io_processor",
+    "L": "#c:leathers",
+    "O": "#maxtech_storage:oscillator",
+    "P": "#c:plates/signal_alloy"
+  },
+  "pattern": [
+    "LCL",
+    "OIO",
+    "LPL"
+  ],
+  "result": {
+    "id": "maxtech_storage:restock_belt"
+  }
+}
