@@ -4,6 +4,7 @@ import com.mojang.logging.LogUtils;
 import dev.silencebound.maxtech.lib.api.conduit.ConduitConnectionRule;
 import dev.silencebound.maxtech.lib.api.conduit.ConduitConnections;
 import dev.silencebound.maxtech.lib.api.conduit.ConduitContents;
+import dev.silencebound.maxtech.lib.client.conduit.ConduitLooks;
 import dev.silencebound.maxtech.lib.api.conduit.ConduitFaceMode;
 import dev.silencebound.maxtech.lib.api.conduit.ConduitFaceModes;
 import dev.silencebound.maxtech.lib.api.conduit.ConduitHost;
@@ -654,7 +655,7 @@ public final class ConduitBlockEntity extends BlockEntity implements ConduitHost
      * changed. The state doesn't change, so without the explicit block update the section would keep its old mesh.
      */
     private void refreshModel() {
-        ConduitRenderData updated = ConduitRenderData.of(conduit, renderValue, contents.packed(), facade);
+        ConduitRenderData updated = ConduitRenderData.of(conduit, renderValue, packedContents(), facade);
         Object key = conduit.state() instanceof SyncedConduitState synced ? synced.renderKey() : null;
         boolean changed = !updated.equals(renderData) || !Objects.equals(key, stateRenderKey);
         renderData = updated;
@@ -666,10 +667,18 @@ public final class ConduitBlockEntity extends BlockEntity implements ConduitHost
         }
     }
 
+    /**
+     * The contents packed for the client model, with the client's look indices; 0 on the server, which never draws
+     * them, so only the client's main thread adds to the index.
+     */
+    private int packedContents() {
+        return level != null && level.isClientSide() ? ConduitLooks.pack(contents) : 0;
+    }
+
     /** Called on the client's main thread only when a refresh was requested; chunk meshing reads the snapshot. */
     @Override
     public ModelData getModelData() {
-        ConduitRenderData data = ConduitRenderData.of(conduit, renderValue, contents.packed(), facade);
+        ConduitRenderData data = ConduitRenderData.of(conduit, renderValue, packedContents(), facade);
         Object key = conduit.state() instanceof SyncedConduitState synced ? synced.renderKey() : null;
         return key == null
                 ? ModelData.of(RENDER_DATA, data)

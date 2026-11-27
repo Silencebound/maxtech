@@ -19,8 +19,8 @@ import org.jspecify.annotations.Nullable;
 
 /**
  * The faces of a shell conduit's contents ({@link ConduitContents}), in pixels, before they become baked quads. Pure
- * geometry: the loader's conduit model looks the fluid's sprites, tint and light up and hands them in as a
- * {@link Paint}, and caches the result per {@link #key}.
+ * geometry: the resource's sprites, tint and light come from its kind's look, resolved once into a {@link Paint}, and
+ * caches the result per {@link #key}.
  *
  * <p>
  * The contents are opaque boxes {@link ConduitLook.Shell#inset} px inside the glass: one for the core and one per arm,
@@ -60,7 +60,7 @@ public final class ConduitContentsGeometry {
     }
 
     /**
-     * How a fluid's contents are drawn, looked up from the fluid on the client.
+     * How a resource's contents are drawn, resolved from its kind's look on the client ({@link ConduitLooks}).
      *
      * @param still
      *            the still sprite, by atlas id
@@ -85,14 +85,14 @@ public final class ConduitContentsGeometry {
         return new ConduitBodyKey(key.type(), null, key.arms(), key.rings(), 0, key.contents());
     }
 
-    /** Whether packed contents draw anything: a fluid and a fill above 0. */
+    /** Whether packed contents draw anything: a resource and a fill above 0. */
     public static boolean drawn(int packed) {
-        return ConduitContents.packedFluidId(packed) >= 0 && ConduitContents.packedFill(packed) > 0;
+        return ConduitContents.packedLookIndex(packed) >= 0 && ConduitContents.packedFill(packed) > 0;
     }
 
     /**
      * The contents of a shell conduit of {@code thickness} with {@code arms} and {@code rings} (as in
-     * {@link ConduitBodyKey}), {@code packed} as {@link ConduitContents#packed()}, in {@code paint}. Empty when
+     * {@link ConduitBodyKey}), {@code packed} as {@link ConduitContents#pack}, in {@code paint}. Empty when
      * {@code packed} draws nothing or the inset leaves no room.
      */
     @SuppressWarnings("TooManyParameters") // the cache key's parts, unpacked; kept primitive

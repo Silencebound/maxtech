@@ -17,6 +17,11 @@ Api changes are marked **Api**.
   fluid contents with `ConduitContents.ofFluid`, read them with `fluid()`. Fluid contents save as before; contents of
   other kinds save their kind and key, are not drawn yet, and load empty when their kind's mod is gone.
   `KindKey.STREAM_CODEC` is now `CLIENTBOUND_STREAM_CODEC`.
+- **Api** Conduit contents of any resource kind are drawn, with the kind's client look: `ResourceLook` and
+  `ResourceLooks` (`lib.api.client.resource`, client only, experimental) give a kind its sprites, tint, name and
+  light; `FluidLook` is now the fluid kind's look (registered by Lib, `FluidLook.install` is gone). Packed contents
+  hold a session look index instead of the fluid's registry id: `ConduitContents.packed()` and `packedFluidId` are
+  replaced by Lib's own packing and `packedLookIndex`.
 
 ### Fixed
 - A client with Lib but no mod that adds conduit blocks (Lib alone, or Lib with Farms) crashed at startup: the
