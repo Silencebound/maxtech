@@ -19,7 +19,9 @@ import net.minecraft.util.Unit;
  * runner tears an environment down however its batch ends, so this also covers failed and timed-out tests.
  */
 record PerfEnvironment() implements TestEnvironmentDefinition<Unit> {
-    static final MapCodec<PerfEnvironment> CODEC = MapCodec.unit(new PerfEnvironment());
+    // A new instance per decode: registries hold values by identity, so a client joining a dev world would refuse the
+    // synced perf environments as one value added three times ("Network Protocol Error").
+    static final MapCodec<PerfEnvironment> CODEC = MapCodec.unit(PerfEnvironment::new);
 
     private static final ObjectArrayList<Runnable> CLEANUPS = new ObjectArrayList<>();
     private static final RegistryHelper.Registrar<MapCodec<? extends TestEnvironmentDefinition<?>>> TYPES = Platform
