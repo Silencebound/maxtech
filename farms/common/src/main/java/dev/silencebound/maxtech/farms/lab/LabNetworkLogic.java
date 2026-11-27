@@ -6,7 +6,9 @@ import dev.silencebound.maxtech.lib.api.conduit.ConduitFaceMode;
 import dev.silencebound.maxtech.lib.api.conduit.ConduitHost;
 import dev.silencebound.maxtech.lib.api.conduit.Conduits;
 import dev.silencebound.maxtech.lib.api.network.Network;
+import dev.silencebound.maxtech.lib.api.network.NetworkGraph;
 import dev.silencebound.maxtech.lib.api.network.NetworkLogic;
+import dev.silencebound.maxtech.lib.api.network.NetworkManager;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.longs.LongIterator;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
@@ -21,7 +23,8 @@ import org.jspecify.annotations.Nullable;
  * ports next to its tubes when the topology changes ({@link #onRebuilt}) or a tube's neighbour comes or goes (hubs and
  * ports invalidate the tubes beside them). Nothing moves per tick: nutrient and output move when a port or specimen
  * calls in, MU in the lab's energy network, which sleeps until something changes. The tick only finishes a pending look
- * at the neighbours.
+ * at the neighbours. Each look also sets the tubes' contents ({@link LabNetwork#refreshContents}); merges and splits
+ * tell the lab where its tubes went, so a hub on them keeps running.
  */
 final class LabNetworkLogic implements NetworkLogic {
     private static final Direction[] SIDES = Direction.values();
@@ -30,6 +33,7 @@ final class LabNetworkLogic implements NetworkLogic {
     private final Int2ObjectOpenHashMap<LabNetwork> labs = new Int2ObjectOpenHashMap<>();
     private final ObjectArrayList<LabHubBlockEntity> hubs = new ObjectArrayList<>();
     private final ObjectArrayList<FluidPortBlockEntity> ports = new ObjectArrayList<>();
+    private @Nullable NetworkGraph graph;
 
     LabNetworkLogic(ServerLevel level) {
         this.level = level;
@@ -69,12 +73,17 @@ final class LabNetworkLogic implements NetworkLogic {
 
     @Override
     public void onMerged(Network survivor, Network absorbed) {
+        LabNetwork gone = labs.get(absorbed.id());
+        if (gone != null) {
+            gone.addSuccessor(survivor);
+        }
         drop(absorbed);
         labOf(survivor).markDirty();
     }
 
     @Override
     public void onSplit(Network original, Network part) {
+        labOf(original).addSuccessor(part);
         labOf(original).markDirty();
         labOf(part).markDirty();
     }
@@ -122,6 +131,16 @@ final class LabNetworkLogic implements NetworkLogic {
         lab.update(hubs, ports);
         hubs.clear();
         ports.clear();
+        lab.refreshContents(graph());
+    }
+
+    private NetworkGraph graph() {
+        NetworkGraph current = graph;
+        if (current == null) {
+            current = NetworkManager.get(level).graph(LabTubes.NETWORK);
+            graph = current;
+        }
+        return current;
     }
 
     private void scanTube(ConduitHost tube, long pos) {
