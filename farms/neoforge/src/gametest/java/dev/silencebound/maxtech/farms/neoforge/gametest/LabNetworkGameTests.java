@@ -553,9 +553,13 @@ public final class LabNetworkGameTests {
                     "the tube's chunk is not at full status yet");
             helper.assertTrue(level.getChunkSource().getChunkNow(hubChunkX, chunkZ) == null,
                     "the hub's chunk is still at full status");
-        }).thenExecute(() -> helper.assertTrue(Conduits.place(level, tube, LabTubes.TUBE.type().get()), "tube placed"))
-                .thenWaitUntil(() -> helper.assertTrue(LabNetwork.at(level, tube).isPresent(), "no lab network"))
-                .thenIdle(2).thenExecute(() -> {
+        }).thenExecute(() -> {
+            // Quiet flags: neighbour and shape updates would read the hub's position and load its chunk.
+            level.setBlock(tube, LabTubes.TUBE.block().get().defaultBlockState(), quiet);
+            helper.assertTrue(level.getChunkSource().getChunkNow(hubChunkX, chunkZ) == null,
+                    "the hub's chunk loaded while the tube was placed");
+        }).thenWaitUntil(() -> helper.assertTrue(LabNetwork.at(level, tube).isPresent(), "no lab network")).thenIdle(2)
+                .thenExecute(() -> {
                     helper.assertTrue(level.getChunkSource().getChunkNow(hubChunkX, chunkZ) == null,
                             "the hub's chunk came back early");
                     helper.assertTrue(LabNetwork.at(level, tube).orElseThrow().hub().isEmpty(),
