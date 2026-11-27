@@ -98,12 +98,12 @@ public final class ResourceKindGameTests {
         helper.assertValueEqual(savedEnergy.size(), 1, "energy saves only its kind");
 
         RegistryFriendlyByteBuf buffer = new RegistryFriendlyByteBuf(Unpooled.buffer(), level.registryAccess());
-        KindKey.STREAM_CODEC.encode(buffer, item);
-        KindKey.STREAM_CODEC.encode(buffer, fluid);
-        KindKey.STREAM_CODEC.encode(buffer, energy);
-        helper.assertValueEqual(KindKey.STREAM_CODEC.decode(buffer), item, "streamed item");
-        helper.assertValueEqual(KindKey.STREAM_CODEC.decode(buffer), fluid, "streamed fluid");
-        helper.assertValueEqual(KindKey.STREAM_CODEC.decode(buffer), energy, "streamed energy");
+        KindKey.CLIENTBOUND_STREAM_CODEC.encode(buffer, item);
+        KindKey.CLIENTBOUND_STREAM_CODEC.encode(buffer, fluid);
+        KindKey.CLIENTBOUND_STREAM_CODEC.encode(buffer, energy);
+        helper.assertValueEqual(KindKey.CLIENTBOUND_STREAM_CODEC.decode(buffer), item, "streamed item");
+        helper.assertValueEqual(KindKey.CLIENTBOUND_STREAM_CODEC.decode(buffer), fluid, "streamed fluid");
+        helper.assertValueEqual(KindKey.CLIENTBOUND_STREAM_CODEC.decode(buffer), energy, "streamed energy");
         helper.assertValueEqual(buffer.readableBytes(), 0, "bytes left");
 
         helper.assertValueEqual(item.drawBase(), new KindKey<>(ResourceKinds.ITEM, ItemKey.of(Items.DIAMOND_SWORD)),

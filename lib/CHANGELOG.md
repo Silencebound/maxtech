@@ -13,6 +13,10 @@ Api changes are marked **Api**.
   `lib.client.gui`, `lib.client.gui.accent` and `lib.text` with the same names and drawing, so addons on the api jar
   draw the same look; `TextScale` gained an internal setter for the text size option, and `TextFit`, which is pure
   Java, lives in `lib.api.text`. Side tabs, `ScreenComponents` and the editor pieces stay internal.
+- **Api** `ConduitContents` holds a resource of any kind (`Optional<KindKey<?>> resource`) instead of a fluid; build
+  fluid contents with `ConduitContents.ofFluid`, read them with `fluid()`. Fluid contents save as before; contents of
+  other kinds save their kind and key, are not drawn yet, and load empty when their kind's mod is gone.
+  `KindKey.STREAM_CODEC` is now `CLIENTBOUND_STREAM_CODEC`.
 
 ### Fixed
 - A client with Lib but no mod that adds conduit blocks (Lib alone, or Lib with Farms) crashed at startup: the

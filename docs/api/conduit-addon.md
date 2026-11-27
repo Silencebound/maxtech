@@ -181,4 +181,5 @@ baked once per shape and fluid and shared, so water is the same blue in every bi
 any fill above 0. With an upstream side the flowing sprite runs from that side downstream on every face, else the
 still sprite shows, both at full size, one sprite per block, so they tile on without a seam; the second lane is a thin
 strip in the run's inner (+, +) corner, on the fluid's surface on horizontal pieces, flowing the other way.
-`ConduitContentsGeometryTest` pins the flow direction per face.
+`ConduitContentsGeometryTest` pins the flow direction per face. Fluid contents come from `ConduitContents.ofFluid`;
+contents of another resource kind (`lib.api.resource`) save and sync, but draw nothing yet.

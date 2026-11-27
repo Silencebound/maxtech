@@ -2,10 +2,8 @@ package dev.silencebound.maxtech.lib.conduit;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import dev.silencebound.maxtech.lib.api.conduit.ConduitContents;
-import dev.silencebound.maxtech.lib.conduit.ConduitContentsTag.Saved;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -13,6 +11,7 @@ import java.util.stream.Stream;
 import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.IntTag;
 import net.minecraft.resources.Identifier;
 import net.minecraft.util.ProblemReporter;
 import net.minecraft.world.level.storage.TagValueInput;
@@ -20,84 +19,100 @@ import net.minecraft.world.level.storage.TagValueOutput;
 import org.junit.jupiter.api.Test;
 
 /**
- * Contents in a conduit's saved data and update tag: the fluid by registry name, each field only when set, the key only
- * when not empty. Fluids can't load in JUnit, so this covers the saved form and the unknown-name path; loading a known
- * fluid runs in the {@code conduit_api_contents_saved} GameTest.
+ * Contents in a conduit's saved data and update tag: each field only when set, the key only when not empty, and saves
+ * naming a fluid or kind that is gone loading empty with one warning. Fluids and kinds can't load in JUnit; saving and
+ * loading them runs in the {@code conduit_api_contents_*} and {@code save_compat_contents_fluid_name} GameTests.
  */
 class ConduitContentsTagTest {
-    @Test
-    void savedFormRoundTripsByName() {
-        Saved water = new Saved(Optional.of("minecraft:water"), 2, Optional.of(Direction.NORTH), true);
-        CompoundTag tag = write(water);
-        CompoundTag saved = tag.getCompoundOrEmpty("contents");
-        assertEquals("minecraft:water", saved.getStringOr("fluid", ""));
-        assertEquals(2, saved.getIntOr("fill", 0));
-        assertEquals("north", saved.getStringOr("upstream", ""));
-        assertTrue(saved.getBooleanOr("lane", false));
-        assertEquals(Optional.of(water), read(tag));
-        Saved lava = new Saved(Optional.of("minecraft:lava"), 0, Optional.empty(), false);
-        assertEquals(1, write(lava).getCompoundOrEmpty("contents").size(), "defaults left out");
-        assertEquals(Optional.of(lava), read(write(lava)));
-    }
+    private final List<String> warnings = new ArrayList<>();
+    private final List<Identifier> asked = new ArrayList<>();
 
     @Test
     void emptyWritesNoKey() {
-        TagValueOutput output = TagValueOutput.createWithoutContext(ProblemReporter.DISCARDING);
-        ConduitContentsTag.save(output, ConduitContents.EMPTY);
-        CompoundTag tag = output.buildResult();
+        CompoundTag tag = save(ConduitContents.EMPTY);
         assertFalse(tag.contains("contents"));
         assertEquals(0, tag.size());
-        assertEquals(Optional.empty(), read(new CompoundTag()));
         assertEquals(ConduitContents.EMPTY, load(new CompoundTag()));
+        assertEquals(List.of(), warnings);
     }
 
     @Test
-    void contentsWithoutAFluidRoundTrip() {
+    void contentsWithoutAResourceRoundTrip() {
         ConduitContents flow = new ConduitContents(Optional.empty(), 0, Optional.of(Direction.DOWN), true);
-        TagValueOutput output = TagValueOutput.createWithoutContext(ProblemReporter.DISCARDING);
-        ConduitContentsTag.save(output, flow);
-        CompoundTag tag = output.buildResult();
-        assertFalse(tag.getCompoundOrEmpty("contents").contains("fluid"));
-        assertEquals(flow, read(tag).orElseThrow().resolve(id -> Optional.empty()));
+        CompoundTag saved = save(flow).getCompoundOrEmpty("contents");
+        assertEquals("down", saved.getStringOr("upstream", ""));
+        assertEquals(2, saved.size(), "no resource, kind or fill written");
+        assertEquals(flow, load(save(flow)));
+        assertEquals(List.of(), warnings);
     }
 
     @Test
-    void unknownFluidLoadsAsEmpty() {
-        List<Identifier> asked = new ArrayList<>();
+    void unknownFluidLoadsEmptyWithOneWarning() {
         for (String name : new String[]{"removed_mod:goo", "Not An Id!"}) {
-            Saved saved = new Saved(Optional.of(name), 4, Optional.of(Direction.UP), true);
-            assertEquals(ConduitContents.EMPTY, saved.resolve(id -> {
-                asked.add(id);
-                return Optional.empty();
-            }), name);
+            warnings.clear();
+            assertEquals(ConduitContents.EMPTY, load(contents("fluid", name)), name);
+            assertEquals(1, warnings.size(), name);
         }
         assertEquals(List.of(Identifier.fromNamespaceAndPath("removed_mod", "goo")), asked,
                 "an invalid name is not looked up");
     }
 
     @Test
-    void fillWithoutAFluidLoadsAsZero() {
-        Saved saved = new Saved(Optional.empty(), 3, Optional.empty(), true);
-        assertEquals(new ConduitContents(Optional.empty(), 0, Optional.empty(), true),
-                saved.resolve(id -> Optional.empty()));
+    void contentsUnknownKindLoadsEmptyWithOneWarning() {
+        for (String name : new String[]{"removed_mod:chemical", "Not An Id!"}) {
+            warnings.clear();
+            CompoundTag tag = contents("kind", name);
+            CompoundTag inner = tag.getCompoundOrEmpty("contents");
+            inner.put("resource", IntTag.valueOf(7));
+            // A fluid name next to a kind is not read: the kind decides.
+            inner.putString("fluid", "minecraft:water");
+            assertEquals(ConduitContents.EMPTY, load(tag), name);
+            assertEquals(1, warnings.size(), name + ": " + warnings);
+        }
+        assertEquals(List.of(Identifier.fromNamespaceAndPath("removed_mod", "chemical")), asked,
+                "an invalid kind is not looked up, and no fluid either");
     }
 
-    private static CompoundTag write(Saved saved) {
+    @Test
+    void anUnknownKindWarnsOncePerSession() {
+        for (int i = 0; i < 5; i++) {
+            assertEquals(ConduitContents.EMPTY, load(contents("kind", "removed_mod:again")));
+        }
+        assertEquals(1, warnings.size(), warnings.toString());
+    }
+
+    @Test
+    void fillWithoutAResourceLoadsAsZero() {
+        CompoundTag inner = new CompoundTag();
+        inner.putInt("fill", 3);
+        inner.putBoolean("lane", true);
+        CompoundTag tag = new CompoundTag();
+        tag.put("contents", inner);
+        assertEquals(new ConduitContents(Optional.empty(), 0, Optional.empty(), true), load(tag));
+    }
+
+    private static CompoundTag contents(String key, String value) {
+        CompoundTag contents = new CompoundTag();
+        contents.putString(key, value);
+        CompoundTag tag = new CompoundTag();
+        tag.put("contents", contents);
+        return tag;
+    }
+
+    private static CompoundTag save(ConduitContents contents) {
         TagValueOutput output = TagValueOutput.createWithoutContext(ProblemReporter.DISCARDING);
-        ConduitContentsTag.write(output, saved);
+        ConduitContentsTag.save(output, contents);
         return output.buildResult();
     }
 
-    private static TagValueInput input(CompoundTag tag) {
+    private ConduitContents load(CompoundTag tag) {
         HolderLookup.Provider lookup = HolderLookup.Provider.create(Stream.empty());
-        return (TagValueInput) TagValueInput.create(ProblemReporter.DISCARDING, lookup, tag);
-    }
-
-    private static Optional<Saved> read(CompoundTag tag) {
-        return ConduitContentsTag.read(input(tag));
-    }
-
-    private static ConduitContents load(CompoundTag tag) {
-        return ConduitContentsTag.load(input(tag));
+        return ConduitContentsTag.load(TagValueInput.create(ProblemReporter.DISCARDING, lookup, tag), id -> {
+            asked.add(id);
+            return Optional.empty();
+        }, id -> {
+            asked.add(id);
+            return Optional.empty();
+        }, warnings::add);
     }
 }
