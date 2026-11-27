@@ -80,7 +80,7 @@ For a conduit `<modid>:<name>` registered with a look:
 | File | Needed |
 |---|---|
 | `assets/<modid>/models/item/<name>.json` | yes; Lib's item model definition names `<modid>:item/<name>` |
-| `assets/<modid>/textures/block/...png` | only for sprites the look names in the addon's namespace (`end`, `overlay`); `ConduitLook.FLAT` is Lib's |
+| `assets/<modid>/textures/block/...png` | only for sprites the look names in the addon's namespace (`end`, `overlay`, `shell`); `ConduitLook.FLAT` is Lib's |
 | `assets/<modid>/lang/en_us.json` | yes: `block.<modid>.<name>` (the item uses the block's name) |
 | `data/<modid>/loot_table/blocks/<name>.json` | only to drop something other than the conduit's item; without one Lib drops the item, and a facade drops either way |
 
@@ -111,8 +111,46 @@ The block state file Lib writes, and an addon writes if it sets no look:
 }
 ```
 
-The fields beside `type` are `ConduitLook.CODEC`. `look` names the kind; `solid` is the only one. `end` is the sprite
+The fields beside `type` are `ConduitLook.CODEC`. `look` names the kind: `solid` or `shell` (below). `end` is the sprite
 on an open end. `overlay` is optional, drawn over `end` in `overlay_colour`. `colour` and `overlay_colour` are optional
 `#rrggbb` (Lib writes lower case and reads either); an absent colour means the type's `baseColour()`. A dye tints
 `colour`, never `overlay_colour`.
 `ConduitLookTest` and `ConduitAssetsTest` pin this format.
+
+## Shell look
+
+`ConduitLook.shell(sprite)` (Lib 0.14.0, experimental) draws a translucent glass tube. Every glass face shows the
+`shell` sprite projected onto the block and turned so its rows run along the tube, so the sprite tiles on without a
+seam from one tube to the next; a mostly transparent sprite with a faint tint and a few highlight rows works best.
+Lib works the outline out from the connections and draws it as opaque strips just outside the glass:
+
+- border lines along the tube's outer long edges, merged across core and arms; they run on over a joint with the
+  next tube, never across it, and leave out the inner crease of a bend, branch or crossing;
+- a rim around the end face where a run ends in the open (a single tube with no connections has plain borders on all
+  twelve edges instead);
+- a rim band around an arm that meets a block, just inside Lib's connector ring, which stays as on any conduit.
+
+```json
+{
+  "variants": {
+    "": {
+      "type": "maxtech_lib:conduit",
+      "look": "shell",
+      "shell": "farms:block/lab_tube_glass",
+      "border_colour": "#2e4a52"
+    }
+  }
+}
+```
+
+| Field | Default | Meaning |
+|---|---|---|
+| `shell` | required | sprite of the glass (block atlas) |
+| `border_colour` | the type's `baseColour()` | `#rrggbb` of borders and rims; a dye tints them, never the glass |
+| `border` | `0.5` | border line width in pixels on each face beside the edge, 0 to 4; 0 draws none |
+| `rim` | `1.5` | rim width in pixels, 0 to 4; 0 draws none |
+
+Lib leaves out each field at its default when it writes the file. Later Lib versions add more optional fields (the
+tube's contents), so a file written now stays valid. The model is translucent, so block outlines and moving blocks
+treat it as such; particles show the `shell` sprite. In code: `ConduitLook.shell(id).withBorderColour(0x2E4A52)`,
+`.withBorder(1)`, `.withRim(2)`. `ConduitLookTest` and `ConduitAssetsTest` pin this format too.

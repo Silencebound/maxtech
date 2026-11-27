@@ -20,6 +20,15 @@ class ConduitUvTest {
         assertEquals(0, new ConduitUv(1, 2, 3, 4).quarterTurns());
     }
 
+    /** A negative zero is stored as zero, so projected UVs compare equal however they were worked out. */
+    @Test
+    void negativeZeroIsZero() {
+        ConduitUv uv = new ConduitUv(-0.0F, -0.0F, -0.0F, -0.0F, 1);
+        assertEquals(new ConduitUv(0, 0, 0, 0, 1), uv);
+        assertEquals(0, Float.floatToIntBits(uv.u0()));
+        assertEquals(0, Float.floatToIntBits(uv.v1()));
+    }
+
     /** A coordinate outside the sprite or not a number, or a turn outside 0 to 3, fails. */
     @Test
     void rejectsOutOfRange() {
