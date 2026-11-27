@@ -37,6 +37,8 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.storage.TagValueInput;
+import net.minecraft.util.ProblemReporter;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
@@ -238,7 +240,10 @@ public final class ConduitApiGameTests {
         helper.succeed();
     }
 
-    /** The render value survives a save and load of the block entity; data without it loads as 0. */
+    /**
+     * The render value survives a save and load of the block entity; data without it loads as 0, also into a conduit
+     * that held a value.
+     */
     private static void renderValueSaved(GameTestHelper helper) {
         BlockPos pos = new BlockPos(1, 0, 1);
         BlockPos abs = helper.absolutePos(pos);
@@ -250,6 +255,11 @@ public final class ConduitApiGameTests {
         CompoundTag without = saved.copy();
         without.remove(RENDER_VALUE);
         helper.assertValueEqual(0, loaded(helper, abs, without).renderValue(), "render value of data without one");
+        // The client's reset path: the conduit holding 7 loads an update tag without the key.
+        BlockEntity existing = blockEntity(helper, abs);
+        existing.loadWithComponents(
+                TagValueInput.create(ProblemReporter.DISCARDING, helper.getLevel().registryAccess(), without));
+        helper.assertValueEqual(0, host(helper, pos).renderValue(), "render value kept after loading data without one");
         helper.succeed();
     }
 
