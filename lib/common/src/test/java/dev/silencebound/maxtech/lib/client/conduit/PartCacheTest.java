@@ -7,6 +7,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import dev.silencebound.maxtech.lib.api.conduit.ConduitConnections;
 import dev.silencebound.maxtech.lib.api.conduit.ConduitLook;
 import dev.silencebound.maxtech.lib.api.conduit.ConduitType;
+import dev.silencebound.maxtech.lib.api.conduit.model.ConduitBodyKey;
+import dev.silencebound.maxtech.lib.api.conduit.model.ConduitQuad;
 import dev.silencebound.maxtech.lib.conduit.ConduitRenderData;
 import java.util.HashSet;
 import java.util.List;
@@ -68,7 +70,7 @@ class PartCacheTest {
         for (int pass = 0; pass < 2; pass++) {
             for (int i = 0; i < arms.length; i++) {
                 ConduitRenderData data = new ConduitRenderData(CABLE, null, arms[i], rings[i], List.of(), null);
-                bodies.get(ConduitBodyKey.of(data));
+                bodies.get(data.bodyKey());
             }
             assertEquals(distinct.size(), bodies.bakes(), "one bake per distinct body after pass " + pass);
         }

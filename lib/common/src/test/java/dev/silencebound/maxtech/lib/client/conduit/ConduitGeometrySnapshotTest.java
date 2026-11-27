@@ -6,6 +6,9 @@ import dev.silencebound.maxtech.lib.api.conduit.ConduitFaceKey;
 import dev.silencebound.maxtech.lib.api.conduit.ConduitFaceMode;
 import dev.silencebound.maxtech.lib.api.conduit.ConduitLook;
 import dev.silencebound.maxtech.lib.api.conduit.ConduitType;
+import dev.silencebound.maxtech.lib.api.conduit.model.ConduitBodyKey;
+import dev.silencebound.maxtech.lib.api.conduit.model.ConduitLayer;
+import dev.silencebound.maxtech.lib.api.conduit.model.ConduitQuad;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -77,6 +80,8 @@ class ConduitGeometrySnapshotTest {
 
     private static void append(StringBuilder dump, List<ConduitQuad> quads) {
         for (ConduitQuad quad : quads) {
+            // Lib's own conduits keep the layer their sprite picks.
+            assertEquals(ConduitLayer.AUTO, quad.layer(), quad.toString());
             AABB box = quad.box();
             dump.append(String.format(Locale.ROOT, "  %s %s %s %s %s %s %s %s %08x %b%n", box.minX, box.minY, box.minZ,
                     box.maxX, box.maxY, box.maxZ, quad.facing(), quad.texture(), quad.argb(), quad.culled()));

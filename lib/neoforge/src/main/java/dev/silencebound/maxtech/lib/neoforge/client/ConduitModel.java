@@ -6,9 +6,9 @@ import com.mojang.serialization.MapCodec;
 import dev.silencebound.maxtech.lib.MaxtechLib;
 import dev.silencebound.maxtech.lib.api.conduit.ConduitFaceKey;
 import dev.silencebound.maxtech.lib.api.conduit.ConduitLook;
-import dev.silencebound.maxtech.lib.client.conduit.ConduitBodyKey;
+import dev.silencebound.maxtech.lib.api.conduit.model.ConduitBodyKey;
+import dev.silencebound.maxtech.lib.api.conduit.model.ConduitQuad;
 import dev.silencebound.maxtech.lib.client.conduit.ConduitGeometry;
-import dev.silencebound.maxtech.lib.client.conduit.ConduitQuad;
 import dev.silencebound.maxtech.lib.client.conduit.PartCache;
 import dev.silencebound.maxtech.lib.conduit.ConduitBlockEntity;
 import dev.silencebound.maxtech.lib.conduit.ConduitRenderData;
@@ -114,7 +114,7 @@ public final class ConduitModel implements DynamicBlockStateModel {
             return;
         }
         boolean labels = ClientConfig.conduitColorLabels();
-        output.add((labels ? labelledBodies : bodies).get(ConduitBodyKey.of(data)));
+        output.add((labels ? labelledBodies : bodies).get(data.bodyKey()));
         PartCache<ConduitFaceKey, BlockStateModelPart> faceParts = labels ? labelledFaces : faces;
         List<ConduitFaceKey> keys = data.faces();
         for (int i = 0; i < keys.size(); i++) {
@@ -204,7 +204,8 @@ public final class ConduitModel implements DynamicBlockStateModel {
 
     private BakedQuad quad(ConduitQuad face) {
         Material.Baked material = material(face);
-        Transparency transparency = material.sprite().contents().transparency();
+        Transparency transparency = ConduitLayers.transparency(face.layer(),
+                material.sprite().contents().transparency());
         BakedQuad.MaterialInfo info = BakedQuad.MaterialInfo.of(material, transparency, -1, true, 0, true);
         AABB box = face.box();
         Vector3f from = new Vector3f((float) box.minX, (float) box.minY, (float) box.minZ);

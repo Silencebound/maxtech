@@ -4,6 +4,8 @@ import dev.silencebound.maxtech.lib.api.conduit.ConduitConnections;
 import dev.silencebound.maxtech.lib.api.conduit.ConduitFaceKey;
 import dev.silencebound.maxtech.lib.api.conduit.ConduitFaceMode;
 import dev.silencebound.maxtech.lib.api.conduit.ConduitShapes;
+import dev.silencebound.maxtech.lib.api.conduit.model.ConduitQuad;
+import dev.silencebound.maxtech.lib.api.conduit.model.ConduitTexture;
 import dev.silencebound.maxtech.lib.conduit.ConduitRenderData;
 import dev.silencebound.maxtech.lib.info.ConduitInfo;
 import java.util.ArrayList;

@@ -61,6 +61,9 @@ Api changes are marked **Api**.
 - Jade's compact view for every block with a `BlockInfoProvider`: a status dot next to the name, then one row of bars
   coloured by fill, item and fluid icons and mode icons; sneaking shows the details as text. Client options
   `overlay.detailLevel` (`compact` or `full`) and `overlay.sneakForDetails` (on).
+- **Api** Conduit model geometry (`lib.api.conduit.model`, experimental, for Farms FM1): `ConduitQuad`,
+  `ConduitTexture` and `ConduitBodyKey` move from `lib.client.conduit`, a quad gets a `ConduitLayer` (from its sprite
+  as before, or forced translucent or cutout), and `ConduitParts` hands out Lib's own body and face quads.
 
 ### Changed
 - Config lang keys use the full path (`maxtech_lib.configuration.overlay.detailLevel`); the old last-segment keys are
