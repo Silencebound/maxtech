@@ -1,6 +1,11 @@
 package dev.silencebound.maxtech.lib.api.conduit;
 
 import com.mojang.logging.LogUtils;
+import dev.silencebound.maxtech.lib.api.resource.FluidKey;
+import dev.silencebound.maxtech.lib.api.resource.KindKey;
+import dev.silencebound.maxtech.lib.api.resource.ResourceKind;
+import dev.silencebound.maxtech.lib.api.resource.ResourceKinds;
+import dev.silencebound.maxtech.lib.api.resource.UnknownResource;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
@@ -16,35 +21,37 @@ import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 
 /**
- * What a conduit shows inside it, in a meaning shared by every addon: the fluid it carries, how full it looks, the side
- * its flow comes from and whether a second lane flows the other way. The addon sets it on the server with
- * {@link ConduitHost#setContents}; Lib saves it (the fluid by registry name, so it survives registry id changes between
- * sessions), syncs it on change and hands it to the client model. It says only what to draw; it holds no amount and
- * moves nothing.
+ * What a conduit shows inside it, in a meaning shared by every addon: the resource it carries (a fluid, or any other
+ * {@link ResourceKind}), how full it looks, the side its flow comes from and whether a second lane flows the other way.
+ * The addon sets it on the server with {@link ConduitHost#setContents}; Lib saves it (by the resource's kind and names,
+ * so it survives registry id changes between sessions), syncs it on change and hands it to the client model. It says
+ * only what to draw; it holds no amount and moves nothing. For now the client draws fluids only; contents of other
+ * kinds are saved and synced but show nothing.
  * <p>
- * An immutable value, safe to share between threads. Its accessors return the stored components and never allocate.
+ * An immutable value, safe to share between threads. Its record accessors return the stored components and never
+ * allocate.
  * <p>
  * Experimental (for Farms, FM1) until Farms, its first addon user, settles it.
  *
- * @param fluid
- *            the fluid shown, drawn with that fluid's own textures and tint; empty for none. Never the empty fluid
- *            itself ({@code Fluids.EMPTY}): that is {@code Optional.empty()}. Must be registered. A flowing fluid is
- *            stored as its source fluid, so {@code FLOWING_WATER} and {@code WATER} give equal contents. Data
- *            components are ignored by design: a fluid whose tint or texture depends on components draws its default
- *            look
+ * @param resource
+ *            the resource shown, as its {@linkplain KindKey#drawBase() draw base}: components are ignored by design, so
+ *            a resource whose look depends on them draws its default look. Empty for none. A fluid must be registered,
+ *            and a flowing fluid is stored as its source fluid, so {@code FLOWING_WATER} and {@code WATER} give equal
+ *            contents; see {@link #ofFluid}. Never an {@link UnknownResource}: contents of a kind no loaded mod
+ *            registers load as {@link #EMPTY}
  * @param fill
  *            how full the conduit looks, from {@code 0} (empty) over quarter steps to {@link #FULL}; {@code 0} without
- *            a fluid
+ *            a resource
  * @param upstream
  *            the side the flow enters from, or empty when it has none (a dead end, a source, or no flow)
  * @param lane
  *            whether a second lane is drawn, flowing opposite to the main one
  */
 @ApiStatus.Experimental
-public record ConduitContents(Optional<Fluid> fluid, int fill, Optional<Direction> upstream, boolean lane) {
+public record ConduitContents(Optional<KindKey<?>> resource, int fill, Optional<Direction> upstream, boolean lane) {
     /** The highest fill step: full. */
     public static final int FULL = 4;
-    /** Nothing inside: no fluid, fill 0, no upstream side, no second lane. What every conduit has until set. */
+    /** Nothing inside: no resource, fill 0, no upstream side, no second lane. What every conduit has until set. */
     public static final ConduitContents EMPTY = new ConduitContents(Optional.empty(), 0, Optional.empty(), false);
 
     private static final int FLUID_BITS = 16;
@@ -61,27 +68,74 @@ public record ConduitContents(Optional<Fluid> fluid, int fill, Optional<Directio
 
     /**
      * @throws IllegalArgumentException
-     *             if {@code fill} is outside {@code 0..}{@link #FULL}, a fill is given without a fluid, or the fluid is
-     *             the empty fluid or not registered
+     *             if {@code fill} is outside {@code 0..}{@link #FULL}, a fill is given without a resource, the resource
+     *             is an {@link UnknownResource}, or it is a fluid that is not registered
      */
     public ConduitContents {
-        Objects.requireNonNull(fluid, "fluid");
+        Objects.requireNonNull(resource, "resource");
         Objects.requireNonNull(upstream, "upstream");
-        if (fluid.isPresent() && fluid.get() instanceof FlowingFluid flowing) {
-            fluid = Optional.of(flowing.getSource());
+        if (resource.isPresent()) {
+            resource = Optional.of(normalised(resource.get()));
         }
         if (fill < 0 || fill > FULL) {
             throw new IllegalArgumentException("fill must be 0.." + FULL + ": " + fill);
         }
+        if (resource.isEmpty() && fill != 0) {
+            throw new IllegalArgumentException("fill without a fluid: " + fill);
+        }
+    }
+
+    /**
+     * Contents showing {@code fluid}; see the record's parameters.
+     *
+     * @param fluid
+     *            the fluid shown, or empty for none; never the empty fluid itself ({@code Fluids.EMPTY}), which is
+     *            {@code Optional.empty()}. A flowing fluid is stored as its source
+     * @throws IllegalArgumentException
+     *             like the constructor, or for the empty fluid
+     */
+    public static ConduitContents ofFluid(Optional<Fluid> fluid, int fill, Optional<Direction> upstream, boolean lane) {
+        Objects.requireNonNull(fluid, "fluid");
+        // Registered first: a fluid outside the registry may not even have a default state.
         if (fluid.isPresent() && BuiltInRegistries.FLUID.getResourceKey(fluid.get()).isEmpty()) {
             throw new IllegalArgumentException("fluid is not registered: " + fluid.get());
         }
         if (fluid.isPresent() && fluid.get().defaultFluidState().isEmpty()) {
             throw new IllegalArgumentException("the empty fluid is Optional.empty()");
         }
-        if (fluid.isEmpty() && fill != 0) {
-            throw new IllegalArgumentException("fill without a fluid: " + fill);
+        Optional<KindKey<?>> resource = fluid.isPresent()
+                ? Optional.of(new KindKey<>(ResourceKinds.FLUID, FluidKey.of(fluid.get())))
+                : Optional.empty();
+        return new ConduitContents(resource, fill, upstream, lane);
+    }
+
+    /** The fluid shown, or empty when there is none or the resource is of another kind. Allocates. */
+    public Optional<Fluid> fluid() {
+        if (resource.isPresent()) {
+            Optional<FluidKey> key = resource.get().as(ResourceKinds.FLUID);
+            if (key.isPresent()) {
+                return Optional.of(key.get().fluid());
+            }
         }
+        return Optional.empty();
+    }
+
+    private static KindKey<?> normalised(KindKey<?> resource) {
+        if (resource.isUnknown()) {
+            throw new IllegalArgumentException("conduit contents never hold an unknown resource: " + resource);
+        }
+        KindKey<?> base = resource.drawBase();
+        Optional<FluidKey> key = base.as(ResourceKinds.FLUID);
+        if (key.isEmpty()) {
+            return base;
+        }
+        Fluid fluid = key.get().fluid();
+        if (BuiltInRegistries.FLUID.getResourceKey(fluid).isEmpty()) {
+            throw new IllegalArgumentException("fluid is not registered: " + fluid);
+        }
+        return fluid instanceof FlowingFluid flowing
+                ? new KindKey<>(ResourceKinds.FLUID, FluidKey.of(flowing.getSource()))
+                : base;
     }
 
     /** Whether this is {@link #EMPTY}. */
@@ -92,10 +146,12 @@ public record ConduitContents(Optional<Fluid> fluid, int fill, Optional<Directio
     /**
      * These contents packed into one int for a client render key, using the fluid's registry id in this session (see
      * {@link #pack(int, int, Direction, boolean)}). Only meaningful within the session that packed it: never save or
-     * send it. {@link #EMPTY} packs to 0. A fluid whose registry id does not fit the layout packs as no fluid (and logs
-     * a warning once), so it never fails a load or sync.
+     * send it. {@link #EMPTY} packs to 0. A resource of another kind packs as no fluid, so nothing is drawn for it yet.
+     * A fluid whose registry id does not fit the layout packs as no fluid (and logs a warning once), so it never fails
+     * a load or sync.
      */
     public int packed() {
+        Optional<Fluid> fluid = fluid();
         int fluidId = fluid.isPresent() ? BuiltInRegistries.FLUID.getId(fluid.get()) : -1;
         if (fluidId >= FLUID_MASK) {
             if (OVERFLOWED.add(fluidId)) {
