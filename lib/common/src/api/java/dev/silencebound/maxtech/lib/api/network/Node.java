@@ -1,4 +1,4 @@
-package dev.silencebound.maxtech.lib.network;
+package dev.silencebound.maxtech.lib.api.network;
 
 import it.unimi.dsi.fastutil.longs.LongArrayList;
 import org.jspecify.annotations.Nullable;

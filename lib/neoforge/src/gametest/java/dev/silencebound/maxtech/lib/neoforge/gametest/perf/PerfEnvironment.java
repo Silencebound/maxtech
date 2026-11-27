@@ -2,7 +2,7 @@ package dev.silencebound.maxtech.lib.neoforge.gametest.perf;
 
 import com.mojang.serialization.MapCodec;
 import dev.silencebound.maxtech.lib.MaxtechLib;
-import dev.silencebound.maxtech.lib.network.NetworkGraph;
+import dev.silencebound.maxtech.lib.api.network.NetworkGraph;
 import dev.silencebound.maxtech.lib.platform.Platform;
 import dev.silencebound.maxtech.lib.platform.RegistryHelper;
 import dev.silencebound.maxtech.lib.schedule.LevelTasks;

@@ -1,8 +1,8 @@
 package dev.silencebound.maxtech.storage.neoforge.gametest;
 
 import com.mojang.logging.LogUtils;
-import dev.silencebound.maxtech.lib.network.NetworkGraph;
-import dev.silencebound.maxtech.lib.network.NetworkManager;
+import dev.silencebound.maxtech.lib.api.network.NetworkGraph;
+import dev.silencebound.maxtech.lib.api.network.NetworkManager;
 import dev.silencebound.maxtech.lib.neoforge.perf.PerfBudget;
 import dev.silencebound.maxtech.lib.platform.Platform;
 import dev.silencebound.maxtech.lib.platform.RegistryHelper;

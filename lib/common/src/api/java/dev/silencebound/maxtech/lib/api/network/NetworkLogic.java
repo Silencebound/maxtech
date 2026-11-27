@@ -1,5 +1,6 @@
-package dev.silencebound.maxtech.lib.network;
+package dev.silencebound.maxtech.lib.api.network;
 
+import org.jetbrains.annotations.ApiStatus;
 /**
  * Transport semantics for one network type in one level (Storage's cables, ...). Receives topology events from its
  * {@link NetworkGraph} and a tick for every active network. All calls come from the level tick on the server thread.
@@ -7,7 +8,10 @@ package dev.silencebound.maxtech.lib.network;
  * Callbacks must not change the topology directly; changes requested through {@link NetworkManager} are queued and
  * applied in the same or the next level tick. Structural events fire while the graph is being updated, so treat the
  * network's node set as final only in {@link #onRebuilt}.
+ * <p>
+ * Experimental (Lib 0.14.0) until Farms, its first addon user, settles it.
  */
+@ApiStatus.Experimental
 public interface NetworkLogic {
     /** A network was created for a node that joined no existing network. */
     default void onNetworkCreated(Network network) {
@@ -17,9 +21,11 @@ public interface NetworkLogic {
     default void onNetworkRemoved(Network network) {
     }
 
+    /** A node at packed position {@code pos} joined {@code network}. */
     default void onNodeAdded(Network network, long pos) {
     }
 
+    /** The node at packed position {@code pos} left {@code network}. */
     default void onNodeRemoved(Network network, long pos) {
     }
 

@@ -11,6 +11,10 @@ Api changes are marked **Api**.
   facade tint extension was registered with no blocks, which NeoForge refuses.
 
 ### Added
+- **Api** The network engine is api (`lib.api.network`, experimental, for Farms FM1): `Network`, `NetworkGraph`,
+  `NetworkLogic`, `NetworkManager`, `NetworkType`, `NodeConnectivity` and `RouteTree` moved there from `lib.network`.
+  `NetworkType.byId` returns an `Optional` (allocation-free) instead of null. Ticking, clearing and profiling stay Lib's
+  (`@ApiStatus.Internal`); `lib.network.NetworkBootstrap` wires the config and the server lifecycle.
 - **Api** `EnergyNetworks.feRate()`: the server's configured FE rate, for an addon's own FE edges (Farms FM1's
   sampler shows its MU to other mods' chargers as FE).
 - **Api** Registration is api (`lib.api.registry`, experimental, for Farms FM1): `Registrars.create(modId, registry)`

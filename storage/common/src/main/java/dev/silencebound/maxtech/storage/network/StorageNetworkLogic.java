@@ -2,11 +2,11 @@ package dev.silencebound.maxtech.storage.network;
 
 import dev.silencebound.maxtech.lib.conduit.ConduitBlockEntity;
 import dev.silencebound.maxtech.lib.conduit.ConduitData;
-import dev.silencebound.maxtech.lib.network.Network;
-import dev.silencebound.maxtech.lib.network.NetworkGraph;
-import dev.silencebound.maxtech.lib.network.NetworkLogic;
-import dev.silencebound.maxtech.lib.network.NetworkManager;
-import dev.silencebound.maxtech.lib.network.NetworkType;
+import dev.silencebound.maxtech.lib.api.network.Network;
+import dev.silencebound.maxtech.lib.api.network.NetworkGraph;
+import dev.silencebound.maxtech.lib.api.network.NetworkLogic;
+import dev.silencebound.maxtech.lib.api.network.NetworkManager;
+import dev.silencebound.maxtech.lib.api.network.NetworkType;
 import dev.silencebound.maxtech.storage.cable.StorageCableConduitType;
 import it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
@@ -106,7 +106,7 @@ public final class StorageNetworkLogic implements NetworkLogic {
     NetworkGraph graph() {
         NetworkGraph current = graph;
         if (current == null) {
-            NetworkType type = Objects.requireNonNull(NetworkType.byId(networkId), "storage network type");
+            NetworkType type = Objects.requireNonNull(NetworkType.byId(networkId).orElse(null), "storage network type");
             current = NetworkManager.get(level).graph(type);
             graph = current;
         }

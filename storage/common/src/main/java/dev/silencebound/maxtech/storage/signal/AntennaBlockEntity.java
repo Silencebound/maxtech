@@ -4,8 +4,8 @@ import dev.silencebound.maxtech.lib.api.info.BlockInfoRequest;
 import dev.silencebound.maxtech.lib.api.info.BlockInfoSink;
 import dev.silencebound.maxtech.lib.conduit.ConduitBlockEntity;
 import dev.silencebound.maxtech.lib.info.InfoFormat;
-import dev.silencebound.maxtech.lib.network.NetworkManager;
-import dev.silencebound.maxtech.lib.network.NetworkType;
+import dev.silencebound.maxtech.lib.api.network.NetworkManager;
+import dev.silencebound.maxtech.lib.api.network.NetworkType;
 import dev.silencebound.maxtech.storage.network.RemoteLinkNode;
 import dev.silencebound.maxtech.storage.network.StorageDeviceBlockEntity;
 import it.unimi.dsi.fastutil.longs.LongList;
@@ -125,7 +125,7 @@ public final class AntennaBlockEntity extends StorageDeviceBlockEntity implement
     }
 
     private void invalidate(ServerLevel server, long pos) {
-        NetworkType type = NetworkType.byId(networkId());
+        NetworkType type = NetworkType.byId(networkId()).orElse(null);
         if (type != null) {
             NetworkManager.get(server).invalidateNode(type, BlockPos.of(pos));
         }

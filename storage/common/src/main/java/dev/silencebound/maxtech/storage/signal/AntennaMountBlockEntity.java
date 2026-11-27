@@ -4,8 +4,8 @@ import dev.silencebound.maxtech.lib.api.info.BlockInfoRequest;
 import dev.silencebound.maxtech.lib.api.info.BlockInfoSink;
 import dev.silencebound.maxtech.lib.conduit.ConduitBlockEntity;
 import dev.silencebound.maxtech.lib.info.InfoFormat;
-import dev.silencebound.maxtech.lib.network.NetworkManager;
-import dev.silencebound.maxtech.lib.network.NetworkType;
+import dev.silencebound.maxtech.lib.api.network.NetworkManager;
+import dev.silencebound.maxtech.lib.api.network.NetworkType;
 import dev.silencebound.maxtech.storage.controller.module.ExpansionContent;
 import dev.silencebound.maxtech.storage.controller.module.ServiceDeviceBlockEntity;
 import dev.silencebound.maxtech.storage.network.RemoteLinkNode;
@@ -62,7 +62,7 @@ public final class AntennaMountBlockEntity extends ServiceDeviceBlockEntity impl
 
     private void relink() {
         Level current = level;
-        NetworkType type = NetworkType.byId(networkId());
+        NetworkType type = NetworkType.byId(networkId()).orElse(null);
         if (current instanceof ServerLevel server && type != null) {
             NetworkManager.get(server).invalidateNode(type, worldPosition);
         }

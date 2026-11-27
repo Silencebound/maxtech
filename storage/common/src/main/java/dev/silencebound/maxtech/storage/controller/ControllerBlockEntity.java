@@ -17,8 +17,8 @@ import dev.silencebound.maxtech.storage.save.StorageSaveFormats;
 import dev.silencebound.maxtech.storage.save.KeptList;
 import dev.silencebound.maxtech.storage.network.NetworkInfo;
 import dev.silencebound.maxtech.lib.info.InfoFormat;
-import dev.silencebound.maxtech.lib.network.NetworkManager;
-import dev.silencebound.maxtech.lib.network.NetworkType;
+import dev.silencebound.maxtech.lib.api.network.NetworkManager;
+import dev.silencebound.maxtech.lib.api.network.NetworkType;
 import dev.silencebound.maxtech.storage.api.StorageNetwork;
 import dev.silencebound.maxtech.storage.config.StorageModules;
 import dev.silencebound.maxtech.storage.config.StorageServerConfig;
@@ -764,7 +764,7 @@ public final class ControllerBlockEntity extends StorageDeviceBlockEntity implem
     }
 
     private void setGraphAnchored(ServerLevel server, boolean anchored) {
-        NetworkType type = NetworkType.byId(networkId());
+        NetworkType type = NetworkType.byId(networkId()).orElse(null);
         if (anchored != graphAnchored && type != null) {
             graphAnchored = anchored;
             NetworkManager.get(server).setAnchored(type, worldPosition, anchored);

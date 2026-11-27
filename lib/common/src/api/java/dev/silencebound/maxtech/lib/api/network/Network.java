@@ -1,4 +1,4 @@
-package dev.silencebound.maxtech.lib.network;
+package dev.silencebound.maxtech.lib.api.network;
 
 import it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap;
 import it.unimi.dsi.fastutil.longs.LongArrayList;
@@ -8,12 +8,16 @@ import it.unimi.dsi.fastutil.longs.LongSets;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.SectionPos;
 import net.minecraft.world.level.ChunkPos;
+import org.jetbrains.annotations.ApiStatus;
 import org.jspecify.annotations.Nullable;
 
 /**
  * One connected set of nodes of one type in one level. Owned and mutated by its {@link NetworkGraph}; everything public
  * here is a read-only view for {@link NetworkLogic}. Server thread only.
+ * <p>
+ * Experimental (Lib 0.14.0) until Farms, its first addon user, settles it.
  */
+@ApiStatus.Experimental
 public final class Network {
     private final int id;
     final LongOpenHashSet nodes = new LongOpenHashSet();
@@ -44,10 +48,12 @@ public final class Network {
         return id;
     }
 
+    /** Nodes in the network. */
     public int size() {
         return nodes.size();
     }
 
+    /** Whether the node at packed position {@code pos} belongs to this network. */
     public boolean contains(long pos) {
         return nodes.contains(pos);
     }

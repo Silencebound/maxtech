@@ -15,7 +15,7 @@ import dev.silencebound.maxtech.lib.config.ServerConfig;
 import dev.silencebound.maxtech.lib.energy.LevelEnergy;
 import dev.silencebound.maxtech.lib.gui.transfer.CraftingGridMenus;
 import dev.silencebound.maxtech.lib.highlight.Highlights;
-import dev.silencebound.maxtech.lib.network.NetworkManager;
+import dev.silencebound.maxtech.lib.network.NetworkBootstrap;
 import dev.silencebound.maxtech.lib.platform.Platform;
 import dev.silencebound.maxtech.lib.registry.ModContent;
 import dev.silencebound.maxtech.lib.schedule.LevelTasks;
@@ -50,7 +50,7 @@ public final class MaxtechLib {
         ModContent.init();
         Highlights.register();
         CraftingGridMenus.register();
-        NetworkManager.bootstrap();
+        NetworkBootstrap.bootstrap();
         LevelTasks.bootstrap();
         LevelEnergy.bootstrap();
         WorkerPool.bootstrap();

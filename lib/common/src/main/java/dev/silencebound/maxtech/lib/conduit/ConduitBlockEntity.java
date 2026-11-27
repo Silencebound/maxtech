@@ -4,9 +4,9 @@ import com.mojang.logging.LogUtils;
 import dev.silencebound.maxtech.lib.api.conduit.ConduitFaceMode;
 import dev.silencebound.maxtech.lib.api.conduit.ConduitState;
 import dev.silencebound.maxtech.lib.api.conduit.ConduitType;
-import dev.silencebound.maxtech.lib.network.NetworkManager;
-import dev.silencebound.maxtech.lib.network.NetworkType;
-import dev.silencebound.maxtech.lib.network.NodeConnectivity;
+import dev.silencebound.maxtech.lib.api.network.NetworkManager;
+import dev.silencebound.maxtech.lib.api.network.NetworkType;
+import dev.silencebound.maxtech.lib.api.network.NodeConnectivity;
 import dev.silencebound.maxtech.lib.registry.ModBlockEntities;
 import java.util.EnumSet;
 import java.util.Objects;
@@ -378,7 +378,7 @@ public final class ConduitBlockEntity extends BlockEntity {
         if (!(level instanceof ServerLevel serverLevel)) {
             return;
         }
-        NetworkType networkType = NetworkType.byId(conduit.type().networkType());
+        NetworkType networkType = NetworkType.byId(conduit.type().networkType()).orElse(null);
         if (networkType == null) {
             return;
         }

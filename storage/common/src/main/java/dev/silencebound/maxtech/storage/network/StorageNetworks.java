@@ -1,9 +1,9 @@
 package dev.silencebound.maxtech.storage.network;
 
-import dev.silencebound.maxtech.lib.network.Network;
-import dev.silencebound.maxtech.lib.network.NetworkManager;
-import dev.silencebound.maxtech.lib.network.NetworkType;
-import dev.silencebound.maxtech.lib.network.NodeConnectivity;
+import dev.silencebound.maxtech.lib.api.network.Network;
+import dev.silencebound.maxtech.lib.api.network.NetworkManager;
+import dev.silencebound.maxtech.lib.api.network.NetworkType;
+import dev.silencebound.maxtech.lib.api.network.NodeConnectivity;
 import dev.silencebound.maxtech.storage.MaxtechStorage;
 import java.util.function.UnaryOperator;
 import net.minecraft.core.BlockPos;
@@ -34,7 +34,7 @@ public final class StorageNetworks {
 
     /** The logic of storage network type {@code id} in {@code level}; null if no such type is registered. */
     public static @Nullable StorageNetworkLogic logic(ServerLevel level, Identifier id) {
-        NetworkType type = NetworkType.byId(id);
+        NetworkType type = NetworkType.byId(id).orElse(null);
         if (type == null) {
             return null;
         }
@@ -47,7 +47,7 @@ public final class StorageNetworks {
      */
     public static @Nullable NetworkState network(ServerLevel level, Identifier id, BlockPos pos) {
         StorageNetworkLogic logic = logic(level, id);
-        NetworkType type = NetworkType.byId(id);
+        NetworkType type = NetworkType.byId(id).orElse(null);
         if (logic == null || type == null) {
             return null;
         }

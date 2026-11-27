@@ -1,6 +1,6 @@
 package dev.silencebound.maxtech.storage.network;
 
-import dev.silencebound.maxtech.lib.network.RouteTree;
+import dev.silencebound.maxtech.lib.api.network.RouteTree;
 import it.unimi.dsi.fastutil.longs.Long2ByteOpenHashMap;
 import it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap;
 import it.unimi.dsi.fastutil.longs.Long2LongOpenHashMap;

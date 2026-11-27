@@ -1,11 +1,15 @@
-package dev.silencebound.maxtech.lib.network;
+package dev.silencebound.maxtech.lib.api.network;
 
 import it.unimi.dsi.fastutil.longs.LongList;
+import org.jetbrains.annotations.ApiStatus;
 
 /**
  * The world as one network type sees it; {@code ConduitConnectivity} implements it for conduit types. The graph asks
  * only when a node is added or invalidated, never per tick. Server thread only.
+ * <p>
+ * Experimental (Lib 0.14.0) until Farms, its first addon user, settles it.
  */
+@ApiStatus.Experimental
 public interface NodeConnectivity {
     /**
      * Appends the packed positions ({@link net.minecraft.core.BlockPos#asLong()}) of the nodes of this type that the

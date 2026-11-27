@@ -1,13 +1,12 @@
-package dev.silencebound.maxtech.lib.network;
+package dev.silencebound.maxtech.lib.api.network;
 
-import dev.silencebound.maxtech.lib.api.network.UnloadedChunkMode;
-import dev.silencebound.maxtech.lib.config.ServerConfig;
-import dev.silencebound.maxtech.lib.platform.LifecycleEvents;
-import dev.silencebound.maxtech.lib.platform.Platform;
 import it.unimi.dsi.fastutil.objects.Reference2ObjectOpenHashMap;
+import java.util.function.BooleanSupplier;
+import java.util.function.Supplier;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
+import org.jetbrains.annotations.ApiStatus;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -19,7 +18,10 @@ import org.jspecify.annotations.Nullable;
  * Unloaded chunks need no chunk events: an unloading node removes itself, and the graph sees that its chunk is gone and
  * keeps the neighbours' edges as cut edges into it. In {@code truncate} mode that just shortens the network; in
  * {@code pause} mode a network with cut edges is not ticked. A loading node re-adds itself and heals the cut edges.
+ * <p>
+ * Experimental (Lib 0.14.0) until Farms, its first addon user, settles it.
  */
+@ApiStatus.Experimental
 public final class NetworkManager {
     /**
      * Nodes a level may walk per tick to settle splits, shared by all types. A performance bound rather than a balance
@@ -28,6 +30,8 @@ public final class NetworkManager {
     public static final int SPLIT_BUDGET = 4096;
 
     private static final Reference2ObjectOpenHashMap<ServerLevel, NetworkManager> MANAGERS = new Reference2ObjectOpenHashMap<>();
+    private static Supplier<UnloadedChunkMode> unloadedChunkMode = () -> UnloadedChunkMode.TRUNCATE;
+    private static BooleanSupplier allowAnchors = () -> false;
 
     private final ServerLevel level;
     private @Nullable NetworkGraph[] graphs = new NetworkGraph[0];
@@ -37,13 +41,18 @@ public final class NetworkManager {
         this.level = level;
     }
 
-    /** Hooks the managers into the level tick; called once from Lib's init. */
-    public static void bootstrap() {
-        LifecycleEvents lifecycle = Platform.get().lifecycle();
-        lifecycle.onServerLevelTickEnd(NetworkManager::tickLevel);
-        lifecycle.onServerStopped(NetworkManager::clear);
+    /**
+     * Sets where the tick reads {@code networks.unloadedChunkMode} and {@code networks.allowAnchors}; read once per
+     * level tick. Lib's init calls it, together with hooking {@link #tickLevel} and {@link #clear} into the server
+     * lifecycle.
+     */
+    @ApiStatus.Internal
+    public static void setConfigSource(Supplier<UnloadedChunkMode> mode, BooleanSupplier anchors) {
+        unloadedChunkMode = mode;
+        allowAnchors = anchors;
     }
 
+    /** The manager of {@code level}, made on first use; managers are dropped when the server stops. */
     public static NetworkManager get(ServerLevel level) {
         NetworkManager manager = MANAGERS.get(level);
         if (manager == null) {
@@ -53,14 +62,17 @@ public final class NetworkManager {
         return manager;
     }
 
+    /** Queues a node of {@code type} at {@code pos}; if one is already there this re-reads its connections. */
     public void addNode(NetworkType type, BlockPos pos) {
         graph(type).add(pos.asLong());
     }
 
+    /** Queues removal of the node of {@code type} at {@code pos}, for a broken block or an unloading chunk alike. */
     public void removeNode(NetworkType type, BlockPos pos) {
         graph(type).remove(pos.asLong());
     }
 
+    /** Queues a re-read of the connections of the node of {@code type} at {@code pos}. */
     public void invalidateNode(NetworkType type, BlockPos pos) {
         graph(type).invalidate(pos.asLong());
     }
@@ -79,6 +91,7 @@ public final class NetworkManager {
         return graph(type).network(pos.asLong());
     }
 
+    /** The level's graph of {@code type}, made on first use with the type's factories. */
     public NetworkGraph graph(NetworkType type) {
         int index = type.index();
         if (index >= graphs.length) {
@@ -96,8 +109,8 @@ public final class NetworkManager {
     }
 
     private void tick() {
-        UnloadedChunkMode mode = ServerConfig.UNLOADED_CHUNK_MODE.get();
-        boolean allowAnchors = ServerConfig.ALLOW_ANCHORS.getAsBoolean();
+        UnloadedChunkMode mode = unloadedChunkMode.get();
+        boolean allowAnchors = NetworkManager.allowAnchors.getAsBoolean();
         int budget = SPLIT_BUDGET;
         int count = graphs.length;
         // Start with a different type each tick so the split budget is shared fairly.
@@ -112,14 +125,18 @@ public final class NetworkManager {
         }
     }
 
-    private static void tickLevel(ServerLevel level) {
+    /** Ticks the graphs of {@code level}; Lib calls it at the end of every server level tick. */
+    @ApiStatus.Internal
+    public static void tickLevel(ServerLevel level) {
         NetworkManager manager = MANAGERS.get(level);
         if (manager != null) {
             manager.tick();
         }
     }
 
-    private static void clear(MinecraftServer server) {
+    /** Drops every level's manager; Lib calls it when the server stops. */
+    @ApiStatus.Internal
+    public static void clear(MinecraftServer server) {
         MANAGERS.clear();
     }
 }

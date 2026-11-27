@@ -1,6 +1,7 @@
-package dev.silencebound.maxtech.lib.network;
+package dev.silencebound.maxtech.lib.api.network;
 
-import dev.silencebound.maxtech.lib.api.network.UnloadedChunkMode;
+import java.util.Collections;
+import java.util.List;
 import it.unimi.dsi.fastutil.bytes.ByteArrayList;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.longs.Long2IntMap;
@@ -13,6 +14,7 @@ import it.unimi.dsi.fastutil.longs.LongIterator;
 import it.unimi.dsi.fastutil.longs.LongList;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import it.unimi.dsi.fastutil.objects.ObjectIterator;
+import org.jetbrains.annotations.ApiStatus;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -20,7 +22,10 @@ import org.jspecify.annotations.Nullable;
  * {@link #tick}: adding or removing a node touches only its neighbours, joining networks moves the smaller one, and
  * possible splits are resolved by a {@link SplitJob} under a shared per-tick node budget. Nothing is persisted; node
  * owners re-add their nodes when they load. Server thread only.
+ * <p>
+ * Experimental (Lib 0.14.0) until Farms, its first addon user, settles it.
  */
+@ApiStatus.Experimental
 public final class NetworkGraph implements RouteTree.Links {
     private static final byte ADD = 0;
     private static final byte REMOVE = 1;
@@ -41,6 +46,7 @@ public final class NetworkGraph implements RouteTree.Links {
     private final NetworkLogic logic;
     private final Long2ObjectOpenHashMap<Node> nodes = new Long2ObjectOpenHashMap<>();
     private final ObjectArrayList<Network> networks = new ObjectArrayList<>();
+    private final List<Network> networksView = Collections.unmodifiableList(networks);
     private final ObjectArrayList<Network> splitting = new ObjectArrayList<>();
     private final ObjectArrayList<Network> dirty = new ObjectArrayList<>();
     /** Target of a cut edge -> nodes holding that edge, so a loading node can find who was waiting for it. */
@@ -53,6 +59,11 @@ public final class NetworkGraph implements RouteTree.Links {
     private long lastTickNanos = -1;
     private int lastTickEpoch;
 
+    /**
+     * A graph asking {@code connectivity} for links and reporting to {@code logic}. For Lib and tests; addons get
+     * graphs from {@link NetworkManager#graph}.
+     */
+    @ApiStatus.Internal
     public NetworkGraph(NodeConnectivity connectivity, NetworkLogic logic) {
         this.connectivity = connectivity;
         this.logic = logic;
@@ -64,6 +75,7 @@ public final class NetworkGraph implements RouteTree.Links {
      * per graph and network per tick. Either way every recorded time goes back to -1, so a time from an earlier
      * profiling run is never read as a new one. For perf tests and profiling; server thread only.
      */
+    @ApiStatus.Internal
     public static void setProfiling(boolean enabled) {
         profiling = enabled;
         profilingEpoch++;
@@ -79,6 +91,7 @@ public final class NetworkGraph implements RouteTree.Links {
         return epoch == profilingEpoch ? nanos : -1;
     }
 
+    /** The transport semantics this graph reports to. */
     public NetworkLogic logic() {
         return logic;
     }
@@ -103,6 +116,9 @@ public final class NetworkGraph implements RouteTree.Links {
         queue(pos, INVALIDATE);
     }
 
+    /**
+     * Queues setting or clearing the anchor flag of the node at {@code pos}; see {@link NetworkManager#setAnchored}.
+     */
     public void setAnchored(long pos, boolean anchored) {
         queue(pos, anchored ? ANCHOR : UNANCHOR);
     }
@@ -142,13 +158,14 @@ public final class NetworkGraph implements RouteTree.Links {
         return node != null && node.links.contains(b);
     }
 
+    /** Nodes in the graph, across all its networks. */
     public int nodeCount() {
         return nodes.size();
     }
 
-    /** Live networks; a view that changes during {@link #tick}. */
-    public ObjectArrayList<Network> networks() {
-        return networks;
+    /** Live networks, read-only; a view that changes during {@link #tick}. */
+    public List<Network> networks() {
+        return networksView;
     }
 
     private void queue(long pos, byte kind) {
@@ -160,6 +177,7 @@ public final class NetworkGraph implements RouteTree.Links {
      * Applies queued changes, spends up to {@code splitBudget} nodes on pending split checks, reports rebuilt networks
      * and ticks the active ones. Returns the split budget left.
      */
+    @ApiStatus.Internal
     public int tick(UnloadedChunkMode mode, boolean allowAnchors, int splitBudget) {
         if (!profiling) {
             return tickNow(mode, allowAnchors, splitBudget);
