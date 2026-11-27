@@ -1,5 +1,6 @@
 package dev.silencebound.maxtech.lib.api.client.gui;
 
+import dev.silencebound.maxtech.lib.api.style.AccentTheme;
 import org.jetbrains.annotations.ApiStatus;
 import java.util.List;
 import java.util.function.BooleanSupplier;
@@ -43,6 +44,7 @@ public final class IconButton extends AbstractButton {
     private final Stepper stepper;
     private final boolean cycles;
     private BooleanSupplier enabled = () -> true;
+    private AccentTheme theme = AccentTheme.LIB;
     /** The state the current tooltip was built for; -1 until the first frame or after {@link #refreshTooltip}. */
     private int shownKey = -1;
 
@@ -146,12 +148,23 @@ public final class IconButton extends AbstractButton {
         active = enabled.getAsBoolean();
         boolean hovered = active && isHovered();
         if (isOn) {
-            Accent.litFace(graphics, getX(), getY(), width, height);
+            Accent.litFace(graphics, getX(), getY(), width, height, theme);
         } else {
-            Accent.face(graphics, getX(), getY(), width, height, hovered);
+            Accent.face(graphics, getX(), getY(), width, height, hovered, theme);
         }
-        int colour = !active ? Accent.LABEL : hovered || isOn ? Accent.BAR_TOP : Accent.TEXT;
+        int colour = iconColour(active, hovered || isOn, theme);
         icons.get(index).drawCentred(graphics, getX(), getY(), width, height, colour);
+    }
+
+    /** Draws the button in {@code theme}'s colours instead of Lib's cyan. */
+    public IconButton theme(AccentTheme theme) {
+        this.theme = theme;
+        return this;
+    }
+
+    /** The icon's colour: dimmed when inactive, the theme's heading colour when hovered or on, its text colour else. */
+    static int iconColour(boolean active, boolean bright, AccentTheme theme) {
+        return !active ? Accent.LABEL : bright ? theme.heading() : theme.text();
     }
 
     /** Builds the tooltip again on the next frame, for a tooltip that depends on more than the shown state. */

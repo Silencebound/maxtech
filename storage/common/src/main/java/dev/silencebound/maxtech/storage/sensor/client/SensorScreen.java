@@ -4,7 +4,7 @@ import dev.silencebound.maxtech.storage.devicetab.client.DeviceScreen;
 import dev.silencebound.maxtech.storage.machine.client.MenuClick;
 import dev.silencebound.maxtech.lib.api.client.gui.TextScale;
 import dev.silencebound.maxtech.lib.client.gui.ScreenComponents;
-import dev.silencebound.maxtech.lib.api.client.gui.TextFit;
+import dev.silencebound.maxtech.lib.api.text.TextFit;
 import dev.silencebound.maxtech.storage.machine.client.AccentFrame;
 import dev.silencebound.maxtech.storage.network.NetworkInfo;
 import dev.silencebound.maxtech.storage.sensor.SensorMenu;

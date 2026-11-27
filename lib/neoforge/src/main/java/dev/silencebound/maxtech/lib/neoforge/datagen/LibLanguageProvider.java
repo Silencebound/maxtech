@@ -1,5 +1,8 @@
 package dev.silencebound.maxtech.lib.neoforge.datagen;
 
+import dev.silencebound.maxtech.lib.api.client.gui.AccentEnergyBar;
+import dev.silencebound.maxtech.lib.api.client.gui.AccentProgress;
+import dev.silencebound.maxtech.lib.api.client.gui.AccentTank;
 import dev.silencebound.maxtech.lib.facade.FacadeContent;
 import dev.silencebound.maxtech.lib.facade.FacadeItem;
 import dev.silencebound.maxtech.lib.api.conduit.ConduitFaceMode;
@@ -87,6 +90,12 @@ final class LibLanguageProvider extends LanguageProvider {
     private void addGuiTranslations() {
         add(ScreenComponents.ON_KEY, "on");
         add(ScreenComponents.OFF_KEY, "off");
+        add(AccentTank.EMPTY_KEY, "Empty");
+        add(AccentTank.AMOUNT_KEY, "%s / %s mB");
+        add(AccentEnergyBar.MU_KEY, "%s / %s MU");
+        add(AccentEnergyBar.FE_KEY, "%s / %s FE");
+        add(AccentProgress.PERCENT_KEY, "%s%%");
+        add(AccentProgress.LEFT_KEY, "%s s left");
     }
 
     /** Names and tooltips of every config value and section, and the config screen's own lines. */

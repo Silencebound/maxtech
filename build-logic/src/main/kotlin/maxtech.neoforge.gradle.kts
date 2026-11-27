@@ -33,10 +33,11 @@ dependencies {
     "gametestImplementation"(sourceSets.main.get().output)
 }
 
-// A NeoForge-side public api (hasNeoForgeApi, Lib only so far): types an addon needs that name NeoForge or client
-// classes, which common's api cannot. It compiles against the mod's common api and NeoForge only, never against common
-// main or this project's main, so a use of the mod's internals fails to compile (checkCommonImports does not run here).
-// Main, GameTests and unit tests see it; it is part of the mod jar and of dev runs, and is also built as its own jar.
+// A NeoForge-side public api (hasNeoForgeApi, Lib only so far): types an addon needs that name NeoForge classes,
+// which common's api must not (ADR-0002); client-only vanilla packages may live in common's api (ADR-0016). It
+// compiles against the mod's common api and NeoForge only, never against common main or this project's main, so a
+// use of the mod's internals fails to compile (checkCommonImports does not run here). Main, GameTests and unit tests
+// see it; it is part of the mod jar and of dev runs, and is also built as its own jar.
 val neoforgeApi = if (hasNeoForgeApi) sourceSets.create("api") else null
 
 if (neoforgeApi != null) {

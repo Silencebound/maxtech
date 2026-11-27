@@ -1,6 +1,6 @@
 package dev.silencebound.maxtech.storage.logic.editor;
 
-import dev.silencebound.maxtech.lib.api.client.gui.TextFit;
+import dev.silencebound.maxtech.lib.api.text.TextFit;
 import java.util.function.ToIntFunction;
 
 /**
