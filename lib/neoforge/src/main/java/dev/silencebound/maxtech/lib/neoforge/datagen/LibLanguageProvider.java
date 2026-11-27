@@ -3,6 +3,7 @@ package dev.silencebound.maxtech.lib.neoforge.datagen;
 import dev.silencebound.maxtech.lib.facade.FacadeContent;
 import dev.silencebound.maxtech.lib.facade.FacadeItem;
 import dev.silencebound.maxtech.lib.api.conduit.ConduitFaceMode;
+import dev.silencebound.maxtech.lib.api.resource.AmountUnit;
 import dev.silencebound.maxtech.lib.client.gui.ScreenComponents;
 import dev.silencebound.maxtech.lib.conduit.ConduitBlock;
 import dev.silencebound.maxtech.lib.client.conduit.ConduitLabels;
@@ -47,6 +48,9 @@ final class LibLanguageProvider extends LanguageProvider {
         add(EnergyInfo.EMPTY_IN_KEY, "Empty in %s");
         add(EnergyInfo.NETWORK_STORED_KEY, "Network stored: %s / %s MU");
         add(EnergyInfo.BUFFERS_KEY, "Batteries: %s MU/t in, %s MU/t out");
+        add(AmountUnit.ITEMS.langKey(), "%s");
+        add(AmountUnit.MILLIBUCKETS.langKey(), "%s mB");
+        add(AmountUnit.MU.langKey(), "%s MU");
         add(EnergyInfo.COST_KEY, "Pass cost: %s µs, %s passes, %s");
         add(EnergyInfo.ASLEEP_KEY, "asleep");
         add(EnergyInfo.ACTIVE_KEY, "active");

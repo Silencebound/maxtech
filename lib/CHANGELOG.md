@@ -18,6 +18,9 @@ Api changes are marked **Api**.
   facade tint extension was registered with no blocks, which NeoForge refuses.
 
 ### Added
+- **Api** Resource kinds (`lib.api.resource`, experimental, ADR-0017): `ResourceKind`, the `ResourceKinds` registry
+  with built-in item, fluid and energy kinds, `KindKey` with save and network codecs, and `UnknownResource`, which
+  keeps the saved contents of a kind whose mod was removed. Nothing uses them yet.
 - The shell look draws a conduit's contents inside the glass: the fluid's own textures, tint and light, a fill level
   on horizontal pieces and a full column on vertical ones, the flowing texture along the flow from the upstream side
   and a second lane flowing back. **Api** `ConduitLook.Shell` gains optional `inset` and `lane_width` fields;

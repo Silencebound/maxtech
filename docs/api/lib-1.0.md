@@ -79,10 +79,14 @@ Labels: **stable** = frozen at 1.0, a breaking change needs a Lib major bump. **
 | **`lib.api.registry`** | Registering a mod's game objects through Lib, for Farms (FM1). | experimental |
 | `Registrars` | Entry point: `create(modId, registry)`. | experimental |
 | `Registrar`, `RegistryEntry` | A deferred registrar and its entries (`id`, `key`, `holder`, `get`). Lib's `lib.platform` types extend them. | experimental |
-| **`lib.api.resource`** | Item and fluid keys with components, interned by networks. | stable |
+| **`lib.api.resource`** | Item and fluid keys with components, interned by networks; resource kinds for holders of any kind (ADR-0017). | stable |
 | `StackKey` | Sealed key type with codecs; `Kind`. | stable |
 | `ItemKey` | Item plus component patch, never air. | stable |
 | `FluidKey` | Fluid plus component patch, never empty. | stable |
+| `ResourceKind`, `ResourceKinds` | A kind of resource (id, codecs, draw base, amount unit) and the registry of kinds, frozen at Lib's common setup; built-in `ITEM`, `FLUID`, `ENERGY`; lookup by id or session index (ADR-0017, Lib 0.15.0). `freeze` is Lib's (`@ApiStatus.Internal`). | experimental |
+| `KindKey` | A key of any kind with its kind; save codec on `kind`, stream codec that lets a client skip kinds it lacks. | experimental |
+| `UnknownResource` | A saved resource of a kind no loaded mod registers, kept and saved back unchanged. | experimental |
+| `AmountUnit`, `EnergyKey` | How a kind's amounts are counted and shown (items, mB, MU); the one key of energy. | experimental |
 | **`lib.api.schedule`** | Budgeted per-level work queues: groups with time and operation budgets, priorities, wake-on-event and backoff. Moved from `lib.schedule` for Farms (FM1). | experimental |
 | `TaskSchedulers` | An addon's entry point: `newGroup(level)` with Lib's configured budgets. | experimental |
 | `ScheduledTask`, `TaskGroup`, `TaskPriority` | A task, the group that runs it within its budget, and its queue. | experimental |
