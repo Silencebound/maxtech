@@ -15,6 +15,11 @@ public interface LifecycleEvents {
 
     void onServerStopped(Consumer<MinecraftServer> action);
 
+    /**
+     * Runs when a server level unloads, such as a dimension a mod unloads at runtime, and for each level at shutdown.
+     */
+    void onServerLevelUnloaded(Consumer<ServerLevel> action);
+
     /** Runs at the end of every server tick, after every level ticked; main-thread commits of background jobs. */
     void onServerTickEnd(Consumer<MinecraftServer> action);
 

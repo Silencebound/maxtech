@@ -2,3 +2,5 @@
 *.bat text eol=crlf
 *.jar binary
 *.png binary
+# Parallel PRs each add a line at the top of a changelog section; keep both sides on merge.
+*/CHANGELOG.md merge=union

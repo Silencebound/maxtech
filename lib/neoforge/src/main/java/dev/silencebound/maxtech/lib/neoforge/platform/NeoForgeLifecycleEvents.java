@@ -12,6 +12,7 @@ import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.level.BlockEvent;
 import net.neoforged.neoforge.event.level.ChunkEvent;
 import net.neoforged.neoforge.event.level.ChunkTicketLevelUpdatedEvent;
+import net.neoforged.neoforge.event.level.LevelEvent;
 import net.neoforged.neoforge.event.server.ServerStartingEvent;
 import net.neoforged.neoforge.event.server.ServerStoppedEvent;
 import net.neoforged.neoforge.event.tick.LevelTickEvent;
@@ -31,6 +32,15 @@ final class NeoForgeLifecycleEvents implements LifecycleEvents {
     @Override
     public void onServerStopped(Consumer<MinecraftServer> action) {
         NeoForge.EVENT_BUS.addListener(ServerStoppedEvent.class, event -> action.accept(event.getServer()));
+    }
+
+    @Override
+    public void onServerLevelUnloaded(Consumer<ServerLevel> action) {
+        NeoForge.EVENT_BUS.addListener(LevelEvent.Unload.class, event -> {
+            if (event.getLevel() instanceof ServerLevel level) {
+                action.accept(level);
+            }
+        });
     }
 
     @Override

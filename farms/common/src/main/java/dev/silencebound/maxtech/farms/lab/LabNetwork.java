@@ -364,7 +364,7 @@ public final class LabNetwork {
         for (int i = 0; i < contents.length; i++) {
             contents[i] = fluid == null
                     ? ConduitContents.EMPTY
-                    : new ConduitContents(Optional.of(fluid), fill,
+                    : ConduitContents.ofFluid(Optional.of(fluid), fill,
                             i == 0 ? Optional.empty() : Optional.of(Direction.from3DDataValue(i - 1)), false);
         }
         return true;

@@ -51,14 +51,14 @@ public record KindKey<K>(ResourceKind<K> kind, K key) {
      * payload, and received the same way whether or not the client has the kind. A payload read short or long fails
      * decoding.
      */
-    public static final StreamCodec<RegistryFriendlyByteBuf, KindKey<?>> STREAM_CODEC = streamCodec(ResourceKinds::byId,
-            false);
+    public static final StreamCodec<RegistryFriendlyByteBuf, KindKey<?>> CLIENTBOUND_STREAM_CODEC = streamCodec(
+            ResourceKinds::byId, false);
 
     /**
-     * For keys a client sends (filters, ghost slots): like {@link #STREAM_CODEC}, but an unknown resource cannot be
-     * sent (an {@link EncoderException} on the client) and length -1 fails decoding on the server, so a client cannot
-     * hand the server an unknown resource of a kind the server has. A key of a kind only the client has still arrives
-     * as an {@link UnknownResource}.
+     * For keys a client sends (filters, ghost slots): like {@link #CLIENTBOUND_STREAM_CODEC}, but an unknown resource
+     * cannot be sent (an {@link EncoderException} on the client) and length -1 fails decoding on the server, so a
+     * client cannot hand the server an unknown resource of a kind the server has. A key of a kind only the client has
+     * still arrives as an {@link UnknownResource}.
      */
     public static final StreamCodec<RegistryFriendlyByteBuf, KindKey<?>> SERVERBOUND_STREAM_CODEC = streamCodec(
             ResourceKinds::byId, true);

@@ -32,7 +32,7 @@ public final class LabTubes {
                     item -> new ConduitType(NETWORK_ID, "lab", 0xE4F4F4, 0.375F, item))
             .look(ConduitLook.shell(MaxtechFarms.id("block/lab_tube_glass")).withBorderColour(BORDER_COLOUR)
                     .withBorder(1.0F))
-            .creativeTab(CreativeModeTabs.FUNCTIONAL_BLOCKS).register();
+            .attachesToBlocks().creativeTab(CreativeModeTabs.FUNCTIONAL_BLOCKS).register();
 
     private LabTubes() {
     }
@@ -42,9 +42,9 @@ public final class LabTubes {
     }
 
     /**
-     * Has the lab tubes next to {@code pos} look at their neighbours again, for a block that joins a lab network by
-     * standing next to a tube (hub, fluid port) when it loads or goes. Server only; the re-read happens with the
-     * level's network tick.
+     * Has the lab tubes next to {@code pos} look at their neighbours again, when a hub lets go of its lab, so another
+     * lab network beside it may take it (Lib does not see that: no block changed). Server only; the re-read happens
+     * with the level's network tick.
      */
     public static void neighbourChanged(Level level, BlockPos pos) {
         if (!(level instanceof ServerLevel server)) {
