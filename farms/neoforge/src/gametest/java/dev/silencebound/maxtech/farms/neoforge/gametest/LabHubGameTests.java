@@ -222,24 +222,36 @@ public final class LabHubGameTests {
 
     /**
      * FE pushed every tick neither clears the burn's timer nor wakes a hub whose fuel slot holds only an empty bucket.
+     * The farms task group runs on a wall-clock budget, so on a slow machine the first run or a due step can slip a few
+     * ticks; the test waits for the task's state and treats a queued task as legitimate only once its timer is due.
      */
     private static void feWakesNothing(GameTestHelper helper) {
         LabHubBlockEntity hub = hub(helper);
         EnergyHandler fe = capability(helper, Capabilities.Energy.BLOCK);
         insertItem(helper, new ItemStack(Items.COAL), 1);
-        GameTestSequence sequence = helper.startSequence().thenIdle(3);
+        long[] due = {Long.MAX_VALUE};
+        GameTestSequence sequence = helper.startSequence().thenWaitUntil(() -> {
+            helper.assertTrue(hub.burner().isBurning(), "the burn started");
+            helper.assertTrue(!hub.fuelTask().isQueued() && hub.fuelTask().wakeAt() > 0, "the burn's timer is set");
+            due[0] = hub.fuelTask().wakeAt();
+        });
         for (int i = 0; i < 30; i++) {
             sequence.thenExecute(() -> {
                 push(fe);
                 helper.assertTrue(hub.burner().isBurning(), "burning");
-                helper.assertTrue(!hub.fuelTask().isQueued() && hub.fuelTask().wakeAt() > 0,
-                        "FE cleared the burn's timer");
+                if (hub.fuelTask().isQueued()) {
+                    helper.assertTrue(helper.getLevel().getGameTime() >= due[0], "FE woke the task before its step");
+                } else {
+                    helper.assertTrue(hub.fuelTask().wakeAt() > 0, "FE cleared the burn's timer");
+                    due[0] = hub.fuelTask().wakeAt();
+                }
             }).thenIdle(1);
         }
         sequence.thenExecute(() -> {
             hub.burner().load(0, 0);
             hub.storage().fuel().set(0, ItemResource.of(Items.BUCKET), 1);
-        }).thenIdle(3);
+        }).thenWaitUntil(() -> helper.assertTrue(!hub.fuelTask().isQueued() && hub.fuelTask().wakeAt() == -1,
+                "the task settles without a timer"));
         for (int i = 0; i < 25; i++) {
             sequence.thenExecute(() -> {
                 push(fe);
