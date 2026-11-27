@@ -128,9 +128,10 @@ public final class ConduitApiGameTests {
 
     /**
      * A kind registered with a plain {@code Codec}, so its key saves as a bare number; its draw base rounds down to
-     * tens, so contents must store the base.
+     * tens, so contents must store the base. Its client look ({@link GlowLookDemoClient}) lets the demo tube show a
+     * kind that is not a fluid.
      */
-    private static final ResourceKind<Integer> TEST_KIND = ResourceKinds.register(
+    static final ResourceKind<Integer> TEST_KIND = ResourceKinds.register(
             Identifier.fromNamespaceAndPath(MOD_ID, "test_glow"), Codec.INT, ByteBufCodecs.VAR_INT.cast(),
             glow -> glow / 10 * 10, AmountUnit.ITEMS);
 
@@ -495,7 +496,7 @@ public final class ConduitApiGameTests {
     /**
      * Contents of a fluid, an item (a kind with a map codec) and the test kind (a plain codec) survive a save and an
      * update tag: the fluid by name only, the others as {@code kind} plus {@code resource} with no second {@code kind}
-     * inside. Kinds other than fluids pack as no fluid, so nothing is drawn for them yet.
+     * inside.
      */
     private static void contentsKinds(GameTestHelper helper) {
         BlockPos pos = new BlockPos(1, 0, 1);
@@ -509,9 +510,6 @@ public final class ConduitApiGameTests {
         ConduitContents glow = new ConduitContents(Optional.of(new KindKey<>(TEST_KIND, 47)), 1,
                 Optional.of(Direction.UP), false);
         helper.assertValueEqual(Optional.of(new KindKey<>(TEST_KIND, 40)), glow.resource(), "stored draw base");
-        helper.assertValueEqual(-1, ConduitContents.packedFluidId(glow.packed()), "packed fluid of the test kind");
-        helper.assertValueEqual(BuiltInRegistries.FLUID.getId(Fluids.WATER),
-                ConduitContents.packedFluidId(water.packed()), "packed fluid of water");
         for (ConduitContents contents : List.of(water, item, glow)) {
             host(helper, pos).setContents(contents);
             CompoundTag saved = blockEntity(helper, abs).saveWithFullMetadata(helper.getLevel().registryAccess());

@@ -8,6 +8,9 @@ import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.exceptions.DynamicCommandExceptionType;
 import dev.silencebound.maxtech.lib.api.conduit.ConduitContents;
 import dev.silencebound.maxtech.lib.api.conduit.Conduits;
+import dev.silencebound.maxtech.lib.api.resource.FluidKey;
+import dev.silencebound.maxtech.lib.api.resource.KindKey;
+import dev.silencebound.maxtech.lib.api.resource.ResourceKinds;
 import java.util.HexFormat;
 import java.util.Optional;
 import net.minecraft.commands.CommandSourceStack;
@@ -28,8 +31,9 @@ import net.neoforged.neoforge.event.RegisterCommandsEvent;
  * Dev-only commands for the test tubes (the GameTest source set, so dev runs only):
  * {@code /maxtech_lib_demo tube <pos> <rrggbb>} sets the render value of the conduit at {@code pos}, for looks and
  * model hooks that draw it; {@code /maxtech_lib_demo tube <pos> fluid <fluid> <fill> [<upstream>|none [lane]]} sets its
- * contents (fill 0 to 4, the upstream side by name), which the shell look draws; {@code ... tube <pos> empty} clears
- * them.
+ * contents (fill 0 to 4, the upstream side by name), which the shell look draws; {@code ... tube <pos> glow <value>
+ * <fill> ...} sets contents of the test kind {@link ConduitApiGameTests#TEST_KIND} instead, drawn with its demo look
+ * ({@link GlowLookDemoClient}); {@code ... tube <pos> empty} clears them.
  */
 @EventBusSubscriber(modid = ConduitApiGameTests.MOD_ID)
 public final class GlassTubeDemoCommand {
@@ -45,18 +49,15 @@ public final class GlassTubeDemoCommand {
 
     @SubscribeEvent
     static void register(RegisterCommandsEvent event) {
-        ArgumentBuilder<CommandSourceStack, ?> upstream = Commands.argument("upstream", StringArgumentType.word())
-                .executes(context -> contents(context, false))
-                .then(Commands.literal("lane").executes(context -> contents(context, true)));
         ArgumentBuilder<CommandSourceStack, ?> fluid = Commands.literal("fluid")
-                .then(Commands.argument("fluid", IdentifierArgument.id())
-                        .then(Commands.argument("fill", IntegerArgumentType.integer(0, ConduitContents.FULL))
-                                .executes(context -> contents(context, false)).then(upstream)));
+                .then(Commands.argument("fluid", IdentifierArgument.id()).then(fillAndFlow()));
+        ArgumentBuilder<CommandSourceStack, ?> glow = Commands.literal("glow")
+                .then(Commands.argument("value", IntegerArgumentType.integer(0)).then(fillAndFlow()));
         event.getDispatcher()
                 .register(Commands.literal("maxtech_lib_demo")
                         .requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
                         .then(Commands.literal("tube")
-                                .then(Commands.argument("pos", BlockPosArgument.blockPos()).then(fluid)
+                                .then(Commands.argument("pos", BlockPosArgument.blockPos()).then(fluid).then(glow)
                                         .then(Commands.literal("empty")
                                                 .executes(context -> setContents(context, ConduitContents.EMPTY)))
                                         .then(Commands.argument("rgb", StringArgumentType.word()).executes(context -> {
@@ -77,13 +78,30 @@ public final class GlassTubeDemoCommand {
                                         })))));
     }
 
+    /** {@code <fill> [<upstream>|none [lane]]}, after the resource. */
+    private static ArgumentBuilder<CommandSourceStack, ?> fillAndFlow() {
+        ArgumentBuilder<CommandSourceStack, ?> upstream = Commands.argument("upstream", StringArgumentType.word())
+                .executes(context -> contents(context, false))
+                .then(Commands.literal("lane").executes(context -> contents(context, true)));
+        return Commands.argument("fill", IntegerArgumentType.integer(0, ConduitContents.FULL))
+                .executes(context -> contents(context, false)).then(upstream);
+    }
+
     private static int contents(CommandContext<CommandSourceStack> context, boolean lane)
             throws CommandSyntaxException {
-        Identifier id = IdentifierArgument.getId(context, "fluid");
-        Optional<Fluid> fluid = BuiltInRegistries.FLUID.getOptional(id)
-                .filter(found -> !found.defaultFluidState().isEmpty());
-        if (fluid.isEmpty()) {
-            throw BAD_FLUID.create(id);
+        boolean glow = context.getNodes().stream().anyMatch(node -> "value".equals(node.getNode().getName()));
+        Optional<KindKey<?>> resource;
+        if (glow) {
+            resource = Optional
+                    .of(new KindKey<>(ConduitApiGameTests.TEST_KIND, IntegerArgumentType.getInteger(context, "value")));
+        } else {
+            Identifier id = IdentifierArgument.getId(context, "fluid");
+            Optional<Fluid> fluid = BuiltInRegistries.FLUID.getOptional(id)
+                    .filter(found -> !found.defaultFluidState().isEmpty());
+            if (fluid.isEmpty()) {
+                throw BAD_FLUID.create(id);
+            }
+            resource = Optional.of(new KindKey<>(ResourceKinds.FLUID, FluidKey.of(fluid.get())));
         }
         int fill = IntegerArgumentType.getInteger(context, "fill");
         Optional<Direction> upstream = Optional.empty();
@@ -97,7 +115,7 @@ public final class GlassTubeDemoCommand {
                 upstream = Optional.of(direction);
             }
         }
-        return setContents(context, ConduitContents.ofFluid(fluid, fill, upstream, lane));
+        return setContents(context, new ConduitContents(resource, fill, upstream, lane));
     }
 
     private static int setContents(CommandContext<CommandSourceStack> context, ConduitContents contents)

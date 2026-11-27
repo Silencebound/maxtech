@@ -10,6 +10,7 @@ import dev.silencebound.maxtech.lib.api.conduit.model.ConduitBodyKey;
 import dev.silencebound.maxtech.lib.api.conduit.model.ConduitQuad;
 import dev.silencebound.maxtech.lib.client.conduit.ConduitContentsGeometry;
 import dev.silencebound.maxtech.lib.client.conduit.ConduitGeometry;
+import dev.silencebound.maxtech.lib.client.conduit.ConduitLooks;
 import dev.silencebound.maxtech.lib.client.conduit.PartCache;
 import dev.silencebound.maxtech.lib.conduit.ConduitBlockEntity;
 import dev.silencebound.maxtech.lib.conduit.ConduitRenderData;
@@ -20,7 +21,6 @@ import java.util.List;
 import java.util.Map;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.block.BlockAndTintGetter;
-import net.minecraft.client.renderer.block.FluidModel;
 import net.minecraft.client.renderer.block.dispatch.BlockModelRotation;
 import net.minecraft.client.renderer.block.dispatch.BlockStateModel;
 import net.minecraft.client.renderer.block.dispatch.BlockStateModelPart;
@@ -32,16 +32,12 @@ import net.minecraft.client.resources.model.geometry.BakedQuad;
 import net.minecraft.client.resources.model.geometry.QuadCollection;
 import net.minecraft.client.resources.model.sprite.Material;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
-import net.minecraft.util.ARGB;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.material.Fluid;
 import net.minecraft.world.phys.AABB;
 import net.neoforged.neoforge.client.model.DynamicBlockStateModel;
 import net.neoforged.neoforge.client.model.ExtraFaceData;
-import net.neoforged.neoforge.client.fluid.FluidTintSource;
 import net.neoforged.neoforge.client.model.block.CustomUnbakedBlockStateModel;
 import org.joml.Vector3f;
 import org.joml.Vector3fc;
@@ -67,8 +63,8 @@ import org.jspecify.annotations.Nullable;
  *
  * <p>
  * A shell conduit's {@link ConduitContents} are a part of their own ({@link ConduitContentsGeometry}), drawn with the
- * fluid's baked fluid model (its still and flowing sprites and tint) and its light level, cached per
- * {@link ConduitContentsGeometry#key}.
+ * paint resolved from the resource kind's look ({@link ConduitLooks}: still and flowing sprites, tint, light), cached
+ * per {@link ConduitContentsGeometry#key}.
  *
  * <p>
  * An addon conduit marked {@code customModel} gets a copy with its {@link ConduitModelHook} ({@link #withHook}), which
@@ -105,7 +101,10 @@ public final class ConduitModel implements DynamicBlockStateModel {
     private final PartCache<ConduitFaceKey, BlockStateModelPart> labelledFaces = new PartCache<>(
             this::bakeLabelledFace);
     // A shell's contents: arm and ring masks x the contents the world shows; labels and dyes do not change them.
-    private final PartCache<ConduitBodyKey, BlockStateModelPart> contents = new PartCache<>(this::bakeContents);
+    // Replaced whenever the contents paints change (ConduitLooks.INDEX#generation), so a part baked from an old paint
+    // never outlives it; a bake racing the swap lands in the dropped cache.
+    private volatile PartCache<ConduitBodyKey, BlockStateModelPart> contents = new PartCache<>(this::bakeContents);
+    private volatile int contentsGeneration = ConduitLooks.INDEX.generation();
 
     ConduitModel(ConduitLook look, Sprites sprites) {
         this(look, sprites, null);
@@ -164,13 +163,24 @@ public final class ConduitModel implements DynamicBlockStateModel {
         ConduitBodyKey body = data.bodyKey();
         output.add((labels ? labelledBodies : bodies).get(custom == null ? ConduitGeometry.cacheKey(body) : body));
         if (custom == null && look instanceof ConduitLook.Shell && ConduitContentsGeometry.drawn(body.contents())) {
-            output.add(contents.get(ConduitContentsGeometry.key(body)));
+            output.add(contentsParts().get(ConduitContentsGeometry.key(body)));
         }
         PartCache<ConduitFaceKey, BlockStateModelPart> faceParts = labels ? labelledFaces : faces;
         List<ConduitFaceKey> keys = data.faces();
         for (int i = 0; i < keys.size(); i++) {
             output.add(faceParts.get(keys.get(i)));
         }
+    }
+
+    private PartCache<ConduitBodyKey, BlockStateModelPart> contentsParts() {
+        int generation = ConduitLooks.INDEX.generation();
+        if (generation == contentsGeneration) {
+            return contents;
+        }
+        PartCache<ConduitBodyKey, BlockStateModelPart> fresh = new PartCache<>(this::bakeContents);
+        contents = fresh;
+        contentsGeneration = generation;
+        return fresh;
     }
 
     @Override
@@ -253,39 +263,25 @@ public final class ConduitModel implements DynamicBlockStateModel {
     }
 
     /**
-     * The contents of a shell conduit in its fluid's baked fluid model; the fluid model set is replaced on a resource
-     * reload together with this model, so the part never outlives the sprites it names. The tint is the fluid's default
-     * one, taken without a level or position, so it ignores the biome (water is the same blue everywhere): the part is
-     * cached per key and shared by every conduit with the same contents.
+     * The contents of a shell conduit, drawn with the paint {@link ConduitLooks} resolved for its look index on the
+     * main thread; nothing when the index has no paint (its kind has no look, or the index was full). Reads only the
+     * paint, never registries or kind code, so it is safe on meshing threads.
      */
     private BlockStateModelPart bakeContents(ConduitBodyKey key) {
         if (!(look instanceof ConduitLook.Shell shell)) {
             return bake(List.of());
         }
-        Fluid fluid = BuiltInRegistries.FLUID.byId(ConduitContents.packedFluidId(key.contents()));
-        if (fluid == null || fluid.defaultFluidState().isEmpty()) {
+        ConduitLooks.ContentsPaint paint = ConduitLooks.INDEX.paint(ConduitContents.packedLookIndex(key.contents()));
+        if (paint == null) {
             return bake(List.of());
         }
-        FluidModel model = Minecraft.getInstance().getModelManager().getFluidStateModelSet()
-                .get(fluid.defaultFluidState());
-        Material.Baked still = model.stillMaterial();
-        Material.Baked flowing = model.flowingMaterial();
-        FluidTintSource tint = model.fluidTintSource();
-        int argb = tint == null ? 0xFFFFFFFF : ARGB.opaque(tint.color(fluid.defaultFluidState()));
-        Identifier stillId = still.sprite().contents().name();
-        Identifier flowingId = flowing.sprite().contents().name();
-        ConduitContentsGeometry.Paint paint = new ConduitContentsGeometry.Paint(stillId, flowingId, argb,
-                lightLevel(fluid));
-        return bake(
-                ConduitContentsGeometry.quads(shell, key.type().thickness(), key.arms(), key.rings(), key.contents(),
-                        paint),
-                stillId.equals(flowingId) ? Map.of(stillId, still) : Map.of(stillId, still, flowingId, flowing));
-    }
-
-    /** The light a fluid gives off: its fluid type's level or its block's, whichever is higher (lava 15). */
-    private static int lightLevel(Fluid fluid) {
-        int block = fluid.defaultFluidState().createLegacyBlock().getLightEmission();
-        return Math.clamp(Math.max(fluid.getFluidType().getLightLevel(), block), 0, ConduitQuad.MAX_LIGHT);
+        ConduitContentsGeometry.Paint ids = paint.paint();
+        Material.Baked still = new Material.Baked(paint.still(), false);
+        Map<Identifier, Material.Baked> extra = ids.still().equals(ids.flowing())
+                ? Map.of(ids.still(), still)
+                : Map.of(ids.still(), still, ids.flowing(), new Material.Baked(paint.flowing(), false));
+        return bake(ConduitContentsGeometry.quads(shell, key.type().thickness(), key.arms(), key.rings(),
+                key.contents(), ids), extra);
     }
 
     private BlockStateModelPart bake(List<ConduitQuad> faces) {

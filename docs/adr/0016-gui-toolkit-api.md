@@ -60,5 +60,6 @@ experimental until Farms ships.
   later. Their numbers are always in the tooltip, which they also narrate;
   energy shows MU first and FE at the configured rate below.
 - `FluidLook` (sprite, tint, name of a `FluidKey`) is a client interface in the common api, implemented in
-  `lib/neoforge` main from the fluid's baked fluid model and installed through an `@ApiStatus.Internal` setter that
-  accepts one install only (a second throws), so the common api still names no NeoForge type.
+  `lib/neoforge` main from the fluid's baked fluid model, so the common api still names no NeoForge type. Amended
+  2026-11-27 (K2b): it is now the fluid kind's `ResourceLook` (`lib.api.client.resource`), registered once through
+  `ResourceLooks` (a second registration for a kind throws) instead of an internal setter.
