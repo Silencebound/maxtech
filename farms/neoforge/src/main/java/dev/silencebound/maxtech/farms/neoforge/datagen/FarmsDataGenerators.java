@@ -41,11 +41,12 @@ final class FarmsDataGenerators {
         @Override
         protected void generate() {
             dropSelf(FarmsContent.LAB_HUB.get());
+            dropSelf(FarmsContent.FLUID_PORT.get());
         }
 
         @Override
         protected Iterable<Block> getKnownBlocks() {
-            return List.of(FarmsContent.LAB_HUB.get());
+            return List.of(FarmsContent.LAB_HUB.get(), FarmsContent.FLUID_PORT.get());
         }
     }
 }
