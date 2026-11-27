@@ -9,7 +9,11 @@ import net.minecraft.data.loot.BlockLootSubProvider;
 import net.minecraft.data.loot.LootTableProvider;
 import net.minecraft.world.flag.FeatureFlags;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.storage.loot.LootPool;
+import net.minecraft.world.level.storage.loot.LootTable;
+import net.minecraft.world.level.storage.loot.entries.LootItem;
 import net.minecraft.world.level.storage.loot.parameters.LootContextParamSets;
+import net.minecraft.world.level.storage.loot.providers.number.ConstantValue;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -32,7 +36,10 @@ final class FarmsDataGenerators {
                 registries));
     }
 
-    /** Blocks drop themselves; the hub adds what it holds in its own {@code getDrops}. */
+    /**
+     * Blocks drop themselves; the hub adds what it holds in its own {@code getDrops}. The hub has no explosion
+     * condition, so like a shulker box an explosion never destroys it or what it holds.
+     */
     private static final class BlockLoot extends BlockLootSubProvider {
         BlockLoot(HolderLookup.Provider registries) {
             super(Set.of(), FeatureFlags.DEFAULT_FLAGS, registries);
@@ -40,7 +47,9 @@ final class FarmsDataGenerators {
 
         @Override
         protected void generate() {
-            dropSelf(FarmsContent.LAB_HUB.get());
+            Block hub = FarmsContent.LAB_HUB.get();
+            add(hub, LootTable.lootTable()
+                    .withPool(LootPool.lootPool().setRolls(ConstantValue.exactly(1)).add(LootItem.lootTableItem(hub))));
         }
 
         @Override

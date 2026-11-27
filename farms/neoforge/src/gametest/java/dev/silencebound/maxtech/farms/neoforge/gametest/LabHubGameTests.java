@@ -5,6 +5,7 @@ import dev.silencebound.maxtech.farms.config.FarmsServerConfig;
 import dev.silencebound.maxtech.farms.hub.HubStorage;
 import dev.silencebound.maxtech.farms.hub.LabHubBlockEntity;
 import dev.silencebound.maxtech.farms.registry.FarmsContent;
+import dev.silencebound.maxtech.farms.sampler.SamplerItem;
 import dev.silencebound.maxtech.lib.api.energy.EnergyNetworks;
 import dev.silencebound.maxtech.lib.api.energy.FeRate;
 import java.util.List;
@@ -13,14 +14,17 @@ import java.util.function.Consumer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.Holder;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.gametest.framework.FunctionGameTestInstance;
 import net.minecraft.gametest.framework.GameTestHelper;
+import net.minecraft.gametest.framework.GameTestSequence;
 import net.minecraft.gametest.framework.TestData;
 import net.minecraft.gametest.framework.TestEnvironmentDefinition;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
@@ -28,6 +32,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.GameType;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.material.Fluids;
 import net.minecraft.world.phys.AABB;
@@ -49,19 +54,33 @@ import org.jspecify.annotations.Nullable;
 /**
  * The lab hub through other mods' eyes: its tank, FE input, fuel slot and output move only what fits and undo on an
  * aborted transaction; fuel burns into MU at its furnace burn time, pauses when the store is full and leaves its
- * remainder; an idle hub waits without a timer and registers no ticker; a broken hub drops with everything it holds.
+ * remainder; an idle hub waits without a timer and registers no ticker and FE coming in wakes nothing; a broken or
+ * exploded hub drops with everything it holds; a player's hand fills and empties the tank, puts fuel in and moves a
+ * sampler in and out; the sampler charges from the store and stops when full.
  */
 @EventBusSubscriber(modid = MaxtechFarms.MOD_ID)
 public final class LabHubGameTests {
     private static final Identifier STRUCTURE = MaxtechFarms.id("empty_7x2x3");
     private static final BlockPos HUB = new BlockPos(1, 1, 1);
     private static final int COAL_TICKS = 1600;
-    private static final Map<String, Consumer<GameTestHelper>> TESTS = Map.of("hub_tank_fills_and_drains",
-            LabHubGameTests::tankFillsAndDrains, "hub_fe_charges", LabHubGameTests::feCharges, "hub_fuel_burns",
-            LabHubGameTests::fuelBurns, "hub_fuel_pauses_when_full", LabHubGameTests::fuelPausesWhenFull,
-            "hub_fuel_leaves_bucket", LabHubGameTests::fuelLeavesBucket, "hub_items_in_and_out",
-            LabHubGameTests::itemsInAndOut, "hub_idle_sleeps", LabHubGameTests::idleSleeps, "hub_drops_with_contents",
-            LabHubGameTests::dropsWithContents);
+    private static final Map<String, Consumer<GameTestHelper>> TESTS = Map.ofEntries(
+            Map.entry("hub_tank_fills_and_drains", LabHubGameTests::tankFillsAndDrains),
+            Map.entry("hub_fe_charges", LabHubGameTests::feCharges),
+            Map.entry("hub_fuel_burns", LabHubGameTests::fuelBurns),
+            Map.entry("hub_fuel_pauses_when_full", LabHubGameTests::fuelPausesWhenFull),
+            Map.entry("hub_fuel_leaves_bucket", LabHubGameTests::fuelLeavesBucket),
+            Map.entry("hub_fuel_resumes_when_output_frees", LabHubGameTests::fuelResumesWhenOutputFrees),
+            Map.entry("hub_items_in_and_out", LabHubGameTests::itemsInAndOut),
+            Map.entry("hub_idle_sleeps", LabHubGameTests::idleSleeps),
+            Map.entry("hub_fe_wakes_nothing", LabHubGameTests::feWakesNothing),
+            Map.entry("hub_hand_buckets", LabHubGameTests::handBuckets),
+            Map.entry("hub_hand_fuel", LabHubGameTests::handFuel),
+            Map.entry("hub_drops_with_contents", LabHubGameTests::dropsWithContents),
+            Map.entry("hub_breaks_by_hand_with_contents", LabHubGameTests::breaksByHandWithContents),
+            Map.entry("hub_creative_break_drops", LabHubGameTests::creativeBreakDrops),
+            Map.entry("hub_survives_explosion", LabHubGameTests::survivesExplosion),
+            Map.entry("hub_sampler_charges", LabHubGameTests::samplerCharges),
+            Map.entry("hub_sampler_stops_when_full", LabHubGameTests::samplerStopsWhenFull));
 
     private LabHubGameTests() {
     }
@@ -178,6 +197,66 @@ public final class LabHubGameTests {
         }).thenSucceed();
     }
 
+    /**
+     * Two lava buckets whose remainder fits nowhere (output full) wait; taking something out of the output wakes the
+     * hub, so the burn starts.
+     */
+    private static void fuelResumesWhenOutputFrees(GameTestHelper helper) {
+        LabHubBlockEntity hub = hub(helper);
+        for (int slot = 0; slot < HubStorage.OUTPUT_SLOTS; slot++) {
+            hub.storage().output().set(slot, ItemResource.of(Items.DIRT), 64);
+        }
+        hub.storage().fuel().set(0, ItemResource.of(Items.LAVA_BUCKET), 2);
+        helper.startSequence().thenIdle(5).thenExecute(() -> {
+            helper.assertTrue(!hub.burner().isBurning(), "burned without room for the bucket");
+            ResourceHandler<ItemResource> items = capability(helper, Capabilities.Item.BLOCK);
+            try (Transaction transaction = Transaction.openRoot()) {
+                helper.assertValueEqual(items.extract(1, ItemResource.of(Items.DIRT), 64, transaction), 64, "dirt out");
+                transaction.commit();
+            }
+        }).thenIdle(3).thenExecute(() -> {
+            helper.assertTrue(hub.burner().isBurning(), "the burn did not start after output room opened");
+            helper.assertValueEqual(hub.storage().fuel().getAmountAsInt(0), 1, "lava left");
+        }).thenSucceed();
+    }
+
+    /**
+     * FE pushed every tick neither clears the burn's timer nor wakes a hub whose fuel slot holds only an empty bucket.
+     */
+    private static void feWakesNothing(GameTestHelper helper) {
+        LabHubBlockEntity hub = hub(helper);
+        EnergyHandler fe = capability(helper, Capabilities.Energy.BLOCK);
+        insertItem(helper, new ItemStack(Items.COAL), 1);
+        GameTestSequence sequence = helper.startSequence().thenIdle(3);
+        for (int i = 0; i < 30; i++) {
+            sequence.thenExecute(() -> {
+                push(fe);
+                helper.assertTrue(hub.burner().isBurning(), "burning");
+                helper.assertTrue(!hub.fuelTask().isQueued() && hub.fuelTask().wakeAt() > 0,
+                        "FE cleared the burn's timer");
+            }).thenIdle(1);
+        }
+        sequence.thenExecute(() -> {
+            hub.burner().load(0, 0);
+            hub.storage().fuel().set(0, ItemResource.of(Items.BUCKET), 1);
+        }).thenIdle(3);
+        for (int i = 0; i < 25; i++) {
+            sequence.thenExecute(() -> {
+                push(fe);
+                helper.assertTrue(!hub.fuelTask().isQueued() && hub.fuelTask().wakeAt() == -1,
+                        "FE woke a hub with only a bucket in its fuel slot");
+            }).thenIdle(1);
+        }
+        sequence.thenSucceed();
+    }
+
+    private static void push(EnergyHandler fe) {
+        try (Transaction transaction = Transaction.openRoot()) {
+            fe.insert(100, transaction);
+            transaction.commit();
+        }
+    }
+
     private static void itemsInAndOut(GameTestHelper helper) {
         LabHubBlockEntity hub = hub(helper);
         ResourceHandler<ItemResource> items = capability(helper, Capabilities.Item.BLOCK);
@@ -219,18 +298,183 @@ public final class LabHubGameTests {
     }
 
     private static void dropsWithContents(GameTestHelper helper) {
+        LabHubBlockEntity hub = filled(helper);
+        hub.burner().start(COAL_TICKS, helper.getLevel().getGameTime());
+        ItemStack sampler = new ItemStack(FarmsContent.SAMPLER.get());
+        SamplerItem.setCharge(sampler, 321);
+        hub.storage().sampler().set(0, ItemResource.of(sampler), 1);
+        helper.getLevel().destroyBlock(helper.absolutePos(HUB), true);
+        LabHubBlockEntity placed = placeDrop(helper);
+        assertFilled(helper, placed);
+        helper.assertValueEqual(placed.burner().burnLeft(), COAL_TICKS, "burn left");
+        helper.assertValueEqual(SamplerItem.charge(placed.storage().sampler().getResource(0)), 321L, "sampler");
+        helper.succeed();
+    }
+
+    /** A survival player breaking the hub with an empty hand gets it with everything it holds. */
+    private static void breaksByHandWithContents(GameTestHelper helper) {
+        filled(helper);
+        ServerPlayer player = player(helper, GameType.SURVIVAL);
+        player.gameMode.destroyBlock(helper.absolutePos(HUB));
+        helper.getLevel().getServer().getPlayerList().remove(player);
+        helper.assertBlockNotPresent(FarmsContent.LAB_HUB.get(), HUB);
+        assertFilled(helper, placeDrop(helper));
+        helper.succeed();
+    }
+
+    /** A creative player gets no drops, so a hub that holds something drops itself (playerWillDestroy). */
+    private static void creativeBreakDrops(GameTestHelper helper) {
+        filled(helper);
+        ServerPlayer player = player(helper, GameType.CREATIVE);
+        player.gameMode.destroyBlock(helper.absolutePos(HUB));
+        helper.getLevel().getServer().getPlayerList().remove(player);
+        helper.assertBlockNotPresent(FarmsContent.LAB_HUB.get(), HUB);
+        assertFilled(helper, placeDrop(helper));
+        helper.succeed();
+    }
+
+    /**
+     * A block explosion (drop decay on by default) never destroys the hub: it drops with its contents. Five rounds,
+     * since the loot table's random sequence is seeded from the fixed test world seed: with the survives_explosion
+     * condition back, one roll could pass every run.
+     */
+    private static void survivesExplosion(GameTestHelper helper) {
+        Vec3 center = Vec3.atCenterOf(helper.absolutePos(HUB));
+        for (int round = 0; round < 5; round++) {
+            filled(helper);
+            helper.getLevel().explode(null, center.x, center.y, center.z, 3.0F, Level.ExplosionInteraction.BLOCK);
+            helper.assertBlockNotPresent(FarmsContent.LAB_HUB.get(), HUB);
+            if (round < 4) {
+                List<ItemEntity> drops = drops(helper);
+                helper.assertValueEqual(drops.size(), 1, "dropped hubs in round " + round);
+                helper.assertTrue(drops.get(0).getItem().has(DataComponents.BLOCK_ENTITY_DATA),
+                        "contents in round " + round);
+                drops.get(0).discard();
+            }
+        }
+        assertFilled(helper, placeDrop(helper));
+        helper.succeed();
+    }
+
+    /** A bucket fills the tank and drains it back; a lava bucket by hand goes into the tank, not the fuel slot. */
+    private static void handBuckets(GameTestHelper helper) {
+        LabHubBlockEntity hub = hub(helper);
+        ServerPlayer player = player(helper, GameType.SURVIVAL);
+        use(helper, player, new ItemStack(Items.WATER_BUCKET));
+        helper.assertValueEqual(hub.storage().tank().getAmountAsLong(0), 1000L, "water in");
+        helper.assertTrue(player.getMainHandItem().is(Items.BUCKET), "hand after filling: " + player.getMainHandItem());
+        use(helper, player, player.getMainHandItem());
+        helper.assertValueEqual(hub.storage().tank().getAmountAsLong(0), 0L, "water out");
+        helper.assertTrue(player.getMainHandItem().is(Items.WATER_BUCKET),
+                "hand after draining: " + player.getMainHandItem());
+        use(helper, player, new ItemStack(Items.LAVA_BUCKET));
+        helper.getLevel().getServer().getPlayerList().remove(player);
+        helper.assertValueEqual(hub.storage().tank().getAmountAsLong(0), 1000L, "lava in the tank");
+        helper.assertTrue(hub.storage().tank().getResource(0).is(Fluids.LAVA), "lava");
+        helper.assertTrue(hub.storage().fuel().getResource(0).isEmpty(), "lava went into the fuel slot");
+        helper.succeed();
+    }
+
+    /** Fuel by hand: survival hands it over, creative keeps its stack. */
+    private static void handFuel(GameTestHelper helper) {
+        LabHubBlockEntity hub = hub(helper);
+        ServerPlayer survival = player(helper, GameType.SURVIVAL);
+        use(helper, survival, new ItemStack(Items.COAL, 5));
+        helper.assertValueEqual(survival.getMainHandItem().getCount(), 0, "survival stack");
+        ServerPlayer creative = player(helper, GameType.CREATIVE);
+        use(helper, creative, new ItemStack(Items.COAL, 5));
+        helper.assertValueEqual(creative.getMainHandItem().getCount(), 5, "creative stack");
+        helper.getLevel().getServer().getPlayerList().remove(survival);
+        helper.getLevel().getServer().getPlayerList().remove(creative);
+        // One coal may have started burning already.
+        int held = hub.storage().fuel().getAmountAsInt(0) + (hub.burner().isBurning() ? 1 : 0);
+        helper.assertValueEqual(held, 10, "coal in the hub");
+        helper.succeed();
+    }
+
+    /**
+     * A sampler put in by hand charges from the store in steps, taking exactly what it gains; sneaking with an empty
+     * hand takes it out again.
+     */
+    private static void samplerCharges(GameTestHelper helper) {
+        LabHubBlockEntity hub = hub(helper);
+        hub.energy().setStored(50_000);
+        ServerPlayer player = player(helper, GameType.SURVIVAL);
+        ItemStack sampler = new ItemStack(FarmsContent.SAMPLER.get());
+        SamplerItem.setCharge(sampler, 0);
+        use(helper, player, sampler);
+        helper.assertTrue(player.getMainHandItem().isEmpty(), "the sampler left the hand");
+        long step = FarmsServerConfig.hubSamplerChargeMuPerTick() * 20;
+        helper.startSequence().thenIdle(45).thenExecute(() -> {
+            long charge = SamplerItem.charge(hub.storage().sampler().getResource(0));
+            helper.assertTrue(charge >= 2 * step && charge <= 3 * step, "charged " + charge + " in 45 ticks");
+            helper.assertValueEqual(hub.energy().stored(), 50_000 - charge, "MU taken from the store");
+            player.setShiftKeyDown(true);
+            use(helper, player, ItemStack.EMPTY);
+            player.setShiftKeyDown(false);
+            helper.getLevel().getServer().getPlayerList().remove(player);
+            helper.assertTrue(player.getMainHandItem().is(FarmsContent.SAMPLER.get()), "taken out");
+            helper.assertValueEqual(SamplerItem.charge(player.getMainHandItem()), charge, "charge kept");
+            helper.assertTrue(hub.storage().sampler().getResource(0).isEmpty(), "the slot is empty");
+        }).thenSucceed();
+    }
+
+    /** A full sampler and an empty store leave the task waiting without a timer; energy coming in resumes charging. */
+    private static void samplerStopsWhenFull(GameTestHelper helper) {
+        LabHubBlockEntity hub = hub(helper);
+        hub.energy().setStored(50_000);
+        long capacity = SamplerItem.capacity();
+        hub.storage().sampler().set(0, ItemResource.of(sampler(capacity - 100)), 1);
+        helper.startSequence().thenIdle(30).thenExecute(() -> {
+            helper.assertValueEqual(SamplerItem.charge(hub.storage().sampler().getResource(0)), capacity, "full");
+            helper.assertValueEqual(hub.energy().stored(), 50_000L - 100, "took only what fit");
+            helper.assertTrue(!hub.fuelTask().isQueued() && hub.fuelTask().wakeAt() == -1,
+                    "a full sampler waits without a timer");
+            hub.energy().setStored(0);
+            hub.storage().sampler().set(0, ItemResource.of(sampler(0)), 1);
+        }).thenIdle(3).thenExecute(() -> {
+            helper.assertTrue(!hub.fuelTask().isQueued() && hub.fuelTask().wakeAt() == -1,
+                    "an empty store waits without a timer");
+            EnergyHandler fe = capability(helper, Capabilities.Energy.BLOCK);
+            try (Transaction transaction = Transaction.openRoot()) {
+                fe.insert((int) EnergyNetworks.feRate().toFe(1000), transaction);
+                transaction.commit();
+            }
+        }).thenIdle(25)
+                .thenExecute(() -> helper.assertTrue(SamplerItem.charge(hub.storage().sampler().getResource(0)) > 0,
+                        "energy coming in resumed charging"))
+                .thenSucceed();
+    }
+
+    private static ItemStack sampler(long charge) {
+        ItemStack sampler = new ItemStack(FarmsContent.SAMPLER.get());
+        SamplerItem.setCharge(sampler, charge);
+        return sampler;
+    }
+
+    /** A hub holding nutrient, output, fuel and MU. */
+    private static LabHubBlockEntity filled(GameTestHelper helper) {
         LabHubBlockEntity hub = hub(helper);
         hub.storage().tank().set(0, FluidResource.of(Fluids.WATER), 4000);
         hub.storage().output().set(0, ItemResource.of(Items.BONE), 7);
         hub.storage().fuel().set(0, ItemResource.of(Items.COAL), 3);
         hub.energy().setStored(1234);
-        helper.getLevel().destroyBlock(helper.absolutePos(HUB), true);
-        BlockPos at = helper.absolutePos(HUB);
-        List<ItemEntity> drops = helper.getLevel().getEntitiesOfClass(ItemEntity.class, new AABB(at).inflate(2));
-        helper.assertValueEqual(drops.size(), 1, "drops");
+        return hub;
+    }
+
+    private static void assertFilled(GameTestHelper helper, LabHubBlockEntity placed) {
+        helper.assertValueEqual(placed.storage().tank().getAmountAsLong(0), 4000L, "nutrient");
+        helper.assertValueEqual(placed.storage().output().getAmountAsInt(0), 7, "output");
+        helper.assertValueEqual(placed.storage().fuel().getAmountAsInt(0), 3, "fuel");
+        helper.assertValueEqual(placed.energy().stored(), 1234L, "MU");
+    }
+
+    /** Takes the one dropped hub near {@link #HUB} and places it at (4, 1, 1); returns the placed hub. */
+    private static LabHubBlockEntity placeDrop(GameTestHelper helper) {
+        List<ItemEntity> drops = drops(helper);
+        helper.assertValueEqual(drops.size(), 1, "dropped hubs");
         ItemStack item = drops.get(0).getItem().copy();
         drops.get(0).discard();
-        helper.assertTrue(item.is(FarmsContent.LAB_HUB_ITEM.get()), "dropped " + item);
         BlockPos place = new BlockPos(4, 1, 1);
         helper.setBlock(place.below(), Blocks.STONE);
         Player player = helper.makeMockPlayer(GameType.SURVIVAL);
@@ -238,12 +482,29 @@ public final class LabHubGameTests {
         BlockPos below = helper.absolutePos(place.below());
         item.useOn(new UseOnContext(player, InteractionHand.MAIN_HAND,
                 new BlockHitResult(Vec3.atCenterOf(below), Direction.UP, below, false)));
-        LabHubBlockEntity placed = helper.getBlockEntity(place, LabHubBlockEntity.class);
-        helper.assertValueEqual(placed.storage().tank().getAmountAsLong(0), 4000L, "nutrient");
-        helper.assertValueEqual(placed.storage().output().getAmountAsInt(0), 7, "output");
-        helper.assertValueEqual(placed.storage().fuel().getAmountAsInt(0), 3, "fuel");
-        helper.assertValueEqual(placed.energy().stored(), 1234L, "MU");
-        helper.succeed();
+        return helper.getBlockEntity(place, LabHubBlockEntity.class);
+    }
+
+    /** The dropped hubs near {@link #HUB}. */
+    private static List<ItemEntity> drops(GameTestHelper helper) {
+        return helper.getLevel().getEntitiesOfClass(ItemEntity.class, new AABB(helper.absolutePos(HUB)).inflate(4),
+                entity -> entity.getItem().is(FarmsContent.LAB_HUB_ITEM.get()));
+    }
+
+    /** A player with a connection, so the game mode's use and break paths run as for a real client. */
+    @SuppressWarnings("removal") // GameTestHelper's only way to a ServerPlayer with a connection; no replacement yet
+    private static ServerPlayer player(GameTestHelper helper, GameType mode) {
+        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        player.setGameMode(mode);
+        return player;
+    }
+
+    /** {@code player} uses {@code stack} on the hub through the game mode. */
+    private static void use(GameTestHelper helper, ServerPlayer player, ItemStack stack) {
+        player.setItemInHand(InteractionHand.MAIN_HAND, stack);
+        BlockPos pos = helper.absolutePos(HUB);
+        player.gameMode.useItemOn(player, helper.getLevel(), player.getMainHandItem(), InteractionHand.MAIN_HAND,
+                new BlockHitResult(Vec3.atCenterOf(pos), Direction.UP, pos, false));
     }
 
     private static LabHubBlockEntity hub(GameTestHelper helper) {
