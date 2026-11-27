@@ -123,6 +123,7 @@ public final class ConduitApiGameTests {
         test("conduit_api_contents_saved", ConduitApiGameTests::contentsSaved);
         test("conduit_api_custom_model_places", ConduitApiGameTests::customModelPlaces);
         test("conduit_api_shell_places", ConduitApiGameTests::shellPlaces);
+        test("conduit_api_shell_contents_places", ConduitApiGameTests::shellContentsPlaces);
     }
 
     private ConduitApiGameTests() {
@@ -252,6 +253,30 @@ public final class ConduitApiGameTests {
      */
     private static void shellPlaces(GameTestHelper helper) {
         placesAndLinks(helper, GLASS_TUBE);
+    }
+
+    /**
+     * A shell tube holds the contents its addon sets, lava flowing in from the west with a second lane next to a tube
+     * of water, and both still link; Lib draws them on the client only.
+     */
+    private static void shellContentsPlaces(GameTestHelper helper) {
+        BlockPos pos = new BlockPos(1, 0, 1);
+        BlockPos next = new BlockPos(2, 0, 1);
+        ConduitType type = GLASS_TUBE.type().get();
+        helper.assertTrue(Conduits.place(helper.getLevel(), helper.absolutePos(pos), type), "tube not placed");
+        helper.assertTrue(Conduits.place(helper.getLevel(), helper.absolutePos(next), type), "second tube not placed");
+        ConduitContents lava = new ConduitContents(Optional.of(Fluids.LAVA), 2, Optional.of(Direction.WEST), true);
+        ConduitContents water = new ConduitContents(Optional.of(Fluids.WATER), ConduitContents.FULL, Optional.empty(),
+                false);
+        host(helper, pos).setContents(lava);
+        host(helper, next).setContents(water);
+        helper.assertValueEqual(lava, host(helper, pos).contents(), "contents of the lava tube");
+        helper.assertValueEqual(water, host(helper, next).contents(), "contents of the water tube");
+        helper.succeedWhen(() -> {
+            helper.assertTrue(ConduitConnections.isConnected(host(helper, pos).connections(), Direction.EAST),
+                    "the tubes did not link");
+            helper.assertValueEqual(lava, host(helper, pos).contents(), "contents after linking");
+        });
     }
 
     private static void placesAndLinks(GameTestHelper helper, ConduitEntry<ConduitType> entry) {
