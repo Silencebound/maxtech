@@ -1,5 +1,8 @@
 package dev.silencebound.maxtech.lib.platform;
 
+import dev.silencebound.maxtech.lib.api.config.ConfigBuilder;
+import dev.silencebound.maxtech.lib.api.config.ConfigFile;
+import dev.silencebound.maxtech.lib.api.config.ConfigType;
 import java.nio.file.Path;
 
 public interface ConfigHelper {

@@ -1,4 +1,4 @@
-package dev.silencebound.maxtech.lib.platform;
+package dev.silencebound.maxtech.lib.api.config;
 
 /**
  * Server config holds balance and behaviour and is synced to clients; client config holds visuals only. Common config
@@ -6,5 +6,10 @@ package dev.silencebound.maxtech.lib.platform;
  * read (content toggles); keep it to those.
  */
 public enum ConfigType {
-    SERVER, CLIENT, COMMON
+    /** Per world, synced to clients: balance and behaviour. */
+    SERVER,
+    /** Per player's game: visuals only. */
+    CLIENT,
+    /** Loaded at startup on both sides: switches that registration or recipes read. */
+    COMMON
 }

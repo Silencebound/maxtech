@@ -2,9 +2,10 @@ package dev.silencebound.maxtech.storage.config;
 
 import com.mojang.logging.LogUtils;
 import dev.silencebound.maxtech.lib.api.guide.GuideConfigValues;
-import dev.silencebound.maxtech.lib.config.PresetConfig;
-import dev.silencebound.maxtech.lib.platform.ConfigBuilder;
-import dev.silencebound.maxtech.lib.platform.ConfigFile;
+import dev.silencebound.maxtech.lib.api.config.Configs;
+import dev.silencebound.maxtech.lib.api.config.PresetConfig;
+import dev.silencebound.maxtech.lib.api.config.ConfigBuilder;
+import dev.silencebound.maxtech.lib.api.config.ConfigFile;
 import dev.silencebound.maxtech.storage.MaxtechStorage;
 import dev.silencebound.maxtech.storage.crafting.job.CraftLimits;
 import dev.silencebound.maxtech.storage.crafting.job.CraftingMode;
@@ -42,7 +43,7 @@ import org.slf4j.Logger;
  */
 public final class StorageServerConfig {
     private static final Logger LOGGER = LogUtils.getLogger();
-    private static final PresetConfig CONFIG = new PresetConfig(MaxtechStorage.MOD_ID, StorageServerConfig.class);
+    private static final PresetConfig CONFIG = Configs.presetConfig(MaxtechStorage.MOD_ID, StorageServerConfig.class);
     private static final ConfigBuilder BUILDER = new LoadedOrDefault(CONFIG.builder(), StorageServerConfig::loaded);
 
     public static final Supplier<String> PRESET = CONFIG.preset();

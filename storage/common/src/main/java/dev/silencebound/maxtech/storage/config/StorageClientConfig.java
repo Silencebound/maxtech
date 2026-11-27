@@ -1,8 +1,8 @@
 package dev.silencebound.maxtech.storage.config;
 
-import dev.silencebound.maxtech.lib.platform.ConfigBuilder;
-import dev.silencebound.maxtech.lib.platform.ConfigFile;
-import dev.silencebound.maxtech.lib.platform.ConfigType;
+import dev.silencebound.maxtech.lib.api.config.ConfigBuilder;
+import dev.silencebound.maxtech.lib.api.config.ConfigFile;
+import dev.silencebound.maxtech.lib.api.config.ConfigType;
 import dev.silencebound.maxtech.lib.platform.Platform;
 import dev.silencebound.maxtech.lib.sync.ListSort;
 import dev.silencebound.maxtech.storage.MaxtechStorage;

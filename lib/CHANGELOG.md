@@ -7,6 +7,10 @@ Api changes are marked **Api**.
 ## [Unreleased]
 
 ### Added
+- **Api** Config files with presets are api (`lib.api.config`, experimental, for Farms FM1): `ConfigBuilder`,
+  `ConfigFile` and `ConfigType` moved there from `lib.platform`; `PresetConfig` is an interface, made with
+  `Configs.presetConfig(modId, anchor)` (Lib's class is now the internal `LibPresetConfig`); `Configs.builder` and
+  `Configs.register` add plain client or common files.
 - **Api** The task scheduler is api (`lib.api.schedule`, experimental, for Farms FM1): `ScheduledTask`, `TaskGroup`,
   `TaskPriority` and `TaskScheduler` moved there from `lib.schedule`, and `TaskSchedulers.newGroup(level)` gives an
   addon a group with Lib's configured budgets. `LevelTasks` stays internal and backs it.

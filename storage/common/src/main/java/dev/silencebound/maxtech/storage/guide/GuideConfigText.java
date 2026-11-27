@@ -1,6 +1,6 @@
 package dev.silencebound.maxtech.storage.guide;
 
-import dev.silencebound.maxtech.lib.platform.ConfigFile;
+import dev.silencebound.maxtech.lib.api.config.ConfigFile;
 import dev.silencebound.maxtech.storage.MaxtechStorage;
 import dev.silencebound.maxtech.storage.config.StorageServerConfig;
 import dev.silencebound.maxtech.storage.registry.ModContent;

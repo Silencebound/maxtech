@@ -3,9 +3,10 @@ package dev.silencebound.maxtech.lib.config;
 import com.google.gson.JsonElement;
 import dev.silencebound.maxtech.lib.api.guide.GuideConfigValues;
 
-import dev.silencebound.maxtech.lib.platform.ConfigBuilder;
-import dev.silencebound.maxtech.lib.platform.ConfigFile;
-import dev.silencebound.maxtech.lib.platform.ConfigType;
+import dev.silencebound.maxtech.lib.api.config.ConfigBuilder;
+import dev.silencebound.maxtech.lib.api.config.PresetConfig;
+import dev.silencebound.maxtech.lib.api.config.ConfigFile;
+import dev.silencebound.maxtech.lib.api.config.ConfigType;
 import dev.silencebound.maxtech.lib.platform.Platform;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -28,9 +29,7 @@ import org.jspecify.annotations.Nullable;
  * it, edited ones are kept, and {@code custom} never changes anything. What a preset last wrote is tracked per mod in a
  * state file next to the config file.
  */
-public final class PresetConfig {
-    /** The preset name that switches preset handling off. */
-    public static final String CUSTOM_PRESET = "custom";
+public final class LibPresetConfig implements PresetConfig {
     private static final List<String> BUILT_IN = List.of(Presets.BASE, "pack");
     static final String PRESET_PATH = "preset";
 
@@ -48,7 +47,7 @@ public final class PresetConfig {
      * @param resourceAnchor
      *            any class from the mod's own jar, used to find its preset resources
      */
-    public PresetConfig(String modId, Class<?> resourceAnchor) {
+    public LibPresetConfig(String modId, Class<?> resourceAnchor) {
         this.modId = modId;
         this.builder = Platform.get().config().builder(modId);
         this.presets = new Presets(resourceAnchor, modId);
@@ -61,11 +60,13 @@ public final class PresetConfig {
     }
 
     /** Declares this config's values; paths must match the keys in the preset JSON. */
+    @Override
     public ConfigBuilder builder() {
         return builder;
     }
 
     /** The configured preset name. */
+    @Override
     public Supplier<String> preset() {
         return preset;
     }
@@ -74,6 +75,7 @@ public final class PresetConfig {
      * Registers the file and its preset handling. Call once, after every value is declared and during mod construction.
      * Listeners added to the returned file with {@link ConfigFile#onLoad} run after the preset has been applied.
      */
+    @Override
     public ConfigFile register() {
         ConfigFile file = Platform.get().config().register(modId, ConfigType.SERVER, builder);
         PresetSync sync = new PresetSync(file, PRESET_PATH, presets,
@@ -87,6 +89,7 @@ public final class PresetConfig {
      * Where the built-in presets and the declared spec disagree: a spec path {@code standalone.json} lacks, or a preset
      * key no spec path matches. Empty when they agree. Needs {@link #register()} to have run.
      */
+    @Override
     public List<String> presetProblems() {
         return presetProblems(path -> false);
     }
@@ -95,6 +98,7 @@ public final class PresetConfig {
      * {@link #presetProblems()}, and also every spec path {@code inEveryPreset} accepts that a built-in preset other
      * than {@code standalone} lacks (MLE item 5: energy keys appear in every preset).
      */
+    @Override
     public List<String> presetProblems(Predicate<String> inEveryPreset) {
         ConfigFile registered = file;
         if (registered == null) {
@@ -115,6 +119,7 @@ public final class PresetConfig {
      * effect while the file is loaded (on a client in a world, the server's synced copy), else the default. Register it
      * with {@code GuideConfigValues.register(modId, config.guideSource())}. Any thread; reads the file only when asked.
      */
+    @Override
     public GuideConfigValues.Source guideSource() {
         return guideSource(() -> file);
     }
@@ -155,26 +160,32 @@ public final class PresetConfig {
         };
     }
 
+    @Override
     public boolean booleanDefault(String path) {
         return base(path).getAsBoolean();
     }
 
+    @Override
     public int intDefault(String path) {
         return base(path).getAsInt();
     }
 
+    @Override
     public long longDefault(String path) {
         return base(path).getAsLong();
     }
 
+    @Override
     public double doubleDefault(String path) {
         return base(path).getAsDouble();
     }
 
+    @Override
     public String stringDefault(String path) {
         return base(path).getAsString();
     }
 
+    @Override
     public <E extends Enum<E>> E enumDefault(String path, Class<E> type) {
         return PresetValues.enumValue(type, base(path).getAsString());
     }

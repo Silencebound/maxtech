@@ -1,9 +1,9 @@
 package dev.silencebound.maxtech.lib.config;
 
-import dev.silencebound.maxtech.lib.platform.ConfigBuilder;
-import dev.silencebound.maxtech.lib.platform.ConfigFile;
+import dev.silencebound.maxtech.lib.api.config.ConfigBuilder;
+import dev.silencebound.maxtech.lib.api.config.ConfigFile;
 import dev.silencebound.maxtech.lib.platform.ConfigHelper;
-import dev.silencebound.maxtech.lib.platform.ConfigType;
+import dev.silencebound.maxtech.lib.api.config.ConfigType;
 import java.nio.file.Path;
 import java.util.ArrayDeque;
 import java.util.ArrayList;

@@ -1,11 +1,12 @@
 package dev.silencebound.maxtech.lib.config;
 
+import dev.silencebound.maxtech.lib.api.config.PresetConfig;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.mojang.logging.LogUtils;
-import dev.silencebound.maxtech.lib.platform.ConfigFile;
+import dev.silencebound.maxtech.lib.api.config.ConfigFile;
 import java.io.IOException;
 import java.io.Reader;
 import java.io.Writer;

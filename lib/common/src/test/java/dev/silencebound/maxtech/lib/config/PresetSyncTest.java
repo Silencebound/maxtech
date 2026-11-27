@@ -1,11 +1,12 @@
 package dev.silencebound.maxtech.lib.config;
 
+import dev.silencebound.maxtech.lib.api.config.PresetConfig;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import dev.silencebound.maxtech.lib.api.network.UnloadedChunkMode;
-import dev.silencebound.maxtech.lib.platform.ConfigFile;
+import dev.silencebound.maxtech.lib.api.config.ConfigFile;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;

@@ -3,7 +3,7 @@ package dev.silencebound.maxtech.storage.config;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 
-import dev.silencebound.maxtech.lib.platform.ConfigBuilder;
+import dev.silencebound.maxtech.lib.api.config.ConfigBuilder;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BooleanSupplier;
 import java.util.function.DoubleSupplier;

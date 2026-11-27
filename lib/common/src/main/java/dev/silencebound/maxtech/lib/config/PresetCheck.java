@@ -41,7 +41,7 @@ final class PresetCheck {
             problems.add(Presets.BASE + ".json is missing");
         }
         for (String path : specPaths) {
-            if (path.equals(PresetConfig.PRESET_PATH)) {
+            if (path.equals(LibPresetConfig.PRESET_PATH)) {
                 continue;
             }
             if (base != null && !base.containsKey(path)) {
