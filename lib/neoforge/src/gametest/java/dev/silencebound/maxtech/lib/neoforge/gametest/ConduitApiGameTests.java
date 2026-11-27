@@ -20,6 +20,11 @@ import dev.silencebound.maxtech.lib.api.resource.ItemKey;
 import dev.silencebound.maxtech.lib.api.resource.KindKey;
 import dev.silencebound.maxtech.lib.api.resource.ResourceKind;
 import dev.silencebound.maxtech.lib.api.resource.ResourceKinds;
+import net.minecraft.network.chat.Component;
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.core.component.DataComponentPatch;
+import dev.silencebound.maxtech.lib.api.resource.UnknownResource;
+import dev.silencebound.maxtech.lib.api.resource.FluidKey;
 import com.mojang.serialization.Codec;
 import dev.silencebound.maxtech.lib.conduit.ConduitBlockEntity;
 import java.util.ArrayList;
@@ -530,6 +535,30 @@ public final class ConduitApiGameTests {
         CompoundTag savedGlow = savedContents(helper, abs, glow);
         helper.assertValueEqual(savedGlow.getStringOr("kind", ""), "maxtech_lib:test_glow", "saved test kind");
         helper.assertValueEqual(savedGlow.getIntOr("resource", 0), 40, "saved test key");
+        CompoundTag unknownTag = new CompoundTag();
+        unknownTag.putString("kind", "removed_mod:chemical");
+        boolean refused = false;
+        try {
+            new ConduitContents(
+                    Optional.of(new KindKey<>(UnknownResource.KIND, new UnknownResource(
+                            Identifier.fromNamespaceAndPath("removed_mod", "chemical"), unknownTag))),
+                    0, Optional.empty(), false);
+        } catch (IllegalArgumentException expected) {
+            refused = true;
+        }
+        helper.assertTrue(refused, "contents took an unknown resource");
+        ConduitContents flowing = new ConduitContents(
+                Optional.of(new KindKey<>(ResourceKinds.FLUID, FluidKey.of(Fluids.FLOWING_WATER))), 0, Optional.empty(),
+                false);
+        helper.assertValueEqual(Optional.of(new KindKey<>(ResourceKinds.FLUID, FluidKey.of(Fluids.WATER))),
+                flowing.resource(), "flowing fluid key becomes its source");
+        ConduitContents named = new ConduitContents(
+                Optional.of(new KindKey<>(ResourceKinds.FLUID,
+                        FluidKey.of(Fluids.WATER, DataComponentPatch.builder()
+                                .set(DataComponents.CUSTOM_NAME, Component.literal("x")).build()))),
+                0, Optional.empty(), false);
+        helper.assertValueEqual(savedContents(helper, abs, named).getStringOr("fluid", ""), "minecraft:water",
+                "fluid key with components saves as its name");
         helper.succeed();
     }
 

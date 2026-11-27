@@ -81,7 +81,7 @@ public record ConduitContents(Optional<KindKey<?>> resource, int fill, Optional<
             throw new IllegalArgumentException("fill must be 0.." + FULL + ": " + fill);
         }
         if (resource.isEmpty() && fill != 0) {
-            throw new IllegalArgumentException("fill without a fluid: " + fill);
+            throw new IllegalArgumentException("fill without a resource: " + fill);
         }
     }
 

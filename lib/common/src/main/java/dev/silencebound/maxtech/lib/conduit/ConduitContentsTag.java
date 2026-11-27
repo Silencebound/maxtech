@@ -10,6 +10,8 @@ import dev.silencebound.maxtech.lib.api.resource.KindKey;
 import dev.silencebound.maxtech.lib.api.resource.ResourceKind;
 import dev.silencebound.maxtech.lib.api.resource.ResourceKinds;
 import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import net.minecraft.core.Direction;
@@ -36,6 +38,9 @@ final class ConduitContentsTag {
     static final String UPSTREAM = "upstream";
     static final String LANE = "lane";
     private static final Logger LOGGER = LogUtils.getLogger();
+    // Warnings already given this session, by problem and id: a stale tag would otherwise warn on every chunk or update
+    // load.
+    private static final Set<String> WARNED = ConcurrentHashMap.newKeySet();
 
     private ConduitContentsTag() {
     }
@@ -75,9 +80,9 @@ final class ConduitContentsTag {
     /**
      * The saved contents, with fluids and kinds looked up by name. Data with a kind field reads that kind's resource
      * field; data without one reads the fluid field as a fluid. A fluid or kind that is no longer registered (its mod
-     * was removed), or a resource its kind cannot read, loads as empty contents with one warning: conduit contents are
-     * only a display, and the addon sets them again when its network next recomputes them. A fill out of range is
-     * clamped; without a resource it is 0.
+     * was removed), or a resource its kind cannot read, loads as empty contents, with one warning per kind or fluid id
+     * per session: conduit contents are only a display, and the addon sets them again when its network next recomputes
+     * them. A fill out of range is clamped; without a resource it is 0.
      */
     static ConduitContents load(ValueInput input, Function<Identifier, Optional<Fluid>> fluids,
             Function<Identifier, Optional<ResourceKind<?>>> kinds, Consumer<String> warn) {
@@ -93,14 +98,18 @@ final class ConduitContentsTag {
             Identifier id = Identifier.tryParse(kindName.get());
             Optional<ResourceKind<?>> kind = id == null ? Optional.empty() : kinds.apply(id);
             if (kind.isEmpty()) {
-                warn.accept(
-                        "Conduit contents name an unknown resource kind " + kindName.get() + "; loading them as empty");
+                if (WARNED.add("kind " + kindName.get())) {
+                    warn.accept("Conduit contents name an unknown resource kind " + kindName.get()
+                            + "; loading them as empty");
+                }
                 return ConduitContents.EMPTY;
             }
             DataResult<? extends KindKey<?>> read = readKey(child, kind.get());
             if (read.isError()) {
-                warn.accept("Conduit contents hold a " + kindName.get() + " resource that does not load ("
-                        + read.error().orElseThrow().message() + "); loading them as empty");
+                if (WARNED.add("key " + kindName.get())) {
+                    warn.accept("Conduit contents hold a " + kindName.get() + " resource that does not load ("
+                            + read.error().orElseThrow().message() + "); loading them as empty");
+                }
                 return ConduitContents.EMPTY;
             }
             resource = Optional.of(read.getOrThrow());
@@ -108,7 +117,10 @@ final class ConduitContentsTag {
             Identifier id = Identifier.tryParse(fluidName.get());
             Optional<Fluid> fluid = id == null ? Optional.empty() : fluids.apply(id);
             if (fluid.isEmpty() || fluid.get().defaultFluidState().isEmpty()) {
-                warn.accept("Conduit contents name an unknown fluid " + fluidName.get() + "; loading them as empty");
+                if (WARNED.add("fluid " + fluidName.get())) {
+                    warn.accept(
+                            "Conduit contents name an unknown fluid " + fluidName.get() + "; loading them as empty");
+                }
                 return ConduitContents.EMPTY;
             }
             resource = Optional.of(new KindKey<>(ResourceKinds.FLUID, FluidKey.of(fluid.get())));

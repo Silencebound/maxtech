@@ -74,10 +74,20 @@ class ConduitContentsTagTest {
     }
 
     @Test
+    void anUnknownKindWarnsOncePerSession() {
+        for (int i = 0; i < 5; i++) {
+            assertEquals(ConduitContents.EMPTY, load(contents("kind", "removed_mod:again")));
+        }
+        assertEquals(1, warnings.size(), warnings.toString());
+    }
+
+    @Test
     void fillWithoutAResourceLoadsAsZero() {
-        CompoundTag tag = contents("fill", "");
-        tag.getCompoundOrEmpty("contents").putInt("fill", 3);
-        tag.getCompoundOrEmpty("contents").putBoolean("lane", true);
+        CompoundTag inner = new CompoundTag();
+        inner.putInt("fill", 3);
+        inner.putBoolean("lane", true);
+        CompoundTag tag = new CompoundTag();
+        tag.put("contents", inner);
         assertEquals(new ConduitContents(Optional.empty(), 0, Optional.empty(), true), load(tag));
     }
 

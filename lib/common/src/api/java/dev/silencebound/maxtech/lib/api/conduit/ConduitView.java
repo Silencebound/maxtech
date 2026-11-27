@@ -62,7 +62,8 @@ public interface ConduitView {
 
     /**
      * What the conduit shows inside it, as its addon last set with {@link ConduitHost#setContents}, or
-     * {@link ConduitContents#EMPTY} until then. Saved and synced by Lib, so it reads the same on the client.
+     * {@link ConduitContents#EMPTY} until then. Saved and synced by Lib, so it reads the same on the client. Contents
+     * hold only what to draw (the draw base); addon logic keeps the real key in its own state.
      */
     ConduitContents contents();
 }
