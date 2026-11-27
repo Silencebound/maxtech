@@ -15,7 +15,7 @@ import dev.silencebound.maxtech.lib.api.client.gui.AccentToast;
 import dev.silencebound.maxtech.lib.api.client.gui.ScrollBar;
 import dev.silencebound.maxtech.lib.info.InfoFormat;
 import dev.silencebound.maxtech.lib.platform.Platform;
-import dev.silencebound.maxtech.lib.api.client.gui.TextFit;
+import dev.silencebound.maxtech.lib.api.text.TextFit;
 import dev.silencebound.maxtech.storage.devicetab.client.DeviceScreen;
 import dev.silencebound.maxtech.storage.label.LabelPayloads;
 import dev.silencebound.maxtech.storage.logic.CardEdits;

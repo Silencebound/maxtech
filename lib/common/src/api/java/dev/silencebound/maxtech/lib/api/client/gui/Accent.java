@@ -1,5 +1,7 @@
 package dev.silencebound.maxtech.lib.api.client.gui;
 
+import dev.silencebound.maxtech.lib.api.style.AccentTheme;
+import dev.silencebound.maxtech.lib.api.text.TextFit;
 import org.jetbrains.annotations.ApiStatus;
 import java.util.List;
 import net.minecraft.client.gui.Font;
@@ -9,12 +11,12 @@ import org.joml.Matrix3x2f;
 
 /**
  * The Accent Frame look shared by every MaxTech screen (Storage PRD 7.2; owner decision 2026-10-18, "one look
- * everywhere"): cyan on graphite, a dark outline, a cyan accent line under a title tab on top, flat monochrome slots
- * and blue-to-cyan gradient bars. Drawn with plain fills as pixel art, so it needs no textures and scales cleanly. This
- * class holds the palette (ARGB) and the drawing; the widgets built on it are {@link AccentButton}, {@link IconButton},
- * {@link ScrollBar}, {@link AccentToast}, {@link AccentPanel}, {@link AccentInset}, {@link AccentRow},
- * {@link AccentReadout}, {@link AccentTag}, {@link AccentTabRow} and {@link AccentStatus}. Positions are absolute
- * screen coordinates. Client only.
+ * everywhere"): cyan on graphite (or a mod's {@link AccentTheme}), a dark outline, a cyan accent line under a title tab
+ * on top, flat monochrome slots and blue-to-cyan gradient bars. Drawn with plain fills as pixel art, so it needs no
+ * textures and scales cleanly. This class holds the palette (ARGB) and the drawing; the widgets built on it are
+ * {@link AccentButton}, {@link IconButton}, {@link ScrollBar}, {@link AccentToast}, {@link AccentPanel},
+ * {@link AccentInset}, {@link AccentRow}, {@link AccentReadout}, {@link AccentTag}, {@link AccentTabRow} and
+ * {@link AccentStatus}. Positions are absolute screen coordinates. Client only.
  */
 @ApiStatus.Experimental
 public final class Accent {
@@ -76,6 +78,14 @@ public final class Accent {
     /** {@link #panel}; while the mouse is on a shortened title, the whole title shows as a tooltip. */
     public static void panel(GuiGraphicsExtractor graphics, Font font, int x, int y, int width, int height,
             Component title, int mouseX, int mouseY) {
+        panel(graphics, font, x, y, width, height, title, mouseX, mouseY, AccentTheme.LIB);
+    }
+
+    /**
+     * {@link #panel(GuiGraphicsExtractor, Font, int, int, int, int, Component, int, int)} in {@code theme}'s colours.
+     */
+    public static void panel(GuiGraphicsExtractor graphics, Font font, int x, int y, int width, int height,
+            Component title, int mouseX, int mouseY, AccentTheme theme) {
         int room = Math.max(0, width - 24);
         int tabWidth = Math.min(font.width(title), room) + 12;
         int tabY = y - TAB_HEIGHT + 1;
@@ -83,12 +93,12 @@ public final class Accent {
         box(graphics, x, y, width, height);
         // The tab opens into the panel: no border between them.
         graphics.fill(x + 7, y, x + 5 + tabWidth, y + 1, GRAPHITE);
-        graphics.fill(x + 3, y + 3, x + width - 3, y + 4, ACCENT);
-        graphics.fill(x + 7, tabY + 1, x + 5 + tabWidth, tabY + 2, ACCENT_DIM);
+        graphics.fill(x + 3, y + 3, x + width - 3, y + 4, theme.accent());
+        graphics.fill(x + 7, tabY + 1, x + 5 + tabWidth, tabY + 2, theme.accentDim());
         if (font.width(title) <= room) {
-            TextScale.text(graphics, font, title, x + 12, tabY + 3, TEXT, false);
+            TextScale.text(graphics, font, title, x + 12, tabY + 3, theme.text(), false);
         } else {
-            text(graphics, font, title, x + 12, tabY + 3, room, TEXT, mouseX, mouseY);
+            text(graphics, font, title, x + 12, tabY + 3, room, theme.text(), mouseX, mouseY);
         }
     }
 
@@ -115,22 +125,34 @@ public final class Accent {
 
     /** A vertical gauge filled from the bottom, blue below to cyan on top; {@code fraction} from 0 to 1. */
     public static void verticalBar(GuiGraphicsExtractor graphics, int x, int y, int width, int height, float fraction) {
+        verticalBar(graphics, x, y, width, height, fraction, AccentTheme.LIB);
+    }
+
+    /** {@link #verticalBar(GuiGraphicsExtractor, int, int, int, int, float)} in {@code theme}'s gauge colours. */
+    public static void verticalBar(GuiGraphicsExtractor graphics, int x, int y, int width, int height, float fraction,
+            AccentTheme theme) {
         graphics.fill(x - 1, y - 1, x + width + 1, y + height + 1, SLOT_EDGE);
         graphics.fill(x, y, x + width, y + height, SLOT);
         int filled = Math.round(height * Math.clamp(fraction, 0.0F, 1.0F));
         if (filled > 0) {
-            graphics.fillGradient(x, y + height - filled, x + width, y + height, BAR_TOP, BAR_BOTTOM);
+            graphics.fillGradient(x, y + height - filled, x + width, y + height, theme.barTop(), theme.barBottom());
         }
     }
 
     /** A horizontal progress track filled from the left, blue to cyan; {@code fraction} from 0 to 1. */
     public static void horizontalBar(GuiGraphicsExtractor graphics, int x, int y, int width, int height,
             float fraction) {
+        horizontalBar(graphics, x, y, width, height, fraction, AccentTheme.LIB);
+    }
+
+    /** {@link #horizontalBar(GuiGraphicsExtractor, int, int, int, int, float)} in {@code theme}'s gauge colours. */
+    public static void horizontalBar(GuiGraphicsExtractor graphics, int x, int y, int width, int height, float fraction,
+            AccentTheme theme) {
         graphics.fill(x - 1, y - 1, x + width + 1, y + height + 1, SLOT_EDGE);
         graphics.fill(x, y, x + width, y + height, SLOT);
         int filled = Math.round(width * Math.clamp(fraction, 0.0F, 1.0F));
         for (int i = 0; i < filled; i++) {
-            graphics.fill(x + i, y, x + i + 1, y + height, blend(BAR_BOTTOM, BAR_TOP, (float) i / width));
+            graphics.fill(x + i, y, x + i + 1, y + height, blend(theme.barBottom(), theme.barTop(), (float) i / width));
         }
     }
 
@@ -140,8 +162,16 @@ public final class Accent {
      */
     public static void button(GuiGraphicsExtractor graphics, Font font, int x, int y, int width, int height,
             Component label, boolean hovered) {
-        face(graphics, x, y, width, height, hovered);
-        label(graphics, font, x, y, width, height, label, TEXT);
+        button(graphics, font, x, y, width, height, label, hovered, AccentTheme.LIB);
+    }
+
+    /**
+     * {@link #button(GuiGraphicsExtractor, Font, int, int, int, int, Component, boolean)} in {@code theme}'s colours.
+     */
+    public static void button(GuiGraphicsExtractor graphics, Font font, int x, int y, int width, int height,
+            Component label, boolean hovered, AccentTheme theme) {
+        face(graphics, x, y, width, height, hovered, theme);
+        label(graphics, font, x, y, width, height, label, theme.text());
     }
 
     /**
@@ -150,7 +180,13 @@ public final class Accent {
      */
     public static void button(GuiGraphicsExtractor graphics, Font font, int x, int y, int width, int height,
             Component label, boolean hovered, int mouseX, int mouseY) {
-        button(graphics, font, x, y, width, height, label, hovered);
+        button(graphics, font, x, y, width, height, label, hovered, mouseX, mouseY, AccentTheme.LIB);
+    }
+
+    /** The tooltip variant of {@code button} in {@code theme}'s colours. */
+    public static void button(GuiGraphicsExtractor graphics, Font font, int x, int y, int width, int height,
+            Component label, boolean hovered, int mouseX, int mouseY, AccentTheme theme) {
+        button(graphics, font, x, y, width, height, label, hovered, theme);
         if (font.width(label) > labelRoom(width) && mouseOver(graphics, x, y, width, height, mouseX, mouseY)) {
             graphics.setComponentTooltipForNextFrame(font, List.of(label), mouseX, mouseY);
         }
@@ -159,8 +195,14 @@ public final class Accent {
     /** A lit button face (the current mode tab, a toggle that is on); the label is fitted like {@link #button}'s. */
     public static void litButton(GuiGraphicsExtractor graphics, Font font, int x, int y, int width, int height,
             Component label) {
-        litFace(graphics, x, y, width, height);
-        label(graphics, font, x, y, width, height, label, TEXT);
+        litButton(graphics, font, x, y, width, height, label, AccentTheme.LIB);
+    }
+
+    /** {@link #litButton(GuiGraphicsExtractor, Font, int, int, int, int, Component)} in {@code theme}'s colours. */
+    public static void litButton(GuiGraphicsExtractor graphics, Font font, int x, int y, int width, int height,
+            Component label, AccentTheme theme) {
+        litFace(graphics, x, y, width, height, theme);
+        label(graphics, font, x, y, width, height, label, theme.text());
     }
 
     /** A greyed button face for a button that cannot act now; the label is fitted like {@link #button}'s. */
@@ -246,14 +288,35 @@ public final class Accent {
 
     /** A button face for a pressed-in state (a toggle that is on, an open tab): accent edge, dim accent inside. */
     public static void litFace(GuiGraphicsExtractor graphics, int x, int y, int width, int height) {
-        graphics.fill(x, y, x + width, y + height, ACCENT);
-        graphics.fill(x + 1, y + 1, x + width - 1, y + height - 1, ACCENT_DIM);
+        litFace(graphics, x, y, width, height, AccentTheme.LIB);
+    }
+
+    /** {@link #litFace(GuiGraphicsExtractor, int, int, int, int)} in {@code theme}'s accent colours. */
+    public static void litFace(GuiGraphicsExtractor graphics, int x, int y, int width, int height, AccentTheme theme) {
+        graphics.fill(x, y, x + width, y + height, theme.accent());
+        graphics.fill(x + 1, y + 1, x + width - 1, y + height - 1, theme.accentDim());
     }
 
     /** A button face with no label, for icon buttons: cyan edged when hovered. */
     public static void face(GuiGraphicsExtractor graphics, int x, int y, int width, int height, boolean hovered) {
-        graphics.fill(x, y, x + width, y + height, hovered ? ACCENT : SLOT_EDGE);
-        graphics.fill(x + 1, y + 1, x + width - 1, y + height - 1, hovered ? ACCENT_DIM : SLOT);
+        face(graphics, x, y, width, height, hovered, AccentTheme.LIB);
+    }
+
+    /** {@link #face(GuiGraphicsExtractor, int, int, int, int, boolean)} in {@code theme}'s accent colours. */
+    public static void face(GuiGraphicsExtractor graphics, int x, int y, int width, int height, boolean hovered,
+            AccentTheme theme) {
+        graphics.fill(x, y, x + width, y + height, faceEdge(hovered, theme));
+        graphics.fill(x + 1, y + 1, x + width - 1, y + height - 1, faceFill(hovered, theme));
+    }
+
+    /** The edge colour of a button face: the theme's accent when hovered, the slot edge otherwise. */
+    public static int faceEdge(boolean hovered, AccentTheme theme) {
+        return hovered ? theme.accent() : SLOT_EDGE;
+    }
+
+    /** The fill colour of a button face: the theme's dim accent when hovered, the slot colour otherwise. */
+    public static int faceFill(boolean hovered, AccentTheme theme) {
+        return hovered ? theme.accentDim() : SLOT;
     }
 
     /** A square dot {@code size} wide in {@code colour} with a dark rim, for badges and changed-setting marks. */
@@ -277,7 +340,8 @@ public final class Accent {
         return px >= x && py >= y && px < x + width && py < y + height;
     }
 
-    private static int blend(int from, int to, float t) {
+    /** {@code from} blended toward {@code to} by {@code t} (0 to 1), opaque. */
+    static int blend(int from, int to, float t) {
         int r = channel(from, to, t, 16);
         int g = channel(from, to, t, 8);
         int b = channel(from, to, t, 0);

@@ -1,4 +1,4 @@
-package dev.silencebound.maxtech.lib.api.client.gui;
+package dev.silencebound.maxtech.lib.api.text;
 
 import org.jetbrains.annotations.ApiStatus;
 import java.util.ArrayList;

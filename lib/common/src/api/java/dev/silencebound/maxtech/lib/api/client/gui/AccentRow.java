@@ -1,5 +1,7 @@
 package dev.silencebound.maxtech.lib.api.client.gui;
 
+import dev.silencebound.maxtech.lib.api.style.AccentTheme;
+import dev.silencebound.maxtech.lib.api.text.TextFit;
 import org.jetbrains.annotations.ApiStatus;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -48,16 +50,22 @@ public final class AccentRow {
      */
     public static boolean draw(GuiGraphicsExtractor graphics, Font font, int x, int y, int width, String text,
             boolean selected, boolean dimmed, @Nullable AccentStatus dot, int mouseX, int mouseY) {
+        return draw(graphics, font, x, y, width, text, selected, dimmed, dot, mouseX, mouseY, AccentTheme.LIB);
+    }
+
+    /** {@code draw} in {@code theme}'s colours. */
+    public static boolean draw(GuiGraphicsExtractor graphics, Font font, int x, int y, int width, String text,
+            boolean selected, boolean dimmed, @Nullable AccentStatus dot, int mouseX, int mouseY, AccentTheme theme) {
         int height = height(font);
         boolean hovered = Accent.contains(x, y, width, height, mouseX, mouseY);
         if (selected) {
-            select(graphics, x, y, width, height);
+            select(graphics, x, y, width, height, theme);
         } else if (hovered) {
             hover(graphics, x, y, width, height);
         }
         int room = textRoom(width, dot != null);
         TextScale.text(graphics, font, TextFit.fit(text, room, font::width), x + TEXT_X, y + 2,
-                dimmed ? Accent.DIM : Accent.TEXT, false);
+                dimmed ? Accent.DIM : theme.text(), false);
         if (dot != null) {
             AccentStatus.dot(graphics, x + width - MARGIN - AccentStatus.SIZE, y + (height - AccentStatus.SIZE) / 2,
                     dot.colour());
@@ -70,8 +78,13 @@ public final class AccentRow {
 
     /** The selected look over the rectangle: a dim accent fill with the accent strip on its left. */
     public static void select(GuiGraphicsExtractor graphics, int x, int y, int width, int height) {
-        graphics.fill(x, y, x + width, y + height, Accent.ACCENT_DIM);
-        graphics.fill(x, y, x + STRIP, y + height, Accent.ACCENT);
+        select(graphics, x, y, width, height, AccentTheme.LIB);
+    }
+
+    /** {@link #select(GuiGraphicsExtractor, int, int, int, int)} in {@code theme}'s accent colours. */
+    public static void select(GuiGraphicsExtractor graphics, int x, int y, int width, int height, AccentTheme theme) {
+        graphics.fill(x, y, x + width, y + height, theme.accentDim());
+        graphics.fill(x, y, x + STRIP, y + height, theme.accent());
     }
 
     /** The hovered look over the rectangle: a faint light fill. */

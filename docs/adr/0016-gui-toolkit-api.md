@@ -10,7 +10,7 @@ package. Storage could use it because it compiles against all of Lib; MaxTech Fa
 (`farms/CLAUDE.md`) and could not. Farms needs screens for its lab blocks: slots, tanks, an energy bar and progress,
 in the same look but its own accent colour.
 
-The api source set cannot reference NeoForge or see `main` (ADR-0002), so whatever moves must bring its own
+The api source set must not reference NeoForge (ADR-0002) and cannot see `main`, so whatever moves must bring its own
 dependencies with it.
 
 ## Options considered
@@ -44,5 +44,21 @@ experimental until Farms ships.
   changelog. Until the theme step, the palette is Storage's cyan for everyone.
 - Storage imports the widgets from the api package and still uses the internal GUI pieces, so it keeps pinning one Lib
   minor.
-- `TextFit` is pure Java but now lives in a client package. Code outside the client (Storage's logic editor layout)
-  may still use it, since it loads no client class.
+- `TextFit` is pure Java, so it moved on to `lib.api.text` (still 0.15.0, G2): the client package holds client
+  classes only, and code outside the client (Storage's logic editor layout) uses it from there.
+
+## Amendment (2026-11-27): themes, bars and fluid looks (G2)
+
+- `AccentTheme` holds a mod's accent, dim accent, gauge and text colours; `AccentTheme.LIB` is the old cyan palette.
+  It is pure data, so it lives in `lib.api.style`, outside the client-only package, and later common menu definitions
+  can name a theme. Every Accent drawing method (panel, bars, faces, buttons, rows, readout, scroll bar) has a theme
+  overload and every widget (`AccentButton`, `IconButton`, `AccentPanel`, `AccentTabRow`, `ScrollBar`) a `theme(...)`
+  setter; the old forms pass `AccentTheme.LIB` and draw the same pixels, so a screen with one theme sets it on each
+  widget. `AccentToast` keeps its fixed status colours.
+- `AccentTank`, `AccentEnergyBar` and `AccentProgress` (arrow or flame) are widgets that read plain values from
+  suppliers and take a theme; they share the public `AccentBar` base type (only Lib extends it); menu sync comes
+  later. Their numbers are always in the tooltip, which they also narrate;
+  energy shows MU first and FE at the configured rate below.
+- `FluidLook` (sprite, tint, name of a `FluidKey`) is a client interface in the common api, implemented in
+  `lib/neoforge` main from the fluid's baked fluid model and installed through an `@ApiStatus.Internal` setter that
+  accepts one install only (a second throws), so the common api still names no NeoForge type.
