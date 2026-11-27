@@ -1,2 +1,4 @@
 {
+  "sampler.muPerSample": 100,
+  "sampler.capacityMu": 6400
 }
