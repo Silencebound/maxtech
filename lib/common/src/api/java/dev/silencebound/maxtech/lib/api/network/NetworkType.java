@@ -1,16 +1,20 @@
-package dev.silencebound.maxtech.lib.network;
+package dev.silencebound.maxtech.lib.api.network;
 
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+import java.util.Optional;
 import java.util.function.Function;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
-import org.jspecify.annotations.Nullable;
+import org.jetbrains.annotations.ApiStatus;
 
 /**
  * A kind of network (Storage's cables, ...). Each level gets one {@link NetworkGraph} per type, built from the
  * factories given at registration. Nodes of different types never connect, so conduits of different kinds side by side
  * stay in separate networks.
+ * <p>
+ * Experimental (Lib 0.14.0) until Farms, its first addon user, settles it.
  */
+@ApiStatus.Experimental
 public final class NetworkType {
     private static final ObjectArrayList<NetworkType> TYPES = new ObjectArrayList<>();
 
@@ -18,6 +22,8 @@ public final class NetworkType {
     private final int index;
     private final Function<ServerLevel, NodeConnectivity> connectivity;
     private final Function<ServerLevel, NetworkLogic> logic;
+    /** Returned by {@link #byId}, made once so the lookup allocates nothing. */
+    private final Optional<NetworkType> self;
 
     private NetworkType(Identifier id, int index, Function<ServerLevel, NodeConnectivity> connectivity,
             Function<ServerLevel, NetworkLogic> logic) {
@@ -25,6 +31,7 @@ public final class NetworkType {
         this.index = index;
         this.connectivity = connectivity;
         this.logic = logic;
+        this.self = Optional.of(this);
     }
 
     /**
@@ -44,19 +51,20 @@ public final class NetworkType {
     }
 
     /**
-     * The type registered under {@code id}, or {@code null} if there is none (e.g. a conduit type whose network logic
-     * is not registered yet).
+     * The type registered under {@code id}, or empty if there is none (e.g. a conduit type whose network logic is not
+     * registered yet). Allocates nothing.
      */
-    public static synchronized @Nullable NetworkType byId(Identifier id) {
+    public static synchronized Optional<NetworkType> byId(Identifier id) {
         for (int i = 0; i < TYPES.size(); i++) {
             NetworkType type = TYPES.get(i);
             if (type.id.equals(id)) {
-                return type;
+                return type.self;
             }
         }
-        return null;
+        return Optional.empty();
     }
 
+    /** The id the type was registered under. */
     public Identifier id() {
         return id;
     }

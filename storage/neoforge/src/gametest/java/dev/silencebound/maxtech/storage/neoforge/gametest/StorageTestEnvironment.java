@@ -8,7 +8,7 @@ import dev.silencebound.maxtech.storage.logic.controller.LogicEvents;
 import dev.silencebound.maxtech.lib.api.network.UnloadedChunkMode;
 import dev.silencebound.maxtech.lib.config.ServerConfig;
 import dev.silencebound.maxtech.lib.schedule.LevelTasks;
-import dev.silencebound.maxtech.lib.network.NetworkGraph;
+import dev.silencebound.maxtech.lib.api.network.NetworkGraph;
 import dev.silencebound.maxtech.lib.api.config.ConfigFile;
 import dev.silencebound.maxtech.lib.platform.Platform;
 import dev.silencebound.maxtech.lib.platform.RegistryHelper;

@@ -5,7 +5,7 @@ import dev.silencebound.maxtech.lib.MaxtechLib;
 import dev.silencebound.maxtech.lib.api.resource.ItemKey;
 import dev.silencebound.maxtech.lib.api.resource.StackKey;
 import dev.silencebound.maxtech.lib.neoforge.perf.PerfBudget;
-import dev.silencebound.maxtech.lib.network.RouteTree;
+import dev.silencebound.maxtech.lib.api.network.RouteTree;
 import dev.silencebound.maxtech.lib.platform.Platform;
 import dev.silencebound.maxtech.lib.platform.RegistryHelper;
 import dev.silencebound.maxtech.lib.resource.KeyRegistry;

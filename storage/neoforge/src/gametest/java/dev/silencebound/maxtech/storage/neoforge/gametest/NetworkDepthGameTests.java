@@ -10,7 +10,7 @@ import dev.silencebound.maxtech.lib.api.security.OwnerRecord;
 import dev.silencebound.maxtech.lib.config.ServerConfig;
 import dev.silencebound.maxtech.lib.conduit.ConduitBlock;
 import dev.silencebound.maxtech.lib.info.InfoLookups;
-import dev.silencebound.maxtech.lib.network.NetworkManager;
+import dev.silencebound.maxtech.lib.api.network.NetworkManager;
 import dev.silencebound.maxtech.lib.platform.Platform;
 import dev.silencebound.maxtech.lib.platform.RegistryHelper;
 import dev.silencebound.maxtech.storage.MaxtechStorage;

@@ -47,6 +47,11 @@ Labels: **stable** = frozen at 1.0, a breaking change needs a Lib major bump. **
 | `BlockInfoSink` | Receives lang-keyed lines. | stable |
 | **`lib.api.network`** | Network settings shared by every network type. | stable |
 | `UnloadedChunkMode` | `networks.unloadedChunkMode`: truncate or pause. | stable |
+| `NetworkManager` | The per-level entry point: add, remove and invalidate nodes, anchors, a node's network and a type's graph. Moved from `lib.network` for Farms (FM1); `tickLevel`, `clear` and `setConfigSource` are Lib's (`@ApiStatus.Internal`). | experimental |
+| `NetworkType` | A kind of network, registered with connectivity and logic factories; `byId` returns an `Optional`. | experimental |
+| `NetworkLogic`, `NodeConnectivity` | A type's transport semantics (topology events and a tick per active network) and how it sees the world. | experimental |
+| `Network`, `NetworkGraph` | One connected set of nodes (a read-only view) and one level's graph of a type; the graph's constructor, `tick` and `setProfiling` are Lib's (`@ApiStatus.Internal`). | experimental |
+| `RouteTree` | Widest-path routes to a root over one component, built when the component is rebuilt. | experimental |
 | **`lib.api.recipe`** | Item inputs and outputs shared by machine recipes, the recipe viewer layout and KubeJS. | stable |
 | `ItemInput` | Ingredient, count, consumed or catalyst; codecs. | stable |
 | `ItemOutput` | Output stack and chance in hundredths of a percent; codecs. | stable |
@@ -84,7 +89,7 @@ on 2026-10-15.
 | `lib.info` | Scanner and info formatting. | 52 | internal |
 | `lib.energy` | FE buffers and transfer helpers. | 26 | internal; waits for the energy decision |
 | `lib.resource` | Key interning, counts, palette codec. | 26 | internal |
-| `lib.network` | Network topology and `NetworkLogic`. | 25 | internal ("until the owner promotes") |
+| `lib.network` | `NetworkBootstrap`: config and lifecycle for `lib.api.network.NetworkManager`. | 25 | internal |
 | `lib.text` | Rich text and text fitting. | 25 | internal |
 | `lib.schedule` | `LevelTasks`: one scheduler per level, behind `lib.api.schedule.TaskSchedulers`. | 15 | internal |
 | `lib.sync` | Synced lists for open screens. | 15 | internal |

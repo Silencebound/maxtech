@@ -1,7 +1,6 @@
 /**
- * Network topology (PRD 5.2): which conduit nodes form a connected network, per level and network type. Transport
- * semantics live in each type's {@link dev.silencebound.maxtech.lib.network.NetworkLogic}; nothing here knows what
- * flows through a network. Internal until the owner promotes a stable API.
+ * Lib's side of network topology: {@link dev.silencebound.maxtech.lib.network.NetworkBootstrap} feeds the api's
+ * {@code lib.api.network.NetworkManager} its config and lifecycle. The engine itself is api.
  */
 @NullMarked
 package dev.silencebound.maxtech.lib.network;

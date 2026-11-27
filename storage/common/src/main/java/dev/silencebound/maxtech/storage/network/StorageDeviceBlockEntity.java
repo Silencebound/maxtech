@@ -6,8 +6,8 @@ import dev.silencebound.maxtech.lib.api.info.BlockInfoRequest;
 import dev.silencebound.maxtech.lib.api.info.BlockInfoSink;
 import dev.silencebound.maxtech.lib.api.security.Owned;
 import dev.silencebound.maxtech.lib.api.security.OwnerRecord;
-import dev.silencebound.maxtech.lib.network.NetworkManager;
-import dev.silencebound.maxtech.lib.network.NetworkType;
+import dev.silencebound.maxtech.lib.api.network.NetworkManager;
+import dev.silencebound.maxtech.lib.api.network.NetworkType;
 import dev.silencebound.maxtech.storage.energy.FeView;
 import dev.silencebound.maxtech.storage.registry.ModDataComponents;
 import java.util.List;
@@ -258,7 +258,7 @@ public abstract class StorageDeviceBlockEntity extends VersionedBlockEntity
             // network shows it (one that stays paused never would).
             linkLookChanged(link.linkLook());
             StorageNetworkLogic logic = StorageNetworks.logic(server, networkId());
-            NetworkType type = NetworkType.byId(networkId());
+            NetworkType type = NetworkType.byId(networkId()).orElse(null);
             if (logic != null && type != null) {
                 logic.deviceLoaded(this);
                 NetworkManager.get(server).addNode(type, worldPosition);
@@ -275,7 +275,7 @@ public abstract class StorageDeviceBlockEntity extends VersionedBlockEntity
         super.setRemoved();
         if (level instanceof ServerLevel server) {
             StorageNetworkLogic logic = StorageNetworks.logic(server, networkId());
-            NetworkType type = NetworkType.byId(networkId());
+            NetworkType type = NetworkType.byId(networkId()).orElse(null);
             if (logic != null && type != null) {
                 logic.deviceRemoved(this);
                 NetworkManager.get(server).removeNode(type, worldPosition);

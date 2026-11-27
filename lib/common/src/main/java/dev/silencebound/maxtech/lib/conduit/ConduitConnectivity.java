@@ -1,6 +1,6 @@
 package dev.silencebound.maxtech.lib.conduit;
 
-import dev.silencebound.maxtech.lib.network.NodeConnectivity;
+import dev.silencebound.maxtech.lib.api.network.NodeConnectivity;
 import it.unimi.dsi.fastutil.longs.LongList;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;

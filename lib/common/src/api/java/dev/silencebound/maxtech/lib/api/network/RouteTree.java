@@ -1,9 +1,10 @@
-package dev.silencebound.maxtech.lib.network;
+package dev.silencebound.maxtech.lib.api.network;
 
 import it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap;
 import it.unimi.dsi.fastutil.longs.LongArrayList;
 import it.unimi.dsi.fastutil.longs.LongList;
 import java.util.Arrays;
+import org.jetbrains.annotations.ApiStatus;
 
 /**
  * A widest-path tree over one connected component: every node gets one fixed route to the root, along the path whose
@@ -21,7 +22,10 @@ import java.util.Arrays;
  *
  * <p>
  * Building costs O(E log E) for E edges. Server thread only; lookups allocate nothing.
+ * <p>
+ * Experimental (Lib 0.14.0) until Farms, its first addon user, settles it.
  */
+@ApiStatus.Experimental
 public final class RouteTree {
     /** The links of a node; {@link NetworkGraph} is one. */
     @FunctionalInterface
@@ -33,6 +37,7 @@ public final class RouteTree {
     /** How wide the edge between two linked nodes is; 0 or less means it carries nothing and is not used. */
     @FunctionalInterface
     public interface EdgeWidth {
+        /** The width of the edge from {@code from} to {@code to}. */
         long width(long from, long to);
     }
 
@@ -108,6 +113,7 @@ public final class RouteTree {
         return true;
     }
 
+    /** The packed position every route leads to. */
     public long root() {
         return root;
     }
@@ -117,6 +123,7 @@ public final class RouteTree {
         return size;
     }
 
+    /** Whether the node at {@code pos} has a route in the tree. */
     public boolean contains(long pos) {
         return index.containsKey(pos);
     }
