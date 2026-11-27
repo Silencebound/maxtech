@@ -51,12 +51,20 @@ import net.neoforged.neoforge.transfer.transaction.Transaction;
 public final class LabNetworkGameTests {
     private static final Identifier STRUCTURE = MaxtechFarms.id("empty_7x2x3");
     private static final BlockPos HUB = new BlockPos(1, 1, 1);
-    private static final Map<String, Consumer<GameTestHelper>> TESTS = Map.of("lab_network_forms",
-            LabNetworkGameTests::forms, "lab_network_one_hub", LabNetworkGameTests::oneHub, "lab_network_energy",
-            LabNetworkGameTests::energy, "lab_fluid_port_fills_hub", LabNetworkGameTests::portFillsHub,
-            "lab_fluid_port_needs_hub", LabNetworkGameTests::portNeedsHub, "lab_fluid_port_full_tank",
-            LabNetworkGameTests::portFullTank, "lab_output_reaches_hub", LabNetworkGameTests::outputReachesHub,
-            "lab_parts_never_tick", LabNetworkGameTests::neverTick);
+    private static final Map<String, Consumer<GameTestHelper>> TESTS = Map.ofEntries(
+            Map.entry("lab_network_forms", LabNetworkGameTests::forms),
+            Map.entry("lab_network_one_hub", LabNetworkGameTests::oneHub),
+            Map.entry("lab_network_energy", LabNetworkGameTests::energy),
+            Map.entry("lab_fluid_port_fills_hub", LabNetworkGameTests::portFillsHub),
+            Map.entry("lab_fluid_port_needs_hub", LabNetworkGameTests::portNeedsHub),
+            Map.entry("lab_fluid_port_full_tank", LabNetworkGameTests::portFullTank),
+            Map.entry("lab_output_reaches_hub", LabNetworkGameTests::outputReachesHub),
+            Map.entry("lab_parts_never_tick", LabNetworkGameTests::neverTick),
+            Map.entry("lab_lowest_hub_wins", LabNetworkGameTests::lowestHubWins),
+            Map.entry("lab_merge_keeps_lowest_hub", LabNetworkGameTests::mergeKeepsLowestHub),
+            Map.entry("lab_split_hub_one_side", LabNetworkGameTests::splitHubOneSide),
+            Map.entry("lab_tube_removed_port_hub", LabNetworkGameTests::tubeRemovedBetweenPortAndHub),
+            Map.entry("lab_hub_two_networks", LabNetworkGameTests::hubBesideTwoNetworks));
 
     private LabNetworkGameTests() {
     }
@@ -242,6 +250,150 @@ public final class LabNetworkGameTests {
             helper.assertTrue(lab.hub().isPresent(), "the lab has its hub");
             helper.assertTrue(lab.energy().isAsleep(), "an idle lab's energy network sleeps");
         }).thenSucceed();
+    }
+
+    /**
+     * A hub placed lower than the one running the lab takes over (lowest y wins over lowest x); the old hub's store
+     * leaves the energy network and neither store gains or loses MU.
+     */
+    private static void lowestHubWins(GameTestHelper helper) {
+        LabHubBlockEntity first = hub(helper, HUB);
+        first.energy().setStored(3000);
+        tubes(helper, 2, 4);
+        BlockPos lowerPos = new BlockPos(4, 0, 1);
+        helper.startSequence().thenWaitUntil(() -> helper.assertTrue(first.labLink() == LabLink.ACTIVE, "first runs"))
+                .thenExecute(() -> hub(helper, lowerPos).energy().setStored(5000)).thenWaitUntil(() -> {
+                    LabHubBlockEntity lower = helper.getBlockEntity(lowerPos, LabHubBlockEntity.class);
+                    LabNetwork lab = lab(helper, new BlockPos(3, 1, 1));
+                    helper.assertTrue(lab.hub().orElse(null) == lower, "the lowest hub runs the lab");
+                    helper.assertTrue(lower.labLink() == LabLink.ACTIVE, "the lower hub is active");
+                    helper.assertTrue(first.labLink() == LabLink.REFUSED, "the first hub is refused");
+                    assertOnlyStore(helper, lab, lower, first);
+                    helper.assertValueEqual(first.energy().stored(), 3000L, "the old hub's MU");
+                    helper.assertValueEqual(lower.energy().stored(), 5000L, "the new hub's MU");
+                }).thenSucceed();
+    }
+
+    /**
+     * Two labs with a hub each merge: the lowest hub runs the merged lab although the other lab (the larger one, which
+     * survives the merge) had the other hub; one store in the energy network, MU unchanged.
+     */
+    private static void mergeKeepsLowestHub(GameTestHelper helper) {
+        BlockPos lowPos = new BlockPos(0, 1, 1);
+        BlockPos highPos = new BlockPos(6, 1, 1);
+        LabHubBlockEntity low = hub(helper, lowPos);
+        LabHubBlockEntity high = hub(helper, highPos);
+        low.energy().setStored(1000);
+        high.energy().setStored(2000);
+        tubes(helper, 1, 1);
+        tubes(helper, 3, 5);
+        helper.startSequence()
+                .thenWaitUntil(() -> helper.assertTrue(
+                        low.labLink() == LabLink.ACTIVE && high.labLink() == LabLink.ACTIVE, "each lab runs a hub"))
+                .thenExecute(() -> tubes(helper, 2, 2)).thenWaitUntil(() -> {
+                    LabNetwork lab = lab(helper, new BlockPos(2, 1, 1));
+                    helper.assertValueEqual(lab.tubes(), 5, "merged tubes");
+                    helper.assertTrue(lab.hub().orElse(null) == low, "the lowest hub runs the merged lab");
+                    helper.assertTrue(high.labLink() == LabLink.REFUSED, "the other hub is refused");
+                    assertOnlyStore(helper, lab, low, high);
+                    helper.assertValueEqual(low.energy().stored() + high.energy().stored(), 3000L, "MU of both");
+                }).thenSucceed();
+    }
+
+    /**
+     * Breaking a tube splits the lab: the port on the hub's side still fills the tank, the port on the other side takes
+     * nothing.
+     */
+    private static void splitHubOneSide(GameTestHelper helper) {
+        LabHubBlockEntity hub = hub(helper, HUB);
+        tubes(helper, 2, 5);
+        BlockPos nearPos = new BlockPos(2, 1, 0);
+        BlockPos farPos = new BlockPos(6, 1, 1);
+        port(helper, nearPos);
+        FluidPortBlockEntity far = port(helper, farPos);
+        FluidResource water = FluidResource.of(Fluids.WATER);
+        helper.startSequence()
+                .thenWaitUntil(() -> helper.assertTrue(far.lab().flatMap(LabNetwork::hub).orElse(null) == hub,
+                        "the far port feeds the hub"))
+                .thenExecute(() -> helper.setBlock(new BlockPos(4, 1, 1), Blocks.AIR)).thenWaitUntil(() -> {
+                    helper.assertTrue(lab(helper, new BlockPos(5, 1, 1)).hub().isEmpty(), "the far side has no hub");
+                    helper.assertTrue(lab(helper, new BlockPos(2, 1, 1)).hub().orElse(null) == hub,
+                            "the near side keeps the hub");
+                }).thenExecute(() -> {
+                    helper.assertValueEqual(push(helper, farPos, water, 1000), 0, "taken by the far port");
+                    helper.assertValueEqual(push(helper, nearPos, water, 1000), 1000, "taken by the near port");
+                    helper.assertValueEqual(hub.storage().tank().getAmountAsLong(0), 1000L, "in the tank");
+                }).thenSucceed();
+    }
+
+    /** With the only tube between them gone, the port takes nothing and the hub runs no lab. */
+    private static void tubeRemovedBetweenPortAndHub(GameTestHelper helper) {
+        LabHubBlockEntity hub = hub(helper, HUB);
+        tubes(helper, 2, 2);
+        BlockPos portPos = new BlockPos(3, 1, 1);
+        FluidPortBlockEntity port = port(helper, portPos);
+        FluidResource water = FluidResource.of(Fluids.WATER);
+        helper.startSequence()
+                .thenWaitUntil(() -> helper.assertTrue(port.lab().flatMap(LabNetwork::hub).orElse(null) == hub,
+                        "the port feeds the hub"))
+                .thenExecute(() -> helper.setBlock(new BlockPos(2, 1, 1), Blocks.AIR)).thenWaitUntil(() -> {
+                    helper.assertTrue(port.lab().isEmpty(), "the port is in no lab");
+                    helper.assertTrue(hub.labLink() == LabLink.NONE, "the hub runs no lab");
+                    helper.assertTrue(hub.energy().network().isEmpty(), "the hub's MU left the lab");
+                }).thenExecute(() -> {
+                    helper.assertValueEqual(push(helper, portPos, water, 1000), 0, "taken by the port");
+                    helper.assertValueEqual(hub.storage().tank().getAmountAsLong(0), 0L, "in the tank");
+                }).thenSucceed();
+    }
+
+    /**
+     * A hub between two lab networks runs the one that took it first; the other's port takes nothing. When the first
+     * network goes, the other takes the hub.
+     */
+    private static void hubBesideTwoNetworks(GameTestHelper helper) {
+        BlockPos hubPos = new BlockPos(3, 1, 1);
+        LabHubBlockEntity hub = hub(helper, hubPos);
+        tubes(helper, 2, 2);
+        BlockPos westPort = new BlockPos(1, 1, 1);
+        BlockPos eastPort = new BlockPos(5, 1, 1);
+        port(helper, westPort);
+        FluidPortBlockEntity east = port(helper, eastPort);
+        FluidResource water = FluidResource.of(Fluids.WATER);
+        helper.startSequence().thenWaitUntil(
+                () -> helper.assertTrue(hub.lab() == lab(helper, new BlockPos(2, 1, 1)), "the west lab took the hub"))
+                .thenExecute(() -> tubes(helper, 4, 4)).thenWaitUntil(() -> {
+                    helper.assertTrue(east.lab().isPresent(), "the east port is in its lab");
+                    helper.assertTrue(lab(helper, new BlockPos(4, 1, 1)).hub().isEmpty(), "the east lab has no hub");
+                    helper.assertTrue(hub.lab() == lab(helper, new BlockPos(2, 1, 1)), "the west lab keeps it");
+                }).thenExecute(() -> {
+                    helper.assertValueEqual(push(helper, eastPort, water, 1000), 0, "taken by the east port");
+                    helper.assertValueEqual(push(helper, westPort, water, 1000), 1000, "taken by the west port");
+                    helper.setBlock(new BlockPos(2, 1, 1), Blocks.AIR);
+                }).thenWaitUntil(() -> {
+                    LabNetwork lab = lab(helper, new BlockPos(4, 1, 1));
+                    helper.assertTrue(lab.hub().orElse(null) == hub, "the east lab took the hub");
+                    helper.assertTrue(hub.energy().network().orElse(null) == lab.energy(), "the store moved over");
+                }).thenExecute(() -> {
+                    helper.assertValueEqual(push(helper, eastPort, water, 1000), 1000, "taken by the east port");
+                    helper.assertValueEqual(hub.storage().tank().getAmountAsLong(0), 2000L, "in the tank");
+                }).thenSucceed();
+    }
+
+    /** {@code active}'s store is the only one in the lab's energy network; {@code other}'s is in none. */
+    private static void assertOnlyStore(GameTestHelper helper, LabNetwork lab, LabHubBlockEntity active,
+            LabHubBlockEntity other) {
+        helper.assertTrue(active.energy().network().orElse(null) == lab.energy(), "the active store is in the lab");
+        helper.assertTrue(other.energy().network().isEmpty(), "the inactive store is in no energy network");
+        helper.assertValueEqual(lab.energy().size(), 1, "endpoints in the lab's energy network");
+    }
+
+    /** Pushes {@code amount} of {@code fluid} into the port at {@code pos}, committed; returns what it took. */
+    private static int push(GameTestHelper helper, BlockPos pos, FluidResource fluid, int amount) {
+        try (Transaction transaction = Transaction.openRoot()) {
+            int taken = fluid(helper, pos).insert(fluid, amount, transaction);
+            transaction.commit();
+            return taken;
+        }
     }
 
     private static void assertNoTicker(GameTestHelper helper, BlockPos pos) {

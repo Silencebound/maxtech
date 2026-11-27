@@ -33,7 +33,7 @@ public final class LabNetwork {
     private @Nullable LabHubBlockEntity hub;
     private final ObjectArrayList<LabHubBlockEntity> refused = new ObjectArrayList<>();
     private final ObjectArrayList<FluidPortBlockEntity> ports = new ObjectArrayList<>();
-    boolean dirty = true;
+    private boolean dirty = true;
 
     LabNetwork(ServerLevel level, Network network) {
         this.network = network;
@@ -111,23 +111,42 @@ public final class LabNetwork {
         return ResourceHandlerUtil.insertStacking(current.storage().output(), item, amount, transaction);
     }
 
+    /** Asks for a fresh look at the tubes' neighbours on the next network tick. */
+    void markDirty() {
+        dirty = true;
+    }
+
+    /** Whether a look at the tubes' neighbours is pending. */
+    boolean isDirty() {
+        return dirty;
+    }
+
     /**
-     * Takes the hubs and ports found next to the tubes: keeps the current hub if it is still there and free, else the
-     * one at the lowest position; every other hub is refused. Hubs and ports that are gone are let go.
+     * The hub order: whether {@code a} comes before {@code b}, that is has a lower y, or the same y and a lower x, or
+     * the same y and x and a lower z.
+     */
+    static boolean isBefore(BlockPos a, BlockPos b) {
+        if (a.getY() != b.getY()) {
+            return a.getY() < b.getY();
+        }
+        if (a.getX() != b.getX()) {
+            return a.getX() < b.getX();
+        }
+        return a.getZ() < b.getZ();
+    }
+
+    /**
+     * Takes the hubs and ports found next to the tubes: the free hub first in {@link #isBefore} order runs the lab,
+     * also when another hub ran it so far (that one's MU store leaves the energy network before the new one's joins);
+     * every other free hub is refused. Hubs and ports that are gone are let go.
      */
     void update(ObjectArrayList<LabHubBlockEntity> hubs, ObjectArrayList<FluidPortBlockEntity> found) {
         dirty = false;
         LabHubBlockEntity chosen = null;
         for (int i = 0; i < hubs.size(); i++) {
             LabHubBlockEntity candidate = hubs.get(i);
-            if (!candidate.isFreeFor(this)) {
-                continue;
-            }
-            if (candidate == hub) {
-                chosen = candidate;
-                break;
-            }
-            if (chosen == null || candidate.getBlockPos().asLong() < chosen.getBlockPos().asLong()) {
+            if (candidate.isFreeFor(this)
+                    && (chosen == null || isBefore(candidate.getBlockPos(), chosen.getBlockPos()))) {
                 chosen = candidate;
             }
         }

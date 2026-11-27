@@ -38,7 +38,8 @@ final class FarmsLanguageProvider extends LanguageProvider {
         add("message.maxtech_farms.fluid_port.no_hub", "No lab hub on these lab tubes");
         add("message.maxtech_farms.lab_hub.empty", "Tank empty");
         add("message.maxtech_farms.lab_hub.no_tubes", "no lab tubes");
-        add("message.maxtech_farms.lab_hub.refused", "Another lab hub already runs these lab tubes; this one is idle");
+        add("message.maxtech_farms.lab_hub.refused",
+                "Inactive: another lab hub runs this lab network. This hub still burns fuel into its own MU store");
         add("message.maxtech_farms.lab_hub.status", "%s: %s / %s mB, energy %s / %s MU");
         add("message.maxtech_farms.lab_hub.status_line", "%s | %s");
         add("message.maxtech_farms.lab_hub.tubes", "%s lab tubes, %s fluid ports");

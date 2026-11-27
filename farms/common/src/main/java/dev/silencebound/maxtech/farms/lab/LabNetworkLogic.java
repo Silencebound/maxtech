@@ -70,18 +70,18 @@ final class LabNetworkLogic implements NetworkLogic {
     @Override
     public void onMerged(Network survivor, Network absorbed) {
         drop(absorbed);
-        labOf(survivor).dirty = true;
+        labOf(survivor).markDirty();
     }
 
     @Override
     public void onSplit(Network original, Network part) {
-        labOf(original).dirty = true;
-        labOf(part).dirty = true;
+        labOf(original).markDirty();
+        labOf(part).markDirty();
     }
 
     @Override
     public void onNodeInvalidated(Network network, long pos) {
-        labOf(network).dirty = true;
+        labOf(network).markDirty();
     }
 
     @Override
@@ -97,7 +97,7 @@ final class LabNetworkLogic implements NetworkLogic {
     @Override
     public void tick(Network network) {
         LabNetwork lab = labs.get(network.id());
-        if (lab != null && lab.dirty) {
+        if (lab != null && lab.isDirty()) {
             rescan(network, lab);
         }
     }
