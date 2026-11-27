@@ -32,7 +32,7 @@ public final class LevelTasks {
         LifecycleEvents lifecycle = Platform.get().lifecycle();
         lifecycle.onServerLevelTickEnd(LevelTasks::tickLevel);
         lifecycle.onServerStopped(LevelTasks::clear);
-        TaskSchedulers.setLevelSource(LevelTasks::of, LevelTasks::newGroup);
+        TaskSchedulers.setLevelSource(LevelTasks::newGroup);
     }
 
     /** The level's task scheduler, made on first use. */

@@ -50,6 +50,10 @@ Labels: **stable** = frozen at 1.0, a breaking change needs a Lib major bump. **
 | `StackKey` | Sealed key type with codecs; `Kind`. | stable |
 | `ItemKey` | Item plus component patch, never air. | stable |
 | `FluidKey` | Fluid plus component patch, never empty. | stable |
+| **`lib.api.schedule`** | Budgeted per-level work queues: groups with time and operation budgets, priorities, wake-on-event and backoff. Moved from `lib.schedule` for Farms (FM1). | experimental |
+| `TaskSchedulers` | An addon's entry point: `newGroup(level)` with Lib's configured budgets. | experimental |
+| `ScheduledTask`, `TaskGroup`, `TaskPriority` | A task, the group that runs it within its budget, and its queue. | experimental |
+| `TaskScheduler` | The level's scheduler; its constructor, `tick` and `timers` are Lib's (`@ApiStatus.Internal`). | experimental |
 | **`lib.api.security`** | Owners, trusted players, teams and the one access check. | stable |
 | `OwnerRecord` | Immutable owner record with codecs. | stable |
 | `Owned` | Something with an owner record. | stable |
@@ -75,7 +79,7 @@ on 2026-10-15.
 | `lib.resource` | Key interning, counts, palette codec. | 26 | internal |
 | `lib.network` | Network topology and `NetworkLogic`. | 25 | internal ("until the owner promotes") |
 | `lib.text` | Rich text and text fitting. | 25 | internal |
-| `lib.schedule` | Budgeted per-level task queues (`LevelTasks`). | 15 | internal |
+| `lib.schedule` | `LevelTasks`: one scheduler per level, behind `lib.api.schedule.TaskSchedulers`. | 15 | internal |
 | `lib.sync` | Synced lists for open screens. | 15 | internal |
 | `lib.highlight` | World highlights. | 11 | internal |
 | `lib.config` | Presets and Lib's configs. | 10 | internal |
