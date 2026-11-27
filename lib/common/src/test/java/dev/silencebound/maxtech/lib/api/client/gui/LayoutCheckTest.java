@@ -1,11 +1,10 @@
-package dev.silencebound.maxtech.lib.client;
+package dev.silencebound.maxtech.lib.api.client.gui;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import dev.silencebound.maxtech.lib.client.gui.LayoutCheck;
-import dev.silencebound.maxtech.lib.client.gui.LayoutCheck.Box;
+import dev.silencebound.maxtech.lib.api.client.gui.LayoutCheck.Box;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 

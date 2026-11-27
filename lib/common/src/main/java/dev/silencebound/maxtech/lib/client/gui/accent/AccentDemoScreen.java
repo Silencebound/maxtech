@@ -1,6 +1,18 @@
 package dev.silencebound.maxtech.lib.client.gui.accent;
 
-import dev.silencebound.maxtech.lib.client.gui.TextScale;
+import dev.silencebound.maxtech.lib.api.client.gui.Accent;
+import dev.silencebound.maxtech.lib.api.client.gui.AccentButton;
+import dev.silencebound.maxtech.lib.api.client.gui.IconButton;
+import dev.silencebound.maxtech.lib.api.client.gui.Icon;
+import dev.silencebound.maxtech.lib.api.client.gui.AccentInset;
+import dev.silencebound.maxtech.lib.api.client.gui.AccentRow;
+import dev.silencebound.maxtech.lib.api.client.gui.AccentReadout;
+import dev.silencebound.maxtech.lib.api.client.gui.AccentTag;
+import dev.silencebound.maxtech.lib.api.client.gui.AccentStatus;
+import dev.silencebound.maxtech.lib.api.client.gui.AccentTabRow;
+import dev.silencebound.maxtech.lib.api.client.gui.AccentToast;
+import dev.silencebound.maxtech.lib.api.client.gui.ScrollBar;
+import dev.silencebound.maxtech.lib.api.client.gui.TextScale;
 import dev.silencebound.maxtech.lib.MaxtechLib;
 import java.util.List;
 import java.util.function.Consumer;

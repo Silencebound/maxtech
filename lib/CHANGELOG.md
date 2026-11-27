@@ -6,6 +6,13 @@ Api changes are marked **Api**.
 
 ## [Unreleased]
 
+### Changed
+- **Api** The Accent widget set is api (`lib.api.client.gui`, client only, experimental, ADR-0016): `Accent`,
+  `AccentButton`, `IconButton`, `Icon`, `AccentPanel`, `AccentInset`, `AccentRow`, `AccentReadout`, `AccentTag`,
+  `AccentStatus`, `AccentTabRow`, `AccentToast`, `ScrollBar`, `TextScale`, `TextFit` and `LayoutCheck` moved from
+  `lib.client.gui`, `lib.client.gui.accent` and `lib.text` unchanged, so addons on the api jar draw the same look.
+  Side tabs, `ScreenComponents` and the editor pieces stay internal.
+
 ### Fixed
 - A client with Lib but no mod that adds conduit blocks (Lib alone, or Lib with Farms) crashed at startup: the
   facade tint extension was registered with no blocks, which NeoForge refuses.

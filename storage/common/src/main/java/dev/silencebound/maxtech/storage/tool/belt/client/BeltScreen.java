@@ -1,6 +1,6 @@
 package dev.silencebound.maxtech.storage.tool.belt.client;
 
-import dev.silencebound.maxtech.lib.client.gui.TextScale;
+import dev.silencebound.maxtech.lib.api.client.gui.TextScale;
 import dev.silencebound.maxtech.storage.machine.client.AccentFrame;
 import dev.silencebound.maxtech.storage.tool.belt.BeltContent;
 import dev.silencebound.maxtech.storage.tool.belt.BeltMarks;

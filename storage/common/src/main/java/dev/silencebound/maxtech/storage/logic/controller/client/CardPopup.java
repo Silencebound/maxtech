@@ -1,9 +1,9 @@
 package dev.silencebound.maxtech.storage.logic.controller.client;
 
-import dev.silencebound.maxtech.lib.client.gui.TextScale;
+import dev.silencebound.maxtech.lib.api.client.gui.TextScale;
 import dev.silencebound.maxtech.lib.api.resource.ItemKey;
-import dev.silencebound.maxtech.lib.client.gui.accent.Accent;
-import dev.silencebound.maxtech.lib.text.TextFit;
+import dev.silencebound.maxtech.lib.api.client.gui.Accent;
+import dev.silencebound.maxtech.lib.api.client.gui.TextFit;
 import dev.silencebound.maxtech.storage.logic.CardEdits;
 import dev.silencebound.maxtech.storage.logic.LogicNode;
 import dev.silencebound.maxtech.storage.logic.NetworkRef;

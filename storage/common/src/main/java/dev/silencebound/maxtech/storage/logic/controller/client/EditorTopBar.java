@@ -1,6 +1,6 @@
 package dev.silencebound.maxtech.storage.logic.controller.client;
 
-import dev.silencebound.maxtech.lib.text.TextFit;
+import dev.silencebound.maxtech.lib.api.client.gui.TextFit;
 
 /**
  * The node editor's top bar layout, kept apart from drawing so it can be tested (owner screenshot 2026-10-09: the bar

@@ -1,7 +1,7 @@
 package dev.silencebound.maxtech.storage.drive.client;
 
 import dev.silencebound.maxtech.storage.devicetab.client.DeviceScreen;
-import dev.silencebound.maxtech.lib.client.gui.TextScale;
+import dev.silencebound.maxtech.lib.api.client.gui.TextScale;
 import dev.silencebound.maxtech.storage.drive.CellTransfer;
 import dev.silencebound.maxtech.storage.drive.DriveContent;
 import dev.silencebound.maxtech.storage.cell.CellData;

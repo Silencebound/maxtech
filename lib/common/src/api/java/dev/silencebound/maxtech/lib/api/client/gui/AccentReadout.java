@@ -1,7 +1,6 @@
-package dev.silencebound.maxtech.lib.client.gui.accent;
+package dev.silencebound.maxtech.lib.api.client.gui;
 
-import dev.silencebound.maxtech.lib.client.gui.TextScale;
-import dev.silencebound.maxtech.lib.text.TextFit;
+import org.jetbrains.annotations.ApiStatus;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 
@@ -11,6 +10,7 @@ import net.minecraft.client.gui.GuiGraphicsExtractor;
  * two do not fit. Size the readout with {@link #minWidth} from the measured texts. Client only for drawing; the size
  * math is plain arithmetic.
  */
+@ApiStatus.Experimental
 public final class AccentReadout {
     /** Room between the edge and the text, left and right. */
     public static final int PAD = 3;

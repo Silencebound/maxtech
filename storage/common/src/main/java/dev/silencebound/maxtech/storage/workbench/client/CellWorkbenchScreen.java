@@ -1,9 +1,9 @@
 package dev.silencebound.maxtech.storage.workbench.client;
 
 import net.minecraft.network.chat.CommonComponents;
-import dev.silencebound.maxtech.lib.client.gui.accent.AccentButton;
+import dev.silencebound.maxtech.lib.api.client.gui.AccentButton;
 import dev.silencebound.maxtech.storage.machine.client.MenuClick;
-import dev.silencebound.maxtech.lib.client.gui.TextScale;
+import dev.silencebound.maxtech.lib.api.client.gui.TextScale;
 import dev.silencebound.maxtech.lib.client.gui.ScreenComponents;
 import dev.silencebound.maxtech.storage.cell.CellAssembly;
 import dev.silencebound.maxtech.storage.cell.CellCasing;

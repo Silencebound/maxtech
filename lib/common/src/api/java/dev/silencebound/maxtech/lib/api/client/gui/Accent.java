@@ -1,34 +1,44 @@
-package dev.silencebound.maxtech.lib.client.gui.accent;
+package dev.silencebound.maxtech.lib.api.client.gui;
 
-import dev.silencebound.maxtech.lib.client.gui.TextScale;
-import dev.silencebound.maxtech.lib.client.gui.LayoutCheck;
-import dev.silencebound.maxtech.lib.client.gui.ScreenComponents;
-import dev.silencebound.maxtech.lib.text.TextFit;
+import org.jetbrains.annotations.ApiStatus;
 import java.util.List;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.network.chat.Component;
+import org.joml.Matrix3x2f;
 
 /**
  * The Accent Frame look shared by every MaxTech screen (Storage PRD 7.2; owner decision 2026-10-18, "one look
  * everywhere"): cyan on graphite, a dark outline, a cyan accent line under a title tab on top, flat monochrome slots
  * and blue-to-cyan gradient bars. Drawn with plain fills as pixel art, so it needs no textures and scales cleanly. This
  * class holds the palette (ARGB) and the drawing; the widgets built on it are {@link AccentButton}, {@link IconButton},
- * {@link SideTabs}, {@link ScrollBar}, {@link AccentToast}, {@link AccentPanel}, {@link AccentInset},
- * {@link AccentRow}, {@link AccentReadout}, {@link AccentTag}, {@link AccentTabRow} and {@link AccentStatus}. Positions
- * are absolute screen coordinates. Client only.
+ * {@link ScrollBar}, {@link AccentToast}, {@link AccentPanel}, {@link AccentInset}, {@link AccentRow},
+ * {@link AccentReadout}, {@link AccentTag}, {@link AccentTabRow} and {@link AccentStatus}. Positions are absolute
+ * screen coordinates. Client only.
  */
+@ApiStatus.Experimental
 public final class Accent {
+    /** The dark outline around boxes and dots. */
     public static final int OUTLINE = 0xFF0C0E10;
+    /** The panel fill. */
     public static final int GRAPHITE = 0xFF25292D;
+    /** The one-pixel bevel inside a box's outline. */
     public static final int BEVEL = 0xFF343A3F;
+    /** The fill of slots, wells and idle button faces. */
     public static final int SLOT = 0xFF15181B;
+    /** The edge of slots, bars and idle button faces. */
     public static final int SLOT_EDGE = 0xFF3B4247;
+    /** The accent line under a panel's tab and the edge of hovered and lit faces. */
     public static final int ACCENT = 0xFF2A8794;
+    /** The fill of hovered and lit faces and the line in a title tab. */
     public static final int ACCENT_DIM = 0xFF1C5660;
+    /** Body text and button labels. */
     public static final int TEXT = 0xFF9FD3D9;
+    /** Secondary text: labels, subtitles, disabled button labels. */
     public static final int LABEL = 0xFF7D8A90;
+    /** The bright end of the gauge gradient (top of a vertical bar, right of a horizontal one). */
     public static final int BAR_TOP = 0xFF46B2BD;
+    /** The dark end of the gauge gradient. */
     public static final int BAR_BOTTOM = 0xFF294C86;
     /** Warnings: an amber badge or toast. */
     public static final int AMBER = 0xFFE0A030;
@@ -46,6 +56,7 @@ public final class Accent {
     public static final int BRIGHT = 0xFFE4F6F8;
     /** A faint fill over a hovered list row. */
     public static final int HOVER_FILL = 0x14FFFFFF;
+    /** How far a panel's title tab sticks out above the panel. */
     public static final int TAB_HEIGHT = 12;
     /** The smallest a button label is drawn to fit before it is cut instead. */
     private static final float MIN_LABEL_SCALE = 0.6F;
@@ -77,7 +88,7 @@ public final class Accent {
         if (font.width(title) <= room) {
             TextScale.text(graphics, font, title, x + 12, tabY + 3, TEXT, false);
         } else {
-            ScreenComponents.fittedText(graphics, font, title, x + 12, tabY + 3, room, TEXT, mouseX, mouseY);
+            text(graphics, font, title, x + 12, tabY + 3, room, TEXT, mouseX, mouseY);
         }
     }
 
@@ -140,8 +151,7 @@ public final class Accent {
     public static void button(GuiGraphicsExtractor graphics, Font font, int x, int y, int width, int height,
             Component label, boolean hovered, int mouseX, int mouseY) {
         button(graphics, font, x, y, width, height, label, hovered);
-        if (font.width(label) > labelRoom(width)
-                && ScreenComponents.mouseOver(graphics, x, y, width, height, mouseX, mouseY)) {
+        if (font.width(label) > labelRoom(width) && mouseOver(graphics, x, y, width, height, mouseX, mouseY)) {
             graphics.setComponentTooltipForNextFrame(font, List.of(label), mouseX, mouseY);
         }
     }
@@ -202,11 +212,36 @@ public final class Accent {
 
     /**
      * Draws {@code text} cut to {@code width} with an ellipsis, showing the whole text as a tooltip while the mouse is
-     * on it; see {@link ScreenComponents#fittedText}.
+     * on it ({@link TextFit}). Positions are in the current pose's space (a container screen's labels are relative to
+     * the panel), the mouse in screen coordinates. Nothing is drawn for a width of 0 or less.
      */
     public static void text(GuiGraphicsExtractor graphics, Font font, Component text, int x, int y, int width,
             int colour, int mouseX, int mouseY) {
-        ScreenComponents.fittedText(graphics, font, text, x, y, width, colour, mouseX, mouseY);
+        if (width <= 0) {
+            return;
+        }
+        if (TextScale.width(font, text) <= width) {
+            TextScale.text(graphics, font, text, x, y, colour, false);
+            return;
+        }
+        String plain = text.getString();
+        TextScale.text(graphics, font, TextFit.fit(plain, width, s -> TextScale.width(font, s)), x, y, colour, false);
+        if (mouseOver(graphics, x, y - 1, width, TextScale.lineHeight(font) + 1, mouseX, mouseY)) {
+            graphics.setComponentTooltipForNextFrame(font, List.of(text), mouseX, mouseY);
+        }
+    }
+
+    /**
+     * Whether the mouse, in screen coordinates, is on the rectangle given in the current pose's space. Only the pose's
+     * translation and scale are applied; MaxTech screens use no other.
+     */
+    private static boolean mouseOver(GuiGraphicsExtractor graphics, int x, int y, int width, int height, int mouseX,
+            int mouseY) {
+        Matrix3x2f pose = graphics.pose();
+        float left = pose.m00() * x + pose.m20();
+        float top = pose.m11() * y + pose.m21();
+        return mouseX >= left && mouseX < left + pose.m00() * width && mouseY >= top
+                && mouseY < top + pose.m11() * height;
     }
 
     /** A button face for a pressed-in state (a toggle that is on, an open tab): accent edge, dim accent inside. */

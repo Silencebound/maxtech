@@ -1,5 +1,6 @@
-package dev.silencebound.maxtech.lib.client.gui.accent;
+package dev.silencebound.maxtech.lib.api.client.gui;
 
+import org.jetbrains.annotations.ApiStatus;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 
 /**
@@ -7,6 +8,7 @@ import net.minecraft.client.gui.GuiGraphicsExtractor;
  * strip. The dot is a small square with a dark rim, {@link #SIZE} across with the rim, centred on a line of text drawn
  * at the same {@code y} when placed with {@link #dotY}. Client only for drawing.
  */
+@ApiStatus.Experimental
 public enum AccentStatus {
     /** Running, online, done. */
     OK(Accent.GREEN),
