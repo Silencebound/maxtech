@@ -59,6 +59,7 @@ import org.slf4j.Logger;
 // Name clash: vanilla has ...level.block.entity.ConduitBlockEntity (the underwater beacon); this is not it.
 public final class ConduitBlockEntity extends BlockEntity implements ConduitHost {
     private static final Logger LOGGER = LogUtils.getLogger();
+    private static final @Nullable BlockEntity[] NO_ATTACHMENTS = new BlockEntity[0];
     private static final String STATE = "state";
     private static final String COLOUR = "colour";
     private static final String CONNECTIONS = "connections";
@@ -99,11 +100,16 @@ public final class ConduitBlockEntity extends BlockEntity implements ConduitHost
     private VoxelShape shape;
     // Set by a load from saved data; a conduit without it was just placed and works out its connections in onLoad.
     private boolean loaded;
+    // The block entities (other than conduits) on each side, by Direction#get3DDataValue, last seen; empty unless the
+    // block attaches to blocks (ConduitHooks). Compared by instance: a neighbour that is replaced or reloads counts as
+    // new. Not saved; onLoad reads them again.
+    private final @Nullable BlockEntity[] attached;
 
     public ConduitBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlockEntities.CONDUIT.get(), pos, state);
         ConduitBlock block = blockOf(state);
         this.connectionRule = block.hooks().connectionRule();
+        this.attached = block.hooks().attachesToBlocks() ? new BlockEntity[6] : NO_ATTACHMENTS;
         ConduitType type = block.type();
         this.conduit = new ConduitData(type, null, 0);
         this.shape = ConduitShapes.shape(type.thickness(), 0, 0);
@@ -216,6 +222,7 @@ public final class ConduitBlockEntity extends BlockEntity implements ConduitHost
         int mask = conduit.connections();
         int conduitFaces = conduit.conduitFaces();
         int modes = conduit.faceModes();
+        boolean attachmentsChanged = false;
         for (Direction side : Direction.values()) {
             int bit = ConduitConnections.bit(side);
             ConduitFaceMode own = conduit.faceMode(side);
@@ -225,9 +232,12 @@ public final class ConduitBlockEntity extends BlockEntity implements ConduitHost
                 if (own == ConduitFaceMode.DISABLED) {
                     mask &= ~bit;
                 }
+                attachmentsChanged |= noteAttachment(side, null);
                 continue;
             }
-            ConduitData other = linkable(side, level.getBlockEntity(neighbourPos));
+            BlockEntity neighbour = level.getBlockEntity(neighbourPos);
+            attachmentsChanged |= noteAttachment(side, neighbour);
+            ConduitData other = linkable(side, neighbour);
             if (other == null) {
                 conduitFaces &= ~bit;
                 mask &= ~bit;
@@ -258,10 +268,64 @@ public final class ConduitBlockEntity extends BlockEntity implements ConduitHost
             conduit.setConnections(mask);
             changed = true;
             updateNode(NodeChange.INVALIDATE);
+        } else if (attachmentsChanged) {
+            // One invalidation per update, whether links, attachments or both changed.
+            updateNode(NodeChange.INVALIDATE);
         }
         if (changed) {
             rebuildShape();
             sync();
+        }
+    }
+
+    /**
+     * Re-reads the block entities beside a conduit that attaches to blocks; returns whether one appeared, went or was
+     * replaced. A side whose chunk isn't present has none, so a conduit lets go of a block entity whose chunk left.
+     * Runs on chunk arrivals and departures and on load, never per tick; returns at once for every other conduit.
+     */
+    private boolean updateAttachments() {
+        if (attached.length == 0 || level == null) {
+            return false;
+        }
+        boolean changed = false;
+        for (Direction side : Direction.values()) {
+            BlockPos neighbourPos = worldPosition.relative(side);
+            changed |= noteAttachment(side,
+                    isChunkPresent(level, neighbourPos.getX(), neighbourPos.getZ())
+                            ? level.getBlockEntity(neighbourPos)
+                            : null);
+        }
+        return changed;
+    }
+
+    /** Records {@code found} as the block entity on {@code side}; returns whether it differs from the last one seen. */
+    @SuppressWarnings("ReferenceEquality") // The instance is the point: a replaced or reloaded neighbour is new.
+    private boolean noteAttachment(Direction side, @Nullable BlockEntity found) {
+        if (attached.length == 0) {
+            return false;
+        }
+        // Conduits are links, which invalidate on their own.
+        BlockEntity attachment = found instanceof ConduitBlockEntity ? null : found;
+        int index = side.get3DDataValue();
+        if (attached[index] == attachment) {
+            return false;
+        }
+        attached[index] = attachment;
+        return true;
+    }
+
+    /**
+     * The block entity this conduit last saw on {@code side}, if it attaches to blocks; empty otherwise. Internal, for
+     * tests: network logic reads its attachments from the level.
+     */
+    public Optional<BlockEntity> attachment(Direction side) {
+        return attached.length == 0 ? Optional.empty() : Optional.ofNullable(attached[side.get3DDataValue()]);
+    }
+
+    /** A chunk across a border of this conduit reached or left full status ({@link ConduitAttachments}). */
+    void neighbourChunkChanged() {
+        if (updateAttachments()) {
+            updateNode(NodeChange.INVALIDATE);
         }
     }
 
@@ -464,11 +528,17 @@ public final class ConduitBlockEntity extends BlockEntity implements ConduitHost
     @Override
     public void onLoad() {
         super.onLoad();
-        if (level instanceof ServerLevel) {
+        if (level instanceof ServerLevel serverLevel) {
             // A saved conduit kept its masks; a placed one learns them here, since Block#onPlace runs before the
             // block entity exists. Its neighbours already updated theirs from the placement's neighbour updates.
             if (!loaded) {
                 updateConnections();
+            } else {
+                // The node is added below, so the logic learns the attachments from onNodeAdded, not an invalidation.
+                updateAttachments();
+            }
+            if (attached.length > 0) {
+                ConduitAttachments.track(serverLevel, worldPosition);
             }
             updateNode(NodeChange.ADD);
         }
@@ -491,6 +561,9 @@ public final class ConduitBlockEntity extends BlockEntity implements ConduitHost
     @Override
     public void setRemoved() {
         super.setRemoved();
+        if (attached.length > 0 && level instanceof ServerLevel serverLevel) {
+            ConduitAttachments.untrack(serverLevel, worldPosition);
+        }
         updateNode(NodeChange.REMOVE);
     }
 

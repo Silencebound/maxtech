@@ -36,7 +36,8 @@ public final class LibConduits implements Conduits.Factory {
     public <T extends ConduitType> dev.silencebound.maxtech.lib.api.conduit.ConduitEntry<T> register(
             Conduits.Registration<T> registration) {
         Content content = contents.computeIfAbsent(registration.modId(), Content::create);
-        ConduitHooks hooks = new ConduitHooks(registration.wrench(), registration.connectionRule());
+        ConduitHooks hooks = new ConduitHooks(registration.wrench(), registration.connectionRule(),
+                registration.attachesToBlocks());
         ConduitBuilder<T> builder = content.conduit(registration.name(), registration.type())
                 .model(ItemModel
                         .existing(Identifier.fromNamespaceAndPath(registration.modId(), "item/" + registration.name())))
