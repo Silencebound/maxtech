@@ -1,5 +1,6 @@
 package dev.silencebound.maxtech.lib.api.client.gui;
 
+import dev.silencebound.maxtech.lib.api.style.AccentTheme;
 import dev.silencebound.maxtech.lib.api.resource.FluidKey;
 import java.util.List;
 import java.util.Optional;
@@ -35,6 +36,9 @@ public final class AccentTank extends AccentBar {
     private final Supplier<Optional<FluidKey>> fluid;
     private final LongSupplier amount;
     private final LongSupplier capacity;
+    /** The tick rows for {@link #ticksHeight}; recomputed only when the well's height changes. */
+    private int[] ticks = new int[0];
+    private int ticksHeight = -1;
 
     /** A tank showing {@code fluid}, {@code amount} and {@code capacity}, read every frame. */
     public AccentTank(int x, int y, int width, int height, AccentTheme theme, Supplier<Optional<FluidKey>> fluid,
@@ -79,7 +83,7 @@ public final class AccentTank extends AccentBar {
     }
 
     @Override
-    protected void draw(GuiGraphicsExtractor graphics, boolean lit) {
+    void draw(GuiGraphicsExtractor graphics, boolean lit) {
         int x = getX();
         int y = getY();
         int width = getWidth();
@@ -97,14 +101,21 @@ public final class AccentTank extends AccentBar {
             TextureAtlasSprite sprite = look.sprite(key.get());
             int tint = look.tint(key.get());
             graphics.enableScissor(left, bottom - filled, right, bottom);
-            for (int tileY = bottom - TILE; tileY > bottom - filled - TILE; tileY -= TILE) {
-                for (int tileX = left; tileX < right; tileX += TILE) {
-                    graphics.blitSprite(RenderPipelines.GUI_TEXTURED, sprite, tileX, tileY, TILE, TILE, tint);
+            try {
+                for (int tileY = bottom - TILE; tileY > bottom - filled - TILE; tileY -= TILE) {
+                    for (int tileX = left; tileX < right; tileX += TILE) {
+                        graphics.blitSprite(RenderPipelines.GUI_TEXTURED, sprite, tileX, tileY, TILE, TILE, tint);
+                    }
                 }
+            } finally {
+                graphics.disableScissor();
             }
-            graphics.disableScissor();
         }
-        int[] rows = tickRows(bottom - top);
+        if (ticksHeight != bottom - top) {
+            ticksHeight = bottom - top;
+            ticks = tickRows(ticksHeight);
+        }
+        int[] rows = ticks;
         for (int i = 0; i < rows.length; i++) {
             int length = i == 1 ? HALF_TICK : QUARTER_TICK;
             graphics.fill(left, top + rows[i], left + length, top + rows[i] + 1, edge(lit));

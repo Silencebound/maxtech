@@ -1,5 +1,6 @@
 package dev.silencebound.maxtech.lib.api.client.gui;
 
+import dev.silencebound.maxtech.lib.api.style.AccentTheme;
 import dev.silencebound.maxtech.lib.api.text.TextFit;
 import org.jetbrains.annotations.ApiStatus;
 import net.minecraft.client.gui.Font;
@@ -39,11 +40,17 @@ public final class AccentReadout {
     /** Draws a readout at ({@code x}, {@code y}), {@code width} wide, {@link #height} tall. */
     public static void draw(GuiGraphicsExtractor graphics, Font font, int x, int y, int width, String label,
             String value) {
+        draw(graphics, font, x, y, width, label, value, AccentTheme.LIB);
+    }
+
+    /** {@code draw} with the value in {@code theme}'s heading colour. */
+    public static void draw(GuiGraphicsExtractor graphics, Font font, int x, int y, int width, String label,
+            String value, AccentTheme theme) {
         int height = height(font);
         graphics.fill(x, y, x + width, y + height, Accent.SLOT_EDGE);
         graphics.fill(x + 1, y + 1, x + width - 1, y + height - 1, Accent.SLOT);
         int valueWidth = TextScale.width(font, value);
-        TextScale.text(graphics, font, value, x + width - 1 - PAD - valueWidth, y + 2, Accent.CYAN, false);
+        TextScale.text(graphics, font, value, x + width - 1 - PAD - valueWidth, y + 2, theme.heading(), false);
         TextScale.text(graphics, font, TextFit.fit(label, labelRoom(width, valueWidth), font::width), x + 1 + PAD,
                 y + 2, Accent.LABEL, false);
     }

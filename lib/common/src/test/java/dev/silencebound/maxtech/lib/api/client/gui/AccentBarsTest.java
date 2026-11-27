@@ -1,5 +1,6 @@
 package dev.silencebound.maxtech.lib.api.client.gui;
 
+import dev.silencebound.maxtech.lib.api.style.AccentTheme;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -112,6 +113,28 @@ class AccentBarsTest {
         assertEquals(0xFF46B2BD, lib.heading());
         assertEquals(new AccentTheme(Accent.ACCENT, Accent.ACCENT_DIM, Accent.BAR_TOP, Accent.BAR_BOTTOM, Accent.TEXT,
                 Accent.CYAN), lib, "the theme and the old constants agree");
+    }
+
+    private static final AccentTheme MINT = new AccentTheme(0xFF11AA66, 0xFF0B6640, 0xFF55EEAA, 0xFF206050, 0xFFBBEEDD,
+            0xFF66FFBB);
+
+    @Test
+    void facesAndLabelsUseTheThemeAndTheOldFormsUseLib() {
+        assertEquals(MINT.accent(), Accent.faceEdge(true, MINT));
+        assertEquals(MINT.accentDim(), Accent.faceFill(true, MINT));
+        assertEquals(Accent.SLOT_EDGE, Accent.faceEdge(false, MINT), "the idle frame is the same for every mod");
+        assertEquals(Accent.SLOT, Accent.faceFill(false, MINT));
+        assertEquals(Accent.ACCENT, Accent.faceEdge(true, AccentTheme.LIB), "Lib's theme is the old cyan");
+        assertEquals(Accent.ACCENT_DIM, Accent.faceFill(true, AccentTheme.LIB));
+        assertEquals(MINT.heading(), IconButton.iconColour(true, true, MINT));
+        assertEquals(MINT.text(), IconButton.iconColour(true, false, MINT));
+        assertEquals(Accent.LABEL, IconButton.iconColour(false, true, MINT), "inactive stays grey");
+        assertEquals(Accent.BAR_TOP, IconButton.iconColour(true, true, AccentTheme.LIB));
+        assertEquals(Accent.TEXT, IconButton.iconColour(true, false, AccentTheme.LIB));
+        assertEquals(MINT.text(), AccentTabRow.labelColour(true, false, MINT));
+        assertEquals(MINT.text(), AccentTabRow.labelColour(false, true, MINT));
+        assertEquals(Accent.LABEL, AccentTabRow.labelColour(false, false, MINT));
+        assertEquals(Accent.TEXT, AccentTabRow.labelColour(true, false, AccentTheme.LIB));
     }
 
     private static void assertTranslation(Component line, String key, Object... args) {

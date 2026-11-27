@@ -1,5 +1,6 @@
 package dev.silencebound.maxtech.lib.api.client.gui;
 
+import dev.silencebound.maxtech.lib.api.style.AccentTheme;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -115,7 +116,7 @@ public final class AccentProgress extends AccentBar {
     }
 
     @Override
-    protected void draw(GuiGraphicsExtractor graphics, boolean lit) {
+    void draw(GuiGraphicsExtractor graphics, boolean lit) {
         int width = shape.width();
         int height = shape.height();
         boolean across = shape == Shape.ARROW;

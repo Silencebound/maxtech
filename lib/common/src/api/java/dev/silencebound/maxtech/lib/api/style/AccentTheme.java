@@ -1,4 +1,4 @@
-package dev.silencebound.maxtech.lib.api.client.gui;
+package dev.silencebound.maxtech.lib.api.style;
 
 import org.jetbrains.annotations.ApiStatus;
 
@@ -6,7 +6,8 @@ import org.jetbrains.annotations.ApiStatus;
  * A mod's colours for the Accent look (ADR-0016): the accent line and lit faces, the gauge gradient and the text. The
  * frame itself (outline, graphite, slots) and the status colours stay the same for every mod, so all MaxTech screens
  * read as one set. {@link #LIB} is Lib's cyan, which Storage uses; an addon passes its own theme to the widgets and to
- * {@link Accent}'s theme overloads (Farms uses a mint accent). Colours are ARGB. Immutable; any thread.
+ * the theme overloads of {@code lib.api.client.gui.Accent} (Farms uses a mint accent). Colours are ARGB. Immutable; any
+ * thread.
  *
  * @param accent
  *            the accent line under a panel's tab and the edge of hovered and lit faces
@@ -23,7 +24,11 @@ import org.jetbrains.annotations.ApiStatus;
  */
 @ApiStatus.Experimental
 public record AccentTheme(int accent, int accentDim, int barTop, int barBottom, int text, int heading) {
-    /** Lib's own theme: the cyan palette every MaxTech screen used before themes existed. */
-    public static final AccentTheme LIB = new AccentTheme(Accent.ACCENT, Accent.ACCENT_DIM, Accent.BAR_TOP,
-            Accent.BAR_BOTTOM, Accent.TEXT, Accent.CYAN);
+    /**
+     * Lib's own theme: the cyan palette every MaxTech screen used before themes existed. Its values equal the palette
+     * constants of {@code Accent} (a unit test keeps them equal); they are repeated here so this package stays free of
+     * client code.
+     */
+    public static final AccentTheme LIB = new AccentTheme(0xFF2A8794, 0xFF1C5660, 0xFF46B2BD, 0xFF294C86, 0xFF9FD3D9,
+            0xFF46B2BD);
 }

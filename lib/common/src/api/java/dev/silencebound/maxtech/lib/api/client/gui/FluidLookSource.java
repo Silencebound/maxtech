@@ -6,6 +6,13 @@ import org.jspecify.annotations.Nullable;
 final class FluidLookSource {
     static volatile @Nullable FluidLook look;
 
+    static synchronized void setOnce(FluidLook installed) {
+        if (look != null) {
+            throw new IllegalStateException("A fluid look is already installed");
+        }
+        look = installed;
+    }
+
     private FluidLookSource() {
     }
 }

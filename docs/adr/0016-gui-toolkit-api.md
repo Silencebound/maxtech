@@ -49,11 +49,16 @@ experimental until Farms ships.
 
 ## Amendment (2026-11-27): themes, bars and fluid looks (G2)
 
-- `AccentTheme` holds a mod's accent, dim accent, gauge and text colours; `AccentTheme.LIB` is the old cyan palette,
-  and `Accent`'s panel, bar and face methods gained theme overloads whose old forms draw the same pixels.
+- `AccentTheme` holds a mod's accent, dim accent, gauge and text colours; `AccentTheme.LIB` is the old cyan palette.
+  It is pure data, so it lives in `lib.api.style`, outside the client-only package, and later common menu definitions
+  can name a theme. Every Accent drawing method (panel, bars, faces, buttons, rows, readout, scroll bar) has a theme
+  overload and every widget (`AccentButton`, `IconButton`, `AccentPanel`, `AccentTabRow`, `ScrollBar`) a `theme(...)`
+  setter; the old forms pass `AccentTheme.LIB` and draw the same pixels, so a screen with one theme sets it on each
+  widget. `AccentToast` keeps its fixed status colours.
 - `AccentTank`, `AccentEnergyBar` and `AccentProgress` (arrow or flame) are widgets that read plain values from
-  suppliers and take a theme; menu sync comes later. Their numbers are always in the tooltip, which they also narrate;
+  suppliers and take a theme; they share the public `AccentBar` base type (only Lib extends it); menu sync comes
+  later. Their numbers are always in the tooltip, which they also narrate;
   energy shows MU first and FE at the configured rate below.
 - `FluidLook` (sprite, tint, name of a `FluidKey`) is a client interface in the common api, implemented in
-  `lib/neoforge` main from the fluid's baked fluid model and installed through an `@ApiStatus.Internal` setter, so the
-  common api still names no NeoForge type.
+  `lib/neoforge` main from the fluid's baked fluid model and installed through an `@ApiStatus.Internal` setter that
+  accepts one install only (a second throws), so the common api still names no NeoForge type.

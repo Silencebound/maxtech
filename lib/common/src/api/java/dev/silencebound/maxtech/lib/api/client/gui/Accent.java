@@ -1,5 +1,6 @@
 package dev.silencebound.maxtech.lib.api.client.gui;
 
+import dev.silencebound.maxtech.lib.api.style.AccentTheme;
 import dev.silencebound.maxtech.lib.api.text.TextFit;
 import org.jetbrains.annotations.ApiStatus;
 import java.util.List;
@@ -161,8 +162,16 @@ public final class Accent {
      */
     public static void button(GuiGraphicsExtractor graphics, Font font, int x, int y, int width, int height,
             Component label, boolean hovered) {
-        face(graphics, x, y, width, height, hovered);
-        label(graphics, font, x, y, width, height, label, TEXT);
+        button(graphics, font, x, y, width, height, label, hovered, AccentTheme.LIB);
+    }
+
+    /**
+     * {@link #button(GuiGraphicsExtractor, Font, int, int, int, int, Component, boolean)} in {@code theme}'s colours.
+     */
+    public static void button(GuiGraphicsExtractor graphics, Font font, int x, int y, int width, int height,
+            Component label, boolean hovered, AccentTheme theme) {
+        face(graphics, x, y, width, height, hovered, theme);
+        label(graphics, font, x, y, width, height, label, theme.text());
     }
 
     /**
@@ -171,7 +180,13 @@ public final class Accent {
      */
     public static void button(GuiGraphicsExtractor graphics, Font font, int x, int y, int width, int height,
             Component label, boolean hovered, int mouseX, int mouseY) {
-        button(graphics, font, x, y, width, height, label, hovered);
+        button(graphics, font, x, y, width, height, label, hovered, mouseX, mouseY, AccentTheme.LIB);
+    }
+
+    /** The tooltip variant of {@code button} in {@code theme}'s colours. */
+    public static void button(GuiGraphicsExtractor graphics, Font font, int x, int y, int width, int height,
+            Component label, boolean hovered, int mouseX, int mouseY, AccentTheme theme) {
+        button(graphics, font, x, y, width, height, label, hovered, theme);
         if (font.width(label) > labelRoom(width) && mouseOver(graphics, x, y, width, height, mouseX, mouseY)) {
             graphics.setComponentTooltipForNextFrame(font, List.of(label), mouseX, mouseY);
         }
@@ -180,8 +195,14 @@ public final class Accent {
     /** A lit button face (the current mode tab, a toggle that is on); the label is fitted like {@link #button}'s. */
     public static void litButton(GuiGraphicsExtractor graphics, Font font, int x, int y, int width, int height,
             Component label) {
-        litFace(graphics, x, y, width, height);
-        label(graphics, font, x, y, width, height, label, TEXT);
+        litButton(graphics, font, x, y, width, height, label, AccentTheme.LIB);
+    }
+
+    /** {@link #litButton(GuiGraphicsExtractor, Font, int, int, int, int, Component)} in {@code theme}'s colours. */
+    public static void litButton(GuiGraphicsExtractor graphics, Font font, int x, int y, int width, int height,
+            Component label, AccentTheme theme) {
+        litFace(graphics, x, y, width, height, theme);
+        label(graphics, font, x, y, width, height, label, theme.text());
     }
 
     /** A greyed button face for a button that cannot act now; the label is fitted like {@link #button}'s. */
@@ -284,8 +305,18 @@ public final class Accent {
     /** {@link #face(GuiGraphicsExtractor, int, int, int, int, boolean)} in {@code theme}'s accent colours. */
     public static void face(GuiGraphicsExtractor graphics, int x, int y, int width, int height, boolean hovered,
             AccentTheme theme) {
-        graphics.fill(x, y, x + width, y + height, hovered ? theme.accent() : SLOT_EDGE);
-        graphics.fill(x + 1, y + 1, x + width - 1, y + height - 1, hovered ? theme.accentDim() : SLOT);
+        graphics.fill(x, y, x + width, y + height, faceEdge(hovered, theme));
+        graphics.fill(x + 1, y + 1, x + width - 1, y + height - 1, faceFill(hovered, theme));
+    }
+
+    /** The edge colour of a button face: the theme's accent when hovered, the slot edge otherwise. */
+    public static int faceEdge(boolean hovered, AccentTheme theme) {
+        return hovered ? theme.accent() : SLOT_EDGE;
+    }
+
+    /** The fill colour of a button face: the theme's dim accent when hovered, the slot colour otherwise. */
+    public static int faceFill(boolean hovered, AccentTheme theme) {
+        return hovered ? theme.accentDim() : SLOT;
     }
 
     /** A square dot {@code size} wide in {@code colour} with a dark rim, for badges and changed-setting marks. */

@@ -1,5 +1,6 @@
 package dev.silencebound.maxtech.lib.api.client.gui;
 
+import dev.silencebound.maxtech.lib.api.style.AccentTheme;
 import org.jetbrains.annotations.ApiStatus;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -30,6 +31,7 @@ public final class AccentPanel {
     private final int width;
     private final int height;
     private final Component title;
+    private AccentTheme theme = AccentTheme.LIB;
 
     private AccentPanel(int x, int y, int width, int height, Component title) {
         this.x = x;
@@ -50,6 +52,12 @@ public final class AccentPanel {
                 ? title
                 : title.copy().append(Component.literal(SEPARATOR + subtitle).withColor(Accent.LABEL));
         return new AccentPanel(x, y, width, height, shown);
+    }
+
+    /** Draws the panel in {@code theme}'s colours instead of Lib's cyan. */
+    public AccentPanel theme(AccentTheme theme) {
+        this.theme = theme;
+        return this;
     }
 
     /** The left edge. */
@@ -114,6 +122,6 @@ public final class AccentPanel {
 
     /** Draws the panel and its title tab; a shortened title shows whole while the mouse is on it. */
     public void draw(GuiGraphicsExtractor graphics, Font font, int mouseX, int mouseY) {
-        Accent.panel(graphics, font, x, y, width, height, title, mouseX, mouseY);
+        Accent.panel(graphics, font, x, y, width, height, title, mouseX, mouseY, theme);
     }
 }

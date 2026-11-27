@@ -1,5 +1,7 @@
 package dev.silencebound.maxtech.lib.api.client.gui;
 
+import dev.silencebound.maxtech.lib.api.style.AccentTheme;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import net.minecraft.client.Minecraft;
@@ -9,13 +11,21 @@ import net.minecraft.client.gui.narration.NarratedElementType;
 import net.minecraft.client.gui.narration.NarrationElementOutput;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.CommonComponents;
+import net.minecraft.client.gui.screens.inventory.tooltip.BelowOrAboveWidgetTooltipPositioner;
 import net.minecraft.network.chat.Component;
+import net.minecraft.locale.Language;
+import net.minecraft.util.FormattedCharSequence;
+import org.jetbrains.annotations.ApiStatus;
 
 /**
- * What the Accent bars share: they read their values every frame, show their numbers as a tooltip while hovered and
- * narrate the same text, take no clicks, and can be focused with the keyboard so the narrator reaches them.
+ * What the Accent bars ({@link AccentTank}, {@link AccentEnergyBar}, {@link AccentProgress}) share, so code can hold
+ * any of them as one type (to add them to a screen, move or hide them). They read their values every frame, show their
+ * numbers as a tooltip while hovered, or while focused with the keyboard like vanilla's widget tooltips, and narrate
+ * the same text. They take no clicks and can be focused so the narrator reaches them. Only Lib's bars extend this.
+ * Client thread only.
  */
-abstract class AccentBar extends AbstractWidget {
+@ApiStatus.Experimental
+public abstract class AccentBar extends AbstractWidget {
     /** The outline colour while hovered or focused comes from here. */
     protected final AccentTheme theme;
 
@@ -24,17 +34,26 @@ abstract class AccentBar extends AbstractWidget {
         this.theme = theme;
     }
 
-    /** The tooltip lines for the current values; also what the bar narrates. */
+    /** The tooltip lines for the current values; also what the bar narrates. Never empty. */
     public abstract List<Component> tooltip();
 
     /** Draws the bar; hovered or focused bars draw their outline in the theme's accent. */
-    protected abstract void draw(GuiGraphicsExtractor graphics, boolean lit);
+    abstract void draw(GuiGraphicsExtractor graphics, boolean lit);
 
     @Override
     protected final void extractWidgetRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float a) {
         draw(graphics, isHoveredOrFocused());
         if (isHovered()) {
             graphics.setComponentTooltipForNextFrame(Minecraft.getInstance().font, tooltip(), mouseX, mouseY);
+        } else if (isFocused() && Minecraft.getInstance().getLastInputType().isKeyboard()) {
+            // Like WidgetTooltipHolder: a keyboard-focused widget shows its tooltip below or above itself.
+            Language language = Language.getInstance();
+            List<FormattedCharSequence> lines = new ArrayList<>();
+            for (Component line : tooltip()) {
+                lines.add(language.getVisualOrder(line));
+            }
+            graphics.setTooltipForNextFrame(Minecraft.getInstance().font, lines,
+                    new BelowOrAboveWidgetTooltipPositioner(getRectangle()), mouseX, mouseY, true);
         }
     }
 

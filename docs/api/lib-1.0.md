@@ -38,8 +38,8 @@ Labels: **stable** = frozen at 1.0, a breaking change needs a Lib major bump. **
 | `AccentButton`, `IconButton`, `Icon` | Text buttons (normal and compact, toggles lit while on); icon buttons (plain, toggle, cycle) and what they show (sprite, glyph, swatch, item). | experimental |
 | `AccentPanel`, `AccentInset`, `AccentRow`, `AccentTabRow` | A panel as a layout with content edges; a dark well; list rows; page tabs with badges. | experimental |
 | `AccentReadout`, `AccentTag`, `AccentStatus`, `AccentToast`, `ScrollBar` | A label and value; a small tag; state colours and dots; an in-screen toast and a notice outside screens; the scroll bar. | experimental |
-| `AccentTheme` | A mod's accent, gauge and text colours; `LIB` is Lib's cyan, the default everywhere. | experimental |
-| `AccentTank`, `AccentEnergyBar`, `AccentProgress` | Bar widgets drawing plain values from suppliers: a fluid tank with quarter ticks, a segmented energy gauge (MU, FE in the tooltip), an arrow or flame; tooltips and narration give the numbers. | experimental |
+| **`lib.api.style`** `AccentTheme` | A mod's accent, gauge and text colours; `LIB` is Lib's cyan, the default everywhere. Pure data, both sides; widgets take it through `theme(...)` or overloads. | experimental |
+| `AccentBar`, `AccentTank`, `AccentEnergyBar`, `AccentProgress` | The bars' shared base type and the bar widgets drawing plain values from suppliers: a fluid tank with quarter ticks, a segmented energy gauge (MU, FE in the tooltip), an arrow or flame; tooltips and narration give the numbers. | experimental |
 | `FluidLook` | A fluid's sprite, tint and name for screens; Lib installs the NeoForge implementation (`install` is `@ApiStatus.Internal`). | experimental |
 | `TextScale`, `LayoutCheck` | The client's text size option for drawing and measuring (`setOptionSource` is Lib's, `@ApiStatus.Internal`); the 320 x 240 layout check and placement math. | experimental |
 | **`lib.api.text`** `TextFit` | Fitting text with an ellipsis; pure Java, both sides. | experimental |

@@ -13,7 +13,7 @@
  * {@link dev.silencebound.maxtech.lib.api.client.gui.AccentReadout},
  * {@link dev.silencebound.maxtech.lib.api.client.gui.AccentTag} and
  * {@link dev.silencebound.maxtech.lib.api.client.gui.AccentStatus}. Colours per mod come from an
- * {@link dev.silencebound.maxtech.lib.api.client.gui.AccentTheme}. Bars that draw plain values:
+ * {@link dev.silencebound.maxtech.lib.api.style.AccentTheme}. Bars that draw plain values:
  * {@link dev.silencebound.maxtech.lib.api.client.gui.AccentTank} (fluids through
  * {@link dev.silencebound.maxtech.lib.api.client.gui.FluidLook}),
  * {@link dev.silencebound.maxtech.lib.api.client.gui.AccentEnergyBar} and
@@ -30,5 +30,6 @@
 @NullMarked
 package dev.silencebound.maxtech.lib.api.client.gui;
 
+import dev.silencebound.maxtech.lib.api.style.AccentTheme;
 import org.jetbrains.annotations.ApiStatus;
 import org.jspecify.annotations.NullMarked;

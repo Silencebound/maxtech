@@ -48,9 +48,12 @@ public interface FluidLook {
         return look;
     }
 
-    /** Sets the look {@link #get()} returns; Lib calls it once at client start. */
+    /**
+     * Sets the look {@link #get()} returns; Lib calls it once at client start. Only the first call counts: a second one
+     * throws {@link IllegalStateException}, so an addon cannot swap the look under Lib's screens.
+     */
     @ApiStatus.Internal
     static void install(FluidLook look) {
-        FluidLookSource.look = look;
+        FluidLookSource.setOnce(look);
     }
 }

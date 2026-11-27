@@ -1,11 +1,12 @@
 package dev.silencebound.maxtech.lib.client.gui.accent;
 
+import dev.silencebound.maxtech.lib.api.style.AccentTheme;
 import dev.silencebound.maxtech.lib.api.client.gui.Accent;
 import dev.silencebound.maxtech.lib.api.client.gui.AccentButton;
 import dev.silencebound.maxtech.lib.api.client.gui.AccentEnergyBar;
 import dev.silencebound.maxtech.lib.api.client.gui.AccentProgress;
 import dev.silencebound.maxtech.lib.api.client.gui.AccentTank;
-import dev.silencebound.maxtech.lib.api.client.gui.AccentTheme;
+import dev.silencebound.maxtech.lib.api.style.AccentTheme;
 import dev.silencebound.maxtech.lib.api.resource.FluidKey;
 import dev.silencebound.maxtech.lib.api.client.gui.IconButton;
 import dev.silencebound.maxtech.lib.api.client.gui.Icon;

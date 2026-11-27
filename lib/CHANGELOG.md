@@ -19,10 +19,11 @@ Api changes are marked **Api**.
   facade tint extension was registered with no blocks, which NeoForge refuses.
 
 ### Added
-- **Api** Themes and bars for the Accent look (`lib.api.client.gui`, experimental): `AccentTheme` (Lib's cyan by
-  default, so existing screens look the same), `AccentTank` (the fluid's own sprite and tint through `FluidLook`),
-  `AccentEnergyBar` (MU, with FE at the configured rate in the tooltip) and `AccentProgress` (arrow or flame), with
-  their numbers in the tooltip and narration. The accent demo screen shows them.
+- **Api** Themes and bars for the Accent look (`lib.api.client.gui`, experimental): `AccentTheme` (in `lib.api.style`;
+  Lib's cyan by default, so existing screens look the same; every Accent widget and drawing method takes one),
+  `AccentTank` (the fluid's own sprite and tint through `FluidLook`), `AccentEnergyBar` (MU, with FE at the configured
+  rate in the tooltip) and `AccentProgress` (arrow or flame) on the shared `AccentBar` type, with their numbers in the
+  tooltip (hovered or keyboard-focused) and narration. The accent demo screen shows them.
 - **Api** Conduit contents (`lib.api.conduit.ConduitContents`, experimental, for Farms FM1): a shared meaning for
   what a conduit shows inside it (fluid, fill step 0..4, upstream side, second lane), set with
   `ConduitHost.setContents` on the server and read with `ConduitView.contents()`. Saved and synced as `contents` only

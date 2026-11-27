@@ -1,5 +1,6 @@
 package dev.silencebound.maxtech.lib.api.client.gui;
 
+import dev.silencebound.maxtech.lib.api.style.AccentTheme;
 import dev.silencebound.maxtech.lib.api.energy.EnergyNetworks;
 import dev.silencebound.maxtech.lib.api.energy.FeRate;
 import java.util.List;
@@ -67,7 +68,7 @@ public final class AccentEnergyBar extends AccentBar {
     }
 
     @Override
-    protected void draw(GuiGraphicsExtractor graphics, boolean lit) {
+    void draw(GuiGraphicsExtractor graphics, boolean lit) {
         int x = getX();
         int y = getY();
         int right = x + getWidth();
