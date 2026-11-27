@@ -17,10 +17,11 @@ import org.jspecify.annotations.Nullable;
  * ({@code docs/api/conduit-addon.md}).
  *
  * <p>
- * The one look is {@link Solid}: a square conduit in one flat colour, with no seams, rims or dark lines, so a run reads
- * as one continuous cable and only face shading separates top from sides. An arm that ends in the open shows
- * {@link Solid#end}, optionally with a tinted {@link Solid#overlay} on top (a cable's wire core). The block state file
- * still names the look ({@code "look": "solid"}), so another look can be added without changing existing files.
+ * {@link Solid} is a square conduit in one flat colour, with no seams, rims or dark lines, so a run reads as one
+ * continuous cable and only face shading separates top from sides. An arm that ends in the open shows
+ * {@link Solid#end}, optionally with a tinted {@link Solid#overlay} on top (a cable's wire core). {@link Shell} is a
+ * translucent glass tube whose border lines and rims Lib works out from the connections. The block state file names the
+ * look ({@code "look": "solid"} or {@code "shell"}), so another look can be added without changing existing files.
  *
  * <p>
  * Colours are {@code 0xRRGGBB}; {@link #TYPE_COLOUR} stands for the conduit type's {@link ConduitType#baseColour()}. A
@@ -57,6 +58,14 @@ public sealed interface ConduitLook {
         return new Solid(end, overlay, colour, overlayColour);
     }
 
+    /**
+     * A glass tube drawn with {@code shell}, its borders in the type's colour at the default widths
+     * ({@link Shell#DEFAULT_BORDER}, {@link Shell#DEFAULT_RIM}). Lib 0.14.0.
+     */
+    static Shell shell(Identifier shell) {
+        return new Shell(shell, TYPE_COLOUR, Shell.DEFAULT_BORDER, Shell.DEFAULT_RIM);
+    }
+
     /** {@code colour}, or {@code type}'s base colour for {@link #TYPE_COLOUR}; {@code 0xRRGGBB}. */
     static int resolve(int colour, ConduitType type) {
         return colour == TYPE_COLOUR ? type.baseColour() & 0xFFFFFF : colour;
@@ -91,10 +100,87 @@ public sealed interface ConduitLook {
         }
     }
 
+    /**
+     * A translucent glass tube (Lib 0.14.0): every glass face shows {@code shell} projected onto the block, so the
+     * sprite tiles on without a seam from one tube to the next, and opaque border lines in {@code borderColour} run
+     * along the tube's outer long edges. Lib works the lines out from the connections: they run on across joints
+     * between tubes, never across one, and leave out the inner creases of bends and branches. An open end gets a rim
+     * {@code rim} px wide around its end face, and an arm that meets a block a rim band just inside Lib's connector
+     * ring. A dye tints the borders only. The block state fields are {@code shell}, then {@code border_colour},
+     * {@code border} and {@code rim}, each left out at its default; later fields will be optional too, so files stay
+     * valid.
+     *
+     * @param shell
+     *            sprite of the glass (block atlas), usually mostly transparent
+     * @param borderColour
+     *            colour of the border lines and rims, or {@link #TYPE_COLOUR}
+     * @param border
+     *            width of a border line on each face it borders, in pixels, 0 to {@value #MAX_WIDTH}; 0 draws none
+     * @param rim
+     *            width of a rim, in pixels, 0 to {@value #MAX_WIDTH}; 0 draws none
+     */
+    record Shell(Identifier shell, int borderColour, float border, float rim) implements ConduitLook {
+        /** Default {@link #border}, in pixels. */
+        public static final float DEFAULT_BORDER = 0.5F;
+        /** Default {@link #rim}, in pixels. */
+        public static final float DEFAULT_RIM = 1.5F;
+        /** The widest {@link #border} or {@link #rim}, in pixels. */
+        public static final float MAX_WIDTH = 4.0F;
+
+        static final MapCodec<Shell> CODEC = RecordCodecBuilder
+                .mapCodec(i -> i.group(Identifier.CODEC.fieldOf("shell").forGetter(Shell::shell),
+                        colourField("border_colour").forGetter(Shell::borderColour),
+                        widthField("border", DEFAULT_BORDER).forGetter(Shell::border),
+                        widthField("rim", DEFAULT_RIM).forGetter(Shell::rim)).apply(i, Shell::new));
+
+        /**
+         * Checks the widths.
+         *
+         * @throws IllegalArgumentException
+         *             when {@code border} or {@code rim} is outside 0 to {@value #MAX_WIDTH} or not a number
+         */
+        public Shell {
+            requireWidth("border", border);
+            requireWidth("rim", rim);
+        }
+
+        /** This look with its borders and rims in {@code colour} ({@code 0xRRGGBB} or {@link #TYPE_COLOUR}). */
+        public Shell withBorderColour(int colour) {
+            return new Shell(shell, colour, border, rim);
+        }
+
+        /** This look with border lines {@code border} px wide. */
+        public Shell withBorder(float border) {
+            return new Shell(shell, borderColour, border, rim);
+        }
+
+        /** This look with rims {@code rim} px wide. */
+        public Shell withRim(float rim) {
+            return new Shell(shell, borderColour, border, rim);
+        }
+
+        @Override
+        public Kind kind() {
+            return Kind.SHELL;
+        }
+
+        private static void requireWidth(String name, float width) {
+            if (!(width >= 0.0F && width <= MAX_WIDTH)) {
+                throw new IllegalArgumentException(name + " must be 0 to " + MAX_WIDTH + " px, was " + width);
+            }
+        }
+
+        private static MapCodec<Float> widthField(String name, float fallback) {
+            return Codec.floatRange(0.0F, MAX_WIDTH).optionalFieldOf(name, fallback);
+        }
+    }
+
     /** The looks by name, for the block state file. */
     enum Kind implements StringRepresentable {
         /** {@link Solid}, named {@code solid}. */
-        SOLID("solid");
+        SOLID("solid"),
+        /** {@link Shell}, named {@code shell}. Lib 0.14.0. */
+        SHELL("shell");
 
         static final Codec<Kind> CODEC = StringRepresentable.fromEnum(Kind::values);
 
@@ -112,6 +198,7 @@ public sealed interface ConduitLook {
         MapCodec<? extends ConduitLook> codec() {
             return switch (this) {
                 case SOLID -> Solid.CODEC;
+                case SHELL -> Shell.CODEC;
             };
         }
     }

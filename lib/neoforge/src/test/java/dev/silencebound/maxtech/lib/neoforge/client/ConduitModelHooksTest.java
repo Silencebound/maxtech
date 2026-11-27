@@ -80,18 +80,27 @@ class ConduitModelHooksTest {
         assertEquals(2, asked.size());
     }
 
-    /** Only a translucent custom model reports translucent quads; Lib's looks never do. */
+    /** Only a translucent custom model reports translucent quads; Lib's solid look never does. */
     @Test
     void materialFlagsFollowTheDeclaredTranslucency() {
         assertEquals(BakedQuad.FLAG_TRANSLUCENT, ConduitModel.materialFlags(true));
         assertEquals(0, ConduitModel.materialFlags(false));
     }
 
+    /** A shell's glass is translucent, so Lib's model of a shell conduit reports it; a solid one does not. */
+    @Test
+    void shellModelsAreTranslucent() {
+        assertTrue(ConduitModel.translucent(ConduitLook.shell(GLASS)));
+        assertEquals(BakedQuad.FLAG_TRANSLUCENT,
+                ConduitModel.materialFlags(ConduitModel.translucent(ConduitLook.shell(GLASS).withBorder(0))));
+        assertEquals(0, ConduitModel.materialFlags(ConduitModel.translucent(ConduitLook.wire())));
+    }
+
     /** A hook that overrides nothing draws exactly Lib's body, rings and stubs. */
     @Test
     void defaultPartsAreLibs() {
         ConduitParts.setFactory(new LibConduitParts());
-        for (ConduitLook look : List.of(ConduitLook.wire(), ConduitLook.DEFAULT)) {
+        for (ConduitLook look : List.of(ConduitLook.wire(), ConduitLook.DEFAULT, ConduitLook.shell(GLASS))) {
             for (boolean labels : new boolean[]{false, true}) {
                 for (int arms = 0; arms < 64; arms++) {
                     ConduitBodyKey key = new ConduitBodyKey(TYPE, DyeColor.RED, arms, arms & 0b010001, 7);

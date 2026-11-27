@@ -88,12 +88,18 @@ public final class ConduitApiGameTests {
             .register();
 
     /**
-     * Drawn by an addon model hook, as a translucent glass tube whose contents show the render value as a colour
-     * ({@link GlassTubeDemoClient}, client only); the dev client's check of custom conduit models.
+     * Lib's shell look on an original clear glass sprite ({@code textures/block/glass_tube.png}), borders in the type's
+     * colour; the dev client's check of the shell look.
      */
     static final ConduitEntry<ConduitType> GLASS_TUBE = Conduits
-            .builder(MOD_ID, "test_glass_tube", item -> new ConduitType(NETWORK_ID, "glass", 0xDDEEFF, 0.375F, item))
-            .look(ConduitLook.DEFAULT).customModel(true).creativeTab(CreativeModeTabs.REDSTONE_BLOCKS).register();
+            .builder(MOD_ID, "test_glass_tube", item -> new ConduitType(NETWORK_ID, "glass", 0x6E8A94, 0.375F, item))
+            .look(ConduitLook.shell(Identifier.fromNamespaceAndPath(MOD_ID, "block/glass_tube")))
+            .creativeTab(CreativeModeTabs.REDSTONE_BLOCKS).register();
+
+    /** Drawn through a model hook that overrides nothing ({@link HookedTubeDemoClient}, client only). */
+    static final ConduitEntry<ConduitType> HOOKED_TUBE = Conduits
+            .builder(MOD_ID, "test_hooked_tube", item -> new ConduitType(NETWORK_ID, "hooked", 0xAA7744, 0.25F, item))
+            .look(ConduitLook.DEFAULT).customModel(false).register();
 
     private static final Registrar<Consumer<GameTestHelper>> FUNCTIONS = Registrars.create(MOD_ID,
             Registries.TEST_FUNCTION);
@@ -108,6 +114,7 @@ public final class ConduitApiGameTests {
         test("conduit_api_render_value_syncs", ConduitApiGameTests::renderValueSyncs);
         test("conduit_api_render_value_saved", ConduitApiGameTests::renderValueSaved);
         test("conduit_api_custom_model_places", ConduitApiGameTests::customModelPlaces);
+        test("conduit_api_shell_places", ConduitApiGameTests::shellPlaces);
     }
 
     private ConduitApiGameTests() {
@@ -228,20 +235,32 @@ public final class ConduitApiGameTests {
      * network's links and keeps a render value. Its model hook is client-only and is not tested here.
      */
     private static void customModelPlaces(GameTestHelper helper) {
+        placesAndLinks(helper, HOOKED_TUBE);
+    }
+
+    /**
+     * A conduit in Lib's shell look is an ordinary conduit on the server too: it registers, places, links and keeps a
+     * render value. Its model is client-only and is not tested here.
+     */
+    private static void shellPlaces(GameTestHelper helper) {
+        placesAndLinks(helper, GLASS_TUBE);
+    }
+
+    private static void placesAndLinks(GameTestHelper helper, ConduitEntry<ConduitType> entry) {
         BlockPos pos = new BlockPos(1, 0, 1);
         BlockPos next = new BlockPos(2, 0, 1);
-        ConduitType type = GLASS_TUBE.type().get();
-        helper.assertTrue(Conduits.blockOf(type).filter(block -> block.equals(GLASS_TUBE.block().get())).isPresent(),
-                "the glass tube type has no block");
-        helper.assertTrue(Conduits.place(helper.getLevel(), helper.absolutePos(pos), type), "glass tube not placed");
+        ConduitType type = entry.type().get();
+        helper.assertTrue(Conduits.blockOf(type).filter(block -> block.equals(entry.block().get())).isPresent(),
+                "the tube type has no block");
+        helper.assertTrue(Conduits.place(helper.getLevel(), helper.absolutePos(pos), type), "tube not placed");
         helper.assertTrue(Conduits.place(helper.getLevel(), helper.absolutePos(next), type), "second tube not placed");
-        helper.assertBlockPresent(GLASS_TUBE.block().get(), pos);
+        helper.assertBlockPresent(entry.block().get(), pos);
         ConduitHost host = host(helper, pos);
         host.setRenderValue(0x3F76E4);
-        helper.assertValueEqual(0x3F76E4, host.renderValue(), "render value of a glass tube");
+        helper.assertValueEqual(0x3F76E4, host.renderValue(), "render value of a tube");
         helper.succeedWhen(
                 () -> helper.assertTrue(ConduitConnections.isConnected(host(helper, pos).connections(), Direction.EAST),
-                        "the glass tubes did not link"));
+                        "the tubes did not link"));
     }
 
     /**

@@ -27,9 +27,7 @@ final class ConduitLayers {
      *            the quad's sprite or texture, for the message
      */
     static void requireDeclared(boolean modelTranslucent, Transparency transparency, Object block, Object quadSprite) {
-        boolean translucent = Transparency.TRANSLUCENT.equals(transparency)
-                || Transparency.TRANSPARENT_AND_TRANSLUCENT.equals(transparency);
-        if (translucent && !modelTranslucent) {
+        if (transparency.hasTranslucent() && !modelTranslucent) {
             throw new IllegalStateException("A quad of conduit " + block + " using " + quadSprite
                     + " is drawn in the translucent layer, but its builder called customModel(false); pass true or give"
                     + " the quad an opaque or cutout layer");
