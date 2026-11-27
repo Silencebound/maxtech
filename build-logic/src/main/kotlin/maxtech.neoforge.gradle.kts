@@ -42,8 +42,9 @@ val neoforgeApi = if (hasNeoForgeApi) sourceSets.create("api") else null
 if (neoforgeApi != null) {
     dependencies {
         neoforgeApi.compileOnlyConfigurationName(project(common.path, "modApi"))
-        // compileOnly like common: at dev runtime the api is part of the mod's folders (MaxtechNeoForgeExtension).
-        compileOnly(neoforgeApi.output)
+        // compileOnlyApi, so mods compiling against this one (Storage) see the api too; at dev runtime the api is part
+        // of the mod's folders (MaxtechNeoForgeExtension).
+        compileOnlyApi(neoforgeApi.output)
         testImplementation(neoforgeApi.output)
     }
 
