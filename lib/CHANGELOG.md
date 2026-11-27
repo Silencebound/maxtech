@@ -20,8 +20,8 @@ Api changes are marked **Api**.
 
 ### Added
 - **Api** `Conduits.Builder.attachesToBlocks()` (experimental, for Farms FM1): the conduit's network logic gets
-  `onNodeInvalidated` once whenever a block entity beside it appears, goes or is replaced, also when it arrives with
-  its chunk, so addon conduits no longer need their attachable blocks to poke them. Other conduits are unchanged.
+  `onNodeInvalidated` once whenever a block entity beside it appears, goes or is replaced, also when it arrives or
+  leaves with its chunk, so addon conduits no longer need their attachable blocks to poke them. Other conduits are unchanged.
 - **Api** Themes and bars for the Accent look (`lib.api.client.gui`, experimental): `AccentTheme` (in `lib.api.style`;
   Lib's cyan by default, so existing screens look the same; every Accent widget and drawing method takes one),
   `AccentTank` (the fluid's own sprite and tint through `FluidLook`), `AccentEnergyBar` (MU, with FE at the configured

@@ -15,6 +15,7 @@ import dev.silencebound.maxtech.lib.api.network.NetworkManager;
 import dev.silencebound.maxtech.lib.api.network.NetworkType;
 import dev.silencebound.maxtech.lib.api.registry.Registrar;
 import dev.silencebound.maxtech.lib.api.registry.Registrars;
+import dev.silencebound.maxtech.lib.conduit.ConduitBlockEntity;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -159,8 +160,15 @@ public final class ConduitApiGameTests {
         test("conduit_api_attach_place_remove", ConduitApiGameTests::attachPlaceRemove);
         test("conduit_api_attach_unflagged", ConduitApiGameTests::attachUnflagged);
         test("conduit_api_attach_chunk_load", ConduitApiGameTests::attachChunkLoad);
-        // Forces chunks far from the test grid and waits for them to load and unload.
+        test("conduit_api_attach_link_and_block", ConduitApiGameTests::attachLinkAndBlock);
+        test("conduit_api_attach_ignores_conduits", ConduitApiGameTests::attachIgnoresConduits);
+        // These two read what the conduit holds, which only Lib's block entity shows.
+        test("conduit_attach_chunk_unload", ConduitApiGameTests::attachChunkUnload);
+        test("conduit_attach_chunks_together", ConduitApiGameTests::attachChunksTogether);
+        // Force chunks far from the test grid and wait for them to load and unload.
         MAX_TICKS.put("conduit_api_attach_chunk_load", 600);
+        MAX_TICKS.put("conduit_attach_chunk_unload", 600);
+        MAX_TICKS.put("conduit_attach_chunks_together", 1200);
     }
 
     private ConduitApiGameTests() {
@@ -465,6 +473,19 @@ public final class ConduitApiGameTests {
         return INVALIDATIONS.getOrDefault(abs.asLong(), 0);
     }
 
+    /** Forgets the counts of an earlier run at the same position. */
+    private static void resetInvalidations(BlockPos abs) {
+        INVALIDATIONS.remove(abs.asLong());
+    }
+
+    /** What the conduit at {@code abs} last saw on {@code side}; Lib's block entity, not the api. */
+    private static Optional<BlockEntity> attachment(GameTestHelper helper, BlockPos abs, Direction side) {
+        if (!(helper.getLevel().getBlockEntity(abs) instanceof ConduitBlockEntity conduit)) {
+            throw helper.assertionException("no conduit at " + abs);
+        }
+        return conduit.attachment(side);
+    }
+
     /**
      * A conduit that attaches to blocks reports a block entity placed beside it, replaced by another and removed again
      * once each through {@code onNodeInvalidated}; a block without a block entity, and the placement of the conduit
@@ -474,6 +495,7 @@ public final class ConduitApiGameTests {
         BlockPos pos = new BlockPos(2, 0, 1);
         BlockPos side = pos.east();
         BlockPos abs = helper.absolutePos(pos);
+        resetInvalidations(abs);
         helper.assertTrue(Conduits.place(helper.getLevel(), abs, ATTACHING.type().get()), "conduit not placed");
         NetworkManager manager = NetworkManager.get(helper.getLevel());
         int[] before = new int[1];
@@ -502,6 +524,7 @@ public final class ConduitApiGameTests {
         BlockPos pos = new BlockPos(2, 0, 1);
         BlockPos side = pos.east();
         BlockPos abs = helper.absolutePos(pos);
+        resetInvalidations(abs);
         helper.assertTrue(Conduits.place(helper.getLevel(), abs, NOT_ATTACHING.type().get()), "conduit not placed");
         NetworkManager manager = NetworkManager.get(helper.getLevel());
         helper.startSequence()
@@ -558,6 +581,167 @@ public final class ConduitApiGameTests {
                     level.setBlock(chest, Blocks.AIR.defaultBlockState(), quiet);
                     level.setChunkForced(chestChunkX, chunkZ, false);
                     level.setChunkForced(anchorX, chunkZ, false);
+                }).thenSucceed();
+    }
+
+    /**
+     * A new link and a new block entity seen in the same update give one invalidation, not one each. Both are set
+     * without neighbour updates, so the conduit sees them together when it refreshes its connections.
+     */
+    private static void attachLinkAndBlock(GameTestHelper helper) {
+        BlockPos pos = new BlockPos(2, 0, 1);
+        BlockPos abs = helper.absolutePos(pos);
+        resetInvalidations(abs);
+        ServerLevel level = helper.getLevel();
+        helper.assertTrue(Conduits.place(level, abs, ATTACHING.type().get()), "conduit not placed");
+        Block plain = Conduits.blockOf(NOT_ATTACHING.type().get())
+                .orElseThrow(() -> helper.assertionException("the plain type has no block"));
+        int quiet = Block.UPDATE_CLIENTS | Block.UPDATE_KNOWN_SHAPE;
+        NetworkManager manager = NetworkManager.get(level);
+        int[] before = new int[1];
+        helper.startSequence()
+                .thenWaitUntil(() -> helper.assertTrue(manager.network(ATTACH_NETWORK, abs) != null, "no network"))
+                .thenExecute(() -> {
+                    level.setBlock(abs.east(), Blocks.CHEST.defaultBlockState(), quiet);
+                    level.setBlock(abs.west(), plain.defaultBlockState(), quiet);
+                }).thenIdle(2).thenExecute(() -> {
+                    before[0] = invalidations(abs);
+                    host(helper, pos).refreshConnections();
+                }).thenIdle(2).thenExecute(() -> {
+                    helper.assertTrue((host(helper, pos).connections() & ConduitConnections.bit(Direction.WEST)) != 0,
+                            "the new link is missing");
+                    helper.assertValueEqual(before[0] + 1, invalidations(abs),
+                            "invalidations after a link and a block entity at once");
+                }).thenSucceed();
+    }
+
+    /** A conduit of another network beside an attaching one is no attachment: no invalidation, nothing held. */
+    private static void attachIgnoresConduits(GameTestHelper helper) {
+        BlockPos pos = new BlockPos(2, 0, 1);
+        BlockPos abs = helper.absolutePos(pos);
+        resetInvalidations(abs);
+        helper.assertTrue(Conduits.place(helper.getLevel(), abs, ATTACHING.type().get()), "conduit not placed");
+        NetworkManager manager = NetworkManager.get(helper.getLevel());
+        helper.startSequence()
+                .thenWaitUntil(() -> helper.assertTrue(manager.network(ATTACH_NETWORK, abs) != null, "no network"))
+                .thenExecute(
+                        () -> helper.assertTrue(Conduits.place(helper.getLevel(), abs.east(), CONDUIT.type().get()),
+                                "other conduit not placed"))
+                .thenIdle(2).thenExecute(() -> {
+                    helper.assertTrue((host(helper, pos).connections() & ConduitConnections.bit(Direction.EAST)) == 0,
+                            "conduits of two networks linked");
+                    helper.assertValueEqual(0, invalidations(abs), "invalidations from a neighbouring conduit");
+                }).thenSucceed();
+    }
+
+    /**
+     * A chest whose chunk leaves full status is dropped once: one invalidation, and the conduit no longer holds the
+     * chest's block entity; nothing more while the chunk stays away, and one more when it comes back. Real tickets far
+     * from the test grid, as in {@link #attachChunkLoad}: un-forcing the chest's chunk drops it to the level the anchor
+     * gives it, below full status.
+     */
+    private static void attachChunkUnload(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        int anchorX = 6100;
+        int chunkZ = 6100;
+        int conduitChunkX = anchorX + 2;
+        int chestChunkX = anchorX + 3;
+        int y = helper.absolutePos(BlockPos.ZERO).getY();
+        BlockPos conduit = new BlockPos(conduitChunkX * 16 + 15, y, chunkZ * 16 + 8);
+        BlockPos chest = conduit.east();
+        resetInvalidations(conduit);
+        int quiet = Block.UPDATE_CLIENTS | Block.UPDATE_KNOWN_SHAPE;
+        Block block = Conduits.blockOf(ATTACHING.type().get())
+                .orElseThrow(() -> helper.assertionException("the attaching type has no block"));
+        NetworkManager manager = NetworkManager.get(level);
+        int[] before = new int[1];
+        helper.startSequence().thenExecute(() -> {
+            level.setChunkForced(anchorX, chunkZ, true);
+            level.setChunkForced(chestChunkX, chunkZ, true);
+        }).thenWaitUntil(() -> {
+            helper.assertTrue(level.getChunkSource().getChunkNow(conduitChunkX, chunkZ) != null,
+                    "the conduit's chunk is not at full status yet");
+            helper.assertTrue(level.getChunkSource().getChunkNow(chestChunkX, chunkZ) != null,
+                    "the chest's chunk is not at full status yet");
+        }).thenExecute(() -> {
+            level.setBlock(chest, Blocks.CHEST.defaultBlockState(), quiet);
+            level.setBlock(conduit, block.defaultBlockState(), quiet);
+        }).thenWaitUntil(() -> helper.assertTrue(manager.network(ATTACH_NETWORK, conduit) != null, "no network"))
+                .thenIdle(2).thenExecute(() -> {
+                    helper.assertTrue(attachment(helper, conduit, Direction.EAST).isPresent(), "the chest is not held");
+                    before[0] = invalidations(conduit);
+                    level.setChunkForced(chestChunkX, chunkZ, false);
+                }).thenWaitUntil(() -> helper.assertValueEqual(before[0] + 1, invalidations(conduit),
+                        "invalidations after the chest's chunk left"))
+                .thenIdle(3).thenExecute(() -> {
+                    helper.assertValueEqual(before[0] + 1, invalidations(conduit), "invalidations a few ticks later");
+                    helper.assertTrue(level.getChunkSource().getChunkNow(chestChunkX, chunkZ) == null,
+                            "the chest's chunk is still at full status");
+                    helper.assertTrue(attachment(helper, conduit, Direction.EAST).isEmpty(),
+                            "the chest in the chunk that left is still held");
+                    level.setChunkForced(chestChunkX, chunkZ, true);
+                }).thenWaitUntil(() -> helper.assertValueEqual(before[0] + 2, invalidations(conduit),
+                        "invalidations after the chest's chunk came back"))
+                .thenExecute(() -> {
+                    helper.assertTrue(attachment(helper, conduit, Direction.EAST).isPresent(),
+                            "the chest is not held again");
+                    level.setBlock(conduit, Blocks.AIR.defaultBlockState(), quiet);
+                    level.setBlock(chest, Blocks.AIR.defaultBlockState(), quiet);
+                    level.setChunkForced(chestChunkX, chunkZ, false);
+                    level.setChunkForced(anchorX, chunkZ, false);
+                }).thenSucceed();
+    }
+
+    /**
+     * A saved conduit and the chest across its chunk border, both unloaded, are loaded again by forcing both chunks in
+     * the same tick: the conduit holds the chest afterwards, whichever chunk's load comes first. Nothing else holds
+     * them, so un-forcing both unloads them for real (their block entities are removed).
+     */
+    private static void attachChunksTogether(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        int conduitChunkX = 6200;
+        int chestChunkX = conduitChunkX + 1;
+        int chunkZ = 6200;
+        int y = helper.absolutePos(BlockPos.ZERO).getY();
+        BlockPos conduit = new BlockPos(conduitChunkX * 16 + 15, y, chunkZ * 16 + 8);
+        BlockPos chest = conduit.east();
+        int quiet = Block.UPDATE_CLIENTS | Block.UPDATE_KNOWN_SHAPE;
+        Block block = Conduits.blockOf(ATTACHING.type().get())
+                .orElseThrow(() -> helper.assertionException("the attaching type has no block"));
+        BlockEntity[] first = new BlockEntity[2];
+        helper.startSequence().thenExecute(() -> {
+            level.setChunkForced(conduitChunkX, chunkZ, true);
+            level.setChunkForced(chestChunkX, chunkZ, true);
+        }).thenWaitUntil(() -> {
+            helper.assertTrue(level.getChunkSource().getChunkNow(conduitChunkX, chunkZ) != null,
+                    "the conduit's chunk is not at full status yet");
+            helper.assertTrue(level.getChunkSource().getChunkNow(chestChunkX, chunkZ) != null,
+                    "the chest's chunk is not at full status yet");
+        }).thenExecute(() -> {
+            level.setBlock(chest, Blocks.CHEST.defaultBlockState(), quiet);
+            level.setBlock(conduit, block.defaultBlockState(), quiet);
+        }).thenIdle(2).thenExecute(() -> {
+            helper.assertTrue(attachment(helper, conduit, Direction.EAST).isPresent(), "the chest is not held");
+            first[0] = blockEntity(helper, conduit);
+            first[1] = blockEntity(helper, chest);
+            level.setChunkForced(conduitChunkX, chunkZ, false);
+            level.setChunkForced(chestChunkX, chunkZ, false);
+        }).thenWaitUntil(() -> helper.assertTrue(first[0].isRemoved() && first[1].isRemoved(),
+                "the chunks have not unloaded yet")).thenExecute(() -> {
+                    level.setChunkForced(conduitChunkX, chunkZ, true);
+                    level.setChunkForced(chestChunkX, chunkZ, true);
+                }).thenWaitUntil(() -> {
+                    helper.assertTrue(level.getChunkSource().getChunkNow(conduitChunkX, chunkZ) != null,
+                            "the conduit's chunk is not back");
+                    helper.assertTrue(level.getChunkSource().getChunkNow(chestChunkX, chunkZ) != null,
+                            "the chest's chunk is not back");
+                }).thenIdle(3).thenExecute(() -> {
+                    helper.assertTrue(attachment(helper, conduit, Direction.EAST).isPresent(),
+                            "the reloaded conduit does not hold the reloaded chest");
+                    level.setBlock(conduit, Blocks.AIR.defaultBlockState(), quiet);
+                    level.setBlock(chest, Blocks.AIR.defaultBlockState(), quiet);
+                    level.setChunkForced(conduitChunkX, chunkZ, false);
+                    level.setChunkForced(chestChunkX, chunkZ, false);
                 }).thenSucceed();
     }
 

@@ -199,14 +199,16 @@ public final class Conduits {
          * {@code NetworkLogic.onNodeInvalidated} for the conduit's node once, in the next network tick, together with
          * any link change of the same update (one invalidation, not two). Lib notices it in the neighbour updates a
          * block change sends ({@code Level.setBlock} with neighbour updates: placing, breaking or replacing a block),
-         * and when the chunk across a chunk border reaches full status, which sends no neighbour update. It compares
-         * block entity instances, so a neighbour that reloads with its chunk counts as replaced. Nothing polls and
-         * nothing ticks; a conduit without it ignores block entities as before.
+         * and when the chunk across a chunk border reaches or leaves full status, which sends no neighbour update (a
+         * side in a chunk that left has no block entity). It compares block entity instances, so a neighbour that
+         * reloads with its chunk counts as replaced. Nothing polls and nothing ticks; a conduit without it ignores
+         * block entities as before.
          * <p>
          * Not noticed: a block entity set or removed without a block change ({@code Level.setBlockEntity},
-         * {@code Level.removeBlockEntity}), a neighbour's chunk unloading (check {@link Conduits#isChunkPresent} before
-         * using what was found), and changes inside a block entity, such as a container's contents. A conduit just
-         * placed or loaded reports {@code onNodeAdded} instead, so the logic scans its attachments there too.
+         * {@code Level.removeBlockEntity}) and changes inside a block entity, such as a container's contents. Skip
+         * sides where {@link Conduits#isChunkPresent} is false when scanning: reading a block there loads its chunk. A
+         * conduit just placed or loaded reports {@code onNodeAdded} instead, so the logic scans its attachments there
+         * too.
          * <p>
          * Experimental (Lib 0.15.0, for Farms, FM1).
          */

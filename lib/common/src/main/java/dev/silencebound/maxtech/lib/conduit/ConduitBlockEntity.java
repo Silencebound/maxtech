@@ -222,6 +222,7 @@ public final class ConduitBlockEntity extends BlockEntity implements ConduitHost
         int mask = conduit.connections();
         int conduitFaces = conduit.conduitFaces();
         int modes = conduit.faceModes();
+        boolean attachmentsChanged = false;
         for (Direction side : Direction.values()) {
             int bit = ConduitConnections.bit(side);
             ConduitFaceMode own = conduit.faceMode(side);
@@ -231,9 +232,12 @@ public final class ConduitBlockEntity extends BlockEntity implements ConduitHost
                 if (own == ConduitFaceMode.DISABLED) {
                     mask &= ~bit;
                 }
+                attachmentsChanged |= noteAttachment(side, null);
                 continue;
             }
-            ConduitData other = linkable(side, level.getBlockEntity(neighbourPos));
+            BlockEntity neighbour = level.getBlockEntity(neighbourPos);
+            attachmentsChanged |= noteAttachment(side, neighbour);
+            ConduitData other = linkable(side, neighbour);
             if (other == null) {
                 conduitFaces &= ~bit;
                 mask &= ~bit;
@@ -260,7 +264,6 @@ public final class ConduitBlockEntity extends BlockEntity implements ConduitHost
             conduit.setConduitFaces(conduitFaces);
             changed = true;
         }
-        boolean attachmentsChanged = updateAttachments();
         if (mask != conduit.connections() || modes != conduit.faceModes()) {
             conduit.setConnections(mask);
             changed = true;
@@ -277,10 +280,9 @@ public final class ConduitBlockEntity extends BlockEntity implements ConduitHost
 
     /**
      * Re-reads the block entities beside a conduit that attaches to blocks; returns whether one appeared, went or was
-     * replaced. Sides whose chunk isn't present keep what was seen there. Runs on neighbour updates and chunk arrivals,
-     * never per tick; returns at once for every other conduit.
+     * replaced. A side whose chunk isn't present has none, so a conduit lets go of a block entity whose chunk left.
+     * Runs on chunk arrivals and departures and on load, never per tick; returns at once for every other conduit.
      */
-    @SuppressWarnings("ReferenceEquality") // The instance is the point: a replaced or reloaded neighbour is new.
     private boolean updateAttachments() {
         if (attached.length == 0 || level == null) {
             return false;
@@ -288,25 +290,40 @@ public final class ConduitBlockEntity extends BlockEntity implements ConduitHost
         boolean changed = false;
         for (Direction side : Direction.values()) {
             BlockPos neighbourPos = worldPosition.relative(side);
-            if (!isChunkPresent(level, neighbourPos.getX(), neighbourPos.getZ())) {
-                continue;
-            }
-            BlockEntity found = level.getBlockEntity(neighbourPos);
-            if (found instanceof ConduitBlockEntity) {
-                // Conduits are links, which invalidate on their own.
-                found = null;
-            }
-            int index = side.get3DDataValue();
-            if (attached[index] != found) {
-                attached[index] = found;
-                changed = true;
-            }
+            changed |= noteAttachment(side,
+                    isChunkPresent(level, neighbourPos.getX(), neighbourPos.getZ())
+                            ? level.getBlockEntity(neighbourPos)
+                            : null);
         }
         return changed;
     }
 
-    /** A chunk across a border of this conduit reached full status ({@link ConduitAttachments}). */
-    void neighbourChunkArrived() {
+    /** Records {@code found} as the block entity on {@code side}; returns whether it differs from the last one seen. */
+    @SuppressWarnings("ReferenceEquality") // The instance is the point: a replaced or reloaded neighbour is new.
+    private boolean noteAttachment(Direction side, @Nullable BlockEntity found) {
+        if (attached.length == 0) {
+            return false;
+        }
+        // Conduits are links, which invalidate on their own.
+        BlockEntity attachment = found instanceof ConduitBlockEntity ? null : found;
+        int index = side.get3DDataValue();
+        if (attached[index] == attachment) {
+            return false;
+        }
+        attached[index] = attachment;
+        return true;
+    }
+
+    /**
+     * The block entity this conduit last saw on {@code side}, if it attaches to blocks; empty otherwise. Internal, for
+     * tests: network logic reads its attachments from the level.
+     */
+    public Optional<BlockEntity> attachment(Direction side) {
+        return attached.length == 0 ? Optional.empty() : Optional.ofNullable(attached[side.get3DDataValue()]);
+    }
+
+    /** A chunk across a border of this conduit reached or left full status ({@link ConduitAttachments}). */
+    void neighbourChunkChanged() {
         if (updateAttachments()) {
             updateNode(NodeChange.INVALIDATE);
         }
