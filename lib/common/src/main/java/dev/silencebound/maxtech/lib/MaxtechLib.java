@@ -1,5 +1,6 @@
 package dev.silencebound.maxtech.lib;
 
+import dev.silencebound.maxtech.lib.api.energy.EnergyNetworks;
 import dev.silencebound.maxtech.lib.api.registry.Registrar;
 import dev.silencebound.maxtech.lib.api.registry.Registrars;
 import dev.silencebound.maxtech.lib.config.LibConfigFactory;
@@ -44,6 +45,7 @@ public final class MaxtechLib {
         });
         ServerConfig.register();
         OwnerSecurity.setOpsBypassSource(() -> ServerConfig.loadedOr(ServerConfig.OPS_BYPASS_OWNERSHIP, true));
+        EnergyNetworks.setFeRateSource(ServerConfig::feRate);
         ClientConfig.register();
         ModContent.init();
         Highlights.register();

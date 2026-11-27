@@ -1,6 +1,7 @@
 package dev.silencebound.maxtech.lib.api.energy;
 
 import java.util.function.Function;
+import java.util.function.Supplier;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import org.jetbrains.annotations.ApiStatus;
@@ -27,12 +28,29 @@ public final class EnergyNetworks {
         throw new IllegalStateException("MaxTech Lib has not set up energy schedulers yet");
     };
 
+    private static volatile Supplier<FeRate> feRate = () -> FeRate.ONE_TO_ONE;
+
     private EnergyNetworks() {
+    }
+
+    /**
+     * The server's configured FE exchange rate ({@code energy.feRateFe} FE are worth {@code energy.feRateMu} MU), or
+     * {@link FeRate#ONE_TO_ONE} while no server config is loaded. For an addon's own FE edges, such as an item that
+     * shows its MU to other mods' chargers as FE. Server thread.
+     */
+    public static FeRate feRate() {
+        return feRate.get();
     }
 
     /** {@code level}'s energy scheduler, made on first use. */
     public static EnergyScheduler of(ServerLevel level) {
         return levels.apply(level);
+    }
+
+    /** Sets where {@link #feRate} reads the configured rate; Lib calls it once during init. */
+    @ApiStatus.Internal
+    public static void setFeRateSource(Supplier<FeRate> source) {
+        feRate = source;
     }
 
     /** Sets where {@link #of} finds a level's scheduler; Lib calls it once during init. */
