@@ -44,8 +44,9 @@ public interface ConduitView {
     ConduitFaceMode faceMode(Direction side);
 
     /**
-     * The state {@link ConduitType#createState()} made for this conduit, or empty if the type keeps none. On the client
-     * it exists but stays empty, since it is never synced.
+     * The state {@link ConduitType#createState()} made for this conduit, or empty if the type keeps none. It exists on
+     * the client too, but only states Lib syncs itself (Storage's cable parts) carry anything there; an addon's state
+     * stays as created, since {@link ConduitState} is saved, not synced.
      */
     Optional<ConduitState> findState();
 

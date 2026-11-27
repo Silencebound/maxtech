@@ -43,11 +43,12 @@ public final class Conduits {
      * block for it and the item it is placed from, all under {@code name}. {@code type} gets the item, resolved lazily,
      * since the type is built before items register. Call during mod construction, like any registrar.
      * <p>
-     * The addon ships the resources by hand: the block state file {@code assets/<modid>/blockstates/<name>.json} with
-     * one variant {@code ""} whose model is {@code {"type": "maxtech_lib:conduit", ...}} plus the fields of
-     * {@link ConduitLook#CODEC}, the item model, the English name, and the loot table
-     * {@code data/<modid>/loot_table/blocks/<name>.json} (normally dropping the block's item; a facade drops on its
-     * own).
+     * Lib's conduit model draws the block. With a {@link Builder#look look}, Lib supplies the block state file
+     * ({@code assets/<modid>/blockstates/<name>.json}) and the item model definition
+     * ({@code assets/<modid>/items/<name>.json}, naming the model {@code <modid>:item/<name>}) from a built-in client
+     * pack below the mods' own resources, so a file the addon ships still wins. The addon ships that item model and the
+     * English name; a loot table ({@code data/<modid>/loot_table/blocks/<name>.json}) only if the conduit should drop
+     * something other than its item, which Lib drops without one (a facade drops on its own either way).
      */
     public static <T extends ConduitType> Builder<T> builder(String modId, String name,
             Function<Supplier<ItemLike>, T> type) {
@@ -128,6 +129,7 @@ public final class Conduits {
         private final String name;
         private final Function<Supplier<ItemLike>, T> type;
         private Optional<ResourceKey<CreativeModeTab>> creativeTab = Optional.empty();
+        private Optional<ConduitLook> look = Optional.empty();
         private ConduitWrenchHook wrench = ConduitWrenchHook.NONE;
         private ConduitConnectionRule connectionRule = ConduitConnectionRule.ANY;
 
@@ -143,6 +145,15 @@ public final class Conduits {
          */
         public Builder<T> creativeTab(ResourceKey<CreativeModeTab> tab) {
             this.creativeTab = Optional.of(tab);
+            return this;
+        }
+
+        /**
+         * How the block is drawn. Lib then supplies the conduit's block state file and item model definition (see
+         * {@link Conduits#builder}); without a look the addon ships both itself.
+         */
+        public Builder<T> look(ConduitLook look) {
+            this.look = Optional.of(look);
             return this;
         }
 
@@ -163,7 +174,7 @@ public final class Conduits {
 
         /** Queues the type, block and item for registration and returns their entries. */
         public ConduitEntry<T> register() {
-            return factory.register(new Registration<>(modId, name, type, creativeTab, wrench, connectionRule));
+            return factory.register(new Registration<>(modId, name, type, creativeTab, look, wrench, connectionRule));
         }
     }
 
@@ -180,6 +191,8 @@ public final class Conduits {
      *            makes the conduit type from its lazily resolved item
      * @param creativeTab
      *            the tab to list the item in, if any
+     * @param look
+     *            how the block is drawn, if Lib supplies its resources
      * @param wrench
      *            the wrench hook
      * @param connectionRule
@@ -187,7 +200,7 @@ public final class Conduits {
      */
     @ApiStatus.Internal
     public record Registration<T extends ConduitType>(String modId, String name, Function<Supplier<ItemLike>, T> type,
-            Optional<ResourceKey<CreativeModeTab>> creativeTab, ConduitWrenchHook wrench,
+            Optional<ResourceKey<CreativeModeTab>> creativeTab, Optional<ConduitLook> look, ConduitWrenchHook wrench,
             ConduitConnectionRule connectionRule) {
     }
 

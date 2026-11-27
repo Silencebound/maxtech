@@ -24,8 +24,9 @@ import org.jspecify.annotations.Nullable;
 
 /**
  * Lib's side of the api's {@link Conduits}: addons' conduits go through the same {@link ConduitBuilder} and
- * {@link ConduitBlock} as Storage's cables, with their hooks in the block instead of a subclass. Nothing is declared
- * for datagen that anyone reads (addons ship their resources by hand), so the item model is a placeholder.
+ * {@link ConduitBlock} as Storage's cables, with their hooks in the block instead of a subclass. No datagen reads their
+ * declarations (Lib serves a conduit's block state and item definition from {@link ConduitAssets}), so the item model
+ * is only recorded.
  */
 public final class LibConduits implements Conduits.Factory {
     // One content builder per addon, so its registrars exist once.
@@ -36,10 +37,13 @@ public final class LibConduits implements Conduits.Factory {
             Conduits.Registration<T> registration) {
         Content content = contents.computeIfAbsent(registration.modId(), Content::create);
         ConduitHooks hooks = new ConduitHooks(registration.wrench(), registration.connectionRule());
-        ConduitEntry<T> entry = content.conduit(registration.name(), registration.type())
+        ConduitBuilder<T> builder = content.conduit(registration.name(), registration.type())
                 .model(ItemModel
                         .existing(Identifier.fromNamespaceAndPath(registration.modId(), "item/" + registration.name())))
-                .block((properties, type) -> new ConduitBlock(properties, type, hooks)).register();
+                .block((properties, type) -> new ConduitBlock(properties, type, hooks));
+        registration.look().ifPresent(builder::look);
+        ConduitEntry<T> entry = builder.register();
+        registration.look().ifPresent(look -> ConduitAssets.add(entry.block().id(), look));
         registration.creativeTab().ifPresent(tab -> CreativeTabAdditions.add(tab, entry.item()));
         return entry;
     }

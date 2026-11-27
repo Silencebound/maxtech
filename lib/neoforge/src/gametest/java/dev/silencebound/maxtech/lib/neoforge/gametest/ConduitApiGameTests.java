@@ -3,6 +3,7 @@ package dev.silencebound.maxtech.lib.neoforge.gametest;
 import dev.silencebound.maxtech.lib.api.conduit.ConduitEntry;
 import dev.silencebound.maxtech.lib.api.conduit.ConduitFaceMode;
 import dev.silencebound.maxtech.lib.api.conduit.ConduitHost;
+import dev.silencebound.maxtech.lib.api.conduit.ConduitLook;
 import dev.silencebound.maxtech.lib.api.conduit.ConduitType;
 import dev.silencebound.maxtech.lib.api.conduit.Conduits;
 import dev.silencebound.maxtech.lib.api.network.Network;
@@ -31,6 +32,7 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.CreativeModeTab;
 import net.minecraft.world.item.CreativeModeTabs;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
@@ -40,8 +42,9 @@ import net.neoforged.neoforge.event.RegisterGameTestsEvent;
 
 /**
  * An addon's conduit through the api alone ({@link Conduits}, {@code lib.api.network}), as Farms builds its lab tubes:
- * no Lib internals here on purpose, so a missing api piece fails to compile. The test conduit refuses vertical links
- * through its connection rule and takes a plain wrench itself.
+ * no Lib internals here on purpose, so a missing api piece fails to compile. The test conduit refuses links on its top
+ * face through its connection rule (one-sided, so the neighbour's rule must be asked too) and takes a plain wrench
+ * itself.
  */
 @EventBusSubscriber(modid = ConduitApiGameTests.MOD_ID)
 public final class ConduitApiGameTests {
@@ -61,13 +64,19 @@ public final class ConduitApiGameTests {
 
     private static final ConduitEntry<ConduitType> CONDUIT = Conduits
             .builder(MOD_ID, "test_api_conduit", item -> new ConduitType(NETWORK_ID, "test", 0x55AA55, 0.25F, item))
-            .creativeTab(CreativeModeTabs.REDSTONE_BLOCKS).connectionRule((conduit, side, neighbour) -> {
+            .look(ConduitLook.DEFAULT).creativeTab(CreativeModeTabs.REDSTONE_BLOCKS)
+            .connectionRule((conduit, side, neighbour) -> {
                 RULE_CALLS.incrementAndGet();
-                return side.getAxis() != Direction.Axis.Y;
+                return side != Direction.UP;
             }).onWrench((level, conduit, player, hit, dismantle) -> {
                 WRENCH_CALLS.incrementAndGet();
                 return dismantle ? InteractionResult.PASS : InteractionResult.SUCCESS;
             }).register();
+
+    /** Ships a loot table of its own ({@code data/maxtech_lib/loot_table/blocks/test_api_conduit_loot.json}). */
+    private static final ConduitEntry<ConduitType> LOOT_CONDUIT = Conduits
+            .builder(MOD_ID, "test_api_conduit_loot", item -> new ConduitType(NETWORK_ID, "loot", 0x55AA55, item))
+            .register();
 
     private static final Registrar<Consumer<GameTestHelper>> FUNCTIONS = Registrars.create(MOD_ID,
             Registries.TEST_FUNCTION);
@@ -77,6 +86,8 @@ public final class ConduitApiGameTests {
         test("conduit_api_network", ConduitApiGameTests::network);
         test("conduit_api_wrench_hook", ConduitApiGameTests::wrenchHook);
         test("conduit_api_creative_tab", ConduitApiGameTests::creativeTab);
+        test("conduit_api_drops_itself", ConduitApiGameTests::dropsItself);
+        test("conduit_api_loot_table_wins", ConduitApiGameTests::lootTableWins);
     }
 
     private ConduitApiGameTests() {
@@ -100,7 +111,8 @@ public final class ConduitApiGameTests {
 
     /**
      * A row of three conduits forms one network of the addon's type; a fourth on top of the middle one is refused by
-     * the rule, so it stays a network of its own and the middle conduit shows no face towards it.
+     * the middle one's rule, so it stays a network of its own: neither side links or shows a face, although the top
+     * conduit's own rule allows its bottom face.
      */
     private static void network(GameTestHelper helper) {
         BlockPos[] row = {new BlockPos(1, 0, 1), new BlockPos(2, 0, 1), new BlockPos(3, 0, 1)};
@@ -127,6 +139,9 @@ public final class ConduitApiGameTests {
             helper.assertValueEqual(2, Integer.bitCount(middle.connections()), "links of the middle conduit");
             helper.assertValueEqual(0, middle.conduitFaces() & (1 << Direction.UP.get3DDataValue()),
                     "a refused side counted as a conduit face");
+            ConduitHost upper = host(helper, top);
+            helper.assertValueEqual(0, upper.connections() & (1 << Direction.DOWN.get3DDataValue()),
+                    "the top conduit linked down although the conduit below refuses");
             helper.assertTrue(middle.findFacade().isEmpty() && middle.dyeColour().isEmpty(),
                     "a fresh conduit has a facade or a colour");
         });
@@ -164,6 +179,27 @@ public final class ConduitApiGameTests {
         }
         helper.assertTrue(listed, "the conduit is not in its creative tab");
         helper.assertTrue(Conduits.blockOf(CONDUIT.type().get()).isPresent(), "the type has no block");
+        helper.succeed();
+    }
+
+    /** A conduit whose mod ships no loot table drops its own item when mined. */
+    private static void dropsItself(GameTestHelper helper) {
+        BlockPos pos = new BlockPos(1, 0, 1);
+        helper.assertTrue(Conduits.place(helper.getLevel(), helper.absolutePos(pos), CONDUIT.type().get()),
+                "conduit not placed");
+        helper.getLevel().destroyBlock(helper.absolutePos(pos), true);
+        helper.assertItemEntityPresent(CONDUIT.item().get(), pos, 2.0);
+        helper.succeed();
+    }
+
+    /** A loot table the mod ships decides the drops: a stick here, not the conduit. */
+    private static void lootTableWins(GameTestHelper helper) {
+        BlockPos pos = new BlockPos(1, 0, 1);
+        helper.assertTrue(Conduits.place(helper.getLevel(), helper.absolutePos(pos), LOOT_CONDUIT.type().get()),
+                "conduit not placed");
+        helper.getLevel().destroyBlock(helper.absolutePos(pos), true);
+        helper.assertItemEntityPresent(Items.STICK, pos, 2.0);
+        helper.assertItemEntityNotPresent(LOOT_CONDUIT.item().get(), pos, 2.0);
         helper.succeed();
     }
 
