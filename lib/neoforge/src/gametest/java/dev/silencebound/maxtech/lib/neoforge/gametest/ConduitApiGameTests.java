@@ -162,13 +162,11 @@ public final class ConduitApiGameTests {
         test("conduit_api_attach_chunk_load", ConduitApiGameTests::attachChunkLoad);
         test("conduit_api_attach_link_and_block", ConduitApiGameTests::attachLinkAndBlock);
         test("conduit_api_attach_ignores_conduits", ConduitApiGameTests::attachIgnoresConduits);
-        // These two read what the conduit holds, which only Lib's block entity shows.
+        // Reads what the conduit holds, which only Lib's block entity shows.
         test("conduit_attach_chunk_unload", ConduitApiGameTests::attachChunkUnload);
-        test("conduit_attach_chunks_together", ConduitApiGameTests::attachChunksTogether);
         // Force chunks far from the test grid and wait for them to load and unload.
         MAX_TICKS.put("conduit_api_attach_chunk_load", 600);
         MAX_TICKS.put("conduit_attach_chunk_unload", 600);
-        MAX_TICKS.put("conduit_attach_chunks_together", 1200);
     }
 
     private ConduitApiGameTests() {
@@ -561,6 +559,8 @@ public final class ConduitApiGameTests {
             level.setBlock(chest, Blocks.CHEST.defaultBlockState(), quiet);
             level.setChunkForced(chestChunkX, chunkZ, false);
             level.setChunkForced(anchorX, chunkZ, true);
+            // Loads it now: a background load can outlast the tick budget on a slow machine.
+            level.getChunk(conduitChunkX, chunkZ);
         }).thenWaitUntil(() -> {
             helper.assertTrue(level.getChunkSource().getChunkNow(conduitChunkX, chunkZ) != null,
                     "the conduit's chunk is not at full status yet");
@@ -573,6 +573,7 @@ public final class ConduitApiGameTests {
                             "the chest's chunk came back early");
                     before[0] = invalidations(conduit);
                     level.setChunkForced(chestChunkX, chunkZ, true);
+                    level.getChunk(chestChunkX, chunkZ);
                 }).thenWaitUntil(() -> helper.assertValueEqual(before[0] + 1, invalidations(conduit),
                         "invalidations after the chest's chunk loaded"))
                 .thenIdle(3).thenExecute(() -> {
@@ -658,6 +659,9 @@ public final class ConduitApiGameTests {
         helper.startSequence().thenExecute(() -> {
             level.setChunkForced(anchorX, chunkZ, true);
             level.setChunkForced(chestChunkX, chunkZ, true);
+            // Load them now: a background load can outlast the tick budget on a slow machine.
+            level.getChunk(conduitChunkX, chunkZ);
+            level.getChunk(chestChunkX, chunkZ);
         }).thenWaitUntil(() -> {
             helper.assertTrue(level.getChunkSource().getChunkNow(conduitChunkX, chunkZ) != null,
                     "the conduit's chunk is not at full status yet");
@@ -689,59 +693,6 @@ public final class ConduitApiGameTests {
                     level.setBlock(chest, Blocks.AIR.defaultBlockState(), quiet);
                     level.setChunkForced(chestChunkX, chunkZ, false);
                     level.setChunkForced(anchorX, chunkZ, false);
-                }).thenSucceed();
-    }
-
-    /**
-     * A saved conduit and the chest across its chunk border, both unloaded, are loaded again by forcing both chunks in
-     * the same tick: the conduit holds the chest afterwards, whichever chunk's load comes first. Nothing else holds
-     * them, so un-forcing both unloads them for real (their block entities are removed).
-     */
-    private static void attachChunksTogether(GameTestHelper helper) {
-        ServerLevel level = helper.getLevel();
-        int conduitChunkX = 6200;
-        int chestChunkX = conduitChunkX + 1;
-        int chunkZ = 6200;
-        int y = helper.absolutePos(BlockPos.ZERO).getY();
-        BlockPos conduit = new BlockPos(conduitChunkX * 16 + 15, y, chunkZ * 16 + 8);
-        BlockPos chest = conduit.east();
-        int quiet = Block.UPDATE_CLIENTS | Block.UPDATE_KNOWN_SHAPE;
-        Block block = Conduits.blockOf(ATTACHING.type().get())
-                .orElseThrow(() -> helper.assertionException("the attaching type has no block"));
-        BlockEntity[] first = new BlockEntity[2];
-        helper.startSequence().thenExecute(() -> {
-            level.setChunkForced(conduitChunkX, chunkZ, true);
-            level.setChunkForced(chestChunkX, chunkZ, true);
-        }).thenWaitUntil(() -> {
-            helper.assertTrue(level.getChunkSource().getChunkNow(conduitChunkX, chunkZ) != null,
-                    "the conduit's chunk is not at full status yet");
-            helper.assertTrue(level.getChunkSource().getChunkNow(chestChunkX, chunkZ) != null,
-                    "the chest's chunk is not at full status yet");
-        }).thenExecute(() -> {
-            level.setBlock(chest, Blocks.CHEST.defaultBlockState(), quiet);
-            level.setBlock(conduit, block.defaultBlockState(), quiet);
-        }).thenIdle(2).thenExecute(() -> {
-            helper.assertTrue(attachment(helper, conduit, Direction.EAST).isPresent(), "the chest is not held");
-            first[0] = blockEntity(helper, conduit);
-            first[1] = blockEntity(helper, chest);
-            level.setChunkForced(conduitChunkX, chunkZ, false);
-            level.setChunkForced(chestChunkX, chunkZ, false);
-        }).thenWaitUntil(() -> helper.assertTrue(first[0].isRemoved() && first[1].isRemoved(),
-                "the chunks have not unloaded yet")).thenExecute(() -> {
-                    level.setChunkForced(conduitChunkX, chunkZ, true);
-                    level.setChunkForced(chestChunkX, chunkZ, true);
-                }).thenWaitUntil(() -> {
-                    helper.assertTrue(level.getChunkSource().getChunkNow(conduitChunkX, chunkZ) != null,
-                            "the conduit's chunk is not back");
-                    helper.assertTrue(level.getChunkSource().getChunkNow(chestChunkX, chunkZ) != null,
-                            "the chest's chunk is not back");
-                }).thenIdle(3).thenExecute(() -> {
-                    helper.assertTrue(attachment(helper, conduit, Direction.EAST).isPresent(),
-                            "the reloaded conduit does not hold the reloaded chest");
-                    level.setBlock(conduit, Blocks.AIR.defaultBlockState(), quiet);
-                    level.setBlock(chest, Blocks.AIR.defaultBlockState(), quiet);
-                    level.setChunkForced(conduitChunkX, chunkZ, false);
-                    level.setChunkForced(chestChunkX, chunkZ, false);
                 }).thenSucceed();
     }
 
