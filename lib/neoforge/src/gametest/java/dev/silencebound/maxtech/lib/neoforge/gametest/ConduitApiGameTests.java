@@ -16,7 +16,9 @@ import dev.silencebound.maxtech.lib.api.network.NetworkType;
 import dev.silencebound.maxtech.lib.api.registry.Registrar;
 import dev.silencebound.maxtech.lib.api.registry.Registrars;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
@@ -32,6 +34,7 @@ import net.minecraft.gametest.framework.TestEnvironmentDefinition;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.ProblemReporter;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
@@ -40,6 +43,8 @@ import net.minecraft.world.item.CreativeModeTabs;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.GameType;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.storage.TagValueInput;
 import net.minecraft.world.level.chunk.LevelChunk;
@@ -107,9 +112,36 @@ public final class ConduitApiGameTests {
             .builder(MOD_ID, "test_hooked_tube", item -> new ConduitType(NETWORK_ID, "hooked", 0xAA7744, 0.25F, item))
             .look(ConduitLook.DEFAULT).customModel(false).register();
 
+    private static final Identifier ATTACH_NETWORK_ID = Identifier.fromNamespaceAndPath(MOD_ID, "test_attach_network");
+    // onNodeInvalidated calls by packed position; server thread only.
+    private static final Map<Long, Integer> INVALIDATIONS = new HashMap<>();
+
+    private static final NetworkType ATTACH_NETWORK = NetworkType.register(ATTACH_NETWORK_ID,
+            level -> Conduits.connectivity(level, ATTACH_NETWORK_ID), level -> new NetworkLogic() {
+                @Override
+                public void onNodeInvalidated(Network network, long pos) {
+                    INVALIDATIONS.merge(pos, 1, Integer::sum);
+                }
+
+                @Override
+                public void tick(Network network) {
+                }
+            });
+
+    /** Notices the block entities beside it. */
+    private static final ConduitEntry<ConduitType> ATTACHING = Conduits
+            .builder(MOD_ID, "test_attaching_conduit",
+                    item -> new ConduitType(ATTACH_NETWORK_ID, "attaching", 0x5555AA, 0.25F, item))
+            .attachesToBlocks().register();
+
+    /** The same network without the opt-in. */
+    private static final ConduitEntry<ConduitType> NOT_ATTACHING = Conduits.builder(MOD_ID, "test_plain_attach_conduit",
+            item -> new ConduitType(ATTACH_NETWORK_ID, "plain", 0x5555AA, 0.25F, item)).register();
+
     private static final Registrar<Consumer<GameTestHelper>> FUNCTIONS = Registrars.create(MOD_ID,
             Registries.TEST_FUNCTION);
     private static final List<String> TESTS = new ArrayList<>();
+    private static final Map<String, Integer> MAX_TICKS = new HashMap<>();
 
     static {
         test("conduit_api_network", ConduitApiGameTests::network);
@@ -124,6 +156,11 @@ public final class ConduitApiGameTests {
         test("conduit_api_custom_model_places", ConduitApiGameTests::customModelPlaces);
         test("conduit_api_shell_places", ConduitApiGameTests::shellPlaces);
         test("conduit_api_shell_contents_places", ConduitApiGameTests::shellContentsPlaces);
+        test("conduit_api_attach_place_remove", ConduitApiGameTests::attachPlaceRemove);
+        test("conduit_api_attach_unflagged", ConduitApiGameTests::attachUnflagged);
+        test("conduit_api_attach_chunk_load", ConduitApiGameTests::attachChunkLoad);
+        // Forces chunks far from the test grid and waits for them to load and unload.
+        MAX_TICKS.put("conduit_api_attach_chunk_load", 600);
     }
 
     private ConduitApiGameTests() {
@@ -141,7 +178,7 @@ public final class ConduitApiGameTests {
         for (String name : TESTS) {
             Identifier id = Identifier.fromNamespaceAndPath(MOD_ID, name);
             event.registerTest(id, new FunctionGameTestInstance(ResourceKey.create(Registries.TEST_FUNCTION, id),
-                    new TestData<>(environment, STRUCTURE, 100, 0, true)));
+                    new TestData<>(environment, STRUCTURE, MAX_TICKS.getOrDefault(name, 100), 0, true)));
         }
     }
 
@@ -422,6 +459,106 @@ public final class ConduitApiGameTests {
         helper.assertValueEqual(ConduitContents.EMPTY, loaded(helper, abs, unknown).contents(),
                 "contents naming an unknown fluid");
         helper.succeed();
+    }
+
+    private static int invalidations(BlockPos abs) {
+        return INVALIDATIONS.getOrDefault(abs.asLong(), 0);
+    }
+
+    /**
+     * A conduit that attaches to blocks reports a block entity placed beside it, replaced by another and removed again
+     * once each through {@code onNodeInvalidated}; a block without a block entity, and the placement of the conduit
+     * itself, report nothing.
+     */
+    private static void attachPlaceRemove(GameTestHelper helper) {
+        BlockPos pos = new BlockPos(2, 0, 1);
+        BlockPos side = pos.east();
+        BlockPos abs = helper.absolutePos(pos);
+        helper.assertTrue(Conduits.place(helper.getLevel(), abs, ATTACHING.type().get()), "conduit not placed");
+        NetworkManager manager = NetworkManager.get(helper.getLevel());
+        int[] before = new int[1];
+        helper.startSequence()
+                .thenWaitUntil(() -> helper.assertTrue(manager.network(ATTACH_NETWORK, abs) != null, "no network"))
+                .thenExecute(() -> {
+                    helper.assertValueEqual(0, invalidations(abs), "invalidations from the placement");
+                    helper.setBlock(pos.west(), Blocks.STONE);
+                }).thenIdle(2).thenExecute(() -> {
+                    helper.assertValueEqual(0, invalidations(abs), "invalidations from a block without block entity");
+                    before[0] = invalidations(abs);
+                    helper.setBlock(side, Blocks.CHEST);
+                }).thenIdle(2).thenExecute(() -> {
+                    helper.assertValueEqual(before[0] + 1, invalidations(abs), "invalidations after placing a chest");
+                    helper.setBlock(side, Blocks.BARREL);
+                }).thenIdle(2).thenExecute(() -> {
+                    helper.assertValueEqual(before[0] + 2, invalidations(abs), "invalidations after the replacement");
+                    helper.setBlock(side, Blocks.AIR);
+                }).thenIdle(2).thenExecute(() -> {
+                    helper.assertValueEqual(before[0] + 3, invalidations(abs), "invalidations after the removal");
+                }).thenSucceed();
+    }
+
+    /** A conduit without the opt-in ignores block entities appearing and going beside it, as before. */
+    private static void attachUnflagged(GameTestHelper helper) {
+        BlockPos pos = new BlockPos(2, 0, 1);
+        BlockPos side = pos.east();
+        BlockPos abs = helper.absolutePos(pos);
+        helper.assertTrue(Conduits.place(helper.getLevel(), abs, NOT_ATTACHING.type().get()), "conduit not placed");
+        NetworkManager manager = NetworkManager.get(helper.getLevel());
+        helper.startSequence()
+                .thenWaitUntil(() -> helper.assertTrue(manager.network(ATTACH_NETWORK, abs) != null, "no network"))
+                .thenExecute(() -> helper.setBlock(side, Blocks.CHEST)).thenIdle(2)
+                .thenExecute(() -> helper.setBlock(side, Blocks.AIR)).thenIdle(2)
+                .thenExecute(() -> helper.assertValueEqual(0, invalidations(abs), "invalidations of a plain conduit"))
+                .thenSucceed();
+    }
+
+    /**
+     * A chest across a chunk border whose chunk reaches full status only after the conduit is in place, so no neighbour
+     * update tells the conduit: it still reports the chest once. Far from the test grid, with real chunk tickets: one
+     * forced chunk keeps the conduit's chunk two chunks away at full status, while the chest's chunk next to it, three
+     * away, is not; forcing the chest's chunk brings it. Both blocks are set without neighbour or shape updates, which
+     * would read, and so load, the other chunk.
+     */
+    private static void attachChunkLoad(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        int anchorX = 6000;
+        int chunkZ = 6000;
+        int conduitChunkX = anchorX + 2;
+        int chestChunkX = anchorX + 3;
+        int y = helper.absolutePos(BlockPos.ZERO).getY();
+        BlockPos conduit = new BlockPos(conduitChunkX * 16 + 15, y, chunkZ * 16 + 8);
+        BlockPos chest = conduit.east();
+        int quiet = Block.UPDATE_CLIENTS | Block.UPDATE_KNOWN_SHAPE;
+        Block block = Conduits.blockOf(ATTACHING.type().get())
+                .orElseThrow(() -> helper.assertionException("the attaching type has no block"));
+        NetworkManager manager = NetworkManager.get(level);
+        int[] before = new int[1];
+        helper.startSequence().thenExecute(() -> {
+            level.setChunkForced(chestChunkX, chunkZ, true);
+            level.setBlock(chest, Blocks.CHEST.defaultBlockState(), quiet);
+            level.setChunkForced(chestChunkX, chunkZ, false);
+            level.setChunkForced(anchorX, chunkZ, true);
+        }).thenWaitUntil(() -> {
+            helper.assertTrue(level.getChunkSource().getChunkNow(conduitChunkX, chunkZ) != null,
+                    "the conduit's chunk is not at full status yet");
+            helper.assertTrue(level.getChunkSource().getChunkNow(chestChunkX, chunkZ) == null,
+                    "the chest's chunk is still at full status");
+        }).thenExecute(() -> level.setBlock(conduit, block.defaultBlockState(), quiet))
+                .thenWaitUntil(() -> helper.assertTrue(manager.network(ATTACH_NETWORK, conduit) != null, "no network"))
+                .thenIdle(2).thenExecute(() -> {
+                    helper.assertTrue(level.getChunkSource().getChunkNow(chestChunkX, chunkZ) == null,
+                            "the chest's chunk came back early");
+                    before[0] = invalidations(conduit);
+                    level.setChunkForced(chestChunkX, chunkZ, true);
+                }).thenWaitUntil(() -> helper.assertValueEqual(before[0] + 1, invalidations(conduit),
+                        "invalidations after the chest's chunk loaded"))
+                .thenIdle(3).thenExecute(() -> {
+                    helper.assertValueEqual(before[0] + 1, invalidations(conduit), "invalidations a few ticks later");
+                    level.setBlock(conduit, Blocks.AIR.defaultBlockState(), quiet);
+                    level.setBlock(chest, Blocks.AIR.defaultBlockState(), quiet);
+                    level.setChunkForced(chestChunkX, chunkZ, false);
+                    level.setChunkForced(anchorX, chunkZ, false);
+                }).thenSucceed();
     }
 
     /** A fluid instance outside the registry: created without its constructor, which would need an open registry. */

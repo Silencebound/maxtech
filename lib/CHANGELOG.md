@@ -18,6 +18,9 @@ Api changes are marked **Api**.
   facade tint extension was registered with no blocks, which NeoForge refuses.
 
 ### Added
+- **Api** `Conduits.Builder.attachesToBlocks()` (experimental, for Farms FM1): the conduit's network logic gets
+  `onNodeInvalidated` once whenever a block entity beside it appears, goes or is replaced, also when it arrives with
+  its chunk, so addon conduits no longer need their attachable blocks to poke them. Other conduits are unchanged.
 - The shell look draws a conduit's contents inside the glass: the fluid's own textures, tint and light, a fill level
   on horizontal pieces and a full column on vertical ones, the flowing texture along the flow from the upstream side
   and a second lane flowing back. **Api** `ConduitLook.Shell` gains optional `inset` and `lane_width` fields;

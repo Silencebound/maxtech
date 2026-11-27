@@ -134,6 +134,7 @@ public final class Conduits {
         private ConduitConnectionRule connectionRule = ConduitConnectionRule.ANY;
         private boolean customModel;
         private boolean translucent;
+        private boolean attachesToBlocks;
 
         private Builder(String modId, String name, Function<Supplier<ItemLike>, T> type) {
             this.modId = modId;
@@ -192,10 +193,33 @@ public final class Conduits {
             return this;
         }
 
+        /**
+         * Has the conduit notice block entities other than conduits appearing, disappearing or being replaced on its
+         * six sides, so the network logic can rescan what the conduit attaches to: each such change fires
+         * {@code NetworkLogic.onNodeInvalidated} for the conduit's node once, in the next network tick, together with
+         * any link change of the same update (one invalidation, not two). Lib notices it in the neighbour updates a
+         * block change sends ({@code Level.setBlock} with neighbour updates: placing, breaking or replacing a block),
+         * and when the chunk across a chunk border reaches full status, which sends no neighbour update. It compares
+         * block entity instances, so a neighbour that reloads with its chunk counts as replaced. Nothing polls and
+         * nothing ticks; a conduit without it ignores block entities as before.
+         * <p>
+         * Not noticed: a block entity set or removed without a block change ({@code Level.setBlockEntity},
+         * {@code Level.removeBlockEntity}), a neighbour's chunk unloading (check {@link Conduits#isChunkPresent} before
+         * using what was found), and changes inside a block entity, such as a container's contents. A conduit just
+         * placed or loaded reports {@code onNodeAdded} instead, so the logic scans its attachments there too.
+         * <p>
+         * Experimental (Lib 0.15.0, for Farms, FM1).
+         */
+        @ApiStatus.Experimental
+        public Builder<T> attachesToBlocks() {
+            this.attachesToBlocks = true;
+            return this;
+        }
+
         /** Queues the type, block and item for registration and returns their entries. */
         public ConduitEntry<T> register() {
             return factory.register(new Registration<>(modId, name, type, creativeTab, look, wrench, connectionRule,
-                    customModel, translucent));
+                    customModel, translucent, attachesToBlocks));
         }
     }
 
@@ -222,11 +246,13 @@ public final class Conduits {
      *            whether an addon hook draws the model ({@link Builder#customModel})
      * @param translucent
      *            whether that model has translucent quads
+     * @param attachesToBlocks
+     *            whether the conduit notices neighbouring block entities ({@link Builder#attachesToBlocks})
      */
     @ApiStatus.Internal
     public record Registration<T extends ConduitType>(String modId, String name, Function<Supplier<ItemLike>, T> type,
             Optional<ResourceKey<CreativeModeTab>> creativeTab, Optional<ConduitLook> look, ConduitWrenchHook wrench,
-            ConduitConnectionRule connectionRule, boolean customModel, boolean translucent) {
+            ConduitConnectionRule connectionRule, boolean customModel, boolean translucent, boolean attachesToBlocks) {
     }
 
     /** Lib's side of {@link Conduits}. */
