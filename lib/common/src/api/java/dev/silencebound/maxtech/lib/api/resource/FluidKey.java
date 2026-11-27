@@ -4,6 +4,7 @@ import com.mojang.serialization.DataResult;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import io.netty.handler.codec.DecoderException;
+import java.util.Optional;
 import net.minecraft.core.component.DataComponentPatch;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
@@ -33,6 +34,9 @@ public final class FluidKey implements StackKey {
     public static final StreamCodec<RegistryFriendlyByteBuf, FluidKey> STREAM_CODEC = StreamCodec.composite(
             ByteBufCodecs.registry(Registries.FLUID), FluidKey::fluid, DataComponentPatch.STREAM_CODEC,
             FluidKey::components, FluidKey::decoded);
+    /** {@link #STREAM_CODEC} behind a presence flag; empty for no fluid (an empty tank). */
+    public static final StreamCodec<RegistryFriendlyByteBuf, Optional<FluidKey>> OPTIONAL_STREAM_CODEC = ByteBufCodecs
+            .optional(STREAM_CODEC);
 
     private final Fluid fluid;
     private final DataComponentPatch components;
