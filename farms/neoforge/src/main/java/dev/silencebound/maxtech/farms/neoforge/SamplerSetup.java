@@ -40,7 +40,8 @@ final class SamplerSetup {
         if (!(event.getItemStack().getItem() instanceof SamplerItem)) {
             return;
         }
-        InteractionResult result = SamplerItem.startSampling(event.getEntity(), event.getHand(), event.getTarget());
+        InteractionResult result = SamplerItem.startSampling(event.getEntity(), event.getHand(), event.getTarget(),
+                true);
         if (result.consumesAction()) {
             event.setCancellationResult(result);
             event.setCanceled(true);
