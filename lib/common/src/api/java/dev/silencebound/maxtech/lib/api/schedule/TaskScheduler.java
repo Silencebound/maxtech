@@ -1,4 +1,4 @@
-package dev.silencebound.maxtech.lib.schedule;
+package dev.silencebound.maxtech.lib.api.schedule;
 
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import java.util.function.IntSupplier;
@@ -6,8 +6,8 @@ import java.util.function.LongSupplier;
 
 /**
  * The budgeted work queue of one level (PRD 7.2, Performance): {@link TaskGroup}s with their own budgets, a hashed
- * timer wheel for sleeping tasks, and exponential backoff for idle ones. {@link LevelTasks} owns one per level and runs
- * it each level tick, so storage devices, like machines, never tick on their own.
+ * timer wheel for sleeping tasks, and exponential backoff for idle ones. Lib owns one per level
+ * ({@link TaskSchedulers}) and runs it each level tick, so storage devices, like machines, never tick on their own.
  *
  * <p>
  * Sleeping costs nothing per tick but the wheel slot of the current tick: a task's timer sits in the slot of its due

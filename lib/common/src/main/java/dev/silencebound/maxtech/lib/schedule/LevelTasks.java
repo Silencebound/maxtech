@@ -1,5 +1,8 @@
 package dev.silencebound.maxtech.lib.schedule;
 
+import dev.silencebound.maxtech.lib.api.schedule.TaskGroup;
+import dev.silencebound.maxtech.lib.api.schedule.TaskScheduler;
+import dev.silencebound.maxtech.lib.api.schedule.TaskSchedulers;
 import dev.silencebound.maxtech.lib.config.ServerConfig;
 import dev.silencebound.maxtech.lib.platform.LifecycleEvents;
 import dev.silencebound.maxtech.lib.platform.Platform;
@@ -8,10 +11,10 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 
 /**
- * Owns one {@link TaskScheduler} per level and runs it from the level tick event, after the network manager. Entry
- * point for owners that run budgeted work in a level: {@code LevelTasks.newGroup(level)} gives a group with the
- * configured budgets ({@code scheduler.ownerBudgetMicros}, {@code scheduler.ownerOpsPerTick}). Schedulers and their
- * groups die with the server; an owner makes a new group when its level loads again. Server thread only; the tick
+ * Owns one {@link TaskScheduler} per level and runs it from the level tick event, after the network manager, and backs
+ * the api's {@link TaskSchedulers}. Lib-internal callers may still use {@code LevelTasks.newGroup(level)} for a group
+ * with the configured budgets ({@code scheduler.ownerBudgetMicros}, {@code scheduler.ownerOpsPerTick}). Schedulers and
+ * their groups die with the server; an owner makes a new group when its level loads again. Server thread only; the tick
  * allocates nothing.
  */
 public final class LevelTasks {
@@ -29,6 +32,7 @@ public final class LevelTasks {
         LifecycleEvents lifecycle = Platform.get().lifecycle();
         lifecycle.onServerLevelTickEnd(LevelTasks::tickLevel);
         lifecycle.onServerStopped(LevelTasks::clear);
+        TaskSchedulers.setLevelSource(LevelTasks::of, LevelTasks::newGroup);
     }
 
     /** The level's task scheduler, made on first use. */

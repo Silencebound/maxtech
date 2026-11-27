@@ -14,7 +14,7 @@ import dev.silencebound.maxtech.lib.network.Network;
 import dev.silencebound.maxtech.lib.network.NetworkGraph;
 import dev.silencebound.maxtech.lib.network.RouteTree;
 import dev.silencebound.maxtech.lib.schedule.LevelTasks;
-import dev.silencebound.maxtech.lib.schedule.TaskGroup;
+import dev.silencebound.maxtech.lib.api.schedule.TaskGroup;
 import dev.silencebound.maxtech.storage.api.StorageContents;
 import dev.silencebound.maxtech.storage.api.StorageDevice;
 import dev.silencebound.maxtech.storage.api.StorageNetwork;

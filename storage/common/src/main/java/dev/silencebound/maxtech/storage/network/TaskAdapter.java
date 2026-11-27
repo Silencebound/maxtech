@@ -1,8 +1,8 @@
 package dev.silencebound.maxtech.storage.network;
 
-import dev.silencebound.maxtech.lib.schedule.ScheduledTask;
-import dev.silencebound.maxtech.lib.schedule.TaskGroup;
-import dev.silencebound.maxtech.lib.schedule.TaskPriority;
+import dev.silencebound.maxtech.lib.api.schedule.ScheduledTask;
+import dev.silencebound.maxtech.lib.api.schedule.TaskGroup;
+import dev.silencebound.maxtech.lib.api.schedule.TaskPriority;
 
 /**
  * Runs one device's {@link StorageTask} in its network's Lib {@link TaskGroup}, handing it the network's transfer view
