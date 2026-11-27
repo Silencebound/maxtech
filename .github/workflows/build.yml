@@ -97,7 +97,6 @@ jobs:
         if: env.PUSH != 'true' && steps.areas.outputs.storage == 'true'
         run: ./gradlew :storage:neoforge:runGameTestServer --no-daemon
 
-      # Farms has no GameTests yet (FM1); the run still proves that Farms loads next to Lib on its api alone.
       - name: GameTests (farms)
         if: env.PUSH != 'true' && steps.areas.outputs.farms == 'true'
         run: ./gradlew :farms:neoforge:runGameTestServer --no-daemon
@@ -137,14 +136,20 @@ jobs:
           rm -rf storage/common/src/generated/resources/.cache
           ./gradlew :storage:neoforge:runData --no-daemon
 
+      - name: Datagen (farms)
+        if: env.PUSH != 'true' && steps.areas.outputs.farms == 'true'
+        run: |
+          rm -rf farms/common/src/generated/resources/.cache
+          ./gradlew :farms:neoforge:runData --no-daemon
+
       - name: Datagen up to date
         # A mod whose datagen did not run has an unchanged tree, so checking both paths is harmless.
         if: env.PUSH != 'true' && steps.areas.outputs.docs_only != 'true'
         run: |
           # A mod may have no generated data yet; keep the pathspecs valid.
-          mkdir -p lib/common/src/generated storage/common/src/generated
-          git add -N lib/common/src/generated storage/common/src/generated
-          git diff --exit-code -- lib/common/src/generated storage/common/src/generated
+          mkdir -p lib/common/src/generated storage/common/src/generated farms/common/src/generated
+          git add -N lib/common/src/generated storage/common/src/generated farms/common/src/generated
+          git diff --exit-code -- lib/common/src/generated storage/common/src/generated farms/common/src/generated
 
       - name: Upload jars
         if: steps.areas.outputs.docs_only != 'true'

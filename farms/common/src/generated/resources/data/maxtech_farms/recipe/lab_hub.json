@@ -1,18 +1,19 @@
 {
   "type": "minecraft:crafting_shaped",
-  "category": "equipment",
+  "category": "misc",
   "key": {
-    "B": "minecraft:glass_bottle",
     "C": "#c:ingots/copper",
+    "F": "#c:player_workstations/furnaces",
+    "G": "#c:glass_blocks",
     "I": "#c:ingots/iron",
     "R": "#c:dusts/redstone"
   },
   "pattern": [
-    " B ",
-    "IRI",
-    " C "
+    "IGI",
+    "CFC",
+    "IRI"
   ],
   "result": {
-    "id": "maxtech_farms:sampler"
+    "id": "maxtech_farms:lab_hub"
   }
 }
