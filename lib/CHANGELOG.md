@@ -11,6 +11,12 @@ Api changes are marked **Api**.
   facade tint extension was registered with no blocks, which NeoForge refuses.
 
 ### Added
+- **Api** Conduit contents (`lib.api.conduit.ConduitContents`, experimental, for Farms FM1): a shared meaning for
+  what a conduit shows inside it (fluid, fill step 0..4, upstream side, second lane), set with
+  `ConduitHost.setContents` on the server and read with `ConduitView.contents()`. Saved and synced as `contents` only
+  when not empty and only on change, the fluid by registry name; a fluid no longer registered loads as empty.
+  `ConduitBodyKey.contents()` hands the client model the contents packed into an int (layout in
+  `ConduitContents.pack`); Lib's looks don't draw them yet.
 - **Api** `ConduitQuad` gains an optional `ConduitUv` (`lib.api.conduit.model`, experimental): the part of its sprite
   a quad shows and its quarter turns, baked like a block model face's `uv` and `rotation`; without one a quad shows its
   whole sprite as before.
