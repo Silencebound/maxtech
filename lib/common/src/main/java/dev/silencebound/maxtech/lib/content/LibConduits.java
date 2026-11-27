@@ -44,6 +44,9 @@ public final class LibConduits implements Conduits.Factory {
         registration.look().ifPresent(builder::look);
         ConduitEntry<T> entry = builder.register();
         registration.look().ifPresent(look -> ConduitAssets.add(entry.block().id(), look));
+        if (registration.customModel()) {
+            CustomConduitModels.add(entry.block().id(), registration.translucent());
+        }
         registration.creativeTab().ifPresent(tab -> CreativeTabAdditions.add(tab, entry.item()));
         return entry;
     }

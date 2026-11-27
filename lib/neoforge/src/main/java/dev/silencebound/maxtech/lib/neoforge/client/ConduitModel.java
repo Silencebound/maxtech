@@ -14,7 +14,9 @@ import dev.silencebound.maxtech.lib.conduit.ConduitBlockEntity;
 import dev.silencebound.maxtech.lib.conduit.ConduitRenderData;
 import dev.silencebound.maxtech.lib.config.ClientConfig;
 import dev.silencebound.maxtech.lib.facade.FacadeView;
+import dev.silencebound.maxtech.lib.neoforge.api.client.conduit.ConduitModelHook;
 import java.util.List;
+import java.util.Map;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.block.BlockAndTintGetter;
 import net.minecraft.client.renderer.block.dispatch.BlockModelRotation;
@@ -57,6 +59,11 @@ import org.jspecify.annotations.Nullable;
  * <p>
  * A facaded conduit draws the facade block's baked model instead, or itself while {@link FacadeView#conduitsShown()};
  * the facade's tint comes from {@link FacadeClient}.
+ *
+ * <p>
+ * An addon conduit marked {@code customModel} gets a copy with its {@link ConduitModelHook} ({@link #withHook}), which
+ * then supplies the quads of each body and face part instead of {@link ConduitGeometry}; caching and facades stay the
+ * same.
  */
 public final class ConduitModel implements DynamicBlockStateModel {
     private static final CuboidFace.UVs WHOLE = new CuboidFace.UVs(0.0F, 0.0F, 16.0F, 16.0F);
@@ -77,6 +84,7 @@ public final class ConduitModel implements DynamicBlockStateModel {
 
     private final ConduitLook look;
     private final Sprites sprites;
+    private final @Nullable Custom custom;
     // Bounded by 64 arm masks x 64 ring masks x 17 colours of this block's one type x the render values its addon
     // sets, and in practice by what the world holds: a long straight run shares one part.
     private final PartCache<ConduitBodyKey, BlockStateModelPart> bodies = new PartCache<>(this::bakeBody);
@@ -89,8 +97,34 @@ public final class ConduitModel implements DynamicBlockStateModel {
             this::bakeLabelledFace);
 
     ConduitModel(ConduitLook look, Sprites sprites) {
+        this(look, sprites, null);
+    }
+
+    private ConduitModel(ConduitLook look, Sprites sprites, @Nullable Custom custom) {
         this.look = look;
         this.sprites = sprites;
+        this.custom = custom;
+    }
+
+    /**
+     * An addon's model hook for one conduit block, with the sprites it named resolved at bake time.
+     *
+     * @param block
+     *            the conduit block, for error messages
+     * @param hook
+     *            supplies the parts' quads
+     * @param sprites
+     *            {@link ConduitModelHook#sprites()} by atlas id
+     * @param translucent
+     *            whether the builder marked the model translucent
+     */
+    record Custom(Identifier block, ConduitModelHook hook, Map<Identifier, Material.Baked> sprites,
+            boolean translucent) {
+    }
+
+    /** This model drawn by {@code custom}, with empty part caches. */
+    ConduitModel withHook(Custom custom) {
+        return new ConduitModel(look, sprites, custom);
     }
 
     /**
@@ -166,26 +200,34 @@ public final class ConduitModel implements DynamicBlockStateModel {
         return Minecraft.getInstance().getModelManager().getBlockStateModelSet().get(facade);
     }
 
-    /** No conduit look has translucent quads, which block outlines and moving (piston) blocks ask about. */
+    /**
+     * Whether the model has translucent quads, which block outlines and moving (piston) blocks ask about: no Lib look
+     * has any, a custom model has them when its builder says so.
+     */
     @Override
     public int materialFlags() {
-        return 0;
+        return materialFlags(custom != null && custom.translucent());
+    }
+
+    /** {@link #materialFlags()} of a model that is or is not translucent. */
+    static int materialFlags(boolean translucent) {
+        return translucent ? BakedQuad.FLAG_TRANSLUCENT : 0;
     }
 
     private BlockStateModelPart bakeBody(ConduitBodyKey key) {
-        return bake(ConduitGeometry.body(look, key));
+        return bake(custom == null ? ConduitGeometry.body(look, key) : custom.hook().body(look, key, false));
     }
 
     private BlockStateModelPart bakeFace(ConduitFaceKey key) {
-        return bake(ConduitGeometry.face(look, key));
+        return bake(custom == null ? ConduitGeometry.face(look, key) : custom.hook().face(look, key, false));
     }
 
     private BlockStateModelPart bakeLabelledBody(ConduitBodyKey key) {
-        return bake(ConduitGeometry.body(look, key, true));
+        return bake(custom == null ? ConduitGeometry.body(look, key, true) : custom.hook().body(look, key, true));
     }
 
     private BlockStateModelPart bakeLabelledFace(ConduitFaceKey key) {
-        return bake(ConduitGeometry.face(look, key, true));
+        return bake(custom == null ? ConduitGeometry.face(look, key, true) : custom.hook().face(look, key, true));
     }
 
     private BlockStateModelPart bake(List<ConduitQuad> faces) {
@@ -206,6 +248,10 @@ public final class ConduitModel implements DynamicBlockStateModel {
         Material.Baked material = material(face);
         Transparency transparency = ConduitLayers.transparency(face.layer(),
                 material.sprite().contents().transparency());
+        if (custom != null) {
+            ConduitLayers.requireDeclared(custom.translucent(), transparency, custom.block(),
+                    face.sprite() != null ? face.sprite() : face.texture());
+        }
         BakedQuad.MaterialInfo info = BakedQuad.MaterialInfo.of(material, transparency, -1, true, 0, true);
         AABB box = face.box();
         Vector3f from = new Vector3f((float) box.minX, (float) box.minY, (float) box.minZ);
@@ -215,6 +261,15 @@ public final class ConduitModel implements DynamicBlockStateModel {
     }
 
     private Material.Baked material(ConduitQuad face) {
+        Identifier sprite = face.sprite();
+        if (sprite != null) {
+            Material.Baked own = custom == null ? null : custom.sprites().get(sprite);
+            if (own == null) {
+                throw new IllegalStateException("A quad of conduit " + (custom == null ? look : custom.block())
+                        + " names sprite " + sprite + ", which its model hook's sprites() does not list");
+            }
+            return own;
+        }
         return switch (face.texture()) {
             case FLAT -> sprites.flat();
             case END -> sprites.end();

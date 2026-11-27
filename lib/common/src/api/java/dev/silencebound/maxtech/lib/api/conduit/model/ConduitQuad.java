@@ -1,8 +1,10 @@
 package dev.silencebound.maxtech.lib.api.conduit.model;
 
 import net.minecraft.core.Direction;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.phys.AABB;
 import org.jetbrains.annotations.ApiStatus;
+import org.jspecify.annotations.Nullable;
 
 /**
  * One face of a conduit model part before baking, drawn whole with its sprite. An immutable value, safe to share
@@ -13,19 +15,37 @@ import org.jetbrains.annotations.ApiStatus;
  * @param facing
  *            which face of {@code box} this is
  * @param texture
- *            the sprite it is drawn with
+ *            the sprite it is drawn with, unless {@code sprite} names one
  * @param argb
  *            the tint, opaque white for none
  * @param culled
  *            whether a solid neighbour on {@code facing} hides it, as for a face on the block face
  * @param layer
  *            the chunk layer it is drawn in
+ * @param sprite
+ *            a sprite of a custom conduit model, by its atlas id (e.g. {@code farms:block/tube_glass}), drawn instead
+ *            of {@code texture}; it must be one its model hook lists in {@code sprites()}, or the model fails when it
+ *            bakes the quad. Null for one of {@code texture}'s, as all of Lib's quads are. Lib 0.14.0.
  */
 @ApiStatus.Experimental
 public record ConduitQuad(AABB box, Direction facing, ConduitTexture texture, int argb, boolean culled,
-        ConduitLayer layer) {
+        ConduitLayer layer, @Nullable Identifier sprite) {
+    /** A quad drawn with one of {@code texture}'s sprites. */
+    public ConduitQuad(AABB box, Direction facing, ConduitTexture texture, int argb, boolean culled,
+            ConduitLayer layer) {
+        this(box, facing, texture, argb, culled, layer, null);
+    }
+
     /** A quad whose chunk layer follows its sprite ({@link ConduitLayer#AUTO}). */
     public ConduitQuad(AABB box, Direction facing, ConduitTexture texture, int argb, boolean culled) {
         this(box, facing, texture, argb, culled, ConduitLayer.AUTO);
+    }
+
+    /**
+     * A quad of a custom conduit model drawn with {@code sprite} (see the record's {@code sprite}). Lib 0.14.0.
+     */
+    public static ConduitQuad ofSprite(AABB box, Direction facing, Identifier sprite, int argb, boolean culled,
+            ConduitLayer layer) {
+        return new ConduitQuad(box, facing, ConduitTexture.FLAT, argb, culled, layer, sprite);
     }
 }
