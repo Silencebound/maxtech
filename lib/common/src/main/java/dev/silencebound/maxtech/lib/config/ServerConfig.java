@@ -163,7 +163,7 @@ public final class ServerConfig {
 
     /**
      * The configured FE exchange rate, or 1:1 while no server config is loaded. Allocates only when the configured
-     * numbers changed since the last call. Server thread.
+     * numbers changed since the last call. Any thread: the cache is volatile, so a race costs one extra allocation.
      */
     public static FeRate feRate() {
         int fe = loadedOr(FE_RATE_FE, 1);

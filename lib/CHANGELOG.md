@@ -7,6 +7,8 @@ Api changes are marked **Api**.
 ## [Unreleased]
 
 ### Added
+- **Api** `EnergyNetworks.feRate()`: the server's configured FE rate, for an addon's own FE edges (Farms FM1's
+  sampler shows its MU to other mods' chargers as FE).
 - **Api** Registration is api (`lib.api.registry`, experimental, for Farms FM1): `Registrars.create(modId, registry)`
   gives a `Registrar` whose entries are `RegistryEntry`s. Lib's internal `RegistryHelper.Registrar` and
   `RegistryEntry` now extend them, so existing callers are unchanged.
