@@ -18,6 +18,9 @@ Api changes are marked **Api**.
   facade tint extension was registered with no blocks, which NeoForge refuses.
 
 ### Added
+- **Api** Menu values (`lib.api.menu`, experimental, ADR-0016): a menu declares int, long, enum, energy, progress and
+  tank values with server-side getters; Lib's toolkit menu sends the changed ones in one payload a tick at most, with
+  longs and fluid components whole. `FluidKey.OPTIONAL_STREAM_CODEC`.
 - **Api** Conduit contents (`lib.api.conduit.ConduitContents`, experimental, for Farms FM1): a shared meaning for
   what a conduit shows inside it (fluid, fill step 0..4, upstream side, second lane), set with
   `ConduitHost.setContents` on the server and read with `ConduitView.contents()`. Saved and synced as `contents` only
