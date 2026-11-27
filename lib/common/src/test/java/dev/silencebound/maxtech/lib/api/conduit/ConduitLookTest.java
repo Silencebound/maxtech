@@ -45,6 +45,26 @@ class ConduitLookTest {
                 ConduitLook.TYPE_COLOUR), parsed, "white is a colour, not the type's");
     }
 
+    /**
+     * Pins the whole format documented in {@code docs/api/conduit-addon.md}: field names, the optional overlay and the
+     * hex colours. Addons that ship their own block state file rely on it.
+     */
+    @Test
+    void lookJsonMatchesTheDocumentedFormat() {
+        JsonElement full = ConduitLook.CODEC.codec()
+                .encodeStart(JsonOps.INSTANCE,
+                        ConduitLook.solid(Identifier.fromNamespaceAndPath("farms", "block/lab_tube_end"),
+                                Identifier.fromNamespaceAndPath("farms", "block/lab_tube_core"), 0xD0D8DC, 0xFF6400))
+                .getOrThrow();
+        assertEquals(JsonParser.parseString("""
+                {"look": "solid", "end": "farms:block/lab_tube_end", "overlay": "farms:block/lab_tube_core",
+                 "colour": "#d0d8dc", "overlay_colour": "#ff6400"}
+                """), full);
+        JsonElement wire = ConduitLook.CODEC.codec().encodeStart(JsonOps.INSTANCE, ConduitLook.wire()).getOrThrow();
+        assertEquals(JsonParser.parseString("{\"look\": \"solid\", \"end\": \"maxtech_lib:block/conduit/flat\"}"),
+                wire);
+    }
+
     /** A conduit block without a look of its own is drawn flat in its type's colour. */
     @Test
     void defaultIsAFlatWire() {

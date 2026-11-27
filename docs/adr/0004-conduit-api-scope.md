@@ -2,7 +2,7 @@
 
 Date: 2026-09-29
 Note (2026-10-17): "conduit" now means only Lib's generic connecting-block framework (cables now, later pipes and wires). The "pipe" framework mentioned here, with its pipe types, was removed (ADR-0014 amendment).
-Status: Accepted; bundle parts superseded by ADR-0012
+Status: Superseded by ADR-0015 (bundle parts earlier by ADR-0012)
 
 ## Context
 
