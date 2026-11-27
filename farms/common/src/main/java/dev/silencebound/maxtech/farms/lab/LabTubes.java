@@ -15,12 +15,14 @@ import net.minecraft.world.item.CreativeModeTabs;
 import net.minecraft.world.level.Level;
 
 /**
- * The lab tube conduit and the lab network type it forms. Lib owns the tube block: it saves, syncs and draws it (a
- * plain glass look until Lib's shell look and contents drawing arrive), takes dyes and facades and reports each tube to
- * the lab network. Tubes never tick.
+ * The lab tube conduit and the lab network type it forms. Lib owns the tube block: it saves, syncs and draws it (Lib's
+ * shell look: cyan glass with gunmetal borders, showing the contents the lab network sets), takes dyes and facades and
+ * reports each tube to the lab network. Tubes never tick.
  */
 public final class LabTubes {
     private static final Direction[] SIDES = Direction.values();
+    /** Dark gunmetal of the tube's borders and rims; a dye tints it. */
+    private static final int BORDER_COLOUR = 0x2C3238;
 
     public static final Identifier NETWORK_ID = MaxtechFarms.id("lab");
     public static final NetworkType NETWORK = NetworkType.register(NETWORK_ID,
@@ -28,8 +30,8 @@ public final class LabTubes {
     public static final ConduitEntry<ConduitType> TUBE = Conduits
             .builder(MaxtechFarms.MOD_ID, "lab_tube",
                     item -> new ConduitType(NETWORK_ID, "lab", 0xE4F4F4, 0.375F, item))
-            .look(ConduitLook.solid(MaxtechFarms.id("block/lab_tube"), null, ConduitLook.TYPE_COLOUR,
-                    ConduitLook.TYPE_COLOUR))
+            .look(ConduitLook.shell(MaxtechFarms.id("block/lab_tube_glass")).withBorderColour(BORDER_COLOUR)
+                    .withBorder(1.0F))
             .creativeTab(CreativeModeTabs.FUNCTIONAL_BLOCKS).register();
 
     private LabTubes() {
@@ -37,18 +39,6 @@ public final class LabTubes {
 
     /** Loads the class so the tube registers during mod construction; called from {@link MaxtechFarms#init()}. */
     public static void init() {
-    }
-
-    /** Whether a lab tube stands next to {@code pos} in a loaded chunk. */
-    public static boolean hasTubeBeside(Level level, BlockPos pos) {
-        for (Direction side : SIDES) {
-            BlockPos next = pos.relative(side);
-            if (Conduits.isChunkPresent(level, next.getX(), next.getZ())
-                    && level.getBlockState(next).is(TUBE.block().get())) {
-                return true;
-            }
-        }
-        return false;
     }
 
     /**

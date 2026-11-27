@@ -59,6 +59,14 @@ public final class LabHubBlockEntity extends BlockEntity {
         }
 
         @Override
+        public void tankChanged() {
+            LabNetwork current = lab;
+            if (current != null && current.isAlive()) {
+                current.hubTankChanged(LabHubBlockEntity.this);
+            }
+        }
+
+        @Override
         public void fuelChanged() {
             if (!working) {
                 task.wake();
@@ -92,8 +100,10 @@ public final class LabHubBlockEntity extends BlockEntity {
     /** A lab network that has another hub and so refused this one. */
     private @Nullable LabNetwork refusedBy;
     /**
-     * Whether the hub runs a lab, or ran one whose tubes merged or split and are still beside it; such a hub keeps a
-     * lab against hubs placed later ({@link LabNetwork}). Not saved: after a restart no hub is running.
+     * Whether the hub runs a lab, or ran one whose tubes merged or split into tubes still attached to it; such a hub
+     * keeps a lab against hubs placed later ({@link LabNetwork}). Cleared when its lab lets go of it for any other
+     * reason, also beside another lab network's tubes or a tube whose face towards it is disabled. Not saved: after a
+     * restart no hub is running.
      */
     private boolean running;
     /** Game tick from which the next sampler charging step may run; steps are at least {@link #BURN_STEP} apart. */
@@ -190,16 +200,16 @@ public final class LabHubBlockEntity extends BlockEntity {
 
     /**
      * {@code network} lets go of this hub: its MU store leaves the lab's energy network, and the tubes beside it look
-     * again, so another lab network beside the hub may take it. Called by the lab only.
+     * again, so another lab network beside the hub may take it. The hub keeps running only when {@code handover}: the
+     * lab merged or split into tubes still attached to it. Called by the lab only.
      */
-    public void leaveLab(LabNetwork network) {
+    public void leaveLab(LabNetwork network, boolean handover) {
         if (lab != network) {
             return;
         }
         lab = null;
         energy.network().ifPresent(old -> old.remove(energy));
-        // Still running if the tubes merged or split into another lab beside it; not if the last tube went.
-        running = level != null && !isRemoved() && LabTubes.hasTubeBeside(level, worldPosition);
+        running = handover && level != null && !isRemoved();
         if (level != null && !isRemoved()) {
             LabTubes.neighbourChanged(level, worldPosition);
         }

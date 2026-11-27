@@ -40,6 +40,9 @@ public final class HubStorage {
         /** Anything changed (after the root transaction committed, or at once for direct sets). */
         void changed();
 
+        /** The tank changed (after the root transaction committed, or at once for direct sets). */
+        void tankChanged();
+
         /** The fuel slot changed. */
         void fuelChanged();
 
@@ -166,6 +169,7 @@ public final class HubStorage {
         @Override
         protected void onContentsChanged(int index, FluidStack previousContents) {
             listener.changed();
+            listener.tankChanged();
         }
     }
 
