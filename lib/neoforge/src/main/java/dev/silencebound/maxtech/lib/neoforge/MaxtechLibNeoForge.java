@@ -2,6 +2,7 @@ package dev.silencebound.maxtech.lib.neoforge;
 
 import dev.silencebound.maxtech.lib.MaxtechLib;
 import dev.silencebound.maxtech.lib.menu.MenuValuesPayload;
+import dev.silencebound.maxtech.lib.neoforge.api.inventory.Handlers;
 import dev.silencebound.maxtech.lib.neoforge.compat.ftbteams.FtbTeamsCompat;
 import dev.silencebound.maxtech.lib.platform.Platform;
 import net.neoforged.fml.ModList;
@@ -14,6 +15,7 @@ public final class MaxtechLibNeoForge {
 
     public MaxtechLibNeoForge() {
         MaxtechLib.init();
+        Handlers.install(new LibHandlerBridge());
         ContentEnabledCondition.init();
         Platform.get().network().registerToClient(MaxtechLib.MOD_ID, MenuValuesPayload.TYPE, MenuValuesPayload.CODEC,
                 MenuValuesPayload::receive);
