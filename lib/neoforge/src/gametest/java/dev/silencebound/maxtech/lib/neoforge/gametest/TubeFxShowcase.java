@@ -32,13 +32,15 @@ import net.neoforged.neoforge.event.RegisterCommandsEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import net.minecraft.server.level.ServerPlayer;
 import java.util.Set;
+import net.minecraft.server.permissions.LevelBasedPermissionSet;
 
 /**
  * PROTOTYPE (proto/tube-fx only): {@code /maxtech_lib_demo fx_showcase [clear]} builds a row of stations next to the
  * player, one per effect and three combinations. Each station holds one tube system per fluid (water, lava, milk, test
  * nutrient gel, test cryo fluid): a machine block, a straight run into it, a T with a vertical branch ending in an L,
- * and an L turning up; the front row has Lib's integrated junctions, the row behind the moulded fittings. The built box
- * is kept in the world's command storage, so {@code clear} works after a restart.
+ * and an L turning up; the front row has Lib's integrated junctions and flows out of the machine, the row behind has
+ * the moulded fittings and flows into the machine (fed through the open top of the last L). The built box is kept in
+ * the world's command storage, so {@code clear} works after a restart.
  */
 @EventBusSubscriber(modid = TubeFx.MOD_ID)
 public final class TubeFxShowcase {
@@ -78,9 +80,26 @@ public final class TubeFxShowcase {
         if (System.getenv("MAXTECH_FX_SHOWCASE") == null || !(event.getEntity() instanceof ServerPlayer player)) {
             return;
         }
+        BlockPos at = player.blockPosition();
         build(player.createCommandSourceStack());
-        player.teleportTo(player.level(), player.getX() + 8.5, player.getY() + 3, player.getZ() - 3, Set.of(), -35, 25,
-                true);
+        if (System.getenv("MAXTECH_FX_VIEW") != null) {
+            // Straight down onto station 10's straight runs, game slowed so the sprite frames can be told apart.
+            player.getAbilities().flying = true;
+            player.onUpdateAbilities();
+            if ("side".equals(System.getenv("MAXTECH_FX_VIEW"))) {
+                // Between the water and lava systems, looking east at lava's straight run.
+                player.teleportTo(player.level(), at.getX() + 2 + 9 * STATION_WIDTH + 1.5, at.getY(),
+                        at.getZ() + 2 + 1 + 2.5, Set.of(), -90, 40, true);
+            } else {
+                player.teleportTo(player.level(), at.getX() + 2 + 9 * STATION_WIDTH + 4.5, at.getY() + 6,
+                        at.getZ() + 2 + 1 + 2.5, Set.of(), 0, 90, true);
+            }
+            player.level().getServer().getCommands().performPrefixedCommand(
+                    player.createCommandSourceStack().withPermission(LevelBasedPermissionSet.OWNER), "tick rate 1");
+        } else {
+            player.teleportTo(player.level(), player.getX() + 8.5, player.getY() + 3, player.getZ() - 3, Set.of(), -35,
+                    25, true);
+        }
     }
 
     private record FluidChoice(Fluid fluid, String name) {
@@ -114,10 +133,10 @@ public final class TubeFxShowcase {
                     int fill = partial ? 1 + i % 3 : 1 + (s + i) % 4;
                     boolean flowing = (s + i) % 3 != 2;
                     FluidChoice fluid = fluids.get(i);
-                    buildSystem(level, base, tube.type().get(), fluid.fluid(), fill, flowing, effects, i % 2 == 0);
-                    sign(level, base.north(), label(effects), fluid.name(),
-                            "fill " + fill + "/4 " + (flowing ? "flowing" : "idle"),
-                            row == 0 ? "integrated" : "fitted");
+                    buildSystem(level, base, tube.type().get(), fluid.fluid(), fill, flowing, effects, row == 0);
+                    String flow = (row == 0 ? "out of machine" : "into machine") + (flowing ? "" : " (idle)");
+                    sign(level, base.north(), label(effects), fluid.name(), flow,
+                            "fill " + fill + "/4 " + (row == 0 ? "integrated" : "fitted"));
                 }
             }
         }
