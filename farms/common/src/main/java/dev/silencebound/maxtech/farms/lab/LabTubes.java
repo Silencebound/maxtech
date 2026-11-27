@@ -39,6 +39,18 @@ public final class LabTubes {
     public static void init() {
     }
 
+    /** Whether a lab tube stands next to {@code pos} in a loaded chunk. */
+    public static boolean hasTubeBeside(Level level, BlockPos pos) {
+        for (Direction side : SIDES) {
+            BlockPos next = pos.relative(side);
+            if (Conduits.isChunkPresent(level, next.getX(), next.getZ())
+                    && level.getBlockState(next).is(TUBE.block().get())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     /**
      * Has the lab tubes next to {@code pos} look at their neighbours again, for a block that joins a lab network by
      * standing next to a tube (hub, fluid port) when it loads or goes. Server only; the re-read happens with the

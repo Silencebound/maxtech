@@ -9,6 +9,7 @@ import dev.silencebound.maxtech.lib.api.network.Network;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import java.util.Optional;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
 // PLATFORM-LEAK: NeoForge's transfer api moves nutrient and output into the hub (root CLAUDE.md: transfers).
 import net.neoforged.neoforge.transfer.ResourceHandlerUtil;
@@ -22,12 +23,18 @@ import org.jspecify.annotations.Nullable;
 
 /**
  * Farms' side of one lab network: the tubes of one Lib network, the one lab hub that runs it, the fluid ports that feed
- * it and the energy network its MU moves in. A lab network has at most one hub; a second hub on the same tubes stays
- * inactive ({@link LabHubBlockEntity#labLink()}). Nutrient and output reach the hub only through this class, inside the
- * caller's transfer transaction. Kept by {@link LabNetworkLogic}, which rebuilds the hub and ports when the tubes or
- * their neighbours change, never per tick. Server thread only.
+ * it and the energy network its MU moves in. A lab network has at most one hub. A running hub keeps its lab: a hub
+ * placed later beside the tubes stays inactive ({@link LabHubBlockEntity#labLink()}), even at a lower position. The
+ * position order (lowest y, then lowest x, then lowest z; {@link #isBefore}) decides only between hubs alike: among
+ * running hubs when two labs that each have one merge, and among all hubs when none is running, as after a restart
+ * (running is not saved; a hub whose chunk loads after its lab took another hub is refused like a placed one). A split
+ * keeps the running hub on its side. A hub beside two lab networks runs the one that took it first; that is a
+ * misconfiguration the other lab shows as having no hub. Nutrient and output reach the hub only through this class,
+ * inside the caller's transfer transaction. Kept by {@link LabNetworkLogic}, which rebuilds the hub and ports when the
+ * tubes or their neighbours change, never per tick. Server thread only.
  */
 public final class LabNetwork {
+    private static final Direction[] SIDES = Direction.values();
     private final Network network;
     private final EnergyNetwork energy;
     private @Nullable LabHubBlockEntity hub;
@@ -135,19 +142,45 @@ public final class LabNetwork {
         return a.getZ() < b.getZ();
     }
 
+    /** Whether a tube of this lab is beside {@code hubPos}. */
+    public boolean touches(BlockPos hubPos) {
+        long pos = hubPos.asLong();
+        for (Direction side : SIDES) {
+            if (network.contains(BlockPos.offset(pos, side))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** {@code taken} now runs another lab; this one looks for a hub again. Called by the hub only. */
+    public void forget(LabHubBlockEntity taken) {
+        if (hub == taken) {
+            hub = null;
+            dirty = true;
+        }
+    }
+
     /**
-     * Takes the hubs and ports found next to the tubes: the free hub first in {@link #isBefore} order runs the lab,
-     * also when another hub ran it so far (that one's MU store leaves the energy network before the new one's joins);
-     * every other free hub is refused. Hubs and ports that are gone are let go.
+     * Takes the hubs and ports found next to the tubes: among the free hubs, a running one wins over the others and the
+     * first in {@link #isBefore} order wins among alike; every other free hub is refused, which ends its running. A
+     * replaced hub's MU store leaves the energy network before the new one's joins. Hubs and ports that are gone are
+     * let go.
      */
     void update(ObjectArrayList<LabHubBlockEntity> hubs, ObjectArrayList<FluidPortBlockEntity> found) {
         dirty = false;
         LabHubBlockEntity chosen = null;
+        boolean chosenRunning = false;
         for (int i = 0; i < hubs.size(); i++) {
             LabHubBlockEntity candidate = hubs.get(i);
-            if (candidate.isFreeFor(this)
-                    && (chosen == null || isBefore(candidate.getBlockPos(), chosen.getBlockPos()))) {
+            if (!candidate.isFreeFor(this)) {
+                continue;
+            }
+            boolean running = candidate == hub || candidate.isRunning();
+            if (chosen == null || (running && !chosenRunning)
+                    || (running == chosenRunning && isBefore(candidate.getBlockPos(), chosen.getBlockPos()))) {
                 chosen = candidate;
+                chosenRunning = running;
             }
         }
         LabHubBlockEntity previous = hub;

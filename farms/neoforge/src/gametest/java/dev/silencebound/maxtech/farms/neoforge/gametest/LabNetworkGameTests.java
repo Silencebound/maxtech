@@ -42,10 +42,10 @@ import net.neoforged.neoforge.transfer.item.ItemResource;
 import net.neoforged.neoforge.transfer.transaction.Transaction;
 
 /**
- * Lab tubes, the lab network and the fluid port: tubes beside a hub form one lab that the hub runs; a second hub on the
- * same tubes stays out until the first goes; the hub's MU store is the buffer of the lab's energy network; a port puts
- * what is pushed in into the hub's tank and nothing without a hub or room; output reaches the hub's buffer through the
- * lab. Nothing here ticks.
+ * Lab tubes, the lab network and the fluid port: tubes beside a hub form one lab that the hub runs; a hub placed later
+ * on the same tubes stays out until the first goes, the lowest hub wins only among hubs alike; the hub's MU store is
+ * the buffer of the lab's energy network; a port puts what is pushed in into the hub's tank and nothing without a hub
+ * or room; output reaches the hub's buffer through the lab. Nothing here ticks.
  */
 @EventBusSubscriber(modid = MaxtechFarms.MOD_ID)
 public final class LabNetworkGameTests {
@@ -60,7 +60,9 @@ public final class LabNetworkGameTests {
             Map.entry("lab_fluid_port_full_tank", LabNetworkGameTests::portFullTank),
             Map.entry("lab_output_reaches_hub", LabNetworkGameTests::outputReachesHub),
             Map.entry("lab_parts_never_tick", LabNetworkGameTests::neverTick),
+            Map.entry("lab_new_hub_refused", LabNetworkGameTests::newHubRefused),
             Map.entry("lab_lowest_hub_wins", LabNetworkGameTests::lowestHubWins),
+            Map.entry("lab_split_keeps_running_hub", LabNetworkGameTests::splitKeepsRunningHub),
             Map.entry("lab_merge_keeps_lowest_hub", LabNetworkGameTests::mergeKeepsLowestHub),
             Map.entry("lab_split_hub_one_side", LabNetworkGameTests::splitHubOneSide),
             Map.entry("lab_tube_removed_port_hub", LabNetworkGameTests::tubeRemovedBetweenPortAndHub),
@@ -253,10 +255,10 @@ public final class LabNetworkGameTests {
     }
 
     /**
-     * A hub placed lower than the one running the lab takes over (lowest y wins over lowest x); the old hub's store
-     * leaves the energy network and neither store gains or loses MU.
+     * A hub placed beside a running lab is refused even at a lower position (lower y): the running hub stays in charge,
+     * one store in the energy network, neither store gains or loses MU.
      */
-    private static void lowestHubWins(GameTestHelper helper) {
+    private static void newHubRefused(GameTestHelper helper) {
         LabHubBlockEntity first = hub(helper, HUB);
         first.energy().setStored(3000);
         tubes(helper, 2, 4);
@@ -264,13 +266,57 @@ public final class LabNetworkGameTests {
         helper.startSequence().thenWaitUntil(() -> helper.assertTrue(first.labLink() == LabLink.ACTIVE, "first runs"))
                 .thenExecute(() -> hub(helper, lowerPos).energy().setStored(5000)).thenWaitUntil(() -> {
                     LabHubBlockEntity lower = helper.getBlockEntity(lowerPos, LabHubBlockEntity.class);
+                    helper.assertTrue(lower.labLink() == LabLink.REFUSED, "the placed hub is refused");
+                }).thenIdle(3).thenExecute(() -> {
+                    LabHubBlockEntity lower = helper.getBlockEntity(lowerPos, LabHubBlockEntity.class);
                     LabNetwork lab = lab(helper, new BlockPos(3, 1, 1));
-                    helper.assertTrue(lab.hub().orElse(null) == lower, "the lowest hub runs the lab");
-                    helper.assertTrue(lower.labLink() == LabLink.ACTIVE, "the lower hub is active");
-                    helper.assertTrue(first.labLink() == LabLink.REFUSED, "the first hub is refused");
-                    assertOnlyStore(helper, lab, lower, first);
-                    helper.assertValueEqual(first.energy().stored(), 3000L, "the old hub's MU");
-                    helper.assertValueEqual(lower.energy().stored(), 5000L, "the new hub's MU");
+                    helper.assertTrue(lab.hub().orElse(null) == first, "the running hub keeps the lab");
+                    helper.assertTrue(lower.labLink() == LabLink.REFUSED, "the placed hub stays refused");
+                    assertOnlyStore(helper, lab, first, lower);
+                    helper.assertValueEqual(first.energy().stored(), 3000L, "the running hub's MU");
+                    helper.assertValueEqual(lower.energy().stored(), 5000L, "the placed hub's MU");
+                }).thenSucceed();
+    }
+
+    /** With no hub running yet (both there before the tubes), the lowest one runs the lab; lowest y beats lowest x. */
+    private static void lowestHubWins(GameTestHelper helper) {
+        LabHubBlockEntity west = hub(helper, HUB);
+        LabHubBlockEntity lower = hub(helper, new BlockPos(4, 0, 1));
+        tubes(helper, 2, 4);
+        helper.succeedWhen(() -> {
+            LabNetwork lab = lab(helper, new BlockPos(3, 1, 1));
+            helper.assertTrue(lab.hub().orElse(null) == lower, "the lowest hub runs the lab");
+            helper.assertTrue(west.labLink() == LabLink.REFUSED, "the other hub is refused");
+            assertOnlyStore(helper, lab, lower, west);
+        });
+    }
+
+    /**
+     * A split keeps the running hub on its side although a lower hub placed later is on the same side; the other side
+     * has no hub.
+     */
+    private static void splitKeepsRunningHub(GameTestHelper helper) {
+        BlockPos runningPos = new BlockPos(5, 1, 0);
+        BlockPos lowerPos = new BlockPos(4, 1, 2);
+        LabHubBlockEntity running = hub(helper, runningPos);
+        tubes(helper, 2, 5);
+        helper.startSequence()
+                .thenWaitUntil(() -> helper.assertTrue(running.labLink() == LabLink.ACTIVE, "the first hub runs"))
+                .thenExecute(() -> hub(helper, lowerPos))
+                .thenWaitUntil(() -> helper.assertTrue(
+                        helper.getBlockEntity(lowerPos, LabHubBlockEntity.class).labLink() == LabLink.REFUSED,
+                        "the placed hub is refused"))
+                .thenExecute(() -> helper.setBlock(new BlockPos(3, 1, 1), Blocks.AIR)).thenWaitUntil(() -> {
+                    helper.assertTrue(lab(helper, new BlockPos(2, 1, 1)).hub().isEmpty(),
+                            "the cut-off side has no hub");
+                    helper.assertValueEqual(lab(helper, new BlockPos(4, 1, 1)).tubes(), 2, "tubes on the hubs' side");
+                }).thenIdle(3).thenExecute(() -> {
+                    LabNetwork lab = lab(helper, new BlockPos(4, 1, 1));
+                    helper.assertTrue(lab.hub().orElse(null) == running, "the running hub keeps its side");
+                    helper.assertTrue(
+                            helper.getBlockEntity(lowerPos, LabHubBlockEntity.class).labLink() == LabLink.REFUSED,
+                            "the placed hub stays refused");
+                    assertOnlyStore(helper, lab, running, helper.getBlockEntity(lowerPos, LabHubBlockEntity.class));
                 }).thenSucceed();
     }
 

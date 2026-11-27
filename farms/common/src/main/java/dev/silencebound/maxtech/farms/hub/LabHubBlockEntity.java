@@ -70,6 +70,11 @@ public final class LabHubBlockEntity extends BlockEntity {
     private @Nullable LabNetwork lab;
     /** A lab network that has another hub and so refused this one. */
     private @Nullable LabNetwork refusedBy;
+    /**
+     * Whether the hub runs a lab, or ran one whose tubes merged or split and are still beside it; such a hub keeps a
+     * lab against hubs placed later ({@link LabNetwork}). Not saved: after a restart no hub is running.
+     */
+    private boolean running;
 
     public LabHubBlockEntity(BlockPos pos, BlockState state) {
         super(FarmsContent.LAB_HUB_ENTITY.get(), pos, state);
@@ -126,19 +131,35 @@ public final class LabHubBlockEntity extends BlockEntity {
         return labLink() == LabLink.ACTIVE ? lab : null;
     }
 
-    /** Whether {@code network} may take this hub: it runs no other live lab network. */
+    /**
+     * Whether {@code network} may take this hub: it runs no other live lab network whose tubes are still beside it (a
+     * split may have moved them all to {@code network} before the old lab looked again).
+     */
     public boolean isFreeFor(LabNetwork network) {
         LabNetwork current = lab;
-        return current == null || current == network || !current.isAlive();
+        return current == null || current == network || !current.isAlive() || !current.touches(worldPosition);
     }
 
-    /** {@code network} takes this hub: its MU store moves into the lab's energy network. Called by the lab only. */
+    /** Whether the hub runs a lab or ran one that merged or split into tubes still beside it. */
+    public boolean isRunning() {
+        return running;
+    }
+
+    /**
+     * {@code network} takes this hub: its MU store moves into the lab's energy network, nothing else changes (tank,
+     * output and MU stay). A lab it ran before forgets it. Called by the lab only.
+     */
     public void joinLab(LabNetwork network) {
         refusedBy = null;
-        if (lab == network) {
+        running = true;
+        LabNetwork previous = lab;
+        if (previous == network) {
             return;
         }
         lab = network;
+        if (previous != null) {
+            previous.forget(this);
+        }
         energy.network().ifPresent(old -> old.remove(energy));
         network.energy().add(energy);
     }
@@ -153,6 +174,8 @@ public final class LabHubBlockEntity extends BlockEntity {
         }
         lab = null;
         energy.network().ifPresent(old -> old.remove(energy));
+        // Still running if the tubes merged or split into another lab beside it; not if the last tube went.
+        running = level != null && !isRemoved() && LabTubes.hasTubeBeside(level, worldPosition);
         if (level != null && !isRemoved()) {
             LabTubes.neighbourChanged(level, worldPosition);
         }
@@ -162,6 +185,7 @@ public final class LabHubBlockEntity extends BlockEntity {
     public void setRefusedBy(LabNetwork network, boolean refused) {
         if (refused) {
             refusedBy = network;
+            running = false;
         } else if (refusedBy == network) {
             refusedBy = null;
         }
@@ -208,6 +232,7 @@ public final class LabHubBlockEntity extends BlockEntity {
         energy.network().ifPresent(network -> network.remove(energy));
         lab = null;
         refusedBy = null;
+        running = false;
         if (level != null) {
             LabTubes.neighbourChanged(level, worldPosition);
         }
