@@ -2,6 +2,7 @@ import dev.silencebound.maxtech.gradle.CheckApiJavadoc
 import dev.silencebound.maxtech.gradle.CheckCommonImports
 import dev.silencebound.maxtech.gradle.maxtechModId
 import dev.silencebound.maxtech.gradle.modGroupName
+import dev.silencebound.maxtech.gradle.usesLibApiOnly
 
 plugins {
     id("maxtech.java")
@@ -27,6 +28,14 @@ neoForge {
 
 dependencies {
     api(apiSourceSet.output)
+    // A mod on Lib's api only (usesLibApiOnly) sees Lib through the api jar alone, in main, api and unit tests. At dev
+    // runtime Lib is loaded as its own mod; in a pack it is Lib's jar.
+    if (usesLibApiOnly) {
+        val libApi = project(":lib:common", "modApi")
+        compileOnly(libApi)
+        "apiCompileOnly"(libApi)
+        testImplementation(libApi)
+    }
 }
 
 // Api Javadoc (PRD 5.9, CLAUDE.md), api source set only; internals are documented where non-obvious. doclint reports
