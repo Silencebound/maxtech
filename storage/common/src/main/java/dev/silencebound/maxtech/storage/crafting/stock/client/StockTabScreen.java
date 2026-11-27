@@ -12,7 +12,7 @@ import dev.silencebound.maxtech.storage.crafting.stock.StockRule;
 import dev.silencebound.maxtech.storage.crafting.stock.StockTexts;
 import dev.silencebound.maxtech.storage.machine.client.AccentFrame;
 import dev.silencebound.maxtech.storage.terminal.TerminalMenu;
-import dev.silencebound.maxtech.lib.client.gui.accent.AccentButton;
+import dev.silencebound.maxtech.lib.api.client.gui.AccentButton;
 import dev.silencebound.maxtech.storage.terminal.client.TerminalScreen;
 import dev.silencebound.maxtech.storage.terminal.client.TerminalSubScreen;
 import java.util.Optional;

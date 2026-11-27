@@ -1,9 +1,9 @@
 package dev.silencebound.maxtech.storage.display.client;
 
 import dev.silencebound.maxtech.storage.devicetab.client.DeviceScreen;
-import dev.silencebound.maxtech.lib.client.gui.accent.AccentButton;
+import dev.silencebound.maxtech.lib.api.client.gui.AccentButton;
 import dev.silencebound.maxtech.storage.machine.client.MenuClick;
-import dev.silencebound.maxtech.lib.client.gui.TextScale;
+import dev.silencebound.maxtech.lib.api.client.gui.TextScale;
 import dev.silencebound.maxtech.storage.condition.ConditionMenu;
 import dev.silencebound.maxtech.storage.display.DisplayContent;
 import dev.silencebound.maxtech.storage.display.DisplayMenu;

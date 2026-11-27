@@ -1,6 +1,6 @@
 package dev.silencebound.maxtech.storage.logic.controller.client;
 
-import dev.silencebound.maxtech.lib.client.gui.TextScale;
+import dev.silencebound.maxtech.lib.api.client.gui.TextScale;
 import dev.silencebound.maxtech.storage.palette.StatusPalette;
 import com.mojang.blaze3d.platform.InputConstants;
 import com.mojang.blaze3d.platform.Window;
@@ -13,7 +13,7 @@ import dev.silencebound.maxtech.lib.client.gui.SidePanel;
 import dev.silencebound.maxtech.lib.client.gui.UndoStack;
 import dev.silencebound.maxtech.lib.info.InfoFormat;
 import dev.silencebound.maxtech.lib.platform.Platform;
-import dev.silencebound.maxtech.lib.text.TextFit;
+import dev.silencebound.maxtech.lib.api.client.gui.TextFit;
 import dev.silencebound.maxtech.storage.crafting.client.KeyDisplay;
 import dev.silencebound.maxtech.storage.logic.GraphError;
 import dev.silencebound.maxtech.storage.logic.LogicCompiler;
@@ -49,7 +49,7 @@ import dev.silencebound.maxtech.storage.logic.editor.Palette;
 import dev.silencebound.maxtech.storage.logic.editor.SettingRules;
 import dev.silencebound.maxtech.storage.machine.client.AccentFrame;
 import dev.silencebound.maxtech.storage.network.DeviceLabel;
-import dev.silencebound.maxtech.lib.client.gui.accent.AccentButton;
+import dev.silencebound.maxtech.lib.api.client.gui.AccentButton;
 import it.unimi.dsi.fastutil.ints.Int2IntOpenHashMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.Object2LongOpenHashMap;

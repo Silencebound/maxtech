@@ -1,6 +1,8 @@
 package dev.silencebound.maxtech.lib.client.gui.accent;
 
-import dev.silencebound.maxtech.lib.client.gui.TextScale;
+import dev.silencebound.maxtech.lib.api.client.gui.Accent;
+import dev.silencebound.maxtech.lib.api.client.gui.Icon;
+import dev.silencebound.maxtech.lib.api.client.gui.TextScale;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;

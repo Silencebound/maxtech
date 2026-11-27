@@ -1,0 +1,18 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "B": "#c:buckets/empty",
+    "C": "#c:ingots/copper",
+    "I": "#c:ingots/iron",
+    "T": "maxtech_farms:lab_tube"
+  },
+  "pattern": [
+    "ITI",
+    "CBC",
+    "ITI"
+  ],
+  "result": {
+    "id": "maxtech_farms:fluid_port"
+  }
+}

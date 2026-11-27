@@ -4,7 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import dev.silencebound.maxtech.lib.client.gui.LayoutCheck;
+import dev.silencebound.maxtech.lib.api.client.gui.LayoutCheck;
 import dev.silencebound.maxtech.lib.client.gui.accent.SideTabs;
 import dev.silencebound.maxtech.storage.ioport.IoPortMenu;
 import dev.silencebound.maxtech.storage.port.PortMenu;
