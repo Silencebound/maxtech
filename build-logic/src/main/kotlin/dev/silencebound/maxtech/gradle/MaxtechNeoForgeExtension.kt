@@ -12,7 +12,8 @@ import javax.inject.Inject
 
 /**
  * `maxtech { }` in a `neoforge` project. Adds other mods of this repo to this project's dev runs; each mod is
- * its `neoforge` main source set plus its `common` main and api source sets, grouped as one mod folder set.
+ * its `neoforge` main (and, if it has one, api) source set plus its `common` main and api source sets, grouped as one
+ * mod folder set.
  *
  * MDG's `mods {}` takes `SourceSet` objects, so this reads other projects' source sets after
  * `evaluationDependsOn`. That is configuration-cache safe but rules out Gradle's Isolated Projects mode; revisit if
@@ -61,12 +62,17 @@ abstract class MaxtechNeoForgeExtension @Inject constructor(private val project:
         val neoforge = if (neoforgePath == project.path) project else project.evaluationDependsOn(neoforgePath)
         val common = commonProject(modGroupPath)
         val modId = modIdFor(neoforge.modGroupName)
+        val neoforgeSourceSets = neoforge.extensions.getByType<SourceSetContainer>()
+        val neoforgeApi = neoforgeSourceSets.findByName(NEOFORGE_API_SOURCE_SET)
         val mod = project.extensions.getByType<NeoForgeExtension>().mods.maybeCreate(modId).apply {
-            sourceSet(neoforge.extensions.getByType<SourceSetContainer>().getByName(SourceSet.MAIN_SOURCE_SET_NAME))
+            sourceSet(neoforgeSourceSets.getByName(SourceSet.MAIN_SOURCE_SET_NAME))
+            neoforgeApi?.let { sourceSet(it) }
             sourceSetsOf(common).forEach { sourceSet(it) }
         }
         val commonTasks = listOf(common.tasks.named("classes"), common.tasks.named("apiClasses"))
-        val classesTasks = if (neoforge == project) commonTasks else listOf(neoforge.tasks.named("classes")) + commonTasks
+        val neoforgeTasks = listOf(neoforge.tasks.named("classes")) +
+            listOfNotNull(neoforgeApi?.let { neoforge.tasks.named(it.classesTaskName) })
+        val classesTasks = if (neoforge == project) commonTasks else neoforgeTasks + commonTasks
         return mod to classesTasks
     }
 
@@ -74,6 +80,7 @@ abstract class MaxtechNeoForgeExtension @Inject constructor(private val project:
 
     private companion object {
         const val SUITE_CLIENT = "suiteClient"
+        const val NEOFORGE_API_SOURCE_SET = "api"
     }
 
     internal fun sourceSetsOf(common: Project): List<SourceSet> {

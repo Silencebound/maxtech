@@ -23,3 +23,10 @@ private val libApiOnlyMods = setOf("farms")
 
 val Project.usesLibApiOnly: Boolean
     get() = modGroupName in libApiOnlyMods
+
+/**
+ * A `neoforge` project with a public api of its own in `src/api` (NeoForge-side types such as client hooks, Lib only so
+ * far), built as the `<modid>-neoforge-api` jar. It compiles against the mod's common api and NeoForge only.
+ */
+val Project.hasNeoForgeApi: Boolean
+    get() = file("src/api").isDirectory
