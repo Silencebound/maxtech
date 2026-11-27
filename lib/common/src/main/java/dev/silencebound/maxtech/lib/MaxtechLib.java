@@ -1,6 +1,10 @@
 package dev.silencebound.maxtech.lib;
 
+import dev.silencebound.maxtech.lib.api.registry.Registrar;
+import dev.silencebound.maxtech.lib.api.registry.Registrars;
 import dev.silencebound.maxtech.lib.config.LibConfigFactory;
+import net.minecraft.core.Registry;
+import net.minecraft.resources.ResourceKey;
 import dev.silencebound.maxtech.lib.api.guide.GuideConfigValues;
 import dev.silencebound.maxtech.lib.api.security.OwnerSecurity;
 import dev.silencebound.maxtech.lib.concurrent.WorkerPool;
@@ -32,6 +36,12 @@ public final class MaxtechLib {
         // Resolve the platform now so a missing or duplicate implementation fails at startup, not on first use.
         Platform.get();
         LibConfigFactory.install();
+        Registrars.setFactory(new Registrars.Factory() {
+            @Override
+            public <R> Registrar<R> create(String modId, ResourceKey<? extends Registry<R>> registry) {
+                return Platform.get().registry().registrar(modId, registry);
+            }
+        });
         ServerConfig.register();
         OwnerSecurity.setOpsBypassSource(() -> ServerConfig.loadedOr(ServerConfig.OPS_BYPASS_OWNERSHIP, true));
         ClientConfig.register();
