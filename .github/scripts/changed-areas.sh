@@ -2,7 +2,7 @@
 # Classifies the files a CI run has to cover and prints flags as key=value lines (also appended to $GITHUB_OUTPUT).
 # Usage: changed-areas.sh [base [head]]. Defaults: base HEAD^1, head HEAD. On a pull_request the checkout is the merge
 # of the PR into its base and on a push to main it is the squash commit, so HEAD^1 is the base in both cases.
-# Flags: docs_only, lib, storage, all, ae2, rs. `all` implies both module flags. `./gradlew build` still compiles and unit-tests it on every run.
+# Flags: docs_only, lib, storage, farms, all, ae2, rs. `all` implies every module flag. `./gradlew build` still compiles and unit-tests it on every run.
 # ae2 and rs flag the bridge GameTests against the real mods (-PwithAe2, -PwithRs): every nightly and manual run, and on
 # a PR only when it touches that compat package, the shared bridge code, the bridge GameTests or Storage's NeoForge build
 # script (which declares the mods). A lib or build-logic change alone does not run them; the nightly does.
@@ -12,7 +12,7 @@ base="${1:-HEAD^1}"
 head="${2:-HEAD}"
 event="${GITHUB_EVENT_NAME:-}"
 
-docs_only=false lib=false storage=false all=false ae2=false rs=false
+docs_only=false lib=false storage=false farms=false all=false ae2=false rs=false
 
 case "$event" in
   workflow_dispatch | schedule) all=true ae2=true rs=true ;;
@@ -34,9 +34,10 @@ case "$event" in
       case "$path" in
         # Module docs that no build, test or datagen step reads. Guide pages (src/main/resources) stay game content.
         lib/CLAUDE.md | lib/CHANGELOG.md | storage/CLAUDE.md | storage/PRD.md | storage/CHANGELOG.md | storage/docs/* \
-          | storage/neoforge/src/textures/README.md | .gitignore) ;;
+          | storage/neoforge/src/textures/README.md | farms/CLAUDE.md | farms/CHANGELOG.md | .gitignore) ;;
         lib/* | build-logic/* | gradle/* | *.gradle.kts | gradle.properties | settings.gradle.kts | .github/*) all=true ;;
         storage/*) storage=true ;;
+        farms/*) farms=true ;;
         *.md | docs/* | .claude/* | scripts/* | LICENSE* | README*) ;;
         *) other=true ;; # unknown path (gradlew, .editorconfig, ...): be safe and run everything
       esac
@@ -48,17 +49,18 @@ case "$event" in
       esac
     done <<< "$changed"
     if $other; then all=true; fi
-    if ! $all && ! $storage; then docs_only=true; fi
+    if ! $all && ! $storage && ! $farms; then docs_only=true; fi
     ;;
 esac
 
 if $all; then
-  lib=true storage=true docs_only=false
+  lib=true storage=true farms=true docs_only=false
 fi
 
 out="docs_only=$docs_only
 lib=$lib
 storage=$storage
+farms=$farms
 all=$all
 ae2=$ae2
 rs=$rs"

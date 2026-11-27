@@ -5,6 +5,8 @@ builds on, **MaxTech Lib** (`maxtech_lib`, `lib/`). Each is split into `common` 
 `Platform` implementation and loader glue). Requirements: `PRD.md` and `storage/PRD.md`. Mod rules: `storage/CLAUDE.md`,
 `lib/CLAUDE.md`. How we work (risk tiers, review, agents, CI): `docs/workflow.md`. Packages: `dev.silencebound.maxtech.lib`
 and `dev.silencebound.maxtech.storage`; public api under `.api`; compat under `<mod>.compat.<modid>`.
+**MaxTech Farms** (`maxtech_farms`, `farms/`, package `dev.silencebound.maxtech.farms`) is in development (FM1) and
+builds on Lib's public api only; its rules: `farms/CLAUDE.md`.
 
 ## Commands
 

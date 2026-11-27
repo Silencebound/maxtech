@@ -54,3 +54,4 @@ rootProject.name = "maxtech"
 
 include(":lib:common", ":lib:neoforge")
 include(":storage:common", ":storage:neoforge")
+include(":farms:common", ":farms:neoforge")
