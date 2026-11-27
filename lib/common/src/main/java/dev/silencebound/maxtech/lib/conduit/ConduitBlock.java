@@ -2,6 +2,7 @@ package dev.silencebound.maxtech.lib.conduit;
 
 import com.mojang.serialization.MapCodec;
 import dev.silencebound.maxtech.lib.api.conduit.ConduitFaceMode;
+import dev.silencebound.maxtech.lib.api.conduit.ConduitShapes;
 import dev.silencebound.maxtech.lib.api.conduit.ConduitType;
 import dev.silencebound.maxtech.lib.facade.Facades;
 import dev.silencebound.maxtech.lib.info.ConduitInfo;

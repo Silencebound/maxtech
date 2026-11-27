@@ -1,9 +1,9 @@
 package dev.silencebound.maxtech.storage.cable;
 
+import dev.silencebound.maxtech.lib.api.conduit.ConduitColours;
 import dev.silencebound.maxtech.lib.api.conduit.ConduitFaceMode;
+import dev.silencebound.maxtech.lib.api.conduit.ConduitShapes;
 import dev.silencebound.maxtech.lib.client.conduit.ConduitLabels;
-import dev.silencebound.maxtech.lib.conduit.ConduitColours;
-import dev.silencebound.maxtech.lib.conduit.ConduitShapes;
 import net.minecraft.core.Direction;
 import net.minecraft.world.phys.AABB;
 

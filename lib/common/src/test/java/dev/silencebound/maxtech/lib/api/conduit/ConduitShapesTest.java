@@ -1,4 +1,4 @@
-package dev.silencebound.maxtech.lib.conduit;
+package dev.silencebound.maxtech.lib.api.conduit;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotSame;

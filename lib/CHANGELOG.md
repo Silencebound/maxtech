@@ -11,6 +11,9 @@ Api changes are marked **Api**.
   facade tint extension was registered with no blocks, which NeoForge refuses.
 
 ### Added
+- **Api** The pure conduit helpers are api (`lib.api.conduit`, experimental, for Farms FM1): `ConduitLook`,
+  `ConduitShapes`, `ConduitConnections`, `ConduitFaceKey`, `ConduitColours` and `ConduitFaceModes` moved there from
+  `lib.conduit` unchanged; `ConduitFaceModes.validateRegistered` stays Lib's (`@ApiStatus.Internal`).
 - **Api** The network engine is api (`lib.api.network`, experimental, for Farms FM1): `Network`, `NetworkGraph`,
   `NetworkLogic`, `NetworkManager`, `NetworkType`, `NodeConnectivity` and `RouteTree` moved there from `lib.network`.
   `NetworkType.byId` returns an `Optional` (allocation-free) instead of null. Ticking, clearing and profiling stay Lib's

@@ -4,11 +4,11 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import dev.silencebound.maxtech.lib.api.conduit.ConduitConnections;
+import dev.silencebound.maxtech.lib.api.conduit.ConduitFaceKey;
 import dev.silencebound.maxtech.lib.api.conduit.ConduitFaceMode;
+import dev.silencebound.maxtech.lib.api.conduit.ConduitLook;
 import dev.silencebound.maxtech.lib.api.conduit.ConduitType;
-import dev.silencebound.maxtech.lib.conduit.ConduitConnections;
-import dev.silencebound.maxtech.lib.conduit.ConduitFaceKey;
-import dev.silencebound.maxtech.lib.conduit.ConduitLook;
 import dev.silencebound.maxtech.lib.conduit.ConduitRenderData;
 import dev.silencebound.maxtech.lib.info.ConduitInfo;
 import java.util.ArrayList;

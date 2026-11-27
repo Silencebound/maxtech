@@ -1,15 +1,18 @@
-package dev.silencebound.maxtech.lib.conduit;
+package dev.silencebound.maxtech.lib.api.conduit;
 
-import dev.silencebound.maxtech.lib.api.conduit.ConduitFaceMode;
-import dev.silencebound.maxtech.lib.api.conduit.ConduitType;
 import net.minecraft.util.ARGB;
 import net.minecraft.world.item.DyeColor;
+import org.jetbrains.annotations.ApiStatus;
 import org.jspecify.annotations.Nullable;
 
 /**
  * Conduit colours: an uncoloured conduit shows its look's colour ({@link ConduitLook}), a dyed one that colour pulled
  * most of the way towards the dye; face decorations show their mode's colour.
+ * <p>
+ * Experimental (Lib 0.14.0, moved from {@code lib.conduit} for Farms, FM1) until Farms, its first addon user, settles
+ * it.
  */
+@ApiStatus.Experimental
 public final class ConduitColours {
     // Enough that a dyed conduit reads as its dye colour, little enough that two dyed types still look different.
     static final float DYE_WEIGHT = 0.65F;

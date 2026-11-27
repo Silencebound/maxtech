@@ -1,14 +1,13 @@
-package dev.silencebound.maxtech.lib.conduit;
+package dev.silencebound.maxtech.lib.api.conduit;
 
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
-import dev.silencebound.maxtech.lib.MaxtechLib;
-import dev.silencebound.maxtech.lib.api.conduit.ConduitType;
 import java.util.Optional;
 import net.minecraft.resources.Identifier;
 import net.minecraft.util.ExtraCodecs;
 import net.minecraft.util.StringRepresentable;
+import org.jetbrains.annotations.ApiStatus;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -25,15 +24,20 @@ import org.jspecify.annotations.Nullable;
  * <p>
  * Colours are {@code 0xRRGGBB}; {@link #TYPE_COLOUR} stands for the conduit type's {@link ConduitType#baseColour()}. A
  * dyed conduit pulls its body colour towards the dye ({@link ConduitColours}).
+ * <p>
+ * Experimental (Lib 0.14.0, moved from {@code lib.conduit} for Farms, FM1) until Farms, its first addon user, settles
+ * it.
  */
+@ApiStatus.Experimental
 public sealed interface ConduitLook {
     /** Use the conduit type's base colour. */
     int TYPE_COLOUR = -1;
     /** The plain white sprite that flat faces are tinted on. */
-    Identifier FLAT = MaxtechLib.id("block/conduit/flat");
+    Identifier FLAT = Identifier.fromNamespaceAndPath("maxtech_lib", "block/conduit/flat");
     /** A flat conduit in its type's colour; what a conduit block without a look of its own gets. */
     ConduitLook DEFAULT = wire();
 
+    /** The look as the block state file holds it: a {@code look} field naming the {@link Kind}, then its fields. */
     MapCodec<ConduitLook> CODEC = Kind.CODEC.dispatchMap("look", ConduitLook::kind, Kind::codec);
 
     /** Which of the looks this is; the {@code look} field of the block state file. */
@@ -88,6 +92,7 @@ public sealed interface ConduitLook {
 
     /** The looks by name, for the block state file. */
     enum Kind implements StringRepresentable {
+        /** {@link Solid}, named {@code solid}. */
         SOLID("solid");
 
         static final Codec<Kind> CODEC = StringRepresentable.fromEnum(Kind::values);

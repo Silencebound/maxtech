@@ -1,9 +1,9 @@
 package dev.silencebound.maxtech.lib.content;
 
+import dev.silencebound.maxtech.lib.api.conduit.ConduitLook;
 import dev.silencebound.maxtech.lib.api.conduit.ConduitType;
 import dev.silencebound.maxtech.lib.conduit.ConduitBlock;
 import dev.silencebound.maxtech.lib.conduit.ConduitItem;
-import dev.silencebound.maxtech.lib.conduit.ConduitLook;
 import dev.silencebound.maxtech.lib.platform.RegistryEntry;
 import java.util.ArrayList;
 import java.util.List;

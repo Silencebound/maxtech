@@ -9,7 +9,7 @@ import net.minecraft.resources.ResourceKey;
 import dev.silencebound.maxtech.lib.api.guide.GuideConfigValues;
 import dev.silencebound.maxtech.lib.api.security.OwnerSecurity;
 import dev.silencebound.maxtech.lib.concurrent.WorkerPool;
-import dev.silencebound.maxtech.lib.conduit.ConduitFaceModes;
+import dev.silencebound.maxtech.lib.api.conduit.ConduitFaceModes;
 import dev.silencebound.maxtech.lib.config.ClientConfig;
 import dev.silencebound.maxtech.lib.config.ServerConfig;
 import dev.silencebound.maxtech.lib.energy.LevelEnergy;

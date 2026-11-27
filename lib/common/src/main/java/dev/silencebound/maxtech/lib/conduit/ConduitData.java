@@ -1,6 +1,8 @@
 package dev.silencebound.maxtech.lib.conduit;
 
+import dev.silencebound.maxtech.lib.api.conduit.ConduitConnections;
 import dev.silencebound.maxtech.lib.api.conduit.ConduitFaceMode;
+import dev.silencebound.maxtech.lib.api.conduit.ConduitFaceModes;
 import dev.silencebound.maxtech.lib.api.conduit.ConduitState;
 import dev.silencebound.maxtech.lib.api.conduit.ConduitType;
 import net.minecraft.core.Direction;

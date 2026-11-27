@@ -1,7 +1,7 @@
 package dev.silencebound.maxtech.storage.cable;
 
-import dev.silencebound.maxtech.lib.conduit.ConduitConnections;
-import dev.silencebound.maxtech.lib.conduit.ConduitShapes;
+import dev.silencebound.maxtech.lib.api.conduit.ConduitConnections;
+import dev.silencebound.maxtech.lib.api.conduit.ConduitShapes;
 import java.util.ArrayList;
 import java.util.List;
 import net.minecraft.core.Direction;

@@ -1,6 +1,6 @@
 package dev.silencebound.maxtech.storage.part;
 
-import dev.silencebound.maxtech.lib.conduit.ConduitShapes;
+import dev.silencebound.maxtech.lib.api.conduit.ConduitShapes;
 import net.minecraft.core.Direction;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;

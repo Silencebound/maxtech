@@ -1,4 +1,4 @@
-package dev.silencebound.maxtech.lib.conduit;
+package dev.silencebound.maxtech.lib.api.conduit;
 
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import net.minecraft.core.Direction;
@@ -6,6 +6,7 @@ import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
+import org.jetbrains.annotations.ApiStatus;
 
 /**
  * The boxes of one conduit block (ADR-0012): a square core centred in the block, {@code thickness} of a block wide, and
@@ -18,7 +19,11 @@ import net.minecraft.world.phys.shapes.VoxelShape;
  * box; connector rings ({@link #ring}) sit at the block face and are a little wider than the arm, so the hit shape
  * includes them. All boxes are in pixels (0 to 16); {@code thickness} is a fraction of a block, as
  * {@code ConduitType.thickness()} gives it.
+ * <p>
+ * Experimental (Lib 0.14.0, moved from {@code lib.conduit} for Farms, FM1) until Farms, its first addon user, settles
+ * it.
  */
+@ApiStatus.Experimental
 public final class ConduitShapes {
     private static final double BLOCK = 16.0;
     /** How far a ring stands proud of its arm on each side, in pixels. */

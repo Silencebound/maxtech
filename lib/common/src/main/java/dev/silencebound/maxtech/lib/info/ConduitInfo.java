@@ -1,14 +1,14 @@
 package dev.silencebound.maxtech.lib.info;
 
+import dev.silencebound.maxtech.lib.api.conduit.ConduitConnections;
 import dev.silencebound.maxtech.lib.api.conduit.ConduitFaceMode;
+import dev.silencebound.maxtech.lib.api.conduit.ConduitFaceModes;
 import dev.silencebound.maxtech.lib.api.conduit.ConduitType;
 import dev.silencebound.maxtech.lib.api.info.BlockInfoProvider;
 import dev.silencebound.maxtech.lib.api.info.BlockInfoRequest;
 import dev.silencebound.maxtech.lib.api.info.BlockInfoSink;
 import dev.silencebound.maxtech.lib.conduit.ConduitBlockEntity;
-import dev.silencebound.maxtech.lib.conduit.ConduitConnections;
 import dev.silencebound.maxtech.lib.conduit.ConduitData;
-import dev.silencebound.maxtech.lib.conduit.ConduitFaceModes;
 import java.util.Locale;
 import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;

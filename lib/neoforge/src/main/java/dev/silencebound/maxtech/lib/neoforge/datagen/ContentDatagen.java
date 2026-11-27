@@ -1,6 +1,6 @@
 package dev.silencebound.maxtech.lib.neoforge.datagen;
 
-import dev.silencebound.maxtech.lib.conduit.ConduitLook;
+import dev.silencebound.maxtech.lib.api.conduit.ConduitLook;
 import dev.silencebound.maxtech.lib.content.BlockDeclaration;
 import dev.silencebound.maxtech.lib.content.BlockModel;
 import dev.silencebound.maxtech.lib.content.Content;

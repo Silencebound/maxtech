@@ -6,7 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import dev.silencebound.maxtech.lib.api.conduit.ConduitFaceMode;
-import dev.silencebound.maxtech.lib.conduit.ConduitShapes;
+import dev.silencebound.maxtech.lib.api.conduit.ConduitShapes;
 import net.minecraft.core.Direction;
 import net.minecraft.world.phys.AABB;
 import org.junit.jupiter.api.Test;

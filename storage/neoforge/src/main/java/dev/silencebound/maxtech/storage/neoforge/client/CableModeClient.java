@@ -2,10 +2,10 @@ package dev.silencebound.maxtech.storage.neoforge.client;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
+import dev.silencebound.maxtech.lib.api.conduit.ConduitFaceKey;
 import dev.silencebound.maxtech.lib.client.conduit.ConduitLabels;
 import dev.silencebound.maxtech.lib.client.conduit.ConduitQuad;
 import dev.silencebound.maxtech.lib.conduit.ConduitBlockEntity;
-import dev.silencebound.maxtech.lib.conduit.ConduitFaceKey;
 import dev.silencebound.maxtech.lib.conduit.ConduitRenderData;
 import dev.silencebound.maxtech.lib.config.ClientConfig;
 import dev.silencebound.maxtech.lib.facade.FacadeView;

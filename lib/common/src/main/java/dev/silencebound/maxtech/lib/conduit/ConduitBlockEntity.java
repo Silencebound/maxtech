@@ -1,7 +1,10 @@
 package dev.silencebound.maxtech.lib.conduit;
 
 import com.mojang.logging.LogUtils;
+import dev.silencebound.maxtech.lib.api.conduit.ConduitConnections;
 import dev.silencebound.maxtech.lib.api.conduit.ConduitFaceMode;
+import dev.silencebound.maxtech.lib.api.conduit.ConduitFaceModes;
+import dev.silencebound.maxtech.lib.api.conduit.ConduitShapes;
 import dev.silencebound.maxtech.lib.api.conduit.ConduitState;
 import dev.silencebound.maxtech.lib.api.conduit.ConduitType;
 import dev.silencebound.maxtech.lib.api.network.NetworkManager;
@@ -35,6 +38,7 @@ import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
+
 // PLATFORM-LEAK: getModelData() is NeoForge's thread-safe way to hand the conduit's look to chunk meshing.
 import net.neoforged.neoforge.model.data.ModelData;
 // PLATFORM-LEAK: the model data key for getModelData().

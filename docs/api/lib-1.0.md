@@ -38,6 +38,9 @@ Labels: **stable** = frozen at 1.0, a breaking change needs a Lib major bump. **
 | `ConduitTypes` | The `maxtech_lib:conduit_type` registry key and lookups. | stable |
 | `ConduitFaceMode` | How a conduit face meets a block: both, insert, extract, disabled; stable ids. | stable |
 | `ConduitState` | Server-side state a conduit saves in its block entity (cable parts). | stable |
+| `ConduitLook` | How a conduit block is drawn; its codec is the `look` object of the block state file. Moved from `lib.conduit` for Farms (FM1). | experimental |
+| `ConduitShapes`, `ConduitFaceKey` | A conduit's boxes (core, arms, stubs, rings) in pixels and hit shapes; one face decoration. | experimental |
+| `ConduitConnections`, `ConduitFaceModes`, `ConduitColours` | Whether two conduits connect, side masks; six face modes packed in an `int`; body and face colours. `ConduitFaceModes.validateRegistered` is Lib's (`@ApiStatus.Internal`). | experimental |
 | **`lib.api.energy`** | MaxTech energy (MLE): MU amounts and the FE rate, producer, consumer and buffer endpoints, networks with one sleeping pass per tick, per-level schedulers, edges to other mods' FE blocks with export settings (`EnergyEdge`, `EdgeSettings`, Lib 0.11.0), diagnostics (`EnergyNetwork.readout()`, `EnergyReadout`, the endpoint capability `EnergyNetworks.ENDPOINT_CAPABILITY`, Lib 0.12.0). Added in Lib 0.10.0; experimental until Storage's switch-over proves it. | experimental |
 | **`lib.api.guide`** | What stays of Lib's guide, retired in Lib 0.13.0 (MGM item 3; GuideME draws guides now): config values by path. `Guides`, `GuideElements`, `GuideColumns`, `GuideLiveValues` and `GuideScreens` are removed. | experimental |
 | `GuideConfigValues` | A mod's config values by dotted path, for a guide's `<Config>` tag (Storage's GuideME extension). | experimental |
@@ -84,7 +87,7 @@ on 2026-10-15.
 | `lib.platform` | Loader seam for `common` code. | 233 | internal |
 | `lib.client.gui` | Widget toolkit and screen base classes. | 113 | internal; candidate for api after 1.0 |
 | `lib.content` | Content builder (blocks, items, datagen declarations). | 72 | internal ("until it settles") |
-| `lib.conduit` | Conduit block, block entity and connections. | 70 | internal |
+| `lib.conduit` | Conduit block, block entity, item and per-conduit data. | 70 | internal |
 | `lib.client` (top level) | Client glue. | 60 | internal |
 | `lib.info` | Scanner and info formatting. | 52 | internal |
 | `lib.energy` | FE buffers and transfer helpers. | 26 | internal; waits for the energy decision |

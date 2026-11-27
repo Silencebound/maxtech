@@ -6,9 +6,9 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import dev.silencebound.maxtech.lib.api.conduit.ConduitLook;
 import dev.silencebound.maxtech.lib.api.conduit.ConduitType;
 import dev.silencebound.maxtech.lib.api.conduit.ConduitTypes;
-import dev.silencebound.maxtech.lib.conduit.ConduitLook;
 import dev.silencebound.maxtech.lib.platform.RegistryEntry;
 import dev.silencebound.maxtech.lib.platform.RegistryHelper;
 import java.util.ArrayList;

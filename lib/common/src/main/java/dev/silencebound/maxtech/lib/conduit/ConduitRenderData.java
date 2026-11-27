@@ -1,5 +1,7 @@
 package dev.silencebound.maxtech.lib.conduit;
 
+import dev.silencebound.maxtech.lib.api.conduit.ConduitConnections;
+import dev.silencebound.maxtech.lib.api.conduit.ConduitFaceKey;
 import dev.silencebound.maxtech.lib.api.conduit.ConduitType;
 import java.util.ArrayList;
 import java.util.List;

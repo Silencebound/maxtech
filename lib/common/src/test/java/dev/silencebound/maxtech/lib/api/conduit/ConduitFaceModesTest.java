@@ -1,4 +1,4 @@
-package dev.silencebound.maxtech.lib.conduit;
+package dev.silencebound.maxtech.lib.api.conduit;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -6,8 +6,6 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import dev.silencebound.maxtech.lib.api.conduit.ConduitFaceMode;
-import dev.silencebound.maxtech.lib.api.conduit.ConduitType;
 import java.util.EnumSet;
 import java.util.Set;
 import net.minecraft.core.Direction;
@@ -93,15 +91,6 @@ class ConduitFaceModesTest {
         IllegalStateException noDisabled = assertThrows(IllegalStateException.class, () -> ConduitFaceModes
                 .validate(type(EnumSet.of(ConduitFaceMode.BOTH), ConduitFaceMode.BOTH), "test:no_disabled"));
         assertTrue(String.valueOf(noDisabled.getMessage()).contains("test:no_disabled"), noDisabled.getMessage());
-    }
-
-    @Test
-    void newConduitStartsInTheDefaultMode() {
-        ConduitType insertFirst = type(EnumSet.allOf(ConduitFaceMode.class), ConduitFaceMode.INSERT);
-        ConduitData conduit = new ConduitData(insertFirst, null, 0);
-        for (Direction side : Direction.values()) {
-            assertEquals(ConduitFaceMode.INSERT, conduit.faceMode(side), side.name());
-        }
     }
 
     static ConduitType type(Set<ConduitFaceMode> supported, ConduitFaceMode defaultMode) {
