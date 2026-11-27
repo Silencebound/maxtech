@@ -42,9 +42,9 @@ import org.slf4j.Logger;
  * slots' roles, and {@link #addPlayerInventory} the player's main inventory and hotbar. The client menu builds the same
  * groups over an empty copy of the slots (the same {@link ItemSlots.Builder}), which vanilla slot sync fills.
  * Shift-clicks never use vanilla's {@code moveItemStackTo} on copies: a player stack goes into the groups named in
- * {@link #shiftClick} in that order, a machine stack into the main inventory and then the hotbar, each as one
- * {@link MenuTransfer} transaction. {@link #addTank} makes a tank gauge clickable with a fluid container through
- * {@code clickMenuButton}.
+ * {@link #shiftClick} in that order (or, if no slot there takes that item at all, between the main inventory and the
+ * hotbar, like vanilla), a machine stack into the main inventory and then the hotbar, each as one {@link MenuTransfer}
+ * transaction. {@link #addTank} makes a tank gauge clickable with a fluid container through {@code clickMenuButton}.
  */
 public abstract class ToolkitMenu<H> extends AbstractContainerMenu {
     private static final Logger LOGGER = LogUtils.getLogger();
@@ -75,7 +75,10 @@ public abstract class ToolkitMenu<H> extends AbstractContainerMenu {
         table.markAll();
     }
 
-    /** The {@code clickMenuButton} id of the first tank; tank {@code n} (in {@link #addTank} order) is this plus n. */
+    /**
+     * The {@code clickMenuButton} id of the first tank; tank {@code n} (in {@link #addTank} order) is this plus n. Ids
+     * from here on belong to tanks, so a subclass's own buttons use ids below it.
+     */
     public static final int TANK_BUTTONS = 1_000_000;
 
     /**
@@ -131,7 +134,8 @@ public abstract class ToolkitMenu<H> extends AbstractContainerMenu {
     /**
      * Makes a tank gauge clickable with fluid containers; returns the {@code clickMenuButton} id the screen sends. The
      * server menu passes the tank (from {@link FluidTank#create}), the client menu null; both add tanks in the same
-     * order.
+     * order. Fluid tanks only: clicks go through items' fluid capabilities, and tanks of other kinds wait for the
+     * bridge from a kind to its capabilities (ADR-0017, T1).
      */
     protected final int addTank(@Nullable FluidTank tank) {
         if (tank != null && !(tank instanceof LibFluidTank)) {
@@ -151,7 +155,7 @@ public abstract class ToolkitMenu<H> extends AbstractContainerMenu {
         if (slot instanceof ToolkitSlot toolkit) {
             MenuTransfer.toPlayer(player, toolkit.slots(), toolkit.index());
         } else if (index >= playerFirst && index < playerEnd) {
-            MenuTransfer.toGroups(player, slot.getContainerSlot(), shiftOrder);
+            MenuTransfer.fromPlayer(player, slot.getContainerSlot(), shiftOrder);
         }
         return ItemStack.EMPTY;
     }

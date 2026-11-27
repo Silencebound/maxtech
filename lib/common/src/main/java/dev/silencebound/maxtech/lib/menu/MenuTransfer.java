@@ -32,6 +32,7 @@ import net.neoforged.neoforge.transfer.item.PlayerInventoryWrapper;
 import net.neoforged.neoforge.transfer.resource.ResourceStack;
 // PLATFORM-LEAK: see above.
 import net.neoforged.neoforge.transfer.transaction.Transaction;
+import org.jspecify.annotations.Nullable;
 
 /**
  * The moves of a toolkit menu, each one root transaction against the real handlers (the player's inventory, Lib's slots
@@ -69,6 +70,63 @@ final class MenuTransfer {
     }
 
     /**
+     * A shift-click on the player's inventory slot {@code inventorySlot}: into {@code groups} ({@link #toGroups}), or,
+     * when no slot of them takes the item at all (full ones aside), to the other section ({@link #betweenSections});
+     * returns how many items moved.
+     */
+    static int fromPlayer(Player player, int inventorySlot, List<SlotGroup> groups) {
+        int moved = toGroups(player, inventorySlot, groups);
+        if (moved > 0) {
+            return moved;
+        }
+        ItemResource resource = PlayerInventoryWrapper.of(player).getSlot(inventorySlot).getResource(0);
+        if (resource.isEmpty() || anyAccepts(groups, resource)) {
+            return 0;
+        }
+        return betweenSections(player, inventorySlot);
+    }
+
+    /** Whether any slot of {@code groups} would take {@code resource} from a player, room aside. */
+    static boolean anyAccepts(List<SlotGroup> groups, ItemResource resource) {
+        for (int i = 0; i < groups.size(); i++) {
+            ResourceHandler<ItemResource> view = groups.get(i).playerView();
+            for (int index = 0; index < view.size(); index++) {
+                if (view.isValid(index, resource)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Moves what is in the player's inventory slot {@code inventorySlot} to the other section, the hotbar for a main
+     * inventory slot and the main inventory for a hotbar slot, matching stacks first, like vanilla machines do with an
+     * item they do not take; returns how many items moved.
+     */
+    static int betweenSections(Player player, int inventorySlot) {
+        PlayerInventoryWrapper inventory = PlayerInventoryWrapper.of(player);
+        ResourceHandler<ItemResource> source = inventory.getSlot(inventorySlot);
+        ItemResource resource = source.getResource(0);
+        int amount = source.getAmountAsInt(0);
+        if (resource.isEmpty() || amount == 0) {
+            return 0;
+        }
+        int hotbar = Inventory.getSelectionSize();
+        ResourceHandler<ItemResource> target = inventorySlot < hotbar
+                ? RangedResourceHandler.of(inventory, hotbar, Inventory.INVENTORY_SIZE)
+                : RangedResourceHandler.of(inventory, 0, hotbar);
+        try (Transaction transaction = Transaction.openRoot()) {
+            int moved = ResourceHandlerUtil.insertStacking(target, resource, amount, transaction);
+            if (moved == 0 || source.extract(0, resource, moved, transaction) != moved) {
+                return 0;
+            }
+            transaction.commit();
+            return moved;
+        }
+    }
+
+    /**
      * Moves what slot {@code index} of {@code slots} holds into the player's main inventory and then the hotbar,
      * matching stacks first, like vanilla; returns how many items moved. Display slots give nothing.
      */
@@ -95,10 +153,11 @@ final class MenuTransfer {
     }
 
     /**
-     * A click with the carried item on a tank gauge: fills the carried fluid container (one of a stack) from
-     * {@code tank}, or else empties it into the tank, as much as both accept, in one transaction; the changed container
-     * goes back on the cursor or, for a stack, into the inventory. Returns whether anything moved; plays the fluid's
-     * sound on the server.
+     * A click with the carried item on a tank gauge: a carried fluid container (one of a stack) that already holds the
+     * tank's fluid empties into the tank, or else fills from it; any other container fills from the tank, or else
+     * empties into it. Each try moves as much as both sides accept, in one transaction; the changed container goes back
+     * on the cursor or, for a stack, into the inventory. Returns whether anything moved; plays the fluid's sound on the
+     * server.
      */
     static boolean tankClick(Player player, AbstractContainerMenu menu, ResourceHandler<FluidResource> tank) {
         ResourceHandler<FluidResource> container = ItemAccess.forPlayerCursor(player, menu).oneByOne()
@@ -108,12 +167,17 @@ final class MenuTransfer {
         }
         ResourceStack<FluidResource> moved;
         boolean pickup;
+        boolean emptyFirst = holds(container, tank.getResource(0));
         try (Transaction transaction = Transaction.openRoot()) {
-            moved = ResourceHandlerUtil.moveFirst(tank, container, resource -> true, Integer.MAX_VALUE, transaction);
+            moved = emptyFirst ? null : fill(tank, container, transaction);
             pickup = moved != null;
             if (moved == null) {
                 moved = ResourceHandlerUtil.moveFirst(container, tank, resource -> true, Integer.MAX_VALUE,
                         transaction);
+            }
+            if (moved == null && emptyFirst) {
+                moved = fill(tank, container, transaction);
+                pickup = moved != null;
             }
             if (moved == null) {
                 return false;
@@ -125,5 +189,23 @@ final class MenuTransfer {
                     new Vec3(player.getX(), player.getY() + 0.5, player.getZ()), player, pickup);
         }
         return true;
+    }
+
+    private static @Nullable ResourceStack<FluidResource> fill(ResourceHandler<FluidResource> tank,
+            ResourceHandler<FluidResource> container, Transaction transaction) {
+        return ResourceHandlerUtil.moveFirst(tank, container, resource -> true, Integer.MAX_VALUE, transaction);
+    }
+
+    /** Whether {@code container} holds some of {@code fluid}; false for an empty fluid. */
+    private static boolean holds(ResourceHandler<FluidResource> container, FluidResource fluid) {
+        if (fluid.isEmpty()) {
+            return false;
+        }
+        for (int index = 0; index < container.size(); index++) {
+            if (container.getAmountAsLong(index) > 0 && fluid.equals(container.getResource(index))) {
+                return true;
+            }
+        }
+        return false;
     }
 }

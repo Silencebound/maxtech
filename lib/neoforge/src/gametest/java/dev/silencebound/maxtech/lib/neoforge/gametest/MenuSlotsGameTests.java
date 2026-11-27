@@ -45,7 +45,8 @@ import org.jspecify.annotations.Nullable;
 @EventBusSubscriber(modid = MaxtechLib.MOD_ID)
 public final class MenuSlotsGameTests {
     private static final String[] NAMES = {"menu_slots_shift_into_groups", "menu_slots_output_take_only",
-            "menu_slots_full_inventory", "menu_slots_client_mirror", "menu_tank_bucket_clicks"};
+            "menu_slots_full_inventory", "menu_slots_client_mirror", "menu_tank_bucket_clicks",
+            "menu_tank_partial_container", "menu_slots_shift_between_sections"};
     private static final RegistryHelper.Registrar<Consumer<GameTestHelper>> FUNCTIONS = Platform.get().registry()
             .registrar(MaxtechLib.MOD_ID, Registries.TEST_FUNCTION);
     private static final RegistryHelper.Registrar<DataComponentType<?>> COMPONENTS = Platform.get().registry()
@@ -74,6 +75,8 @@ public final class MenuSlotsGameTests {
         FUNCTIONS.register(NAMES[2], () -> MenuSlotsGameTests::fullInventory);
         FUNCTIONS.register(NAMES[3], () -> MenuSlotsGameTests::clientMirror);
         FUNCTIONS.register(NAMES[4], () -> MenuSlotsGameTests::tankBucketClicks);
+        FUNCTIONS.register(NAMES[5], () -> MenuSlotsGameTests::tankPartialContainer);
+        FUNCTIONS.register(NAMES[6], () -> MenuSlotsGameTests::shiftBetweenSections);
     }
 
     private MenuSlotsGameTests() {
@@ -104,16 +107,17 @@ public final class MenuSlotsGameTests {
         });
     }
 
-    private static final class TestMenu extends ToolkitMenu<Host> {
+    private static class TestMenu extends ToolkitMenu<Host> {
         final ItemSlots inventory;
         final int tankButton;
+        final SlotGroup coal;
 
         /** The server menu over {@code host}, or with a null host the client menu over an empty mirror. */
         TestMenu(Player player, @Nullable Host host) {
             super(null, 1, player, VALUES, host);
             inventory = host != null ? host.slots : SLOTS.build(slot -> {
             });
-            SlotGroup coal = addSlots(inventory, 0, 1, 8, 8, 1);
+            coal = addSlots(inventory, 0, 1, 8, 8, 1);
             SlotGroup output = addSlots(inventory, 1, 2, 26, 8, 1);
             addSlots(inventory, 2, 3, 44, 8, 1);
             SlotGroup open = addSlots(inventory, 3, 4, 62, 8, 1);
@@ -127,6 +131,14 @@ public final class MenuSlotsGameTests {
         @Override
         public boolean stillValid(Player player) {
             return true;
+        }
+    }
+
+    /** {@link TestMenu} whose shift-clicks go only into the coal input. */
+    private static final class CoalOnlyMenu extends TestMenu {
+        CoalOnlyMenu(Player player, Host host) {
+            super(player, host);
+            shiftClick(coal);
         }
     }
 
@@ -336,6 +348,63 @@ public final class MenuSlotsGameTests {
         helper.assertValueEqual(host.tank.amount(), 4000L, "tank filled to capacity");
         helper.assertFalse(click(menu, player, new ItemStack(Items.DIRT)), "dirt moved fluid");
         helper.assertFalse(menu.clickMenuButton(player, menu.tankButton + 1), "a button no tank has");
+        helper.succeed();
+    }
+
+    /**
+     * A partly filled flask of the tank's fluid empties into the tank rather than filling up from it; with the tank
+     * full it fills instead. An empty flask still fills, and a flask of another fluid fills from nothing and empties
+     * into nothing.
+     */
+    private static void tankPartialContainer(GameTestHelper helper) {
+        Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+        Host host = new Host();
+        TestMenu menu = new TestMenu(player, host);
+        FluidKey water = FluidKey.of(Fluids.WATER);
+        host.tank.set(water, 1000);
+        helper.assertTrue(click(menu, player, flask(100)), "partial flask");
+        helper.assertValueEqual(flaskAmount(menu.getCarried()), 0, "partial flask after the click");
+        helper.assertValueEqual(host.tank.amount(), 1100L, "tank after a partial flask");
+        host.tank.set(water, 4000);
+        helper.assertTrue(click(menu, player, flask(100)), "partial flask at a full tank");
+        helper.assertValueEqual(flaskAmount(menu.getCarried()), FLASK_CAPACITY, "flask filled from a full tank");
+        helper.assertValueEqual(host.tank.amount(), 3800L, "full tank after filling the flask");
+        host.tank.set(FluidKey.of(Fluids.LAVA), 4000);
+        helper.assertFalse(click(menu, player, flask(100)), "water flask at a full lava tank");
+        helper.assertValueEqual(flaskAmount(menu.getCarried()), 100, "water flask at a lava tank");
+        helper.succeed();
+    }
+
+    /**
+     * A shift-clicked stack that no named group takes at all moves from the main inventory to the hotbar and back,
+     * matching stacks first; coal, which the coal input takes, stays put while that input is full.
+     */
+    private static void shiftBetweenSections(GameTestHelper helper) {
+        Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+        Host host = new Host();
+        TestMenu menu = new CoalOnlyMenu(player, host);
+        Inventory inventory = player.getInventory();
+        inventory.setItem(10, new ItemStack(Items.DIRT, 10));
+        inventory.setItem(3, new ItemStack(Items.DIRT, 60));
+        quickMove(menu, player, MAIN + 1);
+        helper.assertValueEqual(inventory.getItem(3).getCount(), 64, "matching hotbar stack filled first");
+        helper.assertTrue(ItemStack.matches(inventory.getItem(0), new ItemStack(Items.DIRT, 6)),
+                "rest in the hotbar: " + inventory.getItem(0));
+        helper.assertTrue(inventory.getItem(10).isEmpty(), "dirt left in the main inventory");
+        quickMove(menu, player, HOTBAR);
+        helper.assertTrue(inventory.getItem(0).isEmpty(), "hotbar dirt not moved");
+        helper.assertValueEqual(count(player, Items.DIRT), 70, "dirt in all");
+        boolean inMain = false;
+        for (int i = Inventory.getSelectionSize(); i < Inventory.INVENTORY_SIZE; i++) {
+            inMain |= ItemStack.matches(inventory.getItem(i), new ItemStack(Items.DIRT, 6));
+        }
+        helper.assertTrue(inMain, "hotbar dirt not in the main inventory");
+
+        host.slots.set(0, new ItemStack(Items.COAL, 64));
+        inventory.setItem(12, new ItemStack(Items.COAL, 5));
+        quickMove(menu, player, MAIN + 3);
+        helper.assertTrue(ItemStack.matches(inventory.getItem(12), new ItemStack(Items.COAL, 5)),
+                "coal moved although the coal input takes it");
         helper.succeed();
     }
 }

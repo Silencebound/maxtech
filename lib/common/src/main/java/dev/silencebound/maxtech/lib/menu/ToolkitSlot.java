@@ -35,7 +35,7 @@ public final class ToolkitSlot extends ResourceHandlerSlot {
 
     @Override
     public boolean mayPlace(ItemStack stack) {
-        return slots.role(slotIndex) == SlotRole.INPUT && slots.accepts(slotIndex, stack);
+        return slots.role(slotIndex) == SlotRole.INPUT && !slots.unknown(slotIndex) && slots.accepts(slotIndex, stack);
     }
 
     @Override
