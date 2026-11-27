@@ -11,6 +11,9 @@ Api changes are marked **Api**.
   facade tint extension was registered with no blocks, which NeoForge refuses.
 
 ### Added
+- **Api** `ConduitQuad` gains an optional `ConduitUv` (`lib.api.conduit.model`, experimental): the part of its sprite
+  a quad shows and its quarter turns, baked like a block model face's `uv` and `rotation`; without one a quad shows its
+  whole sprite as before.
 - **Api** Custom conduit models (experimental, for Farms FM1): `Conduits.Builder.customModel(translucent)` marks a
   conduit whose client model comes from an addon's `ConduitModelHook`, registered in the client mod-bus event
   `RegisterConduitModelsEvent` (both in the NeoForge-side api jar, `lib.neoforge.api.client.conduit`). The hook names
