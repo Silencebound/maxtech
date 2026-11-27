@@ -1,4 +1,4 @@
-package dev.silencebound.maxtech.lib.schedule;
+package dev.silencebound.maxtech.lib.api.schedule;
 
 /** Which queue a task waits in; a group runs its player queue first each tick. */
 public enum TaskPriority {

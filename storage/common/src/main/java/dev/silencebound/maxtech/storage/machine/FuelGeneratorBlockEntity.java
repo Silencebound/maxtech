@@ -5,7 +5,7 @@ import dev.silencebound.maxtech.lib.config.ServerConfig;
 import dev.silencebound.maxtech.lib.energy.FeLookups;
 import dev.silencebound.maxtech.lib.energy.FeTransfer;
 import dev.silencebound.maxtech.lib.platform.CachedBlockLookup;
-import dev.silencebound.maxtech.lib.schedule.ScheduledTask;
+import dev.silencebound.maxtech.lib.api.schedule.ScheduledTask;
 import dev.silencebound.maxtech.storage.config.StorageServerConfig;
 import dev.silencebound.maxtech.storage.energy.FeView;
 import dev.silencebound.maxtech.lib.api.security.OwnerRecord;

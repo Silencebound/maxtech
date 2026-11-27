@@ -5,7 +5,7 @@ import dev.silencebound.maxtech.lib.api.resource.ItemKey;
 import dev.silencebound.maxtech.lib.api.resource.StackKey;
 import dev.silencebound.maxtech.lib.conduit.ConduitBlock;
 import dev.silencebound.maxtech.lib.energy.FeBuffer;
-import dev.silencebound.maxtech.lib.schedule.TaskGroup;
+import dev.silencebound.maxtech.lib.api.schedule.TaskGroup;
 import dev.silencebound.maxtech.storage.MaxtechStorage;
 import dev.silencebound.maxtech.storage.cable.CableContent;
 import dev.silencebound.maxtech.storage.network.NetworkState;

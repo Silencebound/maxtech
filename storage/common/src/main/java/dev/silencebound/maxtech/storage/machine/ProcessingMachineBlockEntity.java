@@ -1,7 +1,7 @@
 package dev.silencebound.maxtech.storage.machine;
 
 import dev.silencebound.maxtech.lib.api.recipe.ItemOutput;
-import dev.silencebound.maxtech.lib.schedule.ScheduledTask;
+import dev.silencebound.maxtech.lib.api.schedule.ScheduledTask;
 import dev.silencebound.maxtech.storage.config.StorageServerConfig;
 import dev.silencebound.maxtech.storage.research.ResearchUnlocks;
 import java.util.ArrayList;

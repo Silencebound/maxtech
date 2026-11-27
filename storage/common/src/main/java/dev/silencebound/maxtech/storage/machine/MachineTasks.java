@@ -1,7 +1,7 @@
 package dev.silencebound.maxtech.storage.machine;
 
 import dev.silencebound.maxtech.lib.schedule.LevelTasks;
-import dev.silencebound.maxtech.lib.schedule.TaskGroup;
+import dev.silencebound.maxtech.lib.api.schedule.TaskGroup;
 import java.util.Map;
 import java.util.WeakHashMap;
 import net.minecraft.server.level.ServerLevel;

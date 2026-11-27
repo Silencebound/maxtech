@@ -1,4 +1,4 @@
-package dev.silencebound.maxtech.lib.schedule;
+package dev.silencebound.maxtech.lib.api.schedule;
 
 import it.unimi.dsi.fastutil.objects.ReferenceOpenHashSet;
 import java.util.function.IntSupplier;
@@ -100,6 +100,7 @@ public final class TaskGroup {
         }
     }
 
+    /** Whether {@link #close()} was called; a closed group takes no tasks. */
     public boolean isClosed() {
         return closed;
     }

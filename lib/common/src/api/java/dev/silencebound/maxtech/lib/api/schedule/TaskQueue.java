@@ -1,4 +1,4 @@
-package dev.silencebound.maxtech.lib.schedule;
+package dev.silencebound.maxtech.lib.api.schedule;
 
 import java.util.Arrays;
 import org.jspecify.annotations.Nullable;

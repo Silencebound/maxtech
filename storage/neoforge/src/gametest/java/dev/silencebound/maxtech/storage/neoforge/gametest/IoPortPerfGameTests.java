@@ -4,7 +4,7 @@ import com.mojang.logging.LogUtils;
 import dev.silencebound.maxtech.lib.api.resource.ItemKey;
 import dev.silencebound.maxtech.lib.api.resource.StackKey;
 import dev.silencebound.maxtech.lib.neoforge.perf.PerfBudget;
-import dev.silencebound.maxtech.lib.schedule.TaskGroup;
+import dev.silencebound.maxtech.lib.api.schedule.TaskGroup;
 import dev.silencebound.maxtech.storage.MaxtechStorage;
 import dev.silencebound.maxtech.storage.cell.CellContent;
 import dev.silencebound.maxtech.storage.cell.CellInventory;

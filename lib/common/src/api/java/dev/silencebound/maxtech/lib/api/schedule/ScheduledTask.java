@@ -1,4 +1,4 @@
-package dev.silencebound.maxtech.lib.schedule;
+package dev.silencebound.maxtech.lib.api.schedule;
 
 import org.jspecify.annotations.Nullable;
 
@@ -31,10 +31,12 @@ public abstract class ScheduledTask {
     /** Fixed per-task value that spreads backoff wake-ups; 0 until the task first joins a group. */
     int spreadKey;
 
+    /** A task that waits in {@code priority}'s queue of its group. */
     protected ScheduledTask(TaskPriority priority) {
         this.priority = priority;
     }
 
+    /** Which queue of its group the task waits in. */
     public final TaskPriority priority() {
         return priority;
     }

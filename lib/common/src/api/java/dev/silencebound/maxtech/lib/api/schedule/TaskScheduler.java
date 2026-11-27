@@ -1,13 +1,14 @@
-package dev.silencebound.maxtech.lib.schedule;
+package dev.silencebound.maxtech.lib.api.schedule;
 
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import java.util.function.IntSupplier;
+import org.jetbrains.annotations.ApiStatus;
 import java.util.function.LongSupplier;
 
 /**
  * The budgeted work queue of one level (PRD 7.2, Performance): {@link TaskGroup}s with their own budgets, a hashed
- * timer wheel for sleeping tasks, and exponential backoff for idle ones. {@link LevelTasks} owns one per level and runs
- * it each level tick, so storage devices, like machines, never tick on their own.
+ * timer wheel for sleeping tasks, and exponential backoff for idle ones. Lib owns one per level
+ * ({@link TaskSchedulers}) and runs it each level tick, so storage devices, like machines, never tick on their own.
  *
  * <p>
  * Sleeping costs nothing per tick but the wheel slot of the current tick: a task's timer sits in the slot of its due
@@ -33,8 +34,10 @@ public final class TaskScheduler {
 
     /**
      * A scheduler timing its groups with {@code clock} (nanoseconds; {@code System::nanoTime} in game) and capping
-     * backoff at {@code maxBackoffTicks}, read on each use.
+     * backoff at {@code maxBackoffTicks}, read on each use. For Lib and tests; addons get groups from
+     * {@link TaskSchedulers#newGroup}.
      */
+    @ApiStatus.Internal
     @SuppressWarnings("unchecked") // generic array creation; every element is set right below
     public TaskScheduler(LongSupplier clock, IntSupplier maxBackoffTicks) {
         this.clock = clock;
@@ -59,6 +62,7 @@ public final class TaskScheduler {
     }
 
     /** Timer entries in the wheel, stale ones included until their slot comes up; for tests. */
+    @ApiStatus.Internal
     public int timers() {
         return timers;
     }
@@ -103,8 +107,10 @@ public final class TaskScheduler {
 
     /**
      * Wakes the tasks due by {@code gameTime} and runs every group with queued tasks. Ticks skipped since the last call
-     * (a level that stopped ticking) are caught up, at most one wheel turn's worth, which covers every slot.
+     * (a level that stopped ticking) are caught up, at most one wheel turn's worth, which covers every slot. Lib calls
+     * it once per level tick; anyone else calling it would run every group again and spend their budgets.
      */
+    @ApiStatus.Internal
     public void tick(long gameTime) {
         if (timers > 0) {
             long from = lastTick == Long.MIN_VALUE || gameTime - lastTick > WHEEL_SIZE || gameTime < lastTick

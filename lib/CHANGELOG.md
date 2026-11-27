@@ -7,6 +7,9 @@ Api changes are marked **Api**.
 ## [Unreleased]
 
 ### Added
+- **Api** The task scheduler is api (`lib.api.schedule`, experimental, for Farms FM1): `ScheduledTask`, `TaskGroup`,
+  `TaskPriority` and `TaskScheduler` moved there from `lib.schedule`, and `TaskSchedulers.newGroup(level)` gives an
+  addon a group with Lib's configured budgets. `LevelTasks` stays internal and backs it.
 - NeoForge's config screen (Mods, Config) for Lib's client and server files: every option and section has a name and
   a tooltip with its unit, range, default and, for `workers.threads`, that it applies after a world reload. Sections
   come in order of how often they are changed. `ConfigScreens` registers the same screen for an addon.
