@@ -93,6 +93,23 @@ public final class ConduitModel implements DynamicBlockStateModel {
     private final PartCache<ConduitFaceKey, BlockStateModelPart> labelledFaces = new PartCache<>(
             this::bakeLabelledFace);
 
+    /**
+     * PROTOTYPE (proto/tube-fx branch only, never merged): the GameTest tube-fx demo's sprites outside its hook's
+     * {@code sprites()} (fluid sprites from the baked fluid models) and a light emission per sprite. Null in every
+     * other run.
+     */
+    public interface ProtoSprites {
+        /** The sprite for {@code id}, or null if the demo does not know it. */
+        Material.@Nullable Baked sprite(Identifier id);
+
+        /** The light emission (0 to 15) of quads drawn with {@code id}. */
+        int lightEmission(Identifier id);
+    }
+
+    /** PROTOTYPE (proto/tube-fx only): set by the GameTest tube-fx demo's client setup. */
+    @SuppressWarnings("NonFinalStaticField") // prototype hook, set once on the client by dev-only code
+    public static volatile @Nullable ProtoSprites protoSprites;
+
     ConduitModel(ConduitLook look, Sprites sprites) {
         this(look, sprites, null);
     }
@@ -267,13 +284,16 @@ public final class ConduitModel implements DynamicBlockStateModel {
             ConduitLayers.requireDeclared(custom.translucent(), transparency, custom.block(),
                     face.sprite() != null ? face.sprite() : face.texture());
         }
-        BakedQuad.MaterialInfo info = BakedQuad.MaterialInfo.of(material, transparency, -1, true, 0, true);
+        ProtoSprites proto = protoSprites;
+        Identifier named = face.sprite();
+        int emission = proto == null || named == null ? 0 : proto.lightEmission(named);
+        BakedQuad.MaterialInfo info = BakedQuad.MaterialInfo.of(material, transparency, -1, true, emission, true);
         AABB box = face.box();
         Vector3f from = new Vector3f((float) box.minX, (float) box.minY, (float) box.minZ);
         Vector3f to = new Vector3f((float) box.maxX, (float) box.maxY, (float) box.maxZ);
         return FaceBakery.bakeQuad(NO_INTERNING, from, to, ConduitFaceUvs.uvs(face.uv()),
                 ConduitFaceUvs.rotation(face.uv()), info, face.facing(), BlockModelRotation.IDENTITY, null,
-                new ExtraFaceData(face.argb(), 0, true));
+                new ExtraFaceData(face.argb(), emission, true));
     }
 
     private Material.Baked material(ConduitQuad face) {
@@ -282,6 +302,10 @@ public final class ConduitModel implements DynamicBlockStateModel {
             Material.Baked own = custom == null ? null : custom.sprites().get(sprite);
             if (own == null) {
                 own = sprites.named().get(sprite);
+            }
+            ProtoSprites proto = protoSprites;
+            if (own == null && proto != null) {
+                own = proto.sprite(sprite);
             }
             if (own == null) {
                 throw new IllegalStateException("A quad of conduit " + (custom == null ? look : custom.block())
