@@ -3,9 +3,10 @@ package dev.silencebound.maxtech.lib.api.config;
 import org.jetbrains.annotations.ApiStatus;
 
 /**
- * Where a mod gets its config files from Lib. A server config with presets comes from {@link #presetConfig}; a plain
- * client or common file is declared on {@link #builder} and added with {@link #register}. Call during mod construction;
- * Lib sets this up in its own construction, which runs before every mod that depends on it.
+ * Where a mod gets its config files from Lib. A server config with presets comes from {@link #presetConfig}; a file
+ * without presets (usually client or common) is declared on {@link #builder} and added with {@link #register}. Call
+ * during mod construction. Lib sets this up in its own construction, so a mod must declare its {@code maxtech_lib}
+ * dependency with {@code ordering = "AFTER"} in {@code neoforge.mods.toml}.
  */
 public final class Configs {
     private static volatile Factory factory = new Factory() {
@@ -40,13 +41,17 @@ public final class Configs {
     }
 
     /**
-     * A builder for a config file of {@code modId} without presets; values get {@code <modid>.configuration.<path>}.
+     * A builder for a config file of {@code modId} without presets; values get the translation key
+     * {@code <modid>.configuration.<path>}.
      */
     public static ConfigBuilder builder(String modId) {
         return factory.builder(modId);
     }
 
-    /** Registers the file declared on {@code builder} as {@code modId}'s config of {@code type}. */
+    /**
+     * Registers the file declared on {@code builder} as {@code modId}'s config of {@code type}. Any type works; a
+     * server file made this way has no presets, so use {@link #presetConfig} for balance values.
+     */
     public static ConfigFile register(String modId, ConfigType type, ConfigBuilder builder) {
         return factory.register(modId, type, builder);
     }

@@ -12,7 +12,10 @@ public final class LibConfigFactory implements Configs.Factory {
     private LibConfigFactory() {
     }
 
-    /** Sets up {@link Configs}; Lib's init calls it first, and unit tests that load a mod's config classes too. */
+    /**
+     * Sets up {@link Configs}; Lib's init calls it first, and unit tests that load a mod's config classes too. Unit
+     * tests of a mod on the api jar alone cannot reach this class; they set a fake with {@link Configs#setFactory}.
+     */
     public static void install() {
         Configs.setFactory(new LibConfigFactory());
     }
