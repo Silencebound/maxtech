@@ -1,8 +1,8 @@
 package dev.silencebound.maxtech.storage.controller.module.client;
 
 import dev.silencebound.maxtech.storage.devicetab.client.DeviceScreen;
-import dev.silencebound.maxtech.lib.client.gui.accent.AccentButton;
-import dev.silencebound.maxtech.lib.client.gui.TextScale;
+import dev.silencebound.maxtech.lib.api.client.gui.AccentButton;
+import dev.silencebound.maxtech.lib.api.client.gui.TextScale;
 import dev.silencebound.maxtech.lib.api.security.OwnerRecord;
 import dev.silencebound.maxtech.lib.platform.Platform;
 import dev.silencebound.maxtech.storage.controller.module.SecurityMenu;

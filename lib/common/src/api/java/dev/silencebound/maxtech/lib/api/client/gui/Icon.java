@@ -1,5 +1,6 @@
-package dev.silencebound.maxtech.lib.client.gui.accent;
+package dev.silencebound.maxtech.lib.api.client.gui;
 
+import org.jetbrains.annotations.ApiStatus;
 import java.util.List;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.renderer.RenderPipelines;
@@ -7,12 +8,15 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.ItemStack;
 
 /**
- * What an {@link IconButton} or a {@link SideTabs} tab shows: a tinted GUI sprite, a pixel glyph drawn with fills, or
- * an item. The button picks the colour (normal, hovered, greyed out); an item ignores it. Client only.
+ * What an {@link IconButton} or a device side tab shows: a tinted GUI sprite, a pixel glyph drawn with fills, or an
+ * item. The button picks the colour (normal, hovered, greyed out); an item ignores it. Client only.
  */
+@ApiStatus.Experimental
 public interface Icon {
+    /** The width in pixels. */
     int width();
 
+    /** The height in pixels. */
     int height();
 
     /** Draws the icon with its top left corner at ({@code x}, {@code y}) in {@code colour}. */
@@ -51,7 +55,16 @@ public interface Icon {
         return new Item(stack.copy());
     }
 
-    /** A tinted sprite. */
+    /**
+     * A tinted sprite.
+     *
+     * @param sprite
+     *            the GUI atlas sprite
+     * @param width
+     *            the drawn width
+     * @param height
+     *            the drawn height
+     */
     record Sprite(Identifier sprite, int width, int height) implements Icon {
         @Override
         public void draw(GuiGraphicsExtractor graphics, int x, int y, int colour) {
@@ -59,7 +72,14 @@ public interface Icon {
         }
     }
 
-    /** A glyph drawn pixel by pixel with fills. */
+    /**
+     * A glyph drawn pixel by pixel with fills.
+     *
+     * @param rows
+     *            one string per row, {@code '#'} for a pixel
+     * @param width
+     *            the widest row's length
+     */
     record Glyph(List<String> rows, int width) implements Icon {
         @Override
         public int height() {
@@ -79,7 +99,16 @@ public interface Icon {
         }
     }
 
-    /** A colour swatch. */
+    /**
+     * A colour swatch.
+     *
+     * @param argb
+     *            the fill
+     * @param width
+     *            the width
+     * @param height
+     *            the height
+     */
     record Swatch(int argb, int width, int height) implements Icon {
         @Override
         public void draw(GuiGraphicsExtractor graphics, int x, int y, int colour) {
@@ -87,7 +116,12 @@ public interface Icon {
         }
     }
 
-    /** An item icon. */
+    /**
+     * An item icon.
+     *
+     * @param stack
+     *            the item drawn; not changed
+     */
     record Item(ItemStack stack) implements Icon {
         @Override
         public int width() {

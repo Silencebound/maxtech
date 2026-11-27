@@ -1,8 +1,7 @@
-package dev.silencebound.maxtech.lib.client;
+package dev.silencebound.maxtech.lib.api.client.gui;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-import dev.silencebound.maxtech.lib.client.gui.TextScale;
 import org.junit.jupiter.api.Test;
 
 class TextScaleTest {
@@ -12,6 +11,17 @@ class TextScaleTest {
         assertEquals(1.25F, TextScale.factorFor("large"));
         assertEquals(1.5F, TextScale.factorFor("larger"));
         assertEquals(1.0F, TextScale.factorFor("bogus"));
+    }
+
+    @Test
+    void factorReadsTheOptionSource() {
+        try {
+            TextScale.setOptionSource(() -> TextScale.LARGER);
+            assertEquals(1.5F, TextScale.factor());
+        } finally {
+            TextScale.setOptionSource(() -> TextScale.NORMAL);
+        }
+        assertEquals(1.0F, TextScale.factor());
     }
 
     @Test

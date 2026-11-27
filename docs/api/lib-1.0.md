@@ -33,6 +33,12 @@ Labels: **stable** = frozen at 1.0, a breaking change needs a Lib major bump. **
 | `Configs` | Entry point: `presetConfig(modId, anchor)`, and `builder`/`register` for plain files. | experimental |
 | `PresetConfig` | A server config whose defaults come from `<modid>/presets/*.json`. | experimental |
 | `ConfigBuilder`, `ConfigFile`, `ConfigType` | Declaring values, the registered file, which file. | experimental |
+| **`lib.api.client.gui`** | The Accent Frame look and its widgets for MaxTech screens, client only (ADR-0016). Moved from `lib.client.gui`, `lib.client.gui.accent` and `lib.text` in Lib 0.15.0 for Farms (FM1). | experimental |
+| `Accent` | Palette (ARGB) and drawing: panels with a title tab, boxes, slots, bars, button faces, fitted text. | experimental |
+| `AccentButton`, `IconButton`, `Icon` | Text buttons (normal and compact, toggles lit while on); icon buttons (plain, toggle, cycle) and what they show (sprite, glyph, swatch, item). | experimental |
+| `AccentPanel`, `AccentInset`, `AccentRow`, `AccentTabRow` | A panel as a layout with content edges; a dark well; list rows; page tabs with badges. | experimental |
+| `AccentReadout`, `AccentTag`, `AccentStatus`, `AccentToast`, `ScrollBar` | A label and value; a small tag; state colours and dots; an in-screen toast and a notice outside screens; the scroll bar. | experimental |
+| `TextScale`, `TextFit`, `LayoutCheck` | The client's text size option for drawing and measuring (`setOptionSource` is Lib's, `@ApiStatus.Internal`); fitting text with an ellipsis (pure); the 320 x 240 layout check and placement math. | experimental |
 | **`lib.api.conduit`** | Conduit types (a conduit is Lib's generic framework for blocks that connect to neighbours: cables now, later pipes and wires); each type gets its own block from Lib. Addons register their own through `Conduits` (ADR-0015, see below). | stable |
 | `ConduitType` | One conduit type: network type, tier, base colour, thickness, face modes, per-conduit state. | stable |
 | `ConduitTypes` | The `maxtech_lib:conduit_type` registry key and lookups. | stable |
@@ -95,7 +101,7 @@ on 2026-10-15.
 | Package | Purpose | Imports | Label |
 |---|---|---|---|
 | `lib.platform` | Loader seam for `common` code. | 233 | internal |
-| `lib.client.gui` | Widget toolkit and screen base classes. | 113 | internal; candidate for api after 1.0 |
+| `lib.client.gui` | Screen helpers, side tabs and the editor toolkit; the Accent widgets are api since Lib 0.15.0. | 113 | internal |
 | `lib.content` | Content builder (blocks, items, datagen declarations). | 72 | internal ("until it settles") |
 | `lib.conduit` | Conduit block, block entity, item and per-conduit data. | 70 | internal |
 | `lib.client` (top level) | Client glue. | 60 | internal |
@@ -103,7 +109,7 @@ on 2026-10-15.
 | `lib.energy` | FE buffers and transfer helpers. | 26 | internal; waits for the energy decision |
 | `lib.resource` | Key interning, counts, palette codec. | 26 | internal |
 | `lib.network` | `NetworkBootstrap`: config and lifecycle for `lib.api.network.NetworkManager`. | 25 | internal |
-| `lib.text` | Rich text and text fitting. | 25 | internal |
+| `lib.text` | Rich text (text fitting is api since Lib 0.15.0). | 25 | internal |
 | `lib.schedule` | `LevelTasks`: one scheduler per level, behind `lib.api.schedule.TaskSchedulers`. | 15 | internal |
 | `lib.sync` | Synced lists for open screens. | 15 | internal |
 | `lib.highlight` | World highlights. | 11 | internal |

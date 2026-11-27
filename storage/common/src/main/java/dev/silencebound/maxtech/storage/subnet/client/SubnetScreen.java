@@ -2,7 +2,7 @@ package dev.silencebound.maxtech.storage.subnet.client;
 
 import dev.silencebound.maxtech.storage.devicetab.client.DeviceScreen;
 import dev.silencebound.maxtech.storage.machine.client.MenuClick;
-import dev.silencebound.maxtech.lib.client.gui.TextScale;
+import dev.silencebound.maxtech.lib.api.client.gui.TextScale;
 import dev.silencebound.maxtech.storage.machine.client.AccentFrame;
 import dev.silencebound.maxtech.storage.subnet.SubnetMenu;
 import dev.silencebound.maxtech.storage.subnet.SubnetMode;

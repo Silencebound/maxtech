@@ -3,7 +3,7 @@ package dev.silencebound.maxtech.storage.logic.editor;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import dev.silencebound.maxtech.lib.text.TextFit;
+import dev.silencebound.maxtech.lib.api.client.gui.TextFit;
 import java.util.function.ToIntFunction;
 import org.junit.jupiter.api.Test;
 

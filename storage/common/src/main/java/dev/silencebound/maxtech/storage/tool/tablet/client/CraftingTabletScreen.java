@@ -1,7 +1,7 @@
 package dev.silencebound.maxtech.storage.tool.tablet.client;
 
 import dev.silencebound.maxtech.storage.machine.client.MenuClick;
-import dev.silencebound.maxtech.lib.client.gui.TextScale;
+import dev.silencebound.maxtech.lib.api.client.gui.TextScale;
 import dev.silencebound.maxtech.lib.client.gui.ScreenComponents;
 import dev.silencebound.maxtech.storage.machine.client.AccentFrame;
 import dev.silencebound.maxtech.storage.tool.tablet.CraftingTabletContent;

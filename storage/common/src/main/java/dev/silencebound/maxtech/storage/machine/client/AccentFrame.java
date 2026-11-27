@@ -1,6 +1,6 @@
 package dev.silencebound.maxtech.storage.machine.client;
 
-import dev.silencebound.maxtech.lib.client.gui.accent.Accent;
+import dev.silencebound.maxtech.lib.api.client.gui.Accent;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.network.chat.Component;

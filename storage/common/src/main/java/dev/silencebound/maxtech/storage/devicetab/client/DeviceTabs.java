@@ -1,7 +1,7 @@
 package dev.silencebound.maxtech.storage.devicetab.client;
 
-import dev.silencebound.maxtech.lib.client.gui.accent.Accent;
-import dev.silencebound.maxtech.lib.client.gui.accent.Icon;
+import dev.silencebound.maxtech.lib.api.client.gui.Accent;
+import dev.silencebound.maxtech.lib.api.client.gui.Icon;
 import dev.silencebound.maxtech.lib.client.gui.accent.SideTabs;
 import dev.silencebound.maxtech.lib.platform.Platform;
 import dev.silencebound.maxtech.storage.devicetab.DeviceTab;

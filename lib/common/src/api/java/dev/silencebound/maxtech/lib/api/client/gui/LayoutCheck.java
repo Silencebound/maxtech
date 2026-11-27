@@ -1,5 +1,6 @@
-package dev.silencebound.maxtech.lib.client.gui;
+package dev.silencebound.maxtech.lib.api.client.gui;
 
+import org.jetbrains.annotations.ApiStatus;
 import java.util.ArrayList;
 import java.util.List;
 import net.minecraft.client.gui.components.AbstractWidget;
@@ -12,20 +13,37 @@ import net.minecraft.client.gui.components.events.GuiEventListener;
  * Lib also runs it on every MaxTech screen in dev runs and logs what it finds. Client only for {@link #widgets}; the
  * rest is pure.
  */
+@ApiStatus.Experimental
 public final class LayoutCheck {
     /** The smallest GUI Minecraft lays out: it lowers the GUI scale rather than go below this. */
     public static final int MIN_GUI_WIDTH = 320;
+    /** See {@link #MIN_GUI_WIDTH}. */
     public static final int MIN_GUI_HEIGHT = 240;
 
     private LayoutCheck() {
     }
 
-    /** A named rectangle in screen coordinates. */
+    /**
+     * A named rectangle in screen coordinates.
+     *
+     * @param name
+     *            what the problems call it
+     * @param x
+     *            the left edge
+     * @param y
+     *            the top edge
+     * @param width
+     *            the width
+     * @param height
+     *            the height
+     */
     public record Box(String name, int x, int y, int width, int height) {
+        /** The right edge, exclusive. */
         public int right() {
             return x + width;
         }
 
+        /** The bottom edge, exclusive. */
         public int bottom() {
             return y + height;
         }

@@ -1,6 +1,6 @@
 package dev.silencebound.maxtech.storage.crafting.cpu.client;
 
-import dev.silencebound.maxtech.lib.client.gui.accent.AccentToast;
+import dev.silencebound.maxtech.lib.api.client.gui.AccentToast;
 import dev.silencebound.maxtech.lib.client.gui.accent.SideTabs;
 import dev.silencebound.maxtech.storage.config.StorageClientConfig;
 import dev.silencebound.maxtech.storage.crafting.cpu.CpuContent;

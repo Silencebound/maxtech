@@ -2,7 +2,7 @@ package dev.silencebound.maxtech.storage.controller.client;
 
 import dev.silencebound.maxtech.storage.devicetab.client.DeviceScreen;
 import java.util.function.Supplier;
-import dev.silencebound.maxtech.lib.client.gui.accent.AccentButton;
+import dev.silencebound.maxtech.lib.api.client.gui.AccentButton;
 import dev.silencebound.maxtech.storage.machine.client.MenuClick;
 import dev.silencebound.maxtech.storage.palette.StatusPalette;
 import dev.silencebound.maxtech.lib.info.InfoFormat;

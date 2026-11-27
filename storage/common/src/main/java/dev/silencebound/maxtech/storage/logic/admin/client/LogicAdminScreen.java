@@ -1,14 +1,14 @@
 package dev.silencebound.maxtech.storage.logic.admin.client;
 
-import dev.silencebound.maxtech.lib.client.gui.TextScale;
-import dev.silencebound.maxtech.lib.client.gui.accent.Accent;
-import dev.silencebound.maxtech.lib.client.gui.accent.AccentButton;
-import dev.silencebound.maxtech.lib.client.gui.accent.AccentInset;
-import dev.silencebound.maxtech.lib.client.gui.accent.AccentPanel;
-import dev.silencebound.maxtech.lib.client.gui.accent.AccentRow;
-import dev.silencebound.maxtech.lib.client.gui.accent.AccentStatus;
+import dev.silencebound.maxtech.lib.api.client.gui.TextScale;
+import dev.silencebound.maxtech.lib.api.client.gui.Accent;
+import dev.silencebound.maxtech.lib.api.client.gui.AccentButton;
+import dev.silencebound.maxtech.lib.api.client.gui.AccentInset;
+import dev.silencebound.maxtech.lib.api.client.gui.AccentPanel;
+import dev.silencebound.maxtech.lib.api.client.gui.AccentRow;
+import dev.silencebound.maxtech.lib.api.client.gui.AccentStatus;
 import dev.silencebound.maxtech.lib.info.InfoFormat;
-import dev.silencebound.maxtech.lib.text.TextFit;
+import dev.silencebound.maxtech.lib.api.client.gui.TextFit;
 import dev.silencebound.maxtech.storage.logic.admin.AdminList;
 import dev.silencebound.maxtech.storage.logic.admin.AdminRow;
 import dev.silencebound.maxtech.storage.logic.admin.AdminTexts;

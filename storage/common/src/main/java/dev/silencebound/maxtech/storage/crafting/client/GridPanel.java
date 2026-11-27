@@ -1,6 +1,6 @@
 package dev.silencebound.maxtech.storage.crafting.client;
 
-import dev.silencebound.maxtech.lib.client.gui.LayoutCheck;
+import dev.silencebound.maxtech.lib.api.client.gui.LayoutCheck;
 import dev.silencebound.maxtech.storage.machine.client.AccentFrame;
 
 /**

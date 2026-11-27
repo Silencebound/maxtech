@@ -2,8 +2,8 @@ package dev.silencebound.maxtech.storage.terminal.filter.client;
 
 import dev.silencebound.maxtech.lib.api.resource.StackKey;
 import dev.silencebound.maxtech.lib.client.gui.ScreenComponents;
-import dev.silencebound.maxtech.lib.client.gui.TextScale;
-import dev.silencebound.maxtech.lib.client.gui.accent.AccentButton;
+import dev.silencebound.maxtech.lib.api.client.gui.TextScale;
+import dev.silencebound.maxtech.lib.api.client.gui.AccentButton;
 import dev.silencebound.maxtech.lib.platform.Platform;
 import dev.silencebound.maxtech.storage.cell.CellFilter;
 import dev.silencebound.maxtech.storage.machine.client.AccentFrame;

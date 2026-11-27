@@ -5,7 +5,7 @@ import dev.silencebound.maxtech.lib.platform.Platform;
 import dev.silencebound.maxtech.storage.controller.NetworkRenamePayload;
 import dev.silencebound.maxtech.storage.logic.NetworkRef;
 import dev.silencebound.maxtech.storage.machine.client.AccentFrame;
-import dev.silencebound.maxtech.lib.client.gui.accent.AccentButton;
+import dev.silencebound.maxtech.lib.api.client.gui.AccentButton;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;

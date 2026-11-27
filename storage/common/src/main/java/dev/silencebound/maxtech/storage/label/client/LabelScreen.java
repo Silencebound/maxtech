@@ -1,6 +1,6 @@
 package dev.silencebound.maxtech.storage.label.client;
 
-import dev.silencebound.maxtech.lib.client.gui.TextScale;
+import dev.silencebound.maxtech.lib.api.client.gui.TextScale;
 import dev.silencebound.maxtech.lib.client.gui.ScreenComponents;
 import dev.silencebound.maxtech.lib.platform.Platform;
 import dev.silencebound.maxtech.storage.label.LabelContent;
@@ -8,7 +8,7 @@ import dev.silencebound.maxtech.storage.label.LabelCopy;
 import dev.silencebound.maxtech.storage.label.LabelPayloads;
 import dev.silencebound.maxtech.storage.machine.client.AccentFrame;
 import dev.silencebound.maxtech.storage.network.DeviceLabel;
-import dev.silencebound.maxtech.lib.client.gui.accent.AccentButton;
+import dev.silencebound.maxtech.lib.api.client.gui.AccentButton;
 import java.util.List;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.EditBox;

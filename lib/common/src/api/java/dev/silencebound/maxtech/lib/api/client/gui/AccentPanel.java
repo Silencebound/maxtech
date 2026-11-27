@@ -1,5 +1,6 @@
-package dev.silencebound.maxtech.lib.client.gui.accent;
+package dev.silencebound.maxtech.lib.api.client.gui;
 
+import org.jetbrains.annotations.ApiStatus;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.network.chat.Component;
@@ -15,6 +16,7 @@ import net.minecraft.network.chat.Component;
  * Immutable; make a new one when the screen is laid out ({@code init}), so drawing allocates nothing. Client only for
  * drawing; the content edges are plain arithmetic.
  */
+@ApiStatus.Experimental
 public final class AccentPanel {
     /** How far content stays inside the panel's left, right and bottom edges. */
     public static final int INSET = 6;
@@ -50,50 +52,62 @@ public final class AccentPanel {
         return new AccentPanel(x, y, width, height, shown);
     }
 
+    /** The left edge. */
     public int x() {
         return x;
     }
 
+    /** The top edge (the title tab sticks out above it). */
     public int y() {
         return y;
     }
 
+    /** The width, border included. */
     public int width() {
         return width;
     }
 
+    /** The height, border included. */
     public int height() {
         return height;
     }
 
+    /** The right edge, exclusive. */
     public int right() {
         return x + width;
     }
 
+    /** The bottom edge, exclusive. */
     public int bottom() {
         return y + height;
     }
 
+    /** Where content starts on the left, {@link #INSET} inside the edge. */
     public int contentLeft() {
         return x + INSET;
     }
 
+    /** Where content ends on the right, exclusive. */
     public int contentRight() {
         return x + width - INSET;
     }
 
+    /** Where content starts below the top edge, {@link #CONTENT_TOP} down. */
     public int contentTop() {
         return y + CONTENT_TOP;
     }
 
+    /** Where content ends at the bottom, exclusive. */
     public int contentBottom() {
         return y + height - INSET;
     }
 
+    /** The width content may take; never negative. */
     public int contentWidth() {
         return Math.max(0, contentRight() - contentLeft());
     }
 
+    /** The height content may take; never negative. */
     public int contentHeight() {
         return Math.max(0, contentBottom() - contentTop());
     }
