@@ -14,3 +14,12 @@ fun modIdFor(modGroupName: String): String = if (modGroupName == "core") "maxtec
 /** Runs live under the root so `git clean` of one place resets all of them; the root is per worktree. */
 fun Project.runDirectory(runName: String) =
     rootProject.layout.projectDirectory.dir("runs/${path.removePrefix(":").replace(':', '-')}/$runName")
+
+/**
+ * Mods that build on Lib's public api only, like a third-party addon (Farms, FM1): they compile against the
+ * `maxtech_lib-api` jar and never see Lib's internals. Storage still uses Lib's internals and pins one Lib minor.
+ */
+private val libApiOnlyMods = setOf("farms")
+
+val Project.usesLibApiOnly: Boolean
+    get() = modGroupName in libApiOnlyMods

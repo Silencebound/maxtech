@@ -1,0 +1,38 @@
+modLoader = "javafml"
+loaderVersion = "${loader_version_range}"
+license = "LGPL-3.0-only"
+# Shown in crash reports. public_repo_url is a Gradle property (gradle.properties).
+issueTrackerURL = "${public_repo_url}/issues"
+
+[[mods]]
+modId = "maxtech_farms"
+version = "${mod_version}"
+displayName = "MaxTech Farms"
+displayURL = "${public_repo_url}"
+authors = "Silencebound"
+description = '''
+Server-friendly farming for MaxTech: sample a mob, crop, animal or mineral and grow it in a lab.
+
+In development: not released yet.
+'''
+
+[[dependencies.maxtech_farms]]
+modId = "maxtech_lib"
+type = "required"
+versionRange = "${lib_version_range}"
+ordering = "AFTER"
+side = "BOTH"
+
+[[dependencies.maxtech_farms]]
+modId = "neoforge"
+type = "required"
+versionRange = "${neoforge_version_range}"
+ordering = "NONE"
+side = "BOTH"
+
+[[dependencies.maxtech_farms]]
+modId = "minecraft"
+type = "required"
+versionRange = "${minecraft_version_range}"
+ordering = "NONE"
+side = "BOTH"

@@ -2,6 +2,7 @@ import dev.silencebound.maxtech.gradle.MaxtechNeoForgeExtension
 import dev.silencebound.maxtech.gradle.maxtechModId
 import dev.silencebound.maxtech.gradle.modGroupName
 import dev.silencebound.maxtech.gradle.runDirectory
+import dev.silencebound.maxtech.gradle.usesLibApiOnly
 
 plugins {
     id("maxtech.java")
@@ -77,10 +78,15 @@ neoForge {
 // Every other mod builds on Lib, so every run loads it and every neoforge project compiles against Lib's
 // loader glue (datagen helpers, the Platform implementation's lookups). compileOnly: at dev runtime lib/neoforge is
 // loaded as the Lib mod, and in a pack it is Lib's jar.
+// A mod on Lib's api only compiles against the api jar instead, so a use of Lib's internals fails to compile.
 if (modGroupName != "lib") {
     maxtech.loadMod(":lib")
     dependencies {
-        compileOnly(project(":lib:neoforge"))
+        if (usesLibApiOnly) {
+            compileOnly(project(":lib:common", "modApi"))
+        } else {
+            compileOnly(project(":lib:neoforge"))
+        }
     }
 }
 maxtech.loadMod(project.parent!!.path)

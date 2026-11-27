@@ -32,7 +32,7 @@ jobs:
     env:
       # What runs when (see .claude/skills/pr-flow/SKILL.md):
       # - docs-only PR or push: conflict markers (and the doc size guard on PRs) only;
-      # - other PR: build always; GameTests and datagen for the flagged mods (a lib change flags storage too);
+      # - other PR: build always; GameTests and datagen for the flagged mods (a lib change flags storage and farms too);
       # - push to main: conflict markers and build (the build is skipped for docs-only commits);
       # - nightly and manual runs: everything, including datagen and the dedicated-server smoke.
       PUSH: ${{ github.event_name == 'push' }}
@@ -96,6 +96,11 @@ jobs:
       - name: GameTests (storage)
         if: env.PUSH != 'true' && steps.areas.outputs.storage == 'true'
         run: ./gradlew :storage:neoforge:runGameTestServer --no-daemon
+
+      # Farms has no GameTests yet (FM1); the run still proves that Farms loads next to Lib on its api alone.
+      - name: GameTests (farms)
+        if: env.PUSH != 'true' && steps.areas.outputs.farms == 'true'
+        run: ./gradlew :farms:neoforge:runGameTestServer --no-daemon
 
       # The network bridge against the real AE2 and Refined Storage (dev-only runtime deps from Maven Central and
       # Modrinth's maven, never in the jar or datagen): nightly, manual, and PRs that touch the bridge.
