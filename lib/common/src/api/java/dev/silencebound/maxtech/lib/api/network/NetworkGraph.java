@@ -1,5 +1,7 @@
 package dev.silencebound.maxtech.lib.api.network;
 
+import java.util.Collections;
+import java.util.List;
 import it.unimi.dsi.fastutil.bytes.ByteArrayList;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.longs.Long2IntMap;
@@ -44,6 +46,7 @@ public final class NetworkGraph implements RouteTree.Links {
     private final NetworkLogic logic;
     private final Long2ObjectOpenHashMap<Node> nodes = new Long2ObjectOpenHashMap<>();
     private final ObjectArrayList<Network> networks = new ObjectArrayList<>();
+    private final List<Network> networksView = Collections.unmodifiableList(networks);
     private final ObjectArrayList<Network> splitting = new ObjectArrayList<>();
     private final ObjectArrayList<Network> dirty = new ObjectArrayList<>();
     /** Target of a cut edge -> nodes holding that edge, so a loading node can find who was waiting for it. */
@@ -160,9 +163,9 @@ public final class NetworkGraph implements RouteTree.Links {
         return nodes.size();
     }
 
-    /** Live networks; a view that changes during {@link #tick}. */
-    public ObjectArrayList<Network> networks() {
-        return networks;
+    /** Live networks, read-only; a view that changes during {@link #tick}. */
+    public List<Network> networks() {
+        return networksView;
     }
 
     private void queue(long pos, byte kind) {
