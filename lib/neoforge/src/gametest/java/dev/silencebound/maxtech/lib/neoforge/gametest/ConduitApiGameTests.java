@@ -43,7 +43,9 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.storage.TagValueInput;
 import net.minecraft.util.ProblemReporter;
 import net.minecraft.world.level.chunk.LevelChunk;
+import net.minecraft.world.level.material.Fluid;
 import net.minecraft.world.level.material.Fluids;
+import net.minecraft.world.level.material.EmptyFluid;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -340,6 +342,15 @@ public final class ConduitApiGameTests {
                 "the empty fluid was taken as a fluid");
         helper.assertTrue(rejects(() -> new ConduitContents(Optional.of(Fluids.LAVA), 5, Optional.empty(), false)),
                 "fill 5 was accepted");
+        helper.assertTrue(
+                rejects(() -> new ConduitContents(Optional.of(unregisteredFluid()), 0, Optional.empty(), false)),
+                "an unregistered fluid was accepted");
+        helper.assertValueEqual(new ConduitContents(Optional.of(Fluids.WATER), 2, Optional.empty(), false),
+                new ConduitContents(Optional.of(Fluids.FLOWING_WATER), 2, Optional.empty(), false),
+                "flowing water was not normalised to water");
+        helper.assertValueEqual(Fluids.LAVA,
+                new ConduitContents(Optional.of(Fluids.FLOWING_LAVA), 0, Optional.empty(), false).fluid().get(),
+                "flowing lava was not stored as its source");
         helper.succeed();
     }
 
@@ -367,6 +378,17 @@ public final class ConduitApiGameTests {
         helper.assertValueEqual(ConduitContents.EMPTY, loaded(helper, abs, unknown).contents(),
                 "contents naming an unknown fluid");
         helper.succeed();
+    }
+
+    /** A fluid instance outside the registry: created without its constructor, which would need an open registry. */
+    private static Fluid unregisteredFluid() {
+        try {
+            return (Fluid) sun.reflect.ReflectionFactory.getReflectionFactory()
+                    .newConstructorForSerialization(EmptyFluid.class, Object.class.getDeclaredConstructor())
+                    .newInstance();
+        } catch (ReflectiveOperationException e) {
+            throw new IllegalStateException(e);
+        }
     }
 
     private static boolean rejects(Runnable construct) {

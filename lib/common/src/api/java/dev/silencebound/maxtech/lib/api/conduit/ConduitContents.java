@@ -1,14 +1,19 @@
 package dev.silencebound.maxtech.lib.api.conduit;
 
+import com.mojang.logging.LogUtils;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.Objects;
 import java.util.Optional;
 import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.world.level.material.FlowingFluid;
 import net.minecraft.world.level.material.Fluid;
 import org.jetbrains.annotations.ApiStatus;
 import org.jspecify.annotations.Nullable;
+import org.slf4j.Logger;
 
 /**
  * What a conduit shows inside it, in a meaning shared by every addon: the fluid it carries, how full it looks, the side
@@ -23,7 +28,10 @@ import org.jspecify.annotations.Nullable;
  *
  * @param fluid
  *            the fluid shown, drawn with that fluid's own textures and tint; empty for none. Never the empty fluid
- *            itself ({@code Fluids.EMPTY}): that is {@code Optional.empty()}
+ *            itself ({@code Fluids.EMPTY}): that is {@code Optional.empty()}. Must be registered. A flowing fluid is
+ *            stored as its source fluid, so {@code FLOWING_WATER} and {@code WATER} give equal contents. Data
+ *            components are ignored by design: a fluid whose tint or texture depends on components draws its default
+ *            look
  * @param fill
  *            how full the conduit looks, from {@code 0} (empty) over quarter steps to {@link #FULL}; {@code 0} without
  *            a fluid
@@ -46,19 +54,27 @@ public record ConduitContents(Optional<Fluid> fluid, int fill, Optional<Directio
     private static final int UPSTREAM_SHIFT = 19;
     private static final int UPSTREAM_MASK = 0b111;
     private static final int LANE_BIT = 1 << 22;
+    private static final Logger LOGGER = LogUtils.getLogger();
+    private static final Set<Integer> OVERFLOWED = ConcurrentHashMap.newKeySet();
     // Index 0 is none, then Direction.get3DDataValue() + 1; shared so packedUpstream never allocates.
     private static final List<Optional<Direction>> UPSTREAM = upstreamOptions();
 
     /**
      * @throws IllegalArgumentException
      *             if {@code fill} is outside {@code 0..}{@link #FULL}, a fill is given without a fluid, or the fluid is
-     *             the empty fluid
+     *             the empty fluid or not registered
      */
     public ConduitContents {
         Objects.requireNonNull(fluid, "fluid");
         Objects.requireNonNull(upstream, "upstream");
+        if (fluid.isPresent() && fluid.get() instanceof FlowingFluid flowing) {
+            fluid = Optional.of(flowing.getSource());
+        }
         if (fill < 0 || fill > FULL) {
             throw new IllegalArgumentException("fill must be 0.." + FULL + ": " + fill);
+        }
+        if (fluid.isPresent() && BuiltInRegistries.FLUID.getResourceKey(fluid.get()).isEmpty()) {
+            throw new IllegalArgumentException("fluid is not registered: " + fluid.get());
         }
         if (fluid.isPresent() && fluid.get().defaultFluidState().isEmpty()) {
             throw new IllegalArgumentException("the empty fluid is Optional.empty()");
@@ -76,18 +92,27 @@ public record ConduitContents(Optional<Fluid> fluid, int fill, Optional<Directio
     /**
      * These contents packed into one int for a client render key, using the fluid's registry id in this session (see
      * {@link #pack(int, int, Direction, boolean)}). Only meaningful within the session that packed it: never save or
-     * send it. {@link #EMPTY} packs to 0.
-     *
-     * @throws IllegalStateException
-     *             if the fluid's registry id does not fit in the 16 bits of the layout
+     * send it. {@link #EMPTY} packs to 0. A fluid whose registry id does not fit the layout packs as no fluid (and logs
+     * a warning once), so it never fails a load or sync.
      */
     public int packed() {
         int fluidId = fluid.isPresent() ? BuiltInRegistries.FLUID.getId(fluid.get()) : -1;
         if (fluidId >= FLUID_MASK) {
-            throw new IllegalStateException("fluid registry id too large to pack: " + fluidId);
+            if (OVERFLOWED.add(fluidId)) {
+                LOGGER.warn("Conduit fluid {} has registry id {}, too large to draw; showing no fluid", fluid.get(),
+                        fluidId);
+            }
         }
         Direction side = upstream.isPresent() ? upstream.get() : null;
-        return pack(fluidId, fill, side, lane);
+        return packClamped(fluidId, fill, side, lane);
+    }
+
+    /**
+     * Like {@link #pack}, but a fluid id that does not fit packs as no fluid instead of throwing. Pure, so the overflow
+     * can be tested without a registry of that size.
+     */
+    static int packClamped(int fluidId, int fill, @Nullable Direction upstream, boolean lane) {
+        return pack(fluidId >= FLUID_MASK ? -1 : fluidId, fill, upstream, lane);
     }
 
     /**

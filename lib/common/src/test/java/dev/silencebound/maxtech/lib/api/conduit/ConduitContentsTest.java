@@ -47,6 +47,14 @@ class ConduitContentsTest {
     }
 
     @Test
+    void oversizedFluidIdPacksAsNoFluid() {
+        assertEquals(ConduitContents.pack(-1, 0, Direction.UP, true),
+                ConduitContents.packClamped(0xFFFF, 0, Direction.UP, true));
+        assertEquals(ConduitContents.pack(-1, 0, null, false), ConduitContents.packClamped(1_000_000, 0, null, false));
+        assertEquals(ConduitContents.pack(0xFFFE, 2, null, false), ConduitContents.packClamped(0xFFFE, 2, null, false));
+    }
+
+    @Test
     void packedValuesRoundTrip() {
         Direction[] sides = {null, Direction.DOWN, Direction.UP, Direction.NORTH, Direction.SOUTH, Direction.WEST,
                 Direction.EAST};
