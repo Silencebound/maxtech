@@ -43,7 +43,8 @@ Option 2.
 ## Consequences
 
 - Storage ships standalone and runs on FE (and later Lib's energy system) without any content mod.
-- Shared systems go in Lib; content goes in the mod that uses it.- A change to Lib's internals reaches every mod built on it; changes to `lib/common/src/api` are breaking-change
+- Shared systems go in Lib; content goes in the mod that uses it.
+- A change to Lib's internals reaches every mod built on it; changes to `lib/common/src/api` are breaking-change
   candidates (`lib_version`, Storage's `lib_version_range`).
 
 ## Amendment: the facade item moves to Lib (owner decision 2026-10-04)
