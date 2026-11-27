@@ -5,8 +5,10 @@ import java.util.List;
 import java.util.Objects;
 import java.util.function.IntConsumer;
 import java.util.function.Predicate;
+import net.minecraft.core.BlockPos;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.level.storage.ValueOutput;
 import org.jetbrains.annotations.ApiStatus;
@@ -29,7 +31,8 @@ import org.jspecify.annotations.Nullable;
  * <p>
  * The change listener gets the index of each slot that changed, once per change and never for a simulation or a
  * transaction that was rolled back: at once for the methods here, when the root transaction commits for changes made
- * through a handler. It typically calls {@code setChanged()} on the block entity.
+ * through a handler. A change to {@link #overflow()} reports {@code -1}. It typically calls {@code setChanged()} on the
+ * block entity.
  */
 @ApiStatus.NonExtendable
 public interface ItemSlots {
@@ -63,9 +66,9 @@ public interface ItemSlots {
     void set(int slot, ItemStack stack);
 
     /**
-     * Whether {@code slot} holds a saved item that no longer loads (its mod was removed). The slot then reads as empty,
-     * takes nothing, is invisible to automation and menus, and saves the item back exactly as it was saved, so it
-     * returns with its mod; a menu or tooltip can show it as unknown.
+     * Whether {@code slot} holds a saved item that no longer loads, wholly (its mod was removed, or the mod of one of
+     * its components). The slot then reads as empty, takes nothing, is invisible to automation and menus, and saves the
+     * item back exactly as it was saved, so it returns with its mod; a menu or tooltip can show it as unknown.
      */
     boolean unknown(int slot);
 
@@ -75,15 +78,30 @@ public interface ItemSlots {
     /**
      * Stacks a save held for slots this inventory no longer has (the machine shrank), or more than one for a slot:
      * unmodifiable and live, empty almost always. Automation and menus never see them; the owner hands them out with
-     * {@link #takeOverflow} and drops them with the block's contents, and they are saved until then.
+     * {@link #takeOverflow}, and {@link #dropContents} drops them with the slots; they are saved until then.
      */
     List<ItemStack> overflow();
 
     /**
-     * Removes and returns {@code index} of {@link #overflow()}, which the caller now owns. Does not call the change
-     * listener; the owner marks itself changed.
+     * Removes and returns {@code index} of {@link #overflow()}, which the caller now owns, and calls the change
+     * listener (with {@code -1}), so the next save no longer holds the stack. Refused inside a transaction.
      */
     ItemStack takeOverflow(int index);
+
+    /**
+     * Removes and returns every stack in the slots and in {@link #overflow()}, which the caller now owns (to drop or
+     * put into the block's item), and calls the change listener for each slot that held one ({@code -1} for overflow).
+     * Refused inside a transaction. {@link #unknown} items stay where they are: they cannot be dropped or put into an
+     * item, so they vanish when the block is broken. Keeping unknown items applies while the block exists.
+     */
+    List<ItemStack> contentsToDrop();
+
+    /**
+     * Drops {@link #contentsToDrop()} at {@code pos}, as a block does when it is broken (call it from
+     * {@code preRemoveSideEffects}), so no slot and no overflow is forgotten. {@link #unknown} items are not dropped
+     * and vanish with the block, as do a tank's unknown contents.
+     */
+    void dropContents(Level level, BlockPos pos);
 
     /**
      * Puts up to {@code stack.getCount()} of {@code stack}'s item into {@code slot} if its filter takes it and the slot
