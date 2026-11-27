@@ -4,10 +4,10 @@ import com.mojang.datafixers.util.Pair;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.DataResult;
 import com.mojang.serialization.DynamicOps;
-import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.MapLike;
 import com.mojang.serialization.RecordBuilder;
 import io.netty.handler.codec.DecoderException;
+import io.netty.handler.codec.EncoderException;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Function;
@@ -31,23 +31,37 @@ import org.jetbrains.annotations.ApiStatus;
 public record KindKey<K>(ResourceKind<K> kind, K key) {
     /** Name of the field that holds the kind id. */
     public static final String KIND_FIELD = "kind";
-    /** Name of the field that holds the key when the kind's codec is not a map codec. */
+    /**
+     * Name of the field that holds the key of a kind registered with a {@code Codec} rather than a {@code MapCodec}.
+     */
     public static final String VALUE_FIELD = "value";
 
     /**
-     * {@code {"kind": <kind id>, ...}}: a map codec's fields next to {@code kind}, any other codec's value under
-     * {@code value}, like {@link Codec#dispatch}. A kind no loaded mod registers decodes to an {@link UnknownResource}
-     * holding the whole saved value, which encodes back unchanged. Lookups go through {@link ResourceKinds#byId}.
+     * {@code {"kind": <kind id>, ...}}: the fields of a kind registered with a {@code MapCodec} next to {@code kind},
+     * the value of one registered with a {@code Codec} under {@code value}; see {@link ResourceKinds#register}. A kind
+     * no loaded mod registers decodes to an {@link UnknownResource} holding the whole saved value, which encodes back
+     * unchanged. Lookups go through {@link ResourceKinds#byId}.
      */
     public static final Codec<KindKey<?>> CODEC = codec(ResourceKinds::byId);
 
     /**
-     * The kind id, an {@code int} payload length, then the payload in the kind's {@link ResourceKind#streamCodec()}. A
-     * receiver without the kind skips the payload and gets an {@link UnknownResource} with an empty tag; an unknown
-     * resource is sent with length -1 and no payload. A payload read short or long fails decoding.
+     * For keys the server sends: the kind id, an {@code int} payload length, then the payload in the kind's
+     * {@link ResourceKind#streamCodec()}. A receiver without the kind skips the payload and gets an
+     * {@link UnknownResource} whose tag holds only {@code kind}; an unknown resource is sent with length -1 and no
+     * payload, and received the same way whether or not the client has the kind. A payload read short or long fails
+     * decoding.
      */
-    public static final StreamCodec<RegistryFriendlyByteBuf, KindKey<?>> STREAM_CODEC = streamCodec(
-            ResourceKinds::byId);
+    public static final StreamCodec<RegistryFriendlyByteBuf, KindKey<?>> STREAM_CODEC = streamCodec(ResourceKinds::byId,
+            false);
+
+    /**
+     * For keys a client sends (filters, ghost slots): like {@link #STREAM_CODEC}, but an unknown resource cannot be
+     * sent (an {@link EncoderException} on the client) and length -1 fails decoding on the server, so a client cannot
+     * hand the server an unknown resource of a kind the server has. A key of a kind only the client has still arrives
+     * as an {@link UnknownResource}.
+     */
+    public static final StreamCodec<RegistryFriendlyByteBuf, KindKey<?>> SERVERBOUND_STREAM_CODEC = streamCodec(
+            ResourceKinds::byId, true);
 
     /** Throws {@link NullPointerException} for a null kind or key. */
     public KindKey {
@@ -108,13 +122,16 @@ public record KindKey<K>(ResourceKind<K> kind, K key) {
     }
 
     static StreamCodec<RegistryFriendlyByteBuf, KindKey<?>> streamCodec(
-            Function<Identifier, Optional<ResourceKind<?>>> lookup) {
+            Function<Identifier, Optional<ResourceKind<?>>> lookup, boolean serverbound) {
         return new StreamCodec<>() {
             @Override
             public KindKey<?> decode(RegistryFriendlyByteBuf buffer) {
                 Identifier id = Identifier.STREAM_CODEC.decode(buffer);
                 int length = buffer.readInt();
                 if (length == -1) {
+                    if (serverbound) {
+                        throw new DecoderException("Unknown resource of kind " + id + " sent to the server");
+                    }
                     return UnknownResource.received(id);
                 }
                 if (length < 0 || length > buffer.readableBytes()) {
@@ -138,6 +155,9 @@ public record KindKey<K>(ResourceKind<K> kind, K key) {
             public void encode(RegistryFriendlyByteBuf buffer, KindKey<?> key) {
                 Identifier.STREAM_CODEC.encode(buffer, key.kindId());
                 if (key.isUnknown()) {
+                    if (serverbound) {
+                        throw new EncoderException("Unknown resource of kind " + key.kindId() + " sent to the server");
+                    }
                     buffer.writeInt(-1);
                     return;
                 }
@@ -154,16 +174,7 @@ public record KindKey<K>(ResourceKind<K> kind, K key) {
     }
 
     private static <K, T> DataResult<KindKey<?>> decodeKnown(ResourceKind<K> kind, DynamicOps<T> ops, MapLike<T> map) {
-        DataResult<K> result;
-        if (kind.codec() instanceof MapCodec.MapCodecCodec<K> inline) {
-            result = inline.codec().decode(ops, map);
-        } else {
-            T value = map.get(VALUE_FIELD);
-            result = value == null
-                    ? DataResult.error(() -> "No " + VALUE_FIELD + " for resource kind " + kind.id())
-                    : kind.codec().parse(ops, value);
-        }
-        return result.map(key -> new KindKey<>(kind, key));
+        return kind.fields().decode(ops, map).map(key -> new KindKey<>(kind, key));
     }
 
     private static <K, T> DataResult<T> encodeKey(KindKey<K> key, DynamicOps<T> ops, T prefix) {
@@ -171,13 +182,8 @@ public record KindKey<K>(ResourceKind<K> kind, K key) {
         if (kind == UnknownResource.KIND) {
             return kind.codec().encode(key.key(), ops, prefix);
         }
-        T id = ops.createString(kind.id().toString());
-        if (kind.codec() instanceof MapCodec.MapCodecCodec<K> inline) {
-            RecordBuilder<T> fields = inline.codec().encode(key.key(), ops, ops.mapBuilder());
-            return fields.add(KIND_FIELD, id).build(prefix);
-        }
-        return kind.codec().encodeStart(ops, key.key())
-                .flatMap(value -> ops.mapBuilder().add(KIND_FIELD, id).add(VALUE_FIELD, value).build(prefix));
+        RecordBuilder<T> fields = kind.fields().encode(key.key(), ops, ops.mapBuilder());
+        return fields.add(KIND_FIELD, ops.createString(kind.id().toString())).build(prefix);
     }
 
     private static <K> KindKey<K> decodeKnown(ResourceKind<K> kind, RegistryFriendlyByteBuf buffer) {

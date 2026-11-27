@@ -1,6 +1,7 @@
 package dev.silencebound.maxtech.lib.api.resource;
 
 import com.mojang.serialization.Codec;
+import com.mojang.serialization.MapCodec;
 import java.util.function.UnaryOperator;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
@@ -20,15 +21,17 @@ import org.jetbrains.annotations.ApiStatus;
 public final class ResourceKind<K> {
     private final Identifier id;
     private final Codec<K> codec;
+    private final MapCodec<K> fields;
     private final StreamCodec<RegistryFriendlyByteBuf, K> streamCodec;
     private final UnaryOperator<K> drawBase;
     private final AmountUnit unit;
     private final int index;
 
-    ResourceKind(Identifier id, Codec<K> codec, StreamCodec<RegistryFriendlyByteBuf, K> streamCodec,
+    ResourceKind(Identifier id, Codec<K> codec, MapCodec<K> fields, StreamCodec<RegistryFriendlyByteBuf, K> streamCodec,
             UnaryOperator<K> drawBase, AmountUnit unit, int index) {
         this.id = id;
         this.codec = codec;
+        this.fields = fields;
         this.streamCodec = streamCodec;
         this.drawBase = drawBase;
         this.unit = unit;
@@ -44,11 +47,16 @@ public final class ResourceKind<K> {
     }
 
     /**
-     * Saves a key. A map codec's fields sit next to {@code kind} in {@link KindKey#CODEC}; any other codec's value goes
-     * under {@code value}.
+     * Saves a key on its own, without its kind. {@link KindKey#CODEC} saves it next to {@code kind}: as its fields for
+     * a kind registered with a {@code MapCodec}, under {@code value} for one registered with a {@code Codec}.
      */
     public Codec<K> codec() {
         return codec;
+    }
+
+    /** The fields {@link KindKey#CODEC} saves next to {@code kind}: the registered map codec, or {@code value}. */
+    MapCodec<K> fields() {
+        return fields;
     }
 
     /** Sends a key; {@link KindKey#STREAM_CODEC} frames it so a client without this kind can skip it. */

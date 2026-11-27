@@ -44,12 +44,14 @@ import net.neoforged.neoforge.event.RegisterGameTestsEvent;
 public final class ResourceKindGameTests {
     private static final String ROUND_TRIP = "resource_kinds_round_trip";
     private static final String REGISTRY = "resource_kinds_registry";
+    private static final String SAVED_SHAPE = "resource_kinds_saved_shape";
     private static final RegistryHelper.Registrar<Consumer<GameTestHelper>> FUNCTIONS = Platform.get().registry()
             .registrar(MaxtechLib.MOD_ID, Registries.TEST_FUNCTION);
 
     static {
         FUNCTIONS.register(ROUND_TRIP, () -> ResourceKindGameTests::roundTrip);
         FUNCTIONS.register(REGISTRY, () -> ResourceKindGameTests::registry);
+        FUNCTIONS.register(SAVED_SHAPE, () -> ResourceKindGameTests::savedShape);
     }
 
     private ResourceKindGameTests() {
@@ -58,7 +60,7 @@ public final class ResourceKindGameTests {
     @SubscribeEvent
     static void register(RegisterGameTestsEvent event) {
         Holder<TestEnvironmentDefinition<?>> environment = event.registerEnvironment(MaxtechLib.id("resource_kinds"));
-        for (String name : List.of(ROUND_TRIP, REGISTRY)) {
+        for (String name : List.of(ROUND_TRIP, REGISTRY, SAVED_SHAPE)) {
             Identifier id = MaxtechLib.id(name);
             event.registerTest(id, new FunctionGameTestInstance(ResourceKey.create(Registries.TEST_FUNCTION, id),
                     new TestData<>(environment, LibGameTests.EMPTY_STRUCTURE, 20, 0, true)));
@@ -115,13 +117,52 @@ public final class ResourceKindGameTests {
         helper.succeed();
     }
 
+    /**
+     * The built-in kinds save exactly as these literal tags, which worlds already hold: {@code kind} plus the key's own
+     * fields, no {@code value}. Needs registries, so not a JUnit test.
+     */
+    private static void savedShape(GameTestHelper helper) {
+        RegistryOps<Tag> ops = helper.getLevel().registryAccess().createSerializationContext(NbtOps.INSTANCE);
+        DataComponentPatch small = DataComponentPatch.builder().set(DataComponents.MAX_STACK_SIZE, 16).build();
+        CompoundTag components = new CompoundTag();
+        components.putInt("minecraft:max_stack_size", 16);
+
+        CompoundTag item = new CompoundTag();
+        item.putString("kind", "maxtech_lib:item");
+        item.putString("id", "minecraft:diamond_sword");
+        assertSaved(helper, ops, new KindKey<>(ResourceKinds.ITEM, ItemKey.of(Items.DIAMOND_SWORD)), item);
+        CompoundTag itemWithComponents = item.copy();
+        itemWithComponents.put("components", components.copy());
+        assertSaved(helper, ops, new KindKey<>(ResourceKinds.ITEM, ItemKey.of(Items.DIAMOND_SWORD, small)),
+                itemWithComponents);
+
+        CompoundTag fluid = new CompoundTag();
+        fluid.putString("kind", "maxtech_lib:fluid");
+        fluid.putString("id", "minecraft:water");
+        assertSaved(helper, ops, new KindKey<>(ResourceKinds.FLUID, FluidKey.of(Fluids.WATER)), fluid);
+        CompoundTag fluidWithComponents = fluid.copy();
+        fluidWithComponents.put("components", components.copy());
+        assertSaved(helper, ops, new KindKey<>(ResourceKinds.FLUID, FluidKey.of(Fluids.WATER, small)),
+                fluidWithComponents);
+
+        CompoundTag energy = new CompoundTag();
+        energy.putString("kind", "maxtech_lib:energy");
+        assertSaved(helper, ops, new KindKey<>(ResourceKinds.ENERGY, EnergyKey.INSTANCE), energy);
+        helper.succeed();
+    }
+
+    private static void assertSaved(GameTestHelper helper, RegistryOps<Tag> ops, KindKey<?> key, CompoundTag expected) {
+        helper.assertValueEqual(KindKey.CODEC.encodeStart(ops, key).getOrThrow(), expected, "saved " + key);
+        helper.assertValueEqual(KindKey.CODEC.parse(ops, expected).getOrThrow(), key, "loaded " + expected);
+    }
+
     /** The registry is frozen once the game runs; the built-ins come first and map back by id and index. */
     private static void registry(GameTestHelper helper) {
         helper.assertTrue(ResourceKinds.isFrozen(), "the registry is not frozen after common setup");
         boolean refused = false;
         try {
-            ResourceKinds.register(MaxtechLib.id("too_late"), ItemKey.MAP_CODEC.codec(), ItemKey.STREAM_CODEC,
-                    key -> key, AmountUnit.ITEMS);
+            ResourceKinds.register(MaxtechLib.id("too_late"), ItemKey.MAP_CODEC, ItemKey.STREAM_CODEC, key -> key,
+                    AmountUnit.ITEMS);
         } catch (IllegalStateException expected) {
             refused = true;
         }

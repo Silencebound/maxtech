@@ -19,7 +19,7 @@ public record AmountUnit(String langKey, long perBucket) {
     public static final AmountUnit ITEMS = new AmountUnit("maxtech_lib.unit.items", 1);
     /** Millibuckets, 1000 to the bucket: fluids, and later chemicals. */
     public static final AmountUnit MILLIBUCKETS = new AmountUnit("maxtech_lib.unit.millibuckets", 1000);
-    /** MaxTech Units of energy (MLE). */
+    /** MaxTech Units of energy (MU). */
     public static final AmountUnit MU = new AmountUnit("maxtech_lib.unit.mu", 1);
 
     /** Throws {@link IllegalArgumentException} for an empty lang key or a {@code perBucket} below 1. */

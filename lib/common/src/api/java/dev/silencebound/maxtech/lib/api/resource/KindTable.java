@@ -1,10 +1,13 @@
 package dev.silencebound.maxtech.lib.api.resource;
 
 import com.mojang.serialization.Codec;
+import com.mojang.serialization.MapCodec;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.UnaryOperator;
+import net.minecraft.nbt.NbtOps;
+import net.minecraft.nbt.StringTag;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.resources.Identifier;
@@ -18,7 +21,24 @@ final class KindTable {
     private volatile Map<Identifier, ResourceKind<?>> byId = Map.of();
     private volatile boolean frozen;
 
-    synchronized <K> ResourceKind<K> register(Identifier id, Codec<K> codec,
+    /** A kind saved as its fields next to {@code kind}; refuses a field named {@code kind}. */
+    <K> ResourceKind<K> register(Identifier id, MapCodec<K> fields, StreamCodec<RegistryFriendlyByteBuf, K> streamCodec,
+            UnaryOperator<K> drawBase, AmountUnit unit) {
+        if (fields.keys(NbtOps.INSTANCE).anyMatch(StringTag.valueOf(KindKey.KIND_FIELD)::equals)) {
+            throw new IllegalArgumentException("Resource kind " + id + " has a field named " + KindKey.KIND_FIELD
+                    + ", which KindKey saves the kind id in; rename the field or register a Codec, saved under "
+                    + KindKey.VALUE_FIELD);
+        }
+        return add(id, fields.codec(), fields, streamCodec, drawBase, unit);
+    }
+
+    /** A kind saved under {@code value} next to {@code kind}. */
+    <K> ResourceKind<K> register(Identifier id, Codec<K> codec, StreamCodec<RegistryFriendlyByteBuf, K> streamCodec,
+            UnaryOperator<K> drawBase, AmountUnit unit) {
+        return add(id, codec, codec.fieldOf(KindKey.VALUE_FIELD), streamCodec, drawBase, unit);
+    }
+
+    private synchronized <K> ResourceKind<K> add(Identifier id, Codec<K> codec, MapCodec<K> fields,
             StreamCodec<RegistryFriendlyByteBuf, K> streamCodec, UnaryOperator<K> drawBase, AmountUnit unit) {
         if (frozen) {
             throw new IllegalStateException("Resource kind " + id + " registered after common setup");
@@ -30,7 +50,7 @@ final class KindTable {
             throw new IllegalArgumentException("Resource kind " + id + " is already registered");
         }
         ResourceKind<?>[] old = byIndex;
-        ResourceKind<K> kind = new ResourceKind<>(id, codec, streamCodec, drawBase, unit, old.length);
+        ResourceKind<K> kind = new ResourceKind<>(id, codec, fields, streamCodec, drawBase, unit, old.length);
         ResourceKind<?>[] grown = new ResourceKind<?>[old.length + 1];
         System.arraycopy(old, 0, grown, 0, old.length);
         grown[old.length] = kind;

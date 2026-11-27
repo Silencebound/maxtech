@@ -20,8 +20,8 @@ Api changes are marked **Api**.
 
 ### Added
 - **Api** Resource kinds (`lib.api.resource`, experimental, ADR-0017): `ResourceKind`, the `ResourceKinds` registry
-  with built-in item, fluid and energy kinds, `KindKey` with save and network codecs, and `UnknownResource`, which
-  keeps the saved contents of a kind whose mod was removed. Nothing uses them yet.
+  with built-in item, fluid and energy kinds, `KindKey` with save and network codecs (one for keys clients send), and
+  `UnknownResource`, which keeps the saved contents of a kind whose mod was removed. Nothing uses them yet.
 - **Api** Themes and bars for the Accent look (`lib.api.client.gui`, experimental): `AccentTheme` (in `lib.api.style`;
   Lib's cyan by default, so existing screens look the same; every Accent widget and drawing method takes one),
   `AccentTank` (the fluid's own sprite and tint through `FluidLook`), `AccentEnergyBar` (MU, with FE at the configured

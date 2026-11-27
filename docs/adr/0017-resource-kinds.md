@@ -29,9 +29,11 @@ Option 3 (owner, 2026-11-27), in the common api package `lib.api.resource`, expe
 
 - `ResourceKind<K>`: the id saves use, a codec, a stream codec, `drawBase` (the key without its components, for
   drawing) and an `AmountUnit` (lang key, units per bucket, formatting).
-- `KindKey<K>` pairs a kind with a key. Its codec saves `kind` plus the kind codec's fields (or `value` for a codec
-  that is not a map codec); its stream codec sends the kind id and a length-prefixed payload, so a client without a
-  kind skips it.
+- `KindKey<K>` pairs a kind with a key. Its codec saves `kind` plus the key's fields for a kind registered with a
+  `MapCodec` (which must not have a `kind` field of its own), or `kind` and `value` for one registered with a `Codec`;
+  the overload chosen at registration fixes the format, not the codec's class. Its stream codec sends the kind id and
+  a length-prefixed payload, so a client without a kind skips it; a separate serverbound stream codec refuses unknown
+  resources, so a client cannot hand the server one of a kind the server has.
 - `ResourceKinds` registers kinds during mod construction and is frozen at Lib's common setup; lookups by id, or by
   session index into an array. The index is never saved or sent.
 - Built-in kinds: `ITEM` (`ItemKey`), `FLUID` (`FluidKey`), `ENERGY` (one key, for gauges and menu values only).
@@ -51,6 +53,7 @@ Option 3 (owner, 2026-11-27), in the common api package `lib.api.resource`, expe
   them.
 - Unknown resources are dead weight until their mod returns; holders must not count them as space they can fill.
 - Later steps: K2 moves `ConduitContents` to kind keys (fluids keep saving as before) with a client look per kind;
+  where it nests a kind key under `resource` next to fields of its own, it must not save a second `kind` there;
   K3 makes `TankValue` and `AccentTank` kind-aware; G4 builds a tank over any kind; T1 uses kind ids in port settings
   and defines the NeoForge-side bridge from a kind to capabilities, and T3 its adapter for handlers without
   transactions; compat modules for Mekanism and Ars Nouveau follow their 26.1.2 ports.

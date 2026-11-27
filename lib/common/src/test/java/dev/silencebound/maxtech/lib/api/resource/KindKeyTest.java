@@ -11,6 +11,7 @@ import com.mojang.serialization.Codec;
 import com.mojang.serialization.DataResult;
 import io.netty.buffer.Unpooled;
 import io.netty.handler.codec.DecoderException;
+import io.netty.handler.codec.EncoderException;
 import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
@@ -40,14 +41,14 @@ class KindKeyTest {
 
     /** A map kind, a plain-value kind, and a kind only the sender has. */
     private final KindTable sender = new KindTable();
-    private final ResourceKind<String> text = sender.register(TEXT, Codec.STRING.fieldOf("text").codec(),
+    private final ResourceKind<String> text = sender.register(TEXT, Codec.STRING.fieldOf("text"),
             ByteBufCodecs.STRING_UTF8.cast(), String::toLowerCase, AmountUnit.ITEMS);
     private final ResourceKind<Integer> number = sender.register(NUMBER, Codec.INT, ByteBufCodecs.VAR_INT.cast(),
             key -> key, AmountUnit.MILLIBUCKETS);
     private final ResourceKind<Integer> gone = sender.register(GONE, Codec.INT, ByteBufCodecs.VAR_INT.cast(),
             key -> key, AmountUnit.ITEMS);
     private final KindTable receiver = new KindTable();
-    private final ResourceKind<String> receiverText = receiver.register(TEXT, text.codec(), text.streamCodec(),
+    private final ResourceKind<String> receiverText = receiver.register(TEXT, text.fields(), text.streamCodec(),
             key -> key, AmountUnit.ITEMS);
     private final ResourceKind<Integer> receiverNumber = receiver.register(NUMBER, number.codec(), number.streamCodec(),
             key -> key, AmountUnit.ITEMS);
@@ -100,19 +101,82 @@ class KindKeyTest {
         Tag again = receiverCodec.encodeStart(NbtOps.INSTANCE, loaded).getOrThrow();
         assertArrayEquals(before, bytes(assertInstanceOf(CompoundTag.class, again)));
         saved.putString("id", "changed");
-        assertEquals("othermod:hydrogen", unknown.raw() instanceof CompoundTag raw ? raw.getStringOr("id", "") : "",
-                "the unknown resource shares the loaded tag");
+        assertEquals("othermod:hydrogen", unknown.raw().getStringOr("id", ""),
+                "the unknown resource keeps its own copy of the loaded tag");
     }
 
     @Test
     void unitKindsSaveOnlyTheirKind() {
         ResourceKind<EnergyKey> energy = sender.register(Identifier.fromNamespaceAndPath("test", "energy"),
-                EnergyKey.CODEC, EnergyKey.STREAM_CODEC, key -> key, AmountUnit.MU);
+                EnergyKey.MAP_CODEC, EnergyKey.STREAM_CODEC, key -> key, AmountUnit.MU);
         Tag saved = senderCodec.encodeStart(NbtOps.INSTANCE, new KindKey<>(energy, EnergyKey.INSTANCE)).getOrThrow();
         CompoundTag expected = new CompoundTag();
         expected.putString("kind", "test:energy");
         assertEquals(expected, saved);
         assertEquals(new KindKey<>(energy, EnergyKey.INSTANCE), senderCodec.parse(NbtOps.INSTANCE, saved).getOrThrow());
+    }
+
+    @Test
+    void codecKindsSaveUnderValueEvenWhenTheCodecIsAMapCodec() {
+        ResourceKind<String> wrapped = sender.register(Identifier.fromNamespaceAndPath("test", "wrapped"),
+                Codec.STRING.fieldOf("text").codec(), ByteBufCodecs.STRING_UTF8.cast(), key -> key, AmountUnit.ITEMS);
+        Tag saved = senderCodec.encodeStart(NbtOps.INSTANCE, new KindKey<>(wrapped, "Hi")).getOrThrow();
+        CompoundTag value = new CompoundTag();
+        value.putString("text", "Hi");
+        CompoundTag expected = new CompoundTag();
+        expected.putString("kind", "test:wrapped");
+        expected.put("value", value);
+        assertEquals(expected, saved);
+        assertEquals(new KindKey<>(wrapped, "Hi"), senderCodec.parse(NbtOps.INSTANCE, saved).getOrThrow());
+    }
+
+    @Test
+    void mapKindWithAKindFieldIsRefused() {
+        IllegalArgumentException refused = assertThrows(IllegalArgumentException.class,
+                () -> sender.register(Identifier.fromNamespaceAndPath("test", "clash"), Codec.STRING.fieldOf("kind"),
+                        ByteBufCodecs.STRING_UTF8.cast(), key -> key, AmountUnit.ITEMS));
+        assertTrue(String.valueOf(refused.getMessage()).contains("field named kind"), refused.getMessage());
+        assertEquals(Optional.empty(), sender.byId(Identifier.fromNamespaceAndPath("test", "clash")));
+    }
+
+    @Test
+    void unknownResourceNeedsItsKindInTheTag() {
+        Identifier chemical = Identifier.fromNamespaceAndPath("othermod", "chemical");
+        assertThrows(IllegalArgumentException.class, () -> new UnknownResource(chemical, new CompoundTag()));
+        CompoundTag other = new CompoundTag();
+        other.putString("kind", "othermod:other");
+        assertThrows(IllegalArgumentException.class, () -> new UnknownResource(chemical, other));
+    }
+
+    @Test
+    void receivedUnknownSavesAndLoadsAgain() {
+        RegistryFriendlyByteBuf buffer = buffer();
+        KindKey.streamCodec(sender::byId, false).encode(buffer, new KindKey<>(gone, 5));
+        KindKey<?> received = KindKey.streamCodec(receiver::byId, false).decode(buffer);
+
+        Tag saved = receiverCodec.encodeStart(NbtOps.INSTANCE, received).getOrThrow();
+        CompoundTag expected = new CompoundTag();
+        expected.putString("kind", "test:gone");
+        assertEquals(expected, saved);
+        KindKey<?> loaded = receiverCodec.parse(NbtOps.INSTANCE, saved).getOrThrow();
+        assertTrue(loaded.isUnknown());
+        assertEquals(GONE, loaded.kindId());
+    }
+
+    @Test
+    void serverboundRefusesUnknownResources() {
+        KindKey<UnknownResource> unknown = UnknownResource.received(NUMBER);
+        assertThrows(EncoderException.class, () -> KindKey.streamCodec(sender::byId, true).encode(buffer(), unknown));
+
+        RegistryFriendlyByteBuf buffer = buffer();
+        KindKey.streamCodec(sender::byId, false).encode(buffer, unknown);
+        assertThrows(DecoderException.class, () -> KindKey.streamCodec(receiver::byId, true).decode(buffer));
+
+        RegistryFriendlyByteBuf clientOnly = buffer();
+        KindKey.streamCodec(sender::byId, true).encode(clientOnly, new KindKey<>(gone, 5));
+        KindKey<?> received = KindKey.streamCodec(receiver::byId, true).decode(clientOnly);
+        assertTrue(received.isUnknown());
+        assertEquals(GONE, received.kindId());
     }
 
     @Test
@@ -126,14 +190,13 @@ class KindKeyTest {
     @Test
     void receiverSkipsKindsItLacks() {
         RegistryFriendlyByteBuf buffer = buffer();
-        StreamCodec<RegistryFriendlyByteBuf, KindKey<?>> out = KindKey.streamCodec(sender::byId);
+        StreamCodec<RegistryFriendlyByteBuf, KindKey<?>> out = KindKey.streamCodec(sender::byId, false);
         out.encode(buffer, new KindKey<>(text, "before"));
         out.encode(buffer, new KindKey<>(gone, 300_000));
-        out.encode(buffer,
-                UnknownResource.key(Identifier.fromNamespaceAndPath("othermod", "chemical"), new CompoundTag()));
+        out.encode(buffer, UnknownResource.received(Identifier.fromNamespaceAndPath("othermod", "chemical")));
         out.encode(buffer, new KindKey<>(number, 7));
 
-        StreamCodec<RegistryFriendlyByteBuf, KindKey<?>> in = KindKey.streamCodec(receiver::byId);
+        StreamCodec<RegistryFriendlyByteBuf, KindKey<?>> in = KindKey.streamCodec(receiver::byId, false);
         assertEquals(new KindKey<>(receiverText, "before"), in.decode(buffer));
         KindKey<?> skipped = in.decode(buffer);
         assertTrue(skipped.isUnknown());
@@ -151,8 +214,8 @@ class KindKeyTest {
         shortReader.register(NUMBER, Codec.INT, StreamCodec.of((buffer, value) -> {
         }, buffer -> 0), key -> key, AmountUnit.ITEMS);
         RegistryFriendlyByteBuf buffer = buffer();
-        KindKey.streamCodec(sender::byId).encode(buffer, new KindKey<>(number, 7));
-        assertThrows(DecoderException.class, () -> KindKey.streamCodec(shortReader::byId).decode(buffer));
+        KindKey.streamCodec(sender::byId, false).encode(buffer, new KindKey<>(number, 7));
+        assertThrows(DecoderException.class, () -> KindKey.streamCodec(shortReader::byId, false).decode(buffer));
     }
 
     @Test
