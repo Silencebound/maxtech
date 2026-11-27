@@ -52,6 +52,12 @@ final class FacadeClient {
      */
     @SubscribeEvent
     static void registerExtensions(RegisterClientExtensionsEvent event) {
+        Block[] conduits = ConduitBlock.all().toArray(new Block[0]);
+        // Lib alone (or with only addons without conduits, such as Farms) has no conduit blocks, and NeoForge refuses
+        // an extension with no targets.
+        if (conduits.length == 0) {
+            return;
+        }
         event.registerBlock(new IClientBlockExtensions() {
             @Override
             public void collectDynamicTintValues(BlockState state, BlockAndTintGetter level, BlockPos pos,
@@ -66,7 +72,7 @@ final class FacadeClient {
                     tintValues.add(sources.get(i).colorInWorld(facade, level, pos));
                 }
             }
-        }, ConduitBlock.all().toArray(new Block[0]));
+        }, conduits);
     }
 
     /**
