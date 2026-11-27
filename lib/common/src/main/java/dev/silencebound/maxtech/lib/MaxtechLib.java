@@ -1,21 +1,19 @@
 package dev.silencebound.maxtech.lib;
 
+import dev.silencebound.maxtech.lib.api.conduit.ConduitFaceModes;
 import dev.silencebound.maxtech.lib.api.conduit.Conduits;
 import dev.silencebound.maxtech.lib.api.conduit.model.ConduitParts;
 import dev.silencebound.maxtech.lib.api.energy.EnergyNetworks;
+import dev.silencebound.maxtech.lib.api.guide.GuideConfigValues;
 import dev.silencebound.maxtech.lib.api.registry.Registrar;
 import dev.silencebound.maxtech.lib.api.registry.Registrars;
-import dev.silencebound.maxtech.lib.config.LibConfigFactory;
-import dev.silencebound.maxtech.lib.content.LibConduits;
-import dev.silencebound.maxtech.lib.client.conduit.LibConduitParts;
-import net.minecraft.core.Registry;
-import net.minecraft.resources.ResourceKey;
-import dev.silencebound.maxtech.lib.api.guide.GuideConfigValues;
 import dev.silencebound.maxtech.lib.api.security.OwnerSecurity;
+import dev.silencebound.maxtech.lib.client.conduit.LibConduitParts;
 import dev.silencebound.maxtech.lib.concurrent.WorkerPool;
-import dev.silencebound.maxtech.lib.api.conduit.ConduitFaceModes;
 import dev.silencebound.maxtech.lib.config.ClientConfig;
+import dev.silencebound.maxtech.lib.config.LibConfigFactory;
 import dev.silencebound.maxtech.lib.config.ServerConfig;
+import dev.silencebound.maxtech.lib.content.LibConduits;
 import dev.silencebound.maxtech.lib.energy.LevelEnergy;
 import dev.silencebound.maxtech.lib.gui.transfer.CraftingGridMenus;
 import dev.silencebound.maxtech.lib.highlight.Highlights;
@@ -23,7 +21,9 @@ import dev.silencebound.maxtech.lib.network.NetworkBootstrap;
 import dev.silencebound.maxtech.lib.platform.Platform;
 import dev.silencebound.maxtech.lib.registry.ModContent;
 import dev.silencebound.maxtech.lib.schedule.LevelTasks;
+import net.minecraft.core.Registry;
 import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceKey;
 
 /** MaxTech Lib: the shared code every MaxTech mod builds on, with no player-facing content of its own (ADR-0014). */
 public final class MaxtechLib {

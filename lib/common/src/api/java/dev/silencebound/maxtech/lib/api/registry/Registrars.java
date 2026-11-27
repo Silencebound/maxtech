@@ -23,6 +23,9 @@ public final class Registrars {
      * A deferred registrar for {@code registry} and {@code modId}, attached to that mod's lifecycle. Call during mod
      * construction (typically from the static initialiser of a class the entrypoint touches), because registration runs
      * right after construction.
+     *
+     * @throws IllegalStateException
+     *             before Lib has initialised, or when {@code modId} is not a loaded mod
      */
     public static <R> Registrar<R> create(String modId, ResourceKey<? extends Registry<R>> registry) {
         return factory.create(modId, registry);

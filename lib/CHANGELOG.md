@@ -17,6 +17,9 @@ Api changes are marked **Api**.
   when not empty and only on change, the fluid by registry name; a fluid no longer registered loads as empty.
   `ConduitBodyKey.contents()` hands the client model the contents packed into an int (layout in
   `ConduitContents.pack`); Lib's looks don't draw them yet.
+- **Api** `ConduitLook.Shell` (`"look": "shell"`, experimental): a translucent glass conduit whose border lines and rims
+  Lib works out from the connections, with the border colour, border and rim widths as optional fields
+  (`docs/api/conduit-addon.md`).
 - **Api** `ConduitQuad` gains an optional `ConduitUv` (`lib.api.conduit.model`, experimental): the part of its sprite
   a quad shows and its quarter turns, baked like a block model face's `uv` and `rotation`; without one a quad shows its
   whole sprite as before.

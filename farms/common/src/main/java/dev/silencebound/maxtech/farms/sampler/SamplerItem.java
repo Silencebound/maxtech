@@ -116,6 +116,15 @@ public class SamplerItem extends Item {
      * it ahead of the mob's own interaction, so villagers and horses can be sampled too.
      */
     public static InteractionResult startSampling(Player player, InteractionHand hand, Entity target) {
+        return startSampling(player, hand, target, true);
+    }
+
+    /**
+     * As {@link #startSampling(Player, InteractionHand, Entity)}; {@code notify} off keeps a refusal silent. On
+     * NeoForge the loader glue's call is followed by {@link #interactLivingEntity} for a refused click, which stays
+     * silent so the player sees each message once.
+     */
+    public static InteractionResult startSampling(Player player, InteractionHand hand, Entity target, boolean notify) {
         ItemStack sampler = player.getItemInHand(hand);
         if (!(sampler.getItem() instanceof SamplerItem) || player.isUsingItem()) {
             return InteractionResult.PASS;
@@ -123,7 +132,7 @@ public class SamplerItem extends Item {
         Refusal refusal = refusal(sampler, target);
         if (refusal != null) {
             String message = refusal.translationKey();
-            if (message != null && !player.level().isClientSide()) {
+            if (notify && message != null && !player.level().isClientSide()) {
                 player.sendOverlayMessage(Component.translatable(message));
             }
             return InteractionResult.PASS;
@@ -150,7 +159,7 @@ public class SamplerItem extends Item {
     @Override
     public InteractionResult interactLivingEntity(ItemStack stack, Player player, LivingEntity target,
             InteractionHand hand) {
-        return startSampling(player, hand, target);
+        return startSampling(player, hand, target, false);
     }
 
     @Override

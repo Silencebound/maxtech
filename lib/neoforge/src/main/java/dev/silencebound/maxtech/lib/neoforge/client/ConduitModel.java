@@ -52,7 +52,7 @@ import org.jspecify.annotations.Nullable;
  * Colours are baked into the quads ({@link ExtraFaceData}) rather than supplied by a block tint source: the cache key
  * already includes the dye colour, and a tint source would have to look the block entity up again per quad. A quad's
  * chunk layer comes from its {@link BakedQuad.MaterialInfo}: the layer its sprite's pixels call for (solid, or cutout
- * for a cable's wire core overlay).
+ * for a cable's wire core overlay), or the one the quad asks for (a shell's glass is translucent).
  *
  * <p>
  * A facaded conduit draws the facade block's baked model instead, or itself while {@link FacadeView#conduitsShown()};
@@ -125,9 +125,11 @@ public final class ConduitModel implements DynamicBlockStateModel {
     }
 
     /**
-     * The sprites a look draws with, resolved at bake time: the flat tint sprite and the solid look's end and overlay.
+     * The sprites a look draws with, resolved at bake time: the flat tint sprite, the solid look's end and overlay (a
+     * shell's glass stands in as its end, so particles show it), and the sprites its quads name by id.
      */
-    record Sprites(Material.Baked flat, Material.Baked end, Material.@Nullable Baked overlay) {
+    record Sprites(Material.Baked flat, Material.Baked end, Material.@Nullable Baked overlay,
+            Map<Identifier, Material.Baked> named) {
     }
 
     @Override
@@ -145,7 +147,7 @@ public final class ConduitModel implements DynamicBlockStateModel {
             return;
         }
         boolean labels = ClientConfig.conduitColorLabels();
-        output.add((labels ? labelledBodies : bodies).get(data.bodyKey()));
+        output.add((labels ? labelledBodies : bodies).get(bodyKey(data.bodyKey())));
         PartCache<ConduitFaceKey, BlockStateModelPart> faceParts = labels ? labelledFaces : faces;
         List<ConduitFaceKey> keys = data.faces();
         for (int i = 0; i < keys.size(); i++) {
@@ -168,6 +170,17 @@ public final class ConduitModel implements DynamicBlockStateModel {
         Object key = FacadeView.geometryKey(data, facade != null, shown, facadeGeometry);
         // Only a key that draws the conduit itself changes with the labels; a facade's does not.
         return key instanceof ConduitRenderData drawn && ClientConfig.conduitColorLabels() ? new Labelled(drawn) : key;
+    }
+
+    /**
+     * {@code key} as this model caches it: Lib's shell ignores the render value, so its tubes share parts whatever
+     * value their addon sets; only a key with a value set is copied.
+     */
+    private ConduitBodyKey bodyKey(ConduitBodyKey key) {
+        if (custom == null && look instanceof ConduitLook.Shell && key.renderValue() != 0) {
+            return new ConduitBodyKey(key.type(), key.colour(), key.arms(), key.rings());
+        }
+        return key;
     }
 
     /** The key of a conduit drawn with its colour labels: the same data must not share a mesh without them. */
@@ -198,12 +211,17 @@ public final class ConduitModel implements DynamicBlockStateModel {
     }
 
     /**
-     * Whether the model has translucent quads, which block outlines and moving (piston) blocks ask about: no Lib look
-     * has any, a custom model has them when its builder says so.
+     * Whether the model has translucent quads, which block outlines and moving (piston) blocks ask about: a shell's
+     * glass is translucent, the solid look has none, and a custom model has them when its builder says so.
      */
     @Override
     public int materialFlags() {
-        return materialFlags(custom != null && custom.translucent());
+        return materialFlags(custom != null ? custom.translucent() : translucent(look));
+    }
+
+    /** Whether Lib draws {@code look} with translucent quads. */
+    static boolean translucent(ConduitLook look) {
+        return look instanceof ConduitLook.Shell;
     }
 
     /** {@link #materialFlags()} of a model that is or is not translucent. */
@@ -263,8 +281,11 @@ public final class ConduitModel implements DynamicBlockStateModel {
         if (sprite != null) {
             Material.Baked own = custom == null ? null : custom.sprites().get(sprite);
             if (own == null) {
+                own = sprites.named().get(sprite);
+            }
+            if (own == null) {
                 throw new IllegalStateException("A quad of conduit " + (custom == null ? look : custom.block())
-                        + " names sprite " + sprite + ", which its model hook's sprites() does not list");
+                        + " names sprite " + sprite + ", which neither its look nor its model hook's sprites() lists");
             }
             return own;
         }
@@ -280,7 +301,8 @@ public final class ConduitModel implements DynamicBlockStateModel {
 
     /**
      * The {@code maxtech_lib:conduit} block state model type every conduit block's block state names, with the block's
-     * {@link ConduitLook} inline: {@code {"type": "maxtech_lib:conduit", "look": "solid", "end": ...}}.
+     * {@link ConduitLook} inline: {@code {"type": "maxtech_lib:conduit", "look": "solid", "end": ...}} or
+     * {@code {"type": "maxtech_lib:conduit", "look": "shell", "shell": ...}}.
      */
     public record Unbaked(ConduitLook look) implements CustomUnbakedBlockStateModel {
         public static final Identifier ID = MaxtechLib.id("conduit");
@@ -301,14 +323,19 @@ public final class ConduitModel implements DynamicBlockStateModel {
             Material.Baked flat = sprite(baker, ConduitLook.FLAT);
             Material.Baked end = flat;
             Material.Baked overlay = null;
+            Map<Identifier, Material.Baked> named = Map.of();
             switch (look) {
                 case ConduitLook.Solid solid -> {
                     end = sprite(baker, solid.end());
                     Identifier overlayId = solid.overlay();
                     overlay = overlayId == null ? null : sprite(baker, overlayId);
                 }
+                case ConduitLook.Shell shell -> {
+                    end = sprite(baker, shell.shell());
+                    named = Map.of(shell.shell(), end);
+                }
             }
-            return new ConduitModel(look, new Sprites(flat, end, overlay));
+            return new ConduitModel(look, new Sprites(flat, end, overlay, named));
         }
 
         private static Material.Baked sprite(ModelBaker baker, Identifier texture) {

@@ -1,6 +1,7 @@
 package dev.silencebound.maxtech.lib.api.conduit;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.google.gson.JsonElement;
@@ -63,6 +64,41 @@ class ConduitLookTest {
         JsonElement wire = ConduitLook.CODEC.codec().encodeStart(JsonOps.INSTANCE, ConduitLook.wire()).getOrThrow();
         assertEquals(JsonParser.parseString("{\"look\": \"solid\", \"end\": \"maxtech_lib:block/conduit/flat\"}"),
                 wire);
+    }
+
+    /**
+     * Pins the shell format documented in {@code docs/api/conduit-addon.md}: only the sprite is required, and each
+     * field at its default is left out, so later optional fields keep these files valid.
+     */
+    @Test
+    void shellJsonMatchesTheDocumentedFormat() {
+        Identifier glass = Identifier.fromNamespaceAndPath("farms", "block/lab_tube_glass");
+        JsonElement plain = ConduitLook.CODEC.codec().encodeStart(JsonOps.INSTANCE, ConduitLook.shell(glass))
+                .getOrThrow();
+        assertEquals(JsonParser.parseString("{\"look\": \"shell\", \"shell\": \"farms:block/lab_tube_glass\"}"), plain);
+        ConduitLook.Shell full = ConduitLook.shell(glass).withBorderColour(0x2E4A52).withBorder(1).withRim(2);
+        JsonElement json = ConduitLook.CODEC.codec().encodeStart(JsonOps.INSTANCE, full).getOrThrow();
+        assertEquals(JsonParser.parseString("""
+                {"look": "shell", "shell": "farms:block/lab_tube_glass", "border_colour": "#2e4a52", "border": 1.0,
+                 "rim": 2.0}
+                """), json);
+        assertEquals(full, ConduitLook.CODEC.codec().parse(JsonOps.INSTANCE, json).getOrThrow());
+        assertEquals(ConduitLook.shell(glass), ConduitLook.CODEC.codec().parse(JsonOps.INSTANCE, plain).getOrThrow());
+        ConduitLook.Shell defaults = ConduitLook.shell(glass);
+        assertEquals(ConduitLook.TYPE_COLOUR, defaults.borderColour());
+        assertEquals(0.5F, defaults.border());
+        assertEquals(1.5F, defaults.rim());
+    }
+
+    /** A shell without its sprite, or with a width out of range, is not read. */
+    @Test
+    void badShellsAreRejected() {
+        for (String bad : List.of("{\"look\": \"shell\"}", "{\"look\": \"shell\", \"shell\": \"a:b\", \"border\": -1}",
+                "{\"look\": \"shell\", \"shell\": \"a:b\", \"rim\": 5}")) {
+            assertTrue(ConduitLook.CODEC.codec().parse(JsonOps.INSTANCE, JsonParser.parseString(bad)).isError(), bad);
+        }
+        assertThrows(IllegalArgumentException.class,
+                () -> ConduitLook.shell(Identifier.fromNamespaceAndPath("a", "b")).withRim(Float.NaN));
     }
 
     /** A conduit block without a look of its own is drawn flat in its type's colour. */

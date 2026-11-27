@@ -13,8 +13,8 @@ import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.RegisterCommandsEvent;
 
 /**
- * {@code /maxtech_lib_demo tube <pos> <rrggbb>} sets the render value of the conduit at {@code pos} (0 to empty a
- * {@link GlassTubeDemoClient} tube). Part of the GameTest source set, so it exists in dev runs only.
+ * {@code /maxtech_lib_demo tube <pos> <hex>} sets the render value of the conduit at {@code pos}, for looks and model
+ * hooks that draw it; the shell look ignores it so far. Part of the GameTest source set, so it exists in dev runs only.
  */
 @EventBusSubscriber(modid = ConduitApiGameTests.MOD_ID)
 public final class GlassTubeDemoCommand {

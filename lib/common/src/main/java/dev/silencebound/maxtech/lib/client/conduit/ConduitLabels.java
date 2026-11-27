@@ -138,6 +138,15 @@ public final class ConduitLabels {
      * that no arm in {@code arms} leaves, upright on the sides and north-up on top and bottom.
      */
     public static void addDyeLetter(List<ConduitQuad> out, float thickness, int arms, DyeColor colour, int ink) {
+        addDyeLetter(out, thickness, arms, colour, ink, LIFT);
+    }
+
+    /**
+     * Adds the letter as {@link #addDyeLetter(List, float, int, DyeColor, int)}, {@code lift} px in front of the core
+     * instead of {@link #LIFT}, for a look that draws other quads just outside its faces.
+     */
+    public static void addDyeLetter(List<ConduitQuad> out, float thickness, int arms, DyeColor colour, int ink,
+            double lift) {
         double width = ConduitShapes.width(thickness);
         double cell = Math.min(1.0, (width - MARGIN) / LETTER_ROWS);
         if (cell < MIN_CELL) {
@@ -150,7 +159,8 @@ public final class ConduitLabels {
             }
             double half = width / 2;
             addGlyph(out, CENTRE + face.getStepX() * half, CENTRE + face.getStepY() * half,
-                    CENTRE + face.getStepZ() * half, face, up(face), glyph, LETTER_COLUMNS, LETTER_ROWS, cell, ink);
+                    CENTRE + face.getStepZ() * half, face, up(face), glyph, LETTER_COLUMNS, LETTER_ROWS, cell, ink,
+                    lift);
         }
     }
 
@@ -161,6 +171,16 @@ public final class ConduitLabels {
      */
     public static void addModeMark(List<ConduitQuad> out, float thickness, Direction side, ConduitFaceMode mode,
             double fromFace, int argb) {
+        addModeMark(out, thickness, side, mode, fromFace, argb, LIFT);
+    }
+
+    /**
+     * Adds the glyph as {@link #addModeMark(List, float, Direction, ConduitFaceMode, double, int)}, {@code lift} px in
+     * front of the arm instead of {@link #LIFT}.
+     */
+    @SuppressWarnings("TooManyParameters") // the mark's arm, mode, position, colour and lift; kept primitive
+    public static void addModeMark(List<ConduitQuad> out, float thickness, Direction side, ConduitFaceMode mode,
+            double fromFace, int argb, double lift) {
         int glyph = modeBits(mode);
         double cell = modeCell(thickness, fromFace);
         if (glyph == 0 || cell < MIN_CELL) {
@@ -176,7 +196,7 @@ public final class ConduitLabels {
             double x = CENTRE + side.getStepX() * along + face.getStepX() * half;
             double y = CENTRE + side.getStepY() * along + face.getStepY() * half;
             double z = CENTRE + side.getStepZ() * along + face.getStepZ() * half;
-            addGlyph(out, x, y, z, face, side, glyph, MODE_COLUMNS, MODE_ROWS, cell, argb);
+            addGlyph(out, x, y, z, face, side, glyph, MODE_COLUMNS, MODE_ROWS, cell, argb, lift);
         }
     }
 
@@ -222,7 +242,7 @@ public final class ConduitLabels {
                 double x = CENTRE + side.getStepX() * along + face.getStepX() * half;
                 double y = CENTRE + side.getStepY() * along + face.getStepY() * half;
                 double z = CENTRE + side.getStepZ() * along + face.getStepZ() * half;
-                addGlyph(out, x, y, z, face, up(face), glyph, LETTER_COLUMNS, LETTER_ROWS, cell, ink);
+                addGlyph(out, x, y, z, face, up(face), glyph, LETTER_COLUMNS, LETTER_ROWS, cell, ink, LIFT);
             }
         }
     }
@@ -261,18 +281,18 @@ public final class ConduitLabels {
     /**
      * Adds one pane per inked cell of {@code glyph} ({@code columns} x {@code rows} cells of {@code cell} px), centred
      * on ({@code x}, {@code y}, {@code z}) in the plane of a face pointing {@code facing}, row 0 towards {@code up} and
-     * read the right way round from outside, {@link #LIFT} in front of the plane.
+     * read the right way round from outside, {@code lift} px in front of the plane.
      */
     @SuppressWarnings("TooManyParameters") // a glyph's position, orientation, size and colour; kept primitive
     private static void addGlyph(List<ConduitQuad> out, double x, double y, double z, Direction facing, Direction up,
-            int glyph, int columns, int rows, double cell, int argb) {
+            int glyph, int columns, int rows, double cell, int argb, double lift) {
         // The viewer's right on a face seen from outside: up x normal.
         int rightX = up.getStepY() * facing.getStepZ() - up.getStepZ() * facing.getStepY();
         int rightY = up.getStepZ() * facing.getStepX() - up.getStepX() * facing.getStepZ();
         int rightZ = up.getStepX() * facing.getStepY() - up.getStepY() * facing.getStepX();
-        double px = x + facing.getStepX() * LIFT;
-        double py = y + facing.getStepY() * LIFT;
-        double pz = z + facing.getStepZ() * LIFT;
+        double px = x + facing.getStepX() * lift;
+        double py = y + facing.getStepY() * lift;
+        double pz = z + facing.getStepZ() * lift;
         double half = cell / 2;
         for (int row = 0; row < rows; row++) {
             for (int column = 0; column < columns; column++) {
