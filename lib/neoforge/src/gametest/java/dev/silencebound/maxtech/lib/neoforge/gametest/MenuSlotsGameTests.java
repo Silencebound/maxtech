@@ -18,8 +18,10 @@ import net.minecraft.gametest.framework.FunctionGameTestInstance;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.gametest.framework.TestData;
 import net.minecraft.gametest.framework.TestEnvironmentDefinition;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
+import net.minecraft.util.ProblemReporter;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.ContainerInput;
@@ -28,6 +30,8 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.material.Fluids;
+import net.minecraft.world.level.storage.TagValueInput;
+import net.minecraft.world.level.storage.TagValueOutput;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.capabilities.Capabilities;
@@ -46,7 +50,7 @@ import org.jspecify.annotations.Nullable;
 public final class MenuSlotsGameTests {
     private static final String[] NAMES = {"menu_slots_shift_into_groups", "menu_slots_output_take_only",
             "menu_slots_full_inventory", "menu_slots_client_mirror", "menu_tank_bucket_clicks",
-            "menu_tank_partial_container", "menu_slots_shift_between_sections"};
+            "menu_tank_partial_container", "menu_slots_shift_between_sections", "menu_slots_refuse_unknown"};
     private static final RegistryHelper.Registrar<Consumer<GameTestHelper>> FUNCTIONS = Platform.get().registry()
             .registrar(MaxtechLib.MOD_ID, Registries.TEST_FUNCTION);
     private static final RegistryHelper.Registrar<DataComponentType<?>> COMPONENTS = Platform.get().registry()
@@ -77,6 +81,7 @@ public final class MenuSlotsGameTests {
         FUNCTIONS.register(NAMES[4], () -> MenuSlotsGameTests::tankBucketClicks);
         FUNCTIONS.register(NAMES[5], () -> MenuSlotsGameTests::tankPartialContainer);
         FUNCTIONS.register(NAMES[6], () -> MenuSlotsGameTests::shiftBetweenSections);
+        FUNCTIONS.register(NAMES[7], () -> MenuSlotsGameTests::refuseUnknown);
     }
 
     private MenuSlotsGameTests() {
@@ -405,6 +410,42 @@ public final class MenuSlotsGameTests {
         quickMove(menu, player, MAIN + 3);
         helper.assertTrue(ItemStack.matches(inventory.getItem(12), new ItemStack(Items.COAL, 5)),
                 "coal moved although the coal input takes it");
+        helper.succeed();
+    }
+
+    /**
+     * A slot holding an unknown item refuses a placed stack and a shift-clicked one without throwing; the item stays
+     * unknown and saves back unchanged.
+     */
+    private static void refuseUnknown(GameTestHelper helper) {
+        Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+        Host host = new Host();
+        var registries = helper.getLevel().registryAccess();
+        ItemSlots saved = SLOTS.build(slot -> {
+        });
+        saved.set(3, new ItemStack(Items.STICK, 4));
+        TagValueOutput out = TagValueOutput.createWithContext(ProblemReporter.DISCARDING, registries);
+        saved.save(out);
+        CompoundTag tag = out.buildResult();
+        tag.getListOrEmpty("items").getCompoundOrEmpty(0).getCompoundOrEmpty("item").putString("id", "gone_mod:widget");
+        host.slots.load(TagValueInput.create(ProblemReporter.DISCARDING, registries, tag));
+        helper.assertTrue(host.slots.unknown(3), "slot 3 not unknown");
+        TestMenu menu = new TestMenu(player, host);
+        helper.assertFalse(menu.getSlot(3).mayPlace(new ItemStack(Items.DIRT)), "unknown slot may take dirt");
+
+        menu.setCarried(new ItemStack(Items.DIRT, 5));
+        menu.clicked(3, 0, ContainerInput.PICKUP, player);
+        menu.clicked(3, 1, ContainerInput.PICKUP, player);
+        helper.assertTrue(ItemStack.matches(menu.getCarried(), new ItemStack(Items.DIRT, 5)),
+                "carried dirt after clicking: " + menu.getCarried());
+        menu.setCarried(ItemStack.EMPTY);
+        player.getInventory().setItem(9, new ItemStack(Items.DIRT, 5));
+        quickMove(menu, player, MAIN);
+        helper.assertValueEqual(count(player, Items.DIRT), 5, "dirt left the player");
+        helper.assertTrue(host.slots.unknown(3), "slot 3 no longer unknown");
+        TagValueOutput again = TagValueOutput.createWithContext(ProblemReporter.DISCARDING, registries);
+        host.slots.save(again);
+        helper.assertValueEqual(again.buildResult(), tag, "unknown item not saved back unchanged");
         helper.succeed();
     }
 }
