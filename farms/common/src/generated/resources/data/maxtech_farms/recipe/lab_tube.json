@@ -1,0 +1,15 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "C": "#c:ingots/copper",
+    "G": "#c:glass_panes"
+  },
+  "pattern": [
+    "GCG"
+  ],
+  "result": {
+    "count": 4,
+    "id": "maxtech_farms:lab_tube"
+  }
+}

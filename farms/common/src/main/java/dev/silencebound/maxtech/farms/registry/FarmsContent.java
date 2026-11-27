@@ -1,6 +1,10 @@
 package dev.silencebound.maxtech.farms.registry;
 
 import dev.silencebound.maxtech.farms.MaxtechFarms;
+import dev.silencebound.maxtech.farms.hub.LabHubBlock;
+import dev.silencebound.maxtech.farms.hub.LabHubBlockEntity;
+import dev.silencebound.maxtech.farms.lab.FluidPortBlock;
+import dev.silencebound.maxtech.farms.lab.FluidPortBlockEntity;
 import dev.silencebound.maxtech.farms.sampler.SamplerItem;
 import dev.silencebound.maxtech.farms.specimen.Specimen;
 import dev.silencebound.maxtech.farms.specimen.SpecimenItem;
@@ -12,14 +16,24 @@ import net.minecraft.core.registries.Registries;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
+import java.util.Set;
+import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.Item;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.SoundType;
+import net.minecraft.world.level.block.entity.BlockEntityType;
+import net.minecraft.world.level.block.state.BlockBehaviour;
+import net.minecraft.world.level.material.MapColor;
 import com.mojang.serialization.Codec;
 
-/** Farms' items and data components. */
+/** Farms' blocks, items, block entities and data components. */
 public final class FarmsContent {
     private static final Registrar<DataComponentType<?>> COMPONENTS = Registrars.create(MaxtechFarms.MOD_ID,
             Registries.DATA_COMPONENT_TYPE);
     private static final Registrar<Item> ITEMS = Registrars.create(MaxtechFarms.MOD_ID, Registries.ITEM);
+    private static final Registrar<Block> BLOCKS = Registrars.create(MaxtechFarms.MOD_ID, Registries.BLOCK);
+    private static final Registrar<BlockEntityType<?>> BLOCK_ENTITIES = Registrars.create(MaxtechFarms.MOD_ID,
+            Registries.BLOCK_ENTITY_TYPE);
 
     /** A specimen item's data. */
     public static final RegistryEntry<DataComponentType<?>, DataComponentType<Specimen>> SPECIMEN_DATA = COMPONENTS
@@ -38,6 +52,24 @@ public final class FarmsContent {
             (Identifier id) -> new SpecimenItem(properties(id).stacksTo(SpecimenItem.MAX_STACK)));
     public static final RegistryEntry<Item, SamplerItem> SAMPLER = ITEMS.register("sampler",
             (Identifier id) -> new SamplerItem(properties(id).stacksTo(1)));
+
+    public static final RegistryEntry<Block, LabHubBlock> LAB_HUB = BLOCKS.register("lab_hub",
+            (Identifier id) -> new LabHubBlock(
+                    BlockBehaviour.Properties.of().setId(ResourceKey.create(Registries.BLOCK, id))
+                            .mapColor(MapColor.METAL).strength(3.5F).sound(SoundType.METAL)));
+    public static final RegistryEntry<Item, BlockItem> LAB_HUB_ITEM = ITEMS.register("lab_hub",
+            (Identifier id) -> new BlockItem(LAB_HUB.get(), properties(id).useBlockDescriptionPrefix()));
+    public static final RegistryEntry<BlockEntityType<?>, BlockEntityType<LabHubBlockEntity>> LAB_HUB_ENTITY = BLOCK_ENTITIES
+            .register("lab_hub", () -> new BlockEntityType<>(LabHubBlockEntity::new, Set.of(LAB_HUB.get())));
+
+    public static final RegistryEntry<Block, FluidPortBlock> FLUID_PORT = BLOCKS.register("fluid_port",
+            (Identifier id) -> new FluidPortBlock(BlockBehaviour.Properties.of()
+                    .setId(ResourceKey.create(Registries.BLOCK, id)).mapColor(MapColor.METAL).strength(3.5F)
+                    .sound(SoundType.METAL).requiresCorrectToolForDrops()));
+    public static final RegistryEntry<Item, BlockItem> FLUID_PORT_ITEM = ITEMS.register("fluid_port",
+            (Identifier id) -> new BlockItem(FLUID_PORT.get(), properties(id).useBlockDescriptionPrefix()));
+    public static final RegistryEntry<BlockEntityType<?>, BlockEntityType<FluidPortBlockEntity>> FLUID_PORT_ENTITY = BLOCK_ENTITIES
+            .register("fluid_port", () -> new BlockEntityType<>(FluidPortBlockEntity::new, Set.of(FLUID_PORT.get())));
 
     private FarmsContent() {
     }

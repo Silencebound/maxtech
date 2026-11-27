@@ -1,6 +1,7 @@
 package dev.silencebound.maxtech.farms;
 
 import dev.silencebound.maxtech.farms.config.FarmsServerConfig;
+import dev.silencebound.maxtech.farms.lab.LabTubes;
 import dev.silencebound.maxtech.farms.registry.FarmsContent;
 import net.minecraft.resources.Identifier;
 
@@ -18,5 +19,6 @@ public final class MaxtechFarms {
     public static void init() {
         FarmsServerConfig.register();
         FarmsContent.init();
+        LabTubes.init();
     }
 }
