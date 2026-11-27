@@ -7,6 +7,7 @@ import dev.silencebound.maxtech.lib.api.energy.EnergyNetworks;
 import dev.silencebound.maxtech.lib.api.guide.GuideConfigValues;
 import dev.silencebound.maxtech.lib.api.registry.Registrar;
 import dev.silencebound.maxtech.lib.api.registry.Registrars;
+import dev.silencebound.maxtech.lib.api.resource.ResourceKinds;
 import dev.silencebound.maxtech.lib.api.security.OwnerSecurity;
 import dev.silencebound.maxtech.lib.client.conduit.LibConduitParts;
 import dev.silencebound.maxtech.lib.concurrent.WorkerPool;
@@ -63,5 +64,7 @@ public final class MaxtechLib {
         GuideConfigValues.register(MOD_ID, ServerConfig.guideSource());
         // Other mods register conduit types too, so check them all once registration is over.
         Platform.get().lifecycle().onCommonSetup(MOD_ID, ConduitFaceModes::validateRegistered);
+        // Mods register resource kinds during construction, which is over for every mod by common setup.
+        Platform.get().lifecycle().onCommonSetup(MOD_ID, ResourceKinds::freeze);
     }
 }
