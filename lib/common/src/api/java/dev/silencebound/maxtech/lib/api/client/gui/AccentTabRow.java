@@ -1,5 +1,6 @@
 package dev.silencebound.maxtech.lib.api.client.gui;
 
+import dev.silencebound.maxtech.lib.api.style.AccentTheme;
 import org.jetbrains.annotations.ApiStatus;
 import java.util.List;
 import net.minecraft.client.gui.Font;
@@ -61,6 +62,7 @@ public final class AccentTabRow {
     private final int[] widths;
     private final String[] badges;
     private int active;
+    private AccentTheme theme = AccentTheme.LIB;
 
     /** Lays out {@code tabs} from ({@code x}, {@code y}) to the right; the first tab is active. */
     public AccentTabRow(Font font, int x, int y, List<Tab> tabs) {
@@ -77,6 +79,17 @@ public final class AccentTabRow {
                     badges[i].isEmpty() ? 0 : TextScale.width(font, badges[i]));
         }
         positions(x, widths, xs);
+    }
+
+    /** Draws the row in {@code theme}'s colours instead of Lib's cyan. */
+    public AccentTabRow theme(AccentTheme theme) {
+        this.theme = theme;
+        return this;
+    }
+
+    /** The colour of a tab's label: the theme's text when active or hovered, the label grey otherwise. */
+    static int labelColour(boolean on, boolean over, AccentTheme theme) {
+        return on || over ? theme.text() : Accent.LABEL;
     }
 
     /** A tab's width for text {@code textWidth} wide and a badge number {@code badgeWidth} wide (0: none). */
@@ -151,12 +164,12 @@ public final class AccentTabRow {
             boolean on = i == active;
             boolean over = i == hovered;
             if (on) {
-                Accent.litFace(graphics, xs[i], y, widths[i], height);
+                Accent.litFace(graphics, xs[i], y, widths[i], height, theme);
             } else {
-                Accent.face(graphics, xs[i], y, widths[i], height, over);
+                Accent.face(graphics, xs[i], y, widths[i], height, over, theme);
             }
             int cx = xs[i] + PAD;
-            TextScale.text(graphics, font, tab.label(), cx, textY, on || over ? Accent.TEXT : Accent.LABEL, false);
+            TextScale.text(graphics, font, tab.label(), cx, textY, labelColour(on, over, theme), false);
             if (!badges[i].isEmpty()) {
                 int bx = cx + TextScale.width(font, tab.label()) + BADGE_GAP;
                 int bw = TextScale.width(font, badges[i]) + 2 * BADGE_PAD;

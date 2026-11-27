@@ -1,5 +1,6 @@
 package dev.silencebound.maxtech.lib.api.client.gui;
 
+import dev.silencebound.maxtech.lib.api.style.AccentTheme;
 import org.jetbrains.annotations.ApiStatus;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractWidget;
@@ -48,6 +49,7 @@ public final class ScrollBar extends AbstractWidget {
     /** Where on the thumb the drag started, so the thumb does not jump under the mouse. */
     private int grab;
     private boolean dragging;
+    private AccentTheme theme = AccentTheme.LIB;
 
     /** A bar {@link #WIDTH} wide over {@code model}. */
     public ScrollBar(int x, int y, int height, Model model) {
@@ -58,6 +60,12 @@ public final class ScrollBar extends AbstractWidget {
     public ScrollBar(int x, int y, int width, int height, Model model) {
         super(x, y, width, height, Component.empty());
         this.model = model;
+    }
+
+    /** Draws the bar in {@code theme}'s colours instead of Lib's cyan. */
+    public ScrollBar theme(AccentTheme theme) {
+        this.theme = theme;
+        return this;
     }
 
     /** Runs {@code onGrab} whenever the bar is clicked, for screens that must tell a bar click from a click outside. */
@@ -165,7 +173,7 @@ public final class ScrollBar extends AbstractWidget {
     @Override
     protected void extractWidgetRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float a) {
         draw(graphics, getX(), getY(), width, height, model.total(), model.visible(), model.offset(),
-                isHovered() || dragging);
+                isHovered() || dragging, theme);
     }
 
     /**
@@ -176,6 +184,12 @@ public final class ScrollBar extends AbstractWidget {
      */
     public static void draw(GuiGraphicsExtractor graphics, int x, int y, int width, int height, int total, int visible,
             int offset, boolean lit) {
+        draw(graphics, x, y, width, height, total, visible, offset, lit, AccentTheme.LIB);
+    }
+
+    /** {@code draw} in {@code theme}'s colours. */
+    public static void draw(GuiGraphicsExtractor graphics, int x, int y, int width, int height, int total, int visible,
+            int offset, boolean lit, AccentTheme theme) {
         graphics.fill(x, y, x + width, y + height, Accent.SLOT_EDGE);
         if (width >= 3) {
             graphics.fill(x + 1, y + 1, x + width - 1, y + height - 1, Accent.SLOT);
@@ -186,11 +200,11 @@ public final class ScrollBar extends AbstractWidget {
         int thumb = thumbSize(height, visible, total, Math.min(MIN_THUMB, height));
         int top = y + thumbPos(height, thumb, offset, maxOffset(total, visible));
         if (width < 3) {
-            graphics.fill(x, top, x + width, top + thumb, lit ? Accent.BAR_TOP : Accent.ACCENT);
+            graphics.fill(x, top, x + width, top + thumb, lit ? theme.barTop() : theme.accent());
             return;
         }
-        graphics.fill(x, top, x + width, top + thumb, Accent.ACCENT);
-        graphics.fill(x + 1, top + 1, x + width - 1, top + thumb - 1, lit ? Accent.BAR_TOP : Accent.ACCENT_DIM);
+        graphics.fill(x, top, x + width, top + thumb, theme.accent());
+        graphics.fill(x + 1, top + 1, x + width - 1, top + thumb - 1, lit ? theme.barTop() : theme.accentDim());
     }
 
     @Override

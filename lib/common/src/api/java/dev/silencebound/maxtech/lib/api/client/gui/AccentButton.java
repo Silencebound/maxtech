@@ -1,5 +1,6 @@
 package dev.silencebound.maxtech.lib.api.client.gui;
 
+import dev.silencebound.maxtech.lib.api.style.AccentTheme;
 import org.jetbrains.annotations.ApiStatus;
 import java.util.function.IntFunction;
 import java.util.function.IntSupplier;
@@ -42,6 +43,7 @@ public class AccentButton extends AbstractButton {
     private @Nullable Runnable back;
     private BooleanSupplier enabled = () -> true;
     private BooleanSupplier lit = () -> false;
+    private AccentTheme theme = AccentTheme.LIB;
     private @Nullable Supplier<Component> label;
     private @Nullable IntSupplier tooltipKey;
     private @Nullable IntFunction<Component> tooltip;
@@ -148,6 +150,12 @@ public class AccentButton extends AbstractButton {
         return this;
     }
 
+    /** Draws the button in {@code theme}'s colours instead of Lib's cyan. */
+    public AccentButton theme(AccentTheme theme) {
+        this.theme = theme;
+        return this;
+    }
+
     /** Whether the button can act now (read every frame). */
     public boolean enabledNow() {
         return enabled.getAsBoolean();
@@ -198,12 +206,13 @@ public class AccentButton extends AbstractButton {
         if (!active) {
             Accent.disabledButton(graphics, font, getX(), getY(), width, height, getMessage());
         } else if (lit.getAsBoolean()) {
-            Accent.litButton(graphics, font, getX(), getY(), width, height, getMessage());
+            Accent.litButton(graphics, font, getX(), getY(), width, height, getMessage(), theme);
         } else if (explained) {
             // Its own tooltip explains it; a shortened label must not hide that.
-            Accent.button(graphics, font, getX(), getY(), width, height, getMessage(), isHovered());
+            Accent.button(graphics, font, getX(), getY(), width, height, getMessage(), isHovered(), theme);
         } else {
-            Accent.button(graphics, font, getX(), getY(), width, height, getMessage(), isHovered(), mouseX, mouseY);
+            Accent.button(graphics, font, getX(), getY(), width, height, getMessage(), isHovered(), mouseX, mouseY,
+                    theme);
         }
     }
 
