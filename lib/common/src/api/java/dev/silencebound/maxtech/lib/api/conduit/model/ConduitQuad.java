@@ -7,8 +7,8 @@ import org.jetbrains.annotations.ApiStatus;
 import org.jspecify.annotations.Nullable;
 
 /**
- * One face of a conduit model part before baking, drawn whole with its sprite. An immutable value, safe to share
- * between threads.
+ * One face of a conduit model part before baking, drawn with its sprite: whole and unturned, or the part and turn its
+ * {@code uv} names. An immutable value, safe to share between threads.
  *
  * @param box
  *            the box whose face this is, in pixels (0 to 16); a pane is a box flat along {@code facing}
@@ -26,10 +26,19 @@ import org.jspecify.annotations.Nullable;
  *            a sprite of a custom conduit model, by its atlas id (e.g. {@code farms:block/tube_glass}), drawn instead
  *            of {@code texture}; it must be one its model hook lists in {@code sprites()}, or the model fails when it
  *            bakes the quad. Null for one of {@code texture}'s, as all of Lib's quads are. Lib 0.14.0.
+ * @param uv
+ *            which part of the sprite the face shows and how it is turned; null for the whole sprite unturned, as all
+ *            of Lib's quads so far. Lib 0.14.0.
  */
 @ApiStatus.Experimental
 public record ConduitQuad(AABB box, Direction facing, ConduitTexture texture, int argb, boolean culled,
-        ConduitLayer layer, @Nullable Identifier sprite) {
+        ConduitLayer layer, @Nullable Identifier sprite, @Nullable ConduitUv uv) {
+    /** A quad showing its whole sprite unturned. */
+    public ConduitQuad(AABB box, Direction facing, ConduitTexture texture, int argb, boolean culled, ConduitLayer layer,
+            @Nullable Identifier sprite) {
+        this(box, facing, texture, argb, culled, layer, sprite, null);
+    }
+
     /** A quad drawn with one of {@code texture}'s sprites. */
     public ConduitQuad(AABB box, Direction facing, ConduitTexture texture, int argb, boolean culled,
             ConduitLayer layer) {

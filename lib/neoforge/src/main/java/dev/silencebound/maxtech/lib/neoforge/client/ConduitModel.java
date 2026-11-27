@@ -1,7 +1,6 @@
 package dev.silencebound.maxtech.lib.neoforge.client;
 
 import com.mojang.blaze3d.platform.Transparency;
-import com.mojang.math.Quadrant;
 import com.mojang.serialization.MapCodec;
 import dev.silencebound.maxtech.lib.MaxtechLib;
 import dev.silencebound.maxtech.lib.api.conduit.ConduitFaceKey;
@@ -25,7 +24,6 @@ import net.minecraft.client.renderer.block.dispatch.BlockStateModelPart;
 import net.minecraft.client.resources.model.ModelBaker;
 import net.minecraft.client.resources.model.ResolvableModel;
 import net.minecraft.client.resources.model.SimpleModelWrapper;
-import net.minecraft.client.resources.model.cuboid.CuboidFace;
 import net.minecraft.client.resources.model.cuboid.FaceBakery;
 import net.minecraft.client.resources.model.geometry.BakedQuad;
 import net.minecraft.client.resources.model.geometry.QuadCollection;
@@ -66,7 +64,6 @@ import org.jspecify.annotations.Nullable;
  * same.
  */
 public final class ConduitModel implements DynamicBlockStateModel {
-    private static final CuboidFace.UVs WHOLE = new CuboidFace.UVs(0.0F, 0.0F, 16.0F, 16.0F);
 
     // Parts are baked lazily on meshing threads, after the baker and its interner are gone; interning only saves
     // memory.
@@ -256,8 +253,9 @@ public final class ConduitModel implements DynamicBlockStateModel {
         AABB box = face.box();
         Vector3f from = new Vector3f((float) box.minX, (float) box.minY, (float) box.minZ);
         Vector3f to = new Vector3f((float) box.maxX, (float) box.maxY, (float) box.maxZ);
-        return FaceBakery.bakeQuad(NO_INTERNING, from, to, WHOLE, Quadrant.R0, info, face.facing(),
-                BlockModelRotation.IDENTITY, null, new ExtraFaceData(face.argb(), 0, true));
+        return FaceBakery.bakeQuad(NO_INTERNING, from, to, ConduitFaceUvs.uvs(face.uv()),
+                ConduitFaceUvs.rotation(face.uv()), info, face.facing(), BlockModelRotation.IDENTITY, null,
+                new ExtraFaceData(face.argb(), 0, true));
     }
 
     private Material.Baked material(ConduitQuad face) {
