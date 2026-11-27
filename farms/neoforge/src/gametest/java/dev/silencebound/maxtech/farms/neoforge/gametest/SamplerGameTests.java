@@ -7,6 +7,9 @@ import dev.silencebound.maxtech.farms.specimen.Specimen;
 import dev.silencebound.maxtech.farms.specimen.SpecimenItem;
 import dev.silencebound.maxtech.farms.specimen.SpecimenKind;
 import dev.silencebound.maxtech.lib.api.energy.EnergyNetworks;
+import dev.silencebound.maxtech.farms.neoforge.SamplerEnergyHandler;
+import dev.silencebound.maxtech.lib.api.energy.FeRate;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.function.Consumer;
@@ -26,7 +29,9 @@ import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.monster.zombie.Zombie;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -40,7 +45,8 @@ import net.neoforged.neoforge.transfer.transaction.Transaction;
 
 /**
  * The sampler on a zombie next to a mock player: a finished sample gives a fresh specimen and costs MU, refusals and
- * cancels cost nothing, fresh samples of one mob stack, and other mods' FE chargers fill it.
+ * cancels cost nothing and let the entity's own interaction happen, fresh samples of one mob stack, a full inventory
+ * drops the specimen, and other mods' FE chargers fill it without creating energy at an uneven rate.
  */
 @EventBusSubscriber(modid = MaxtechFarms.MOD_ID)
 public final class SamplerGameTests {
@@ -49,7 +55,9 @@ public final class SamplerGameTests {
             SamplerGameTests::takesSpecimen, "sampler_refuses_boss_and_player", SamplerGameTests::refusesBossAndPlayer,
             "sampler_refuses_without_charge", SamplerGameTests::refusesWithoutCharge, "sampler_cancel_costs_nothing",
             SamplerGameTests::cancelCostsNothing, "sampler_fresh_specimens_stack",
-            SamplerGameTests::freshSpecimensStack, "sampler_charges_from_fe", SamplerGameTests::chargesFromFe);
+            SamplerGameTests::freshSpecimensStack, "sampler_charges_from_fe", SamplerGameTests::chargesFromFe,
+            "sampler_charges_at_uneven_rate", SamplerGameTests::chargesAtUnevenRate, "sampler_full_inventory_drops",
+            SamplerGameTests::fullInventoryDrops);
 
     private SamplerGameTests() {
     }
@@ -97,6 +105,12 @@ public final class SamplerGameTests {
         assertRefused(helper, player, wither, SamplerItem.Refusal.BOSS);
         Player other = player(helper);
         assertRefused(helper, player, other, SamplerItem.Refusal.PLAYER);
+        Entity minecart = EntityType.MINECART.create(helper.getLevel(), EntitySpawnReason.COMMAND);
+        if (minecart == null) {
+            throw helper.assertionException(Component.literal("no minecart"));
+        }
+        minecart.setPos(player.position().add(1, 0, 0));
+        assertRefused(helper, player, minecart, SamplerItem.Refusal.NOT_A_MOB);
         helper.succeed();
     }
 
@@ -166,6 +180,44 @@ public final class SamplerGameTests {
         helper.succeed();
     }
 
+    /**
+     * Lib's configured FE rate is set by Lib alone, so the handler gets 3 FE : 2 MU passed in: 10 FE make 6 MU for 9
+     * FE, a single FE makes no whole MU and is refused, and the FE shown is the charge's worth rounded down.
+     */
+    private static void chargesAtUnevenRate(GameTestHelper helper) {
+        Player player = player(helper);
+        SamplerItem.setCharge(sampler(player), 0);
+        FeRate rate = new FeRate(3, 2);
+        SamplerEnergyHandler battery = new SamplerEnergyHandler(ItemAccess.forPlayerSlot(player, 0), () -> rate);
+        try (Transaction transaction = Transaction.openRoot()) {
+            helper.assertValueEqual(battery.insert(10, transaction), 9, "FE taken for 6 MU");
+            transaction.commit();
+        }
+        helper.assertValueEqual(SamplerItem.charge(sampler(player)), 6L, "MU after 10 FE");
+        try (Transaction transaction = Transaction.openRoot()) {
+            helper.assertValueEqual(battery.insert(1, transaction), 0, "one FE makes no whole MU");
+            helper.assertValueEqual(battery.insert(2, transaction), 2, "two FE make one MU");
+            transaction.commit();
+        }
+        helper.assertValueEqual(SamplerItem.charge(sampler(player)), 7L, "MU after 2 more FE");
+        helper.assertValueEqual(battery.getAmountAsLong(), 10L, "7 MU shown as FE, rounded down");
+        helper.succeed();
+    }
+
+    private static void fullInventoryDrops(GameTestHelper helper) {
+        Player player = player(helper);
+        Zombie zombie = zombie(helper);
+        for (int slot = 1; slot < player.getInventory().getContainerSize(); slot++) {
+            player.getInventory().setItem(slot, new ItemStack(Items.STONE, 64));
+        }
+        helper.assertValueEqual(sample(helper, player, zombie), true, "sampled");
+        Specimen fresh = Specimen.fresh(SpecimenKind.MOB, EntityType.getKey(EntityType.ZOMBIE));
+        List<ItemEntity> drops = helper.getLevel().getEntitiesOfClass(ItemEntity.class,
+                player.getBoundingBox().inflate(2), drop -> fresh.equals(SpecimenItem.data(drop.getItem())));
+        helper.assertValueEqual(drops.size(), 1, "dropped specimens");
+        helper.succeed();
+    }
+
     /** A survival mock player at (1, 1, 1) holding a full sampler in slot 0. */
     private static Player player(GameTestHelper helper) {
         Player player = helper.makeMockPlayer(GameType.SURVIVAL);
@@ -203,7 +255,7 @@ public final class SamplerGameTests {
         long before = SamplerItem.charge(sampler(player));
         helper.assertTrue(SamplerItem.refusal(sampler(player), target) == expected, "refusal " + expected);
         InteractionResult result = SamplerItem.startSampling(player, InteractionHand.MAIN_HAND, target);
-        helper.assertFalse(result.consumesAction(), "refused");
+        helper.assertTrue(result instanceof InteractionResult.Pass, "a refusal passes to the entity's own interaction");
         helper.assertFalse(player.isUsingItem(), "not using the sampler");
         helper.assertValueEqual(SamplerItem.charge(sampler(player)), before, "charge unchanged");
     }

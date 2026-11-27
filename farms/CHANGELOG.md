@@ -11,5 +11,6 @@ Api changes are marked **Api**.
   read them. The `presets_complete` GameTest checks that the presets and the values match.
 - Specimen item (`maxtech_farms:specimen`): what was sampled, generation, Growth, Gain, Strength and up to two traits;
   identical specimens stack to 16.
-- Sampler (`maxtech_farms:sampler`): hold use on a mob for 2 seconds to take a fresh specimen. Runs on MU
+- Sampler (`maxtech_farms:sampler`): hold use on a mob for 2 seconds (a bar under the crosshair fills) to take a
+  fresh specimen; a refused sample lets the mob's own interaction happen. Runs on MU
   (`sampler.muPerSample`, `sampler.capacityMu`), comes fully charged and takes FE from other mods' chargers.

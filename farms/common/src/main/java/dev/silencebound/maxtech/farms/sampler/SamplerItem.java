@@ -54,17 +54,18 @@ public class SamplerItem extends Item {
         super(properties);
     }
 
-    /** Why a sample of {@code target} is refused; the lang key of the action bar message. */
+    /** Why a sample of {@code target} is refused, and the action bar message it shows, if any. */
     public enum Refusal {
-        PLAYER("player"), NOT_A_MOB("not_a_mob"), BOSS("boss"), NO_CHARGE("no_charge");
+        PLAYER("player"), NOT_A_MOB(null), BOSS("boss"), NO_CHARGE("no_charge");
 
-        private final String key;
+        private final @Nullable String key;
 
-        Refusal(String name) {
-            this.key = "message.maxtech_farms.sampler." + name;
+        Refusal(@Nullable String name) {
+            this.key = name == null ? null : "message.maxtech_farms.sampler." + name;
         }
 
-        public String translationKey() {
+        /** The lang key of the message; null for no message (anything that is not a mob). */
+        public @Nullable String translationKey() {
             return key;
         }
     }
@@ -109,9 +110,10 @@ public class SamplerItem extends Item {
     }
 
     /**
-     * Starts sampling {@code target} with the sampler in {@code hand}, or refuses with an action bar message. Both
-     * sides call it (the client to show the use animation); the loader glue calls it ahead of the mob's own
-     * interaction, so villagers and horses can be sampled too.
+     * Starts sampling {@code target} with the sampler in {@code hand} and consumes the click. A refusal passes, so the
+     * entity's own interaction (trading, mounting, an item frame) still happens; players, bosses and a missing charge
+     * also get an action bar message. Both sides call it (the client to show the use animation); the loader glue calls
+     * it ahead of the mob's own interaction, so villagers and horses can be sampled too.
      */
     public static InteractionResult startSampling(Player player, InteractionHand hand, Entity target) {
         ItemStack sampler = player.getItemInHand(hand);
@@ -120,10 +122,11 @@ public class SamplerItem extends Item {
         }
         Refusal refusal = refusal(sampler, target);
         if (refusal != null) {
-            if (!player.level().isClientSide()) {
-                player.sendOverlayMessage(Component.translatable(refusal.translationKey()));
+            String message = refusal.translationKey();
+            if (message != null && !player.level().isClientSide()) {
+                player.sendOverlayMessage(Component.translatable(message));
             }
-            return InteractionResult.FAIL;
+            return InteractionResult.PASS;
         }
         targets(player.level()).put(player.getUUID(), new Target(target.getId(), target.getUUID()));
         player.startUsingItem(hand);

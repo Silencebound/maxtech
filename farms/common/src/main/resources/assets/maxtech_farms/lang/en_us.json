@@ -11,7 +11,6 @@
   "maxtech_farms.configuration.sampler.muPerSample.tooltip": "MU the sampler spends on one sample.",
   "message.maxtech_farms.sampler.boss": "Bosses can't be sampled",
   "message.maxtech_farms.sampler.no_charge": "The sampler needs charge",
-  "message.maxtech_farms.sampler.not_a_mob": "Only living mobs can be sampled",
   "message.maxtech_farms.sampler.player": "Players can't be sampled",
   "specimen.maxtech_farms.kind.animal": "Animal",
   "specimen.maxtech_farms.kind.crop": "Crop",

@@ -31,14 +31,17 @@ final class SamplerSetup {
         }
     }
 
-    /** Villagers trade and horses mount on use; with a sampler in hand, sampling comes first. */
+    /**
+     * Villagers trade and horses mount on use; once sampling starts it wins over that. A refused sample passes, so the
+     * entity's own interaction still happens.
+     */
     @SubscribeEvent
     static void interactEntity(PlayerInteractEvent.EntityInteract event) {
         if (!(event.getItemStack().getItem() instanceof SamplerItem)) {
             return;
         }
         InteractionResult result = SamplerItem.startSampling(event.getEntity(), event.getHand(), event.getTarget());
-        if (!(result instanceof InteractionResult.Pass)) {
+        if (result.consumesAction()) {
             event.setCancellationResult(result);
             event.setCanceled(true);
         }

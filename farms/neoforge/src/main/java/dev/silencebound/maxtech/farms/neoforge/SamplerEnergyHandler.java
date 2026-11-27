@@ -4,6 +4,7 @@ import dev.silencebound.maxtech.farms.registry.FarmsContent;
 import dev.silencebound.maxtech.farms.sampler.SamplerItem;
 import dev.silencebound.maxtech.lib.api.energy.EnergyNetworks;
 import dev.silencebound.maxtech.lib.api.energy.FeRate;
+import java.util.function.Supplier;
 import net.neoforged.neoforge.transfer.TransferPreconditions;
 import net.neoforged.neoforge.transfer.access.ItemAccess;
 import net.neoforged.neoforge.transfer.energy.EnergyHandler;
@@ -15,11 +16,19 @@ import net.neoforged.neoforge.transfer.transaction.TransactionContext;
  * the sampler spends its charge per sample itself. FE that would not make a whole MU is refused, never kept, so no rate
  * creates energy.
  */
-final class SamplerEnergyHandler implements EnergyHandler {
+public final class SamplerEnergyHandler implements EnergyHandler {
     private final ItemAccess access;
+    private final Supplier<FeRate> rate;
 
+    /** The handler at Lib's configured FE rate. */
     SamplerEnergyHandler(ItemAccess access) {
+        this(access, EnergyNetworks::feRate);
+    }
+
+    /** The handler at {@code rate}; tests pass a fixed rate, since Lib's configured one is set by Lib alone. */
+    public SamplerEnergyHandler(ItemAccess access, Supplier<FeRate> rate) {
         this.access = access;
+        this.rate = rate;
     }
 
     @Override
@@ -28,7 +37,7 @@ final class SamplerEnergyHandler implements EnergyHandler {
         if (!isSampler(resource)) {
             return 0;
         }
-        return EnergyNetworks.feRate().toFe(SamplerItem.charge(resource)) * access.getAmount();
+        return rate.get().toFe(SamplerItem.charge(resource)) * access.getAmount();
     }
 
     @Override
@@ -37,7 +46,7 @@ final class SamplerEnergyHandler implements EnergyHandler {
         if (!isSampler(resource)) {
             return 0;
         }
-        return EnergyNetworks.feRate().toFe(SamplerItem.capacity()) * access.getAmount();
+        return rate.get().toFe(SamplerItem.capacity()) * access.getAmount();
     }
 
     @Override
@@ -48,7 +57,7 @@ final class SamplerEnergyHandler implements EnergyHandler {
         if (count == 0 || !isSampler(resource)) {
             return 0;
         }
-        FeRate rate = EnergyNetworks.feRate();
+        FeRate rate = this.rate.get();
         long charge = SamplerItem.charge(resource);
         long mu = Math.min(rate.toMu(amount / count), SamplerItem.capacity() - charge);
         if (mu <= 0) {
