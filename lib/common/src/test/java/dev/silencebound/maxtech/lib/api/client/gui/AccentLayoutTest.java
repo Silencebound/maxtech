@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import dev.silencebound.maxtech.lib.api.text.TextFit;
 import dev.silencebound.maxtech.lib.client.gui.accent.SideTabs;
 import dev.silencebound.maxtech.lib.client.gui.accent.SideTabs.Rect;
 import java.util.List;

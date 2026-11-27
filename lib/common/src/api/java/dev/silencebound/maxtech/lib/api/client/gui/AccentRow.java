@@ -1,5 +1,6 @@
 package dev.silencebound.maxtech.lib.api.client.gui;
 
+import dev.silencebound.maxtech.lib.api.text.TextFit;
 import org.jetbrains.annotations.ApiStatus;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;

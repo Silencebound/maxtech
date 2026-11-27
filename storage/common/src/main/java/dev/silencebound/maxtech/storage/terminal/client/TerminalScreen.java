@@ -17,7 +17,7 @@ import dev.silencebound.maxtech.lib.client.gui.VirtualGrid;
 import dev.silencebound.maxtech.lib.resource.StackKeys;
 import dev.silencebound.maxtech.lib.sync.ListSort;
 import dev.silencebound.maxtech.lib.sync.SyncedListIndex;
-import dev.silencebound.maxtech.lib.api.client.gui.TextFit;
+import dev.silencebound.maxtech.lib.api.text.TextFit;
 import dev.silencebound.maxtech.storage.config.StorageClientConfig;
 import dev.silencebound.maxtech.storage.crafting.terminal.PatternPanel;
 import dev.silencebound.maxtech.storage.crafting.terminal.client.PatternPanelView;

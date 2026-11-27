@@ -10,14 +10,19 @@ Api changes are marked **Api**.
 - **Api** The Accent widget set is api (`lib.api.client.gui`, client only, experimental, ADR-0016): `Accent`,
   `AccentButton`, `IconButton`, `Icon`, `AccentPanel`, `AccentInset`, `AccentRow`, `AccentReadout`, `AccentTag`,
   `AccentStatus`, `AccentTabRow`, `AccentToast`, `ScrollBar`, `TextScale`, `TextFit` and `LayoutCheck` moved from
-  `lib.client.gui`, `lib.client.gui.accent` and `lib.text` unchanged, so addons on the api jar draw the same look.
-  Side tabs, `ScreenComponents` and the editor pieces stay internal.
+  `lib.client.gui`, `lib.client.gui.accent` and `lib.text` with the same names and drawing, so addons on the api jar
+  draw the same look; `TextScale` gained an internal setter for the text size option, and `TextFit`, which is pure
+  Java, lives in `lib.api.text`. Side tabs, `ScreenComponents` and the editor pieces stay internal.
 
 ### Fixed
 - A client with Lib but no mod that adds conduit blocks (Lib alone, or Lib with Farms) crashed at startup: the
   facade tint extension was registered with no blocks, which NeoForge refuses.
 
 ### Added
+- **Api** Themes and bars for the Accent look (`lib.api.client.gui`, experimental): `AccentTheme` (Lib's cyan by
+  default, so existing screens look the same), `AccentTank` (the fluid's own sprite and tint through `FluidLook`),
+  `AccentEnergyBar` (MU, with FE at the configured rate in the tooltip) and `AccentProgress` (arrow or flame), with
+  their numbers in the tooltip and narration. The accent demo screen shows them.
 - **Api** Conduit contents (`lib.api.conduit.ConduitContents`, experimental, for Farms FM1): a shared meaning for
   what a conduit shows inside it (fluid, fill step 0..4, upstream side, second lane), set with
   `ConduitHost.setContents` on the server and read with `ConduitView.contents()`. Saved and synced as `contents` only

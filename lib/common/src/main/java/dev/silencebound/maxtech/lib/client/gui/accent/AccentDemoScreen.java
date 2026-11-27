@@ -2,6 +2,11 @@ package dev.silencebound.maxtech.lib.client.gui.accent;
 
 import dev.silencebound.maxtech.lib.api.client.gui.Accent;
 import dev.silencebound.maxtech.lib.api.client.gui.AccentButton;
+import dev.silencebound.maxtech.lib.api.client.gui.AccentEnergyBar;
+import dev.silencebound.maxtech.lib.api.client.gui.AccentProgress;
+import dev.silencebound.maxtech.lib.api.client.gui.AccentTank;
+import dev.silencebound.maxtech.lib.api.client.gui.AccentTheme;
+import dev.silencebound.maxtech.lib.api.resource.FluidKey;
 import dev.silencebound.maxtech.lib.api.client.gui.IconButton;
 import dev.silencebound.maxtech.lib.api.client.gui.Icon;
 import dev.silencebound.maxtech.lib.api.client.gui.AccentInset;
@@ -14,8 +19,11 @@ import dev.silencebound.maxtech.lib.api.client.gui.AccentToast;
 import dev.silencebound.maxtech.lib.api.client.gui.ScrollBar;
 import dev.silencebound.maxtech.lib.api.client.gui.TextScale;
 import dev.silencebound.maxtech.lib.MaxtechLib;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractWidget;
@@ -24,19 +32,29 @@ import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.Util;
+import net.minecraft.world.level.material.Fluids;
 import org.jspecify.annotations.Nullable;
 
 /**
  * A dev-only screen showing every Accent widget with example data, so the look can be checked by eye at each GUI scale:
  * text buttons (normal, compact, greyed out, changing label, right click), icon buttons (plain, toggle, cycle), the
  * scroll bar on a list of rows (selected, hovered, dimmed, with status dots), a tab row with a badge, a readout and
- * tags, the in-screen toast and the vanilla notice, and side tabs with flyouts, a changed dot and both badge levels.
- * Opened with the client command {@code /maxtech_lib accent_demo}, which the loader glue registers only outside
- * production. The texts are example data, not player-facing, so they are literals rather than lang keys. Client only.
+ * tags, the in-screen toast and the vanilla notice, and side tabs with flyouts, a changed dot and both badge levels;
+ * right of them a water, a lava and an empty tank, an energy bar and both progress shapes. Opened with the client
+ * command {@code /maxtech_lib accent_demo}, which the loader glue registers only outside production. The texts are
+ * example data, not player-facing, so they are literals rather than lang keys. Client only.
  */
 public final class AccentDemoScreen extends Screen {
-    private static final int WIDTH = 176;
-    private static final int HEIGHT = 202;
+    /** The width of the widget column on the left; the bars sit right of it. */
+    static final int MAIN = 176;
+    /** Tanks and the energy bar are this tall, outline included. */
+    static final int BAR_HEIGHT = 60;
+    static final int WIDTH = MAIN + 3 * AccentTank.WIDTH + 3 * 4 + AccentEnergyBar.WIDTH + 8;
+    static final int HEIGHT = 202;
+    private static final long TANK = 8_000;
+    private static final long CELL = 8_000_000_000L;
+    private static final long ARROW_TICKS = 200;
+    private static final long FLAME_TICKS = 300;
     /** Edge length of the demo's 7x7 icon sprites ({@code maxtech_lib:accent/icon_*}). */
     private static final int ICON_SIZE = 7;
     private static final int LIST_ROWS = 6;
@@ -130,7 +148,7 @@ public final class AccentDemoScreen extends Screen {
                         forward -> mode = Math.floorMod(mode + (forward ? 1 : -1), MODES.size())));
         listY = y + IconButton.SIZE + 6;
         addRenderableWidget(
-                new ScrollBar(left + WIDTH - 8 - ScrollBar.WIDTH, listY, LIST_ROWS * ROW, new ScrollBar.Model() {
+                new ScrollBar(left + MAIN - 8 - ScrollBar.WIDTH, listY, LIST_ROWS * ROW, new ScrollBar.Model() {
                     @Override
                     public int total() {
                         return LINES;
@@ -157,8 +175,37 @@ public final class AccentDemoScreen extends Screen {
         AccentTabRow old = pages;
         row.setActive(old == null ? 0 : old.active());
         pages = row;
+        for (AbstractWidget bar : bars(left, top)) {
+            addRenderableWidget(bar);
+        }
         tabs.layout(left, top, WIDTH, HEIGHT, width, height,
                 SideTabs.host(this::addRenderableWidget, this::removeWidget));
+    }
+
+    /**
+     * The bars right of the widget column: water, lava and an empty tank, an energy bar past int range, and both
+     * progress shapes running over and over.
+     */
+    static List<AbstractWidget> bars(int left, int top) {
+        AccentTheme theme = AccentTheme.LIB;
+        int x = left + MAIN;
+        int y = top + 8;
+        List<AbstractWidget> bars = new ArrayList<>();
+        bars.add(tank(x, y, () -> Optional.of(FluidKey.of(Fluids.WATER)), 1_250));
+        bars.add(tank(x + AccentTank.WIDTH + 4, y, () -> Optional.of(FluidKey.of(Fluids.LAVA)), 6_000));
+        bars.add(tank(x + 2 * (AccentTank.WIDTH + 4), y, Optional::empty, 0));
+        bars.add(new AccentEnergyBar(x + 3 * (AccentTank.WIDTH + 4), y, AccentEnergyBar.WIDTH, BAR_HEIGHT, theme,
+                () -> 5_000_000_000L, () -> CELL));
+        int progressY = y + BAR_HEIGHT + 8;
+        bars.add(new AccentProgress(x, progressY, AccentProgress.Shape.ARROW, theme,
+                () -> Util.getMillis() / 50 % (ARROW_TICKS + 1), () -> ARROW_TICKS));
+        bars.add(new AccentProgress(x + AccentProgress.Shape.ARROW.width() + 6, progressY, AccentProgress.Shape.FLAME,
+                theme, () -> Util.getMillis() / 50 % (FLAME_TICKS + 1), () -> FLAME_TICKS));
+        return bars;
+    }
+
+    private static AccentTank tank(int x, int y, Supplier<Optional<FluidKey>> fluid, long amount) {
+        return new AccentTank(x, y, AccentTank.WIDTH, BAR_HEIGHT, AccentTheme.LIB, fluid, () -> amount, () -> TANK);
     }
 
     private void showToast() {
@@ -172,7 +219,7 @@ public final class AccentDemoScreen extends Screen {
     public void extractBackground(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float a) {
         super.extractBackground(graphics, mouseX, mouseY, a);
         Accent.panel(graphics, font, left, top, WIDTH, HEIGHT, title, mouseX, mouseY);
-        int listWidth = WIDTH - 16 - ScrollBar.WIDTH - 2;
+        int listWidth = MAIN - 16 - ScrollBar.WIDTH - 2;
         AccentInset.begin(graphics, left + 8, listY, listWidth, LIST_ROWS * ROW + 2 * AccentInset.BORDER);
         AccentStatus[] states = AccentStatus.values();
         for (int i = 0; i < LIST_ROWS; i++) {
@@ -186,7 +233,7 @@ public final class AccentDemoScreen extends Screen {
         if (row != null) {
             row.draw(graphics, font, mouseX, mouseY);
             int readoutWidth = AccentReadout.minWidth(font.width("RULES"), font.width("3 / 8"));
-            AccentReadout.draw(graphics, font, left + WIDTH - 8 - readoutWidth, stripY, readoutWidth, "RULES", "3 / 8");
+            AccentReadout.draw(graphics, font, left + MAIN - 8 - readoutWidth, stripY, readoutWidth, "RULES", "3 / 8");
         }
         int tagY = stripY + AccentButton.COMPACT_HEIGHT + 4;
         int tagX = left + 8 + AccentTag.draw(graphics, font, left + 8, tagY, "RUNNING", Accent.GREEN) + 4;
