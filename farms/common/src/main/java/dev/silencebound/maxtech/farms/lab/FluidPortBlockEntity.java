@@ -48,19 +48,8 @@ public final class FluidPortBlockEntity extends BlockEntity {
     }
 
     @Override
-    public void onLoad() {
-        super.onLoad();
-        if (level != null) {
-            LabTubes.neighbourChanged(level, worldPosition);
-        }
-    }
-
-    @Override
     public void setRemoved() {
         super.setRemoved();
         lab = null;
-        if (level != null) {
-            LabTubes.neighbourChanged(level, worldPosition);
-        }
     }
 }
