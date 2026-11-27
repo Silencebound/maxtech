@@ -6,6 +6,10 @@ Api changes are marked **Api**.
 
 ## [Unreleased]
 
+### Fixed
+- A client with Lib but no mod that adds conduit blocks (Lib alone, or Lib with Farms) crashed at startup: the
+  facade tint extension was registered with no blocks, which NeoForge refuses.
+
 ### Added
 - **Api** `EnergyNetworks.feRate()`: the server's configured FE rate, for an addon's own FE edges (Farms FM1's
   sampler shows its MU to other mods' chargers as FE).
