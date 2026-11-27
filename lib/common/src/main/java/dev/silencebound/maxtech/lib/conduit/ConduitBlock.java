@@ -4,6 +4,7 @@ import com.mojang.serialization.MapCodec;
 import dev.silencebound.maxtech.lib.api.conduit.ConduitFaceMode;
 import dev.silencebound.maxtech.lib.api.conduit.ConduitShapes;
 import dev.silencebound.maxtech.lib.api.conduit.ConduitType;
+import dev.silencebound.maxtech.lib.api.conduit.ConduitWrenchHook;
 import dev.silencebound.maxtech.lib.facade.Facades;
 import dev.silencebound.maxtech.lib.info.ConduitInfo;
 import java.util.ArrayList;
@@ -62,6 +63,7 @@ public class ConduitBlock extends Block implements EntityBlock {
     private static volatile @Nullable Reference2ObjectOpenHashMap<ConduitType, ConduitBlock> byType;
 
     private final Supplier<? extends ConduitType> type;
+    private final ConduitHooks hooks;
     private final MapCodec<ConduitBlock> codec;
     private @Nullable VoxelShape bareShape;
 
@@ -70,15 +72,31 @@ public class ConduitBlock extends Block implements EntityBlock {
      *            resolved lazily, because conduit types register after blocks
      */
     public ConduitBlock(Properties properties, Supplier<? extends ConduitType> type) {
+        this(properties, type, ConduitHooks.NONE);
+    }
+
+    /**
+     * A block whose behaviour differs through {@code hooks} rather than a subclass, as addons' conduits do.
+     *
+     * @param type
+     *            resolved lazily, because conduit types register after blocks
+     */
+    public ConduitBlock(Properties properties, Supplier<? extends ConduitType> type, ConduitHooks hooks) {
         super(properties);
         this.type = type;
-        this.codec = simpleCodec(p -> new ConduitBlock(p, type));
+        this.hooks = hooks;
+        this.codec = simpleCodec(p -> new ConduitBlock(p, type, hooks));
         registerDefaultState(stateDefinition.any().setValue(FACADE, false));
     }
 
     /** This block's conduit type. Call only after conduit types are registered. */
     public ConduitType type() {
         return type.get();
+    }
+
+    /** This block's behaviour hooks; {@link ConduitHooks#NONE} unless an addon's builder set some. */
+    public ConduitHooks hooks() {
+        return hooks;
     }
 
     /**
@@ -217,12 +235,18 @@ public class ConduitBlock extends Block implements EntityBlock {
 
     /**
      * Lets a conduit block subclass handle a wrench itself before {@link #useWrench} does (Storage's cable parts take a
-     * wrench on a part). Returns the result, or {@code null} (the default) to leave the wrench to the conduit. Called
-     * on both sides; only the server should change anything.
+     * wrench on a part). Returns the result, or {@code null} to leave the wrench to the conduit; by default asks the
+     * {@link ConduitHooks#wrench() wrench hook}, whose {@code PASS} means {@code null}. Called on both sides; only the
+     * server should change anything.
      */
     protected @Nullable InteractionResult wrench(Level level, BlockPos pos, Player player, BlockHitResult hit,
             boolean dismantle) {
-        return null;
+        if (hooks.wrench().equals(ConduitWrenchHook.NONE)
+                || !(level.getBlockEntity(pos) instanceof ConduitBlockEntity conduit)) {
+            return null;
+        }
+        InteractionResult result = hooks.wrench().onWrench(level, conduit, player, hit, dismantle);
+        return result.equals(InteractionResult.PASS) ? null : result;
     }
 
     /**
