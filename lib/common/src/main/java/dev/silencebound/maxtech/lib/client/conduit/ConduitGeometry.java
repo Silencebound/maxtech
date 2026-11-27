@@ -49,6 +49,18 @@ public final class ConduitGeometry {
     private ConduitGeometry() {
     }
 
+    /**
+     * The key Lib's own looks cache {@code key}'s body under: they draw neither the render value nor the contents in
+     * the body (a shell's contents are a part of their own, {@link ConduitContentsGeometry}), so both are dropped and
+     * conduits that differ only there share one part. Returns {@code key} itself when there is nothing to drop.
+     */
+    public static ConduitBodyKey cacheKey(ConduitBodyKey key) {
+        if (key.renderValue() == 0 && key.contents() == 0) {
+            return key;
+        }
+        return new ConduitBodyKey(key.type(), key.colour(), key.arms(), key.rings());
+    }
+
     /** The body of a conduit of {@code key}'s type in {@code look}. */
     public static List<ConduitQuad> body(ConduitLook look, ConduitBodyKey key) {
         return body(look, key, false);

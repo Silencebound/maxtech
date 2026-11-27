@@ -63,7 +63,8 @@ public sealed interface ConduitLook {
      * ({@link Shell#DEFAULT_BORDER}, {@link Shell#DEFAULT_RIM}). Lib 0.14.0.
      */
     static Shell shell(Identifier shell) {
-        return new Shell(shell, TYPE_COLOUR, Shell.DEFAULT_BORDER, Shell.DEFAULT_RIM);
+        return new Shell(shell, TYPE_COLOUR, Shell.DEFAULT_BORDER, Shell.DEFAULT_RIM, Shell.DEFAULT_INSET,
+                Shell.DEFAULT_LANE_WIDTH);
     }
 
     /** {@code colour}, or {@code type}'s base colour for {@link #TYPE_COLOUR}; {@code 0xRRGGBB}. */
@@ -106,9 +107,16 @@ public sealed interface ConduitLook {
      * along the tube's outer long edges. Lib works the lines out from the connections: they run on across joints
      * between tubes, never across one, and leave out the inner creases of bends and branches. An open end gets a rim
      * {@code rim} px wide around its end face, and an arm that meets a block a rim band just inside Lib's connector
-     * ring. A dye tints the borders only. The block state fields are {@code shell}, then {@code border_colour},
-     * {@code border} and {@code rim}, each left out at its default; later fields will be optional too, so files stay
-     * valid.
+     * ring. A dye tints the borders only.
+     * <p>
+     * A conduit's {@link ConduitContents} show inside the glass, opaque, in the fluid's own textures and tint and at
+     * its own light level, {@code inset} px in from the glass: from the bottom up to the fill level on horizontal
+     * pieces, as a full column on vertical ones. With an upstream side the fluid's flowing texture runs along the flow,
+     * else its still one; a second lane is a strip {@code laneWidth} px wide in the run's inner (+, +) corner, flowing
+     * the other way.
+     * <p>
+     * The block state fields are {@code shell}, then {@code border_colour}, {@code border}, {@code rim}, {@code inset}
+     * and {@code lane_width}, each left out at its default; later fields will be optional too, so files stay valid.
      *
      * @param shell
      *            sprite of the glass (block atlas), usually mostly transparent
@@ -118,45 +126,75 @@ public sealed interface ConduitLook {
      *            width of a border line on each face it borders, in pixels, 0 to {@value #MAX_WIDTH}; 0 draws none
      * @param rim
      *            width of a rim, in pixels, 0 to {@value #MAX_WIDTH}; 0 draws none
+     * @param inset
+     *            how far the contents sit inside the glass, in pixels, 0 to {@value #MAX_WIDTH}
+     * @param laneWidth
+     *            width of the second lane's strip, in pixels, 0 to {@value #MAX_WIDTH}; 0 draws none
      */
-    record Shell(Identifier shell, int borderColour, float border, float rim) implements ConduitLook {
+    record Shell(Identifier shell, int borderColour, float border, float rim, float inset,
+            float laneWidth) implements ConduitLook {
         /** Default {@link #border}, in pixels. */
         public static final float DEFAULT_BORDER = 0.5F;
         /** Default {@link #rim}, in pixels. */
         public static final float DEFAULT_RIM = 1.5F;
+        /** Default {@link #inset}, in pixels. */
+        public static final float DEFAULT_INSET = 0.5F;
+        /** Default {@link #laneWidth}, in pixels. */
+        public static final float DEFAULT_LANE_WIDTH = 1.0F;
         /** The widest {@link #border} or {@link #rim}, in pixels. */
         public static final float MAX_WIDTH = 4.0F;
 
         static final MapCodec<Shell> CODEC = RecordCodecBuilder
-                .mapCodec(i -> i.group(Identifier.CODEC.fieldOf("shell").forGetter(Shell::shell),
-                        colourField("border_colour").forGetter(Shell::borderColour),
-                        widthField("border", DEFAULT_BORDER).forGetter(Shell::border),
-                        widthField("rim", DEFAULT_RIM).forGetter(Shell::rim)).apply(i, Shell::new));
+                .mapCodec(i -> i
+                        .group(Identifier.CODEC.fieldOf("shell").forGetter(Shell::shell),
+                                colourField("border_colour").forGetter(Shell::borderColour),
+                                widthField("border", DEFAULT_BORDER).forGetter(Shell::border),
+                                widthField("rim", DEFAULT_RIM).forGetter(Shell::rim),
+                                widthField("inset", DEFAULT_INSET).forGetter(Shell::inset),
+                                widthField("lane_width", DEFAULT_LANE_WIDTH).forGetter(Shell::laneWidth))
+                        .apply(i, Shell::new));
 
         /**
          * Checks the widths.
          *
          * @throws IllegalArgumentException
-         *             when {@code border} or {@code rim} is outside 0 to {@value #MAX_WIDTH} or not a number
+         *             when a width is outside 0 to {@value #MAX_WIDTH} or not a number
          */
         public Shell {
             requireWidth("border", border);
             requireWidth("rim", rim);
+            requireWidth("inset", inset);
+            requireWidth("lane_width", laneWidth);
+        }
+
+        /** A shell with the default {@link #inset} and {@link #laneWidth}, as the first shells had. */
+        public Shell(Identifier shell, int borderColour, float border, float rim) {
+            this(shell, borderColour, border, rim, DEFAULT_INSET, DEFAULT_LANE_WIDTH);
         }
 
         /** This look with its borders and rims in {@code colour} ({@code 0xRRGGBB} or {@link #TYPE_COLOUR}). */
         public Shell withBorderColour(int colour) {
-            return new Shell(shell, colour, border, rim);
+            return new Shell(shell, colour, border, rim, inset, laneWidth);
         }
 
         /** This look with border lines {@code border} px wide. */
         public Shell withBorder(float border) {
-            return new Shell(shell, borderColour, border, rim);
+            return new Shell(shell, borderColour, border, rim, inset, laneWidth);
         }
 
         /** This look with rims {@code rim} px wide. */
         public Shell withRim(float rim) {
-            return new Shell(shell, borderColour, border, rim);
+            return new Shell(shell, borderColour, border, rim, inset, laneWidth);
+        }
+
+        /** This look with its contents {@code inset} px inside the glass. */
+        public Shell withInset(float inset) {
+            return new Shell(shell, borderColour, border, rim, inset, laneWidth);
+        }
+
+        /** This look with a second lane {@code laneWidth} px wide. */
+        public Shell withLaneWidth(float laneWidth) {
+            return new Shell(shell, borderColour, border, rim, inset, laneWidth);
         }
 
         @Override

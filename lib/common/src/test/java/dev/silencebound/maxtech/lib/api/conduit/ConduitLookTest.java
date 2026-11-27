@@ -88,13 +88,29 @@ class ConduitLookTest {
         assertEquals(ConduitLook.TYPE_COLOUR, defaults.borderColour());
         assertEquals(0.5F, defaults.border());
         assertEquals(1.5F, defaults.rim());
+        assertEquals(0.5F, defaults.inset());
+        assertEquals(1.0F, defaults.laneWidth());
+    }
+
+    /** The contents fields are optional: written only when changed, read back, and absent means the defaults. */
+    @Test
+    void shellContentsFieldsAreOptional() {
+        ConduitLook.Shell shell = ConduitLook.shell(Identifier.fromNamespaceAndPath("farms", "block/lab_tube_glass"))
+                .withInset(1).withLaneWidth(0.75F);
+        JsonElement json = ConduitLook.CODEC.codec().encodeStart(JsonOps.INSTANCE, shell).getOrThrow();
+        assertEquals(JsonParser.parseString("""
+                {"look": "shell", "shell": "farms:block/lab_tube_glass", "inset": 1.0, "lane_width": 0.75}
+                """), json);
+        assertEquals(shell, ConduitLook.CODEC.codec().parse(JsonOps.INSTANCE, json).getOrThrow());
     }
 
     /** A shell without its sprite, or with a width out of range, is not read. */
     @Test
     void badShellsAreRejected() {
         for (String bad : List.of("{\"look\": \"shell\"}", "{\"look\": \"shell\", \"shell\": \"a:b\", \"border\": -1}",
-                "{\"look\": \"shell\", \"shell\": \"a:b\", \"rim\": 5}")) {
+                "{\"look\": \"shell\", \"shell\": \"a:b\", \"rim\": 5}",
+                "{\"look\": \"shell\", \"shell\": \"a:b\", \"inset\": -0.5}",
+                "{\"look\": \"shell\", \"shell\": \"a:b\", \"lane_width\": 4.5}")) {
             assertTrue(ConduitLook.CODEC.codec().parse(JsonOps.INSTANCE, JsonParser.parseString(bad)).isError(), bad);
         }
         assertThrows(IllegalArgumentException.class,

@@ -3,10 +3,12 @@ package dev.silencebound.maxtech.lib.neoforge.client;
 import com.mojang.blaze3d.platform.Transparency;
 import com.mojang.serialization.MapCodec;
 import dev.silencebound.maxtech.lib.MaxtechLib;
+import dev.silencebound.maxtech.lib.api.conduit.ConduitContents;
 import dev.silencebound.maxtech.lib.api.conduit.ConduitFaceKey;
 import dev.silencebound.maxtech.lib.api.conduit.ConduitLook;
 import dev.silencebound.maxtech.lib.api.conduit.model.ConduitBodyKey;
 import dev.silencebound.maxtech.lib.api.conduit.model.ConduitQuad;
+import dev.silencebound.maxtech.lib.client.conduit.ConduitContentsGeometry;
 import dev.silencebound.maxtech.lib.client.conduit.ConduitGeometry;
 import dev.silencebound.maxtech.lib.client.conduit.PartCache;
 import dev.silencebound.maxtech.lib.conduit.ConduitBlockEntity;
@@ -18,6 +20,7 @@ import java.util.List;
 import java.util.Map;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.block.BlockAndTintGetter;
+import net.minecraft.client.renderer.block.FluidModel;
 import net.minecraft.client.renderer.block.dispatch.BlockModelRotation;
 import net.minecraft.client.renderer.block.dispatch.BlockStateModel;
 import net.minecraft.client.renderer.block.dispatch.BlockStateModelPart;
@@ -29,12 +32,16 @@ import net.minecraft.client.resources.model.geometry.BakedQuad;
 import net.minecraft.client.resources.model.geometry.QuadCollection;
 import net.minecraft.client.resources.model.sprite.Material;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
+import net.minecraft.util.ARGB;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.material.Fluid;
 import net.minecraft.world.phys.AABB;
 import net.neoforged.neoforge.client.model.DynamicBlockStateModel;
 import net.neoforged.neoforge.client.model.ExtraFaceData;
+import net.neoforged.neoforge.client.fluid.FluidTintSource;
 import net.neoforged.neoforge.client.model.block.CustomUnbakedBlockStateModel;
 import org.joml.Vector3f;
 import org.joml.Vector3fc;
@@ -57,6 +64,11 @@ import org.jspecify.annotations.Nullable;
  * <p>
  * A facaded conduit draws the facade block's baked model instead, or itself while {@link FacadeView#conduitsShown()};
  * the facade's tint comes from {@link FacadeClient}.
+ *
+ * <p>
+ * A shell conduit's {@link ConduitContents} are a part of their own ({@link ConduitContentsGeometry}), drawn with the
+ * fluid's baked fluid model (its still and flowing sprites and tint) and its light level, cached per
+ * {@link ConduitContentsGeometry#key}.
  *
  * <p>
  * An addon conduit marked {@code customModel} gets a copy with its {@link ConduitModelHook} ({@link #withHook}), which
@@ -92,6 +104,8 @@ public final class ConduitModel implements DynamicBlockStateModel {
             this::bakeLabelledBody);
     private final PartCache<ConduitFaceKey, BlockStateModelPart> labelledFaces = new PartCache<>(
             this::bakeLabelledFace);
+    // A shell's contents: arm and ring masks x the contents the world shows; labels and dyes do not change them.
+    private final PartCache<ConduitBodyKey, BlockStateModelPart> contents = new PartCache<>(this::bakeContents);
 
     ConduitModel(ConduitLook look, Sprites sprites) {
         this(look, sprites, null);
@@ -147,7 +161,11 @@ public final class ConduitModel implements DynamicBlockStateModel {
             return;
         }
         boolean labels = ClientConfig.conduitColorLabels();
-        output.add((labels ? labelledBodies : bodies).get(bodyKey(data.bodyKey())));
+        ConduitBodyKey body = data.bodyKey();
+        output.add((labels ? labelledBodies : bodies).get(custom == null ? ConduitGeometry.cacheKey(body) : body));
+        if (custom == null && look instanceof ConduitLook.Shell && ConduitContentsGeometry.drawn(body.contents())) {
+            output.add(contents.get(ConduitContentsGeometry.key(body)));
+        }
         PartCache<ConduitFaceKey, BlockStateModelPart> faceParts = labels ? labelledFaces : faces;
         List<ConduitFaceKey> keys = data.faces();
         for (int i = 0; i < keys.size(); i++) {
@@ -170,17 +188,6 @@ public final class ConduitModel implements DynamicBlockStateModel {
         Object key = FacadeView.geometryKey(data, facade != null, shown, facadeGeometry);
         // Only a key that draws the conduit itself changes with the labels; a facade's does not.
         return key instanceof ConduitRenderData drawn && ClientConfig.conduitColorLabels() ? new Labelled(drawn) : key;
-    }
-
-    /**
-     * {@code key} as this model caches it: Lib's shell ignores the render value, so its tubes share parts whatever
-     * value their addon sets; only a key with a value set is copied.
-     */
-    private ConduitBodyKey bodyKey(ConduitBodyKey key) {
-        if (custom == null && look instanceof ConduitLook.Shell && key.renderValue() != 0) {
-            return new ConduitBodyKey(key.type(), key.colour(), key.arms(), key.rings());
-        }
-        return key;
     }
 
     /** The key of a conduit drawn with its colour labels: the same data must not share a mesh without them. */
@@ -245,10 +252,49 @@ public final class ConduitModel implements DynamicBlockStateModel {
         return bake(custom == null ? ConduitGeometry.face(look, key, true) : custom.hook().face(look, key, true));
     }
 
+    /**
+     * The contents of a shell conduit in its fluid's baked fluid model; the fluid model set is replaced on a resource
+     * reload together with this model, so the part never outlives the sprites it names.
+     */
+    private BlockStateModelPart bakeContents(ConduitBodyKey key) {
+        if (!(look instanceof ConduitLook.Shell shell)) {
+            return bake(List.of());
+        }
+        Fluid fluid = BuiltInRegistries.FLUID.byId(ConduitContents.packedFluidId(key.contents()));
+        if (fluid == null || fluid.defaultFluidState().isEmpty()) {
+            return bake(List.of());
+        }
+        FluidModel model = Minecraft.getInstance().getModelManager().getFluidStateModelSet()
+                .get(fluid.defaultFluidState());
+        Material.Baked still = model.stillMaterial();
+        Material.Baked flowing = model.flowingMaterial();
+        FluidTintSource tint = model.fluidTintSource();
+        int argb = tint == null ? 0xFFFFFFFF : ARGB.opaque(tint.color(fluid.defaultFluidState()));
+        Identifier stillId = still.sprite().contents().name();
+        Identifier flowingId = flowing.sprite().contents().name();
+        ConduitContentsGeometry.Paint paint = new ConduitContentsGeometry.Paint(stillId, flowingId, argb,
+                lightLevel(fluid));
+        return bake(
+                ConduitContentsGeometry.quads(shell, key.type().thickness(), key.arms(), key.rings(), key.contents(),
+                        paint),
+                stillId.equals(flowingId) ? Map.of(stillId, still) : Map.of(stillId, still, flowingId, flowing));
+    }
+
+    /** The light a fluid gives off: its fluid type's level or its block's, whichever is higher (lava 15). */
+    private static int lightLevel(Fluid fluid) {
+        int block = fluid.defaultFluidState().createLegacyBlock().getLightEmission();
+        return Math.clamp(Math.max(fluid.getFluidType().getLightLevel(), block), 0, ConduitQuad.MAX_LIGHT);
+    }
+
     private BlockStateModelPart bake(List<ConduitQuad> faces) {
+        return bake(faces, Map.of());
+    }
+
+    /** Bakes {@code faces}; {@code extra} holds sprites by atlas id beyond the look's and the hook's. */
+    private BlockStateModelPart bake(List<ConduitQuad> faces, Map<Identifier, Material.Baked> extra) {
         QuadCollection.Builder quads = new QuadCollection.Builder();
         for (ConduitQuad face : faces) {
-            BakedQuad quad = quad(face);
+            BakedQuad quad = quad(face, extra);
             if (face.culled()) {
                 // Sits on the block face, so a solid neighbour hides it.
                 quads.addCulledFace(face.facing(), quad);
@@ -259,29 +305,34 @@ public final class ConduitModel implements DynamicBlockStateModel {
         return new SimpleModelWrapper(quads.build(), true, particleMaterial());
     }
 
-    private BakedQuad quad(ConduitQuad face) {
-        Material.Baked material = material(face);
+    private BakedQuad quad(ConduitQuad face, Map<Identifier, Material.Baked> extra) {
+        Material.Baked material = material(face, extra);
         Transparency transparency = ConduitLayers.transparency(face.layer(),
                 material.sprite().contents().transparency());
         if (custom != null) {
             ConduitLayers.requireDeclared(custom.translucent(), transparency, custom.block(),
                     face.sprite() != null ? face.sprite() : face.texture());
         }
-        BakedQuad.MaterialInfo info = BakedQuad.MaterialInfo.of(material, transparency, -1, true, 0, true);
+        // The chunk path lights a quad by its MaterialInfo's emission; ExtraFaceData carries the same for consistency.
+        int light = face.lightEmission();
+        BakedQuad.MaterialInfo info = BakedQuad.MaterialInfo.of(material, transparency, -1, true, light, true);
         AABB box = face.box();
         Vector3f from = new Vector3f((float) box.minX, (float) box.minY, (float) box.minZ);
         Vector3f to = new Vector3f((float) box.maxX, (float) box.maxY, (float) box.maxZ);
         return FaceBakery.bakeQuad(NO_INTERNING, from, to, ConduitFaceUvs.uvs(face.uv()),
                 ConduitFaceUvs.rotation(face.uv()), info, face.facing(), BlockModelRotation.IDENTITY, null,
-                new ExtraFaceData(face.argb(), 0, true));
+                new ExtraFaceData(face.argb(), light, true));
     }
 
-    private Material.Baked material(ConduitQuad face) {
+    private Material.Baked material(ConduitQuad face, Map<Identifier, Material.Baked> extra) {
         Identifier sprite = face.sprite();
         if (sprite != null) {
             Material.Baked own = custom == null ? null : custom.sprites().get(sprite);
             if (own == null) {
                 own = sprites.named().get(sprite);
+            }
+            if (own == null) {
+                own = extra.get(sprite);
             }
             if (own == null) {
                 throw new IllegalStateException("A quad of conduit " + (custom == null ? look : custom.block())

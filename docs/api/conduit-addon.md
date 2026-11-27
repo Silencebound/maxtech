@@ -149,8 +149,17 @@ Lib works the outline out from the connections and draws it as opaque strips jus
 | `border_colour` | the type's `baseColour()` | `#rrggbb` of borders and rims; a dye tints them, never the glass |
 | `border` | `0.5` | border line width in pixels on each face beside the edge, 0 to 4; 0 draws none |
 | `rim` | `1.5` | rim width in pixels, 0 to 4; 0 draws none |
+| `inset` | `0.5` | how far the contents sit inside the glass, in pixels, 0 to 4 |
+| `lane_width` | `1` | width of the second lane's strip, in pixels, 0 to 4; 0 draws none |
 
-Lib leaves out each field at its default when it writes the file. Later Lib versions add more optional fields (the
-tube's contents), so a file written now stays valid. The model is translucent, so block outlines and moving blocks
-treat it as such; particles show the `shell` sprite. In code: `ConduitLook.shell(id).withBorderColour(0x2E4A52)`,
-`.withBorder(1)`, `.withRim(2)`. `ConduitLookTest` and `ConduitAssetsTest` pin this format too.
+Lib leaves out each field at its default when it writes the file. Later Lib versions add more optional fields, so a
+file written now stays valid. The model is translucent, so block outlines and moving blocks treat it as such;
+particles show the `shell` sprite. In code: `ConduitLook.shell(id).withBorderColour(0x2E4A52)`, `.withBorder(1)`,
+`.withRim(2)`, `.withInset(1)`, `.withLaneWidth(0.5F)`. `ConduitLookTest` and `ConduitAssetsTest` pin this format too.
+
+A shell draws the conduit's `ConduitContents` (`ConduitHost.setContents`) inside the glass, opaque, with the fluid's
+own still and flowing sprites and tint from its fluid model, so any mod's fluid works, and at the fluid's light level
+(lava is full-bright). Horizontal pieces fill from the bottom by quarter steps; vertical pieces show a full column at
+any fill above 0. With an upstream side the flowing sprite runs from that side downstream on every face, else the
+still sprite shows; the second lane is a thin strip in the run's inner (+, +) corner flowing the other way.
+`ConduitContentsGeometryTest` pins the flow direction per face.

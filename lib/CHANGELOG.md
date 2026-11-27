@@ -11,12 +11,16 @@ Api changes are marked **Api**.
   facade tint extension was registered with no blocks, which NeoForge refuses.
 
 ### Added
+- The shell look draws a conduit's contents inside the glass: the fluid's own textures, tint and light, a fill level
+  on horizontal pieces and a full column on vertical ones, the flowing texture along the flow from the upstream side
+  and a second lane flowing back. **Api** `ConduitLook.Shell` gains optional `inset` and `lane_width` fields;
+  `ConduitQuad` gains `lightEmission` (existing constructors kept).
 - **Api** Conduit contents (`lib.api.conduit.ConduitContents`, experimental, for Farms FM1): a shared meaning for
   what a conduit shows inside it (fluid, fill step 0..4, upstream side, second lane), set with
   `ConduitHost.setContents` on the server and read with `ConduitView.contents()`. Saved and synced as `contents` only
   when not empty and only on change, the fluid by registry name; a fluid no longer registered loads as empty.
   `ConduitBodyKey.contents()` hands the client model the contents packed into an int (layout in
-  `ConduitContents.pack`); Lib's looks don't draw them yet.
+  `ConduitContents.pack`).
 - **Api** `ConduitLook.Shell` (`"look": "shell"`, experimental): a translucent glass conduit whose border lines and rims
   Lib works out from the connections, with the border colour, border and rim widths as optional fields
   (`docs/api/conduit-addon.md`).
