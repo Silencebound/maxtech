@@ -3,6 +3,8 @@ package dev.silencebound.maxtech.farms.registry;
 import dev.silencebound.maxtech.farms.MaxtechFarms;
 import dev.silencebound.maxtech.farms.hub.LabHubBlock;
 import dev.silencebound.maxtech.farms.hub.LabHubBlockEntity;
+import dev.silencebound.maxtech.farms.lab.FluidPortBlock;
+import dev.silencebound.maxtech.farms.lab.FluidPortBlockEntity;
 import dev.silencebound.maxtech.farms.sampler.SamplerItem;
 import dev.silencebound.maxtech.farms.specimen.Specimen;
 import dev.silencebound.maxtech.farms.specimen.SpecimenItem;
@@ -59,6 +61,15 @@ public final class FarmsContent {
             (Identifier id) -> new BlockItem(LAB_HUB.get(), properties(id).useBlockDescriptionPrefix()));
     public static final RegistryEntry<BlockEntityType<?>, BlockEntityType<LabHubBlockEntity>> LAB_HUB_ENTITY = BLOCK_ENTITIES
             .register("lab_hub", () -> new BlockEntityType<>(LabHubBlockEntity::new, Set.of(LAB_HUB.get())));
+
+    public static final RegistryEntry<Block, FluidPortBlock> FLUID_PORT = BLOCKS.register("fluid_port",
+            (Identifier id) -> new FluidPortBlock(BlockBehaviour.Properties.of()
+                    .setId(ResourceKey.create(Registries.BLOCK, id)).mapColor(MapColor.METAL).strength(3.5F)
+                    .sound(SoundType.METAL).requiresCorrectToolForDrops()));
+    public static final RegistryEntry<Item, BlockItem> FLUID_PORT_ITEM = ITEMS.register("fluid_port",
+            (Identifier id) -> new BlockItem(FLUID_PORT.get(), properties(id).useBlockDescriptionPrefix()));
+    public static final RegistryEntry<BlockEntityType<?>, BlockEntityType<FluidPortBlockEntity>> FLUID_PORT_ENTITY = BLOCK_ENTITIES
+            .register("fluid_port", () -> new BlockEntityType<>(FluidPortBlockEntity::new, Set.of(FLUID_PORT.get())));
 
     private FarmsContent() {
     }

@@ -19,3 +19,11 @@ Api changes are marked **Api**.
   at its burn time (`hub.fuelMuPerTick`), and a sampler charging slot (`hub.samplerChargeMuPerTick`; use a sampler on
   the hub to put it in, sneak-use with an empty hand to take it out); no screen yet. It drops with everything it
   holds, with any tool and in explosions.
+- Lab tube (`maxtech_farms:lab_tube`): a Lib conduit (dyes and facades work) that joins one lab hub, its fluid
+  ports and later the specimen blocks into a lab network carrying nutrient, MU and output. A lab takes one hub: a
+  hub placed on tubes that already have a running hub stays idle and says so (it still burns fuel into its own store).
+  The lowest hub (y, then x, then z) runs the lab only when no hub runs it yet, as after a restart, or when two labs
+  with a running hub each are joined. A hub beside two separate lab networks runs only the first that took it; the
+  other has no hub (a misconfiguration). The hub's MU store is the lab's energy buffer.
+- Lab fluid port (`maxtech_farms:fluid_port`): pipes and pumps push fluid into the lab hub's tank through it; it never
+  pulls or gives fluid back.

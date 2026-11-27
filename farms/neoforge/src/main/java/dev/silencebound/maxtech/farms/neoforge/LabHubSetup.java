@@ -15,9 +15,10 @@ import net.neoforged.neoforge.event.BuildCreativeModeTabContentsEvent;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Loader glue for the lab hub: its tank, items and FE input as NeoForge capabilities on every side, its MU store for
- * Lib's energy diagnostics, and the creative tab. The handlers all come from the hub's storage and energy, so this is
- * the only place that names NeoForge's capabilities for it.
+ * Loader glue for the lab hub and the fluid port: the hub's tank, items and FE input as NeoForge capabilities on every
+ * side, its MU store for Lib's energy diagnostics, the port's insert-only fluid input, and the creative tab. The
+ * handlers all come from the blocks' own storage, so this is the only place that names NeoForge's capabilities for
+ * them.
  */
 @EventBusSubscriber(modid = MaxtechFarms.MOD_ID)
 final class LabHubSetup {
@@ -36,12 +37,15 @@ final class LabHubSetup {
         event.registerBlockEntity(Capabilities.Energy.BLOCK, FarmsContent.LAB_HUB_ENTITY.get(),
                 (hub, side) -> hub.feHandler());
         event.registerBlockEntity(ENDPOINT, FarmsContent.LAB_HUB_ENTITY.get(), (hub, side) -> hub.energy());
+        event.registerBlockEntity(Capabilities.Fluid.BLOCK, FarmsContent.FLUID_PORT_ENTITY.get(),
+                (port, side) -> port.fluidHandler());
     }
 
     @SubscribeEvent
     static void buildCreativeTabs(BuildCreativeModeTabContentsEvent event) {
         if (event.getTabKey().equals(CreativeModeTabs.FUNCTIONAL_BLOCKS)) {
             event.accept(FarmsContent.LAB_HUB_ITEM.get());
+            event.accept(FarmsContent.FLUID_PORT_ITEM.get());
         }
     }
 }

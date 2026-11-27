@@ -1,6 +1,7 @@
 package dev.silencebound.maxtech.farms.hub;
 
 import com.mojang.serialization.MapCodec;
+import dev.silencebound.maxtech.farms.lab.LabNetwork;
 import dev.silencebound.maxtech.farms.sampler.SamplerItem;
 import java.util.List;
 import net.minecraft.core.BlockPos;
@@ -100,7 +101,9 @@ public final class LabHubBlock extends Block implements EntityBlock {
             }
             return InteractionResult.SUCCESS;
         }
-        player.sendOverlayMessage(status(hub));
+        player.sendOverlayMessage(hub.labLink() == LabHubBlockEntity.LabLink.REFUSED
+                ? Component.translatable("message.maxtech_farms.lab_hub.refused")
+                : Component.translatable("message.maxtech_farms.lab_hub.status_line", status(hub), link(hub)));
         return InteractionResult.SUCCESS;
     }
 
@@ -117,6 +120,13 @@ public final class LabHubBlock extends Block implements EntityBlock {
         }
         return Component.translatable("message.maxtech_farms.lab_hub.status_sampler", medium, fluid, capacity,
                 hub.energy().stored(), hub.energy().capacity(), SamplerItem.charge(sampler), SamplerItem.capacity());
+    }
+
+    private static Component link(LabHubBlockEntity hub) {
+        LabNetwork lab = hub.lab();
+        return lab == null
+                ? Component.translatable("message.maxtech_farms.lab_hub.no_tubes")
+                : Component.translatable("message.maxtech_farms.lab_hub.tubes", lab.tubes(), lab.portCount());
     }
 
     /** The loot table's hub, carrying what it holds. */

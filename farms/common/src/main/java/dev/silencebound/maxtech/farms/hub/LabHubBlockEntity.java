@@ -1,6 +1,8 @@
 package dev.silencebound.maxtech.farms.hub;
 
 import dev.silencebound.maxtech.farms.config.FarmsServerConfig;
+import dev.silencebound.maxtech.farms.lab.LabNetwork;
+import dev.silencebound.maxtech.farms.lab.LabTubes;
 import dev.silencebound.maxtech.farms.registry.FarmsContent;
 import dev.silencebound.maxtech.farms.sampler.SamplerItem;
 import dev.silencebound.maxtech.lib.api.energy.EnergyEndpoint;
@@ -23,6 +25,7 @@ import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.level.storage.ValueOutput;
 // PLATFORM-LEAK: NeoForge's item transfer type, which the sampler slot holds.
 import net.neoforged.neoforge.transfer.item.ItemResource;
+import org.jspecify.annotations.Nullable;
 
 /**
  * The lab hub: one nutrient tank, an output buffer, an MU store, a small fuel generator and a sampler charging slot.
@@ -31,9 +34,21 @@ import net.neoforged.neoforge.transfer.item.ItemResource;
  * steps of the same length. Otherwise it waits for an event (fuel or a sampler put in, energy used, output room) with
  * no timer. A full store pauses the burn instead of wasting it ({@link FuelBurner}). Energy coming in wakes the task
  * only for a sampler that waits for charge, and then not before the next step. Other mods reach the tank, the fuel
- * slot, the output and the FE input through the capabilities the loader glue registers. Server thread only.
+ * slot, the output and the FE input through the capabilities the loader glue registers. Beside a lab tube the hub runs
+ * that lab network, and its MU store becomes the buffer of the lab's energy network ({@link LabNetwork}); a lab takes
+ * only one hub, so another one on the same tubes stays out of it ({@link LabLink#REFUSED}). Server thread only.
  */
 public final class LabHubBlockEntity extends BlockEntity {
+    /** How the hub stands towards the lab tubes beside it. */
+    public enum LabLink {
+        /** No lab tube beside it. */
+        NONE,
+        /** It runs the lab network beside it. */
+        ACTIVE,
+        /** The lab network beside it has another hub, so this one stays out. */
+        REFUSED
+    }
+
     /** Ticks between MU credits while fuel burns, and between sampler charging steps. */
     static final int BURN_STEP = 20;
 
@@ -72,6 +87,15 @@ public final class LabHubBlockEntity extends BlockEntity {
     private final HubEnergyHandler feHandler;
     /** Set while the task runs, so its own changes do not wake it again. */
     private boolean working;
+    /** The lab network this hub runs. */
+    private @Nullable LabNetwork lab;
+    /** A lab network that has another hub and so refused this one. */
+    private @Nullable LabNetwork refusedBy;
+    /**
+     * Whether the hub runs a lab, or ran one whose tubes merged or split and are still beside it; such a hub keeps a
+     * lab against hubs placed later ({@link LabNetwork}). Not saved: after a restart no hub is running.
+     */
+    private boolean running;
     /** Game tick from which the next sampler charging step may run; steps are at least {@link #BURN_STEP} apart. */
     private long nextCharge = Long.MIN_VALUE;
 
@@ -118,6 +142,79 @@ public final class LabHubBlockEntity extends BlockEntity {
         return task;
     }
 
+    /** Whether the hub runs a lab network, is refused by one that has another hub, or has no lab tube beside it. */
+    public LabLink labLink() {
+        if (lab != null && lab.isAlive()) {
+            return LabLink.ACTIVE;
+        }
+        return refusedBy != null && refusedBy.isAlive() ? LabLink.REFUSED : LabLink.NONE;
+    }
+
+    /** The lab network this hub runs, or null. */
+    public @Nullable LabNetwork lab() {
+        return labLink() == LabLink.ACTIVE ? lab : null;
+    }
+
+    /**
+     * Whether {@code network} may take this hub: it runs no other live lab network whose tubes are still beside it (a
+     * split may have moved them all to {@code network} before the old lab looked again).
+     */
+    public boolean isFreeFor(LabNetwork network) {
+        LabNetwork current = lab;
+        return current == null || current == network || !current.isAlive() || !current.touches(worldPosition);
+    }
+
+    /** Whether the hub runs a lab or ran one that merged or split into tubes still beside it. */
+    public boolean isRunning() {
+        return running;
+    }
+
+    /**
+     * {@code network} takes this hub: its MU store moves into the lab's energy network, nothing else changes (tank,
+     * output and MU stay). A lab it ran before forgets it. Called by the lab only.
+     */
+    public void joinLab(LabNetwork network) {
+        refusedBy = null;
+        running = true;
+        LabNetwork previous = lab;
+        if (previous == network) {
+            return;
+        }
+        lab = network;
+        if (previous != null) {
+            previous.forget(this);
+        }
+        energy.network().ifPresent(old -> old.remove(energy));
+        network.energy().add(energy);
+    }
+
+    /**
+     * {@code network} lets go of this hub: its MU store leaves the lab's energy network, and the tubes beside it look
+     * again, so another lab network beside the hub may take it. Called by the lab only.
+     */
+    public void leaveLab(LabNetwork network) {
+        if (lab != network) {
+            return;
+        }
+        lab = null;
+        energy.network().ifPresent(old -> old.remove(energy));
+        // Still running if the tubes merged or split into another lab beside it; not if the last tube went.
+        running = level != null && !isRemoved() && LabTubes.hasTubeBeside(level, worldPosition);
+        if (level != null && !isRemoved()) {
+            LabTubes.neighbourChanged(level, worldPosition);
+        }
+    }
+
+    /** {@code network} refuses this hub because it has another ({@code refused}), or no longer does. */
+    public void setRefusedBy(LabNetwork network, boolean refused) {
+        if (refused) {
+            refusedBy = network;
+            running = false;
+        } else if (refusedBy == network) {
+            refusedBy = null;
+        }
+    }
+
     /** Whether the hub holds nothing worth keeping on its dropped item. */
     public boolean isPristine() {
         return storage.isEmpty() && energy.stored() == 0 && !burner.isBurning();
@@ -144,6 +241,7 @@ public final class LabHubBlockEntity extends BlockEntity {
         if (level instanceof ServerLevel server) {
             FarmsTasks.group(server).add(task);
             task.wake();
+            LabTubes.neighbourChanged(server, worldPosition);
         }
     }
 
@@ -154,6 +252,14 @@ public final class LabHubBlockEntity extends BlockEntity {
             group.remove(task);
         }
         super.setRemoved();
+        // The store leaves the lab's energy network now; the lab finds the hub gone when its tubes look again.
+        energy.network().ifPresent(network -> network.remove(energy));
+        lab = null;
+        refusedBy = null;
+        running = false;
+        if (level != null) {
+            LabTubes.neighbourChanged(level, worldPosition);
+        }
     }
 
     /** Energy left the store: room may have opened for a paused burn or fuel that waits. */

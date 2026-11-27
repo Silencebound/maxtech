@@ -16,6 +16,6 @@ final class FarmsBlockTagsProvider extends BlockTagsProvider {
 
     @Override
     protected void addTags(HolderLookup.Provider registries) {
-        tag(BlockTags.MINEABLE_WITH_PICKAXE).add(FarmsContent.LAB_HUB.get());
+        tag(BlockTags.MINEABLE_WITH_PICKAXE).add(FarmsContent.LAB_HUB.get(), FarmsContent.FLUID_PORT.get());
     }
 }

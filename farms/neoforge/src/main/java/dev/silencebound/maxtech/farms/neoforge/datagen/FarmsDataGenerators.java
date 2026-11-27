@@ -50,11 +50,12 @@ final class FarmsDataGenerators {
             Block hub = FarmsContent.LAB_HUB.get();
             add(hub, LootTable.lootTable()
                     .withPool(LootPool.lootPool().setRolls(ConstantValue.exactly(1)).add(LootItem.lootTableItem(hub))));
+            dropSelf(FarmsContent.FLUID_PORT.get());
         }
 
         @Override
         protected Iterable<Block> getKnownBlocks() {
-            return List.of(FarmsContent.LAB_HUB.get());
+            return List.of(FarmsContent.LAB_HUB.get(), FarmsContent.FLUID_PORT.get());
         }
     }
 }
