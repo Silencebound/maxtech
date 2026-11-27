@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import dev.silencebound.maxtech.lib.config.ConfigOutline;
+import dev.silencebound.maxtech.lib.config.LibConfigFactory;
 import dev.silencebound.maxtech.storage.MaxtechStorage;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -16,6 +17,7 @@ import org.junit.jupiter.api.Test;
 class StorageConfigNamesTest {
     @Test
     void everyValueAndSectionHasANameAndEveryNameAValue() {
+        LibConfigFactory.install();
         StorageClientConfig.register();
         StorageCommonConfig.register();
         StorageServerConfig.register();

@@ -1,5 +1,6 @@
 package dev.silencebound.maxtech.lib;
 
+import dev.silencebound.maxtech.lib.config.LibConfigFactory;
 import dev.silencebound.maxtech.lib.api.guide.GuideConfigValues;
 import dev.silencebound.maxtech.lib.api.security.OwnerSecurity;
 import dev.silencebound.maxtech.lib.concurrent.WorkerPool;
@@ -30,6 +31,7 @@ public final class MaxtechLib {
     public static void init() {
         // Resolve the platform now so a missing or duplicate implementation fails at startup, not on first use.
         Platform.get();
+        LibConfigFactory.install();
         ServerConfig.register();
         OwnerSecurity.setOpsBypassSource(() -> ServerConfig.loadedOr(ServerConfig.OPS_BYPASS_OWNERSHIP, true));
         ClientConfig.register();

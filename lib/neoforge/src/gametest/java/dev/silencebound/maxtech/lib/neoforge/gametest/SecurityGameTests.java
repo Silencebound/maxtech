@@ -5,7 +5,7 @@ import dev.silencebound.maxtech.lib.MaxtechLib;
 import dev.silencebound.maxtech.lib.api.security.OwnerRecord;
 import dev.silencebound.maxtech.lib.api.security.OwnerSecurity;
 import dev.silencebound.maxtech.lib.config.ServerConfig;
-import dev.silencebound.maxtech.lib.platform.ConfigFile;
+import dev.silencebound.maxtech.lib.api.config.ConfigFile;
 import dev.silencebound.maxtech.lib.platform.Platform;
 import dev.silencebound.maxtech.lib.platform.RegistryHelper;
 import dev.silencebound.maxtech.lib.registry.ModDataComponents;

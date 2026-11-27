@@ -1,6 +1,6 @@
 package dev.silencebound.maxtech.storage.config;
 
-import dev.silencebound.maxtech.lib.platform.ConfigBuilder;
+import dev.silencebound.maxtech.lib.api.config.ConfigBuilder;
 import java.util.function.BooleanSupplier;
 import java.util.function.DoubleSupplier;
 import java.util.function.IntSupplier;

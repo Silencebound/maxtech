@@ -1,4 +1,4 @@
-package dev.silencebound.maxtech.lib.platform;
+package dev.silencebound.maxtech.lib.api.config;
 
 import java.util.function.BooleanSupplier;
 import java.util.function.DoubleSupplier;
@@ -32,18 +32,25 @@ public interface ConfigBuilder {
      */
     ConfigBuilder gameRestart();
 
+    /** Opens section {@code section}; the values declared next go into it until {@link #pop()}. */
     ConfigBuilder push(String section);
 
+    /** Closes the section the last {@link #push} opened. */
     ConfigBuilder pop();
 
+    /** A boolean value. */
     BooleanSupplier define(String path, boolean defaultValue);
 
+    /** An int value from {@code min} to {@code max}; the loader puts the default back for one outside. */
     IntSupplier defineInRange(String path, int defaultValue, int min, int max);
 
+    /** A long value from {@code min} to {@code max}; the loader puts the default back for one outside. */
     LongSupplier defineInRange(String path, long defaultValue, long min, long max);
 
+    /** A double value from {@code min} to {@code max}; the loader puts the default back for one outside. */
     DoubleSupplier defineInRange(String path, double defaultValue, double min, double max);
 
+    /** A string value. */
     Supplier<String> define(String path, String defaultValue);
 
     /**
@@ -52,5 +59,6 @@ public interface ConfigBuilder {
      */
     Supplier<String> define(String path, String defaultValue, Predicate<String> valid);
 
+    /** An enum value, written by constant name; the loader puts the default back for an unknown name. */
     <E extends Enum<E>> Supplier<E> defineEnum(String path, E defaultValue);
 }

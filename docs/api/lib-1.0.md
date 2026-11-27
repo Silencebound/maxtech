@@ -29,6 +29,10 @@ Labels: **stable** = frozen at 1.0, a breaking change needs a Lib major bump. **
 | `CarriedItemSource` | Extra slots another mod adds (accessories). | experimental |
 | `CarriedItemMatcher` | Allocation-free predicate with a context for lookups. | experimental |
 | `CarriedSlot` | Where a found stack sits, re-read on each use by an open GUI. | experimental |
+| **`lib.api.config`** | Config files with presets for every MaxTech mod. Moved from `lib.config` and `lib.platform` for Farms (FM1). | experimental |
+| `Configs` | Entry point: `presetConfig(modId, anchor)`, and `builder`/`register` for plain files. | experimental |
+| `PresetConfig` | A server config whose defaults come from `<modid>/presets/*.json`. | experimental |
+| `ConfigBuilder`, `ConfigFile`, `ConfigType` | Declaring values, the registered file, which file. | experimental |
 | **`lib.api.conduit`** | Conduit types (a conduit is Lib's generic framework for blocks that connect to neighbours: cables now, later pipes and wires); each type gets its own block from Lib. For MaxTech mods only: types from other mods are not supported in 1.0 (see below). | stable |
 | `ConduitType` | One conduit type: network type, tier, base colour, thickness, face modes, per-conduit state. | stable |
 | `ConduitTypes` | The `maxtech_lib:conduit_type` registry key and lookups. | stable |
@@ -82,7 +86,7 @@ on 2026-10-15.
 | `lib.schedule` | `LevelTasks`: one scheduler per level, behind `lib.api.schedule.TaskSchedulers`. | 15 | internal |
 | `lib.sync` | Synced lists for open screens. | 15 | internal |
 | `lib.highlight` | World highlights. | 11 | internal |
-| `lib.config` | Presets and Lib's configs. | 10 | internal |
+| `lib.config` | Lib's own configs and the preset machinery behind `lib.api.config`. | 10 | internal |
 | `lib.save` | Save versions and migrations. | 8 | internal |
 | `lib.facade`, `lib.tool`, `lib.registry`, `lib.viewer`, `lib.concurrent` | Smaller helpers. | 2-5 each | internal |
 | `lib.neoforge.perf`, `.datagen`, `.platform`, `.compat` | Perf budgets for GameTests, datagen providers, loader glue. | 25 | internal |

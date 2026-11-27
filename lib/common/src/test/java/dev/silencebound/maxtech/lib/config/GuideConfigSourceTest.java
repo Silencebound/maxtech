@@ -5,7 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import dev.silencebound.maxtech.lib.api.guide.GuideConfigValues;
-import dev.silencebound.maxtech.lib.platform.ConfigFile;
+import dev.silencebound.maxtech.lib.api.config.ConfigFile;
 import java.nio.file.Path;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -16,7 +16,7 @@ import java.util.function.Consumer;
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 
-/** A preset config's values as guide pages read them ({@link PresetConfig#guideSource()}). */
+/** A preset config's values as guide pages read them ({@link LibPresetConfig#guideSource()}). */
 class GuideConfigSourceTest {
     private static final class FakeFile implements ConfigFile {
         final Map<String, Object> defaults = new LinkedHashMap<>();
@@ -71,7 +71,7 @@ class GuideConfigSourceTest {
     @Test
     void valuesInEffectAreMarkedWhenTheyDifferFromTheDefault() {
         FakeFile file = new FakeFile();
-        GuideConfigValues.Source source = PresetConfig.guideSource(() -> file);
+        GuideConfigValues.Source source = LibPresetConfig.guideSource(() -> file);
         assertEquals(Set.of("controller.inputPerTick", "claims.enabled"), source.keys(), "the preset name is no value");
         GuideConfigValues.Value plain = source.value("controller.inputPerTick").orElseThrow();
         assertEquals(1000L, plain.current());
@@ -89,13 +89,13 @@ class GuideConfigSourceTest {
     void withoutALoadedFileTheDefaultShows() {
         FakeFile file = new FakeFile();
         file.set("controller.inputPerTick", 500L);
-        GuideConfigValues.Source source = PresetConfig.guideSource(() -> file);
+        GuideConfigValues.Source source = LibPresetConfig.guideSource(() -> file);
         file.loaded = false;
         assertEquals(1000L, source.value("controller.inputPerTick").orElseThrow().current(), "no world");
         file.loaded = true;
         file.failing = true;
         assertEquals(1000L, source.value("controller.inputPerTick").orElseThrow().current(), "unloaded meanwhile");
-        GuideConfigValues.Source unregistered = PresetConfig.guideSource(() -> null);
+        GuideConfigValues.Source unregistered = LibPresetConfig.guideSource(() -> null);
         assertEquals(Set.of(), unregistered.keys());
         assertEquals(Optional.empty(), unregistered.value("claims.enabled"));
     }

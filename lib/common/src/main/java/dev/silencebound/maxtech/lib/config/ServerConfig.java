@@ -4,9 +4,9 @@ import dev.silencebound.maxtech.lib.MaxtechLib;
 import dev.silencebound.maxtech.lib.api.energy.EdgeSettings;
 import dev.silencebound.maxtech.lib.api.energy.FeRate;
 import dev.silencebound.maxtech.lib.api.network.UnloadedChunkMode;
-import dev.silencebound.maxtech.lib.platform.ConfigBuilder;
+import dev.silencebound.maxtech.lib.api.config.ConfigBuilder;
 import dev.silencebound.maxtech.lib.api.guide.GuideConfigValues;
-import dev.silencebound.maxtech.lib.platform.ConfigFile;
+import dev.silencebound.maxtech.lib.api.config.ConfigFile;
 import java.util.List;
 import java.util.function.BooleanSupplier;
 import java.util.function.IntSupplier;
@@ -20,7 +20,7 @@ import org.jspecify.annotations.Nullable;
  * preset JSON. Every value is read on the server thread and may change on reload.
  */
 public final class ServerConfig {
-    private static final PresetConfig CONFIG = new PresetConfig(MaxtechLib.MOD_ID, ServerConfig.class);
+    private static final LibPresetConfig CONFIG = new LibPresetConfig(MaxtechLib.MOD_ID, ServerConfig.class);
     private static final ConfigBuilder BUILDER = CONFIG.builder();
 
     public static final Supplier<String> PRESET = CONFIG.preset();
@@ -216,7 +216,7 @@ public final class ServerConfig {
     }
 
     /**
-     * Where the built-in presets and this config's values disagree; see {@link PresetConfig#presetProblems()}. The
+     * Where the built-in presets and this config's values disagree; see {@link LibPresetConfig#presetProblems()}. The
      * {@code energy.*} keys must be in every preset.
      */
     public static List<String> presetProblems() {
@@ -224,7 +224,8 @@ public final class ServerConfig {
     }
 
     /**
-     * Lib's values for guide pages' {@code <Config key="maxtech_lib:..." />}; see {@link PresetConfig#guideSource()}.
+     * Lib's values for guide pages' {@code <Config key="maxtech_lib:..." />}; see
+     * {@link LibPresetConfig#guideSource()}.
      */
     public static GuideConfigValues.Source guideSource() {
         return CONFIG.guideSource();

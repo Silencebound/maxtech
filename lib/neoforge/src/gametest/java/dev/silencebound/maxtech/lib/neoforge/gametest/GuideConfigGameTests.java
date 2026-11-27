@@ -3,7 +3,7 @@ package dev.silencebound.maxtech.lib.neoforge.gametest;
 import dev.silencebound.maxtech.lib.MaxtechLib;
 import dev.silencebound.maxtech.lib.api.guide.GuideConfigValues;
 import dev.silencebound.maxtech.lib.config.ServerConfig;
-import dev.silencebound.maxtech.lib.platform.ConfigFile;
+import dev.silencebound.maxtech.lib.api.config.ConfigFile;
 import dev.silencebound.maxtech.lib.platform.Platform;
 import dev.silencebound.maxtech.lib.platform.RegistryHelper;
 import java.util.function.Consumer;

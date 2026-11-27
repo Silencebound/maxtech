@@ -1,4 +1,4 @@
-package dev.silencebound.maxtech.lib.platform;
+package dev.silencebound.maxtech.lib.api.config;
 
 import java.nio.file.Path;
 import java.util.Set;

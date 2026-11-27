@@ -5,7 +5,7 @@ import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import dev.silencebound.maxtech.lib.MaxtechLib;
 import dev.silencebound.maxtech.lib.config.ServerConfig;
-import dev.silencebound.maxtech.lib.platform.ConfigFile;
+import dev.silencebound.maxtech.lib.api.config.ConfigFile;
 import dev.silencebound.maxtech.lib.platform.Platform;
 import dev.silencebound.maxtech.lib.platform.RegistryHelper;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
