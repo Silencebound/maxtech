@@ -4,7 +4,6 @@ import dev.silencebound.maxtech.lib.api.client.resource.ResourceLook;
 import dev.silencebound.maxtech.lib.api.client.resource.ResourceLooks;
 import dev.silencebound.maxtech.lib.api.resource.FluidKey;
 import dev.silencebound.maxtech.lib.api.resource.ResourceKinds;
-import java.util.Optional;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.level.material.Fluid;
@@ -39,8 +38,7 @@ public interface FluidLook extends ResourceLook<FluidKey> {
      *             before Lib registered it (never the case once a screen can open)
      */
     static FluidLook get() {
-        Optional<ResourceLook<FluidKey>> look = ResourceLooks.get(ResourceKinds.FLUID);
-        if (look.isPresent() && look.get() instanceof FluidLook fluid) {
+        if (ResourceLooks.getOrNull(ResourceKinds.FLUID) instanceof FluidLook fluid) {
             return fluid;
         }
         throw new IllegalStateException("No fluid look registered yet");

@@ -37,12 +37,19 @@ class ResourceLookIndexTest {
     }
 
     @Test
-    void keyWithoutPaintDrawsNothing() {
-        ResourceLookIndex<String, String> index = new ResourceLookIndex<>(key -> key.startsWith("x") ? null : key);
+    void keyWithoutPaintKeepsItsIndexAndGetsPaintedOnRepaint() {
+        AtomicReference<String> paint = new AtomicReference<>();
+        ResourceLookIndex<String, String> index = new ResourceLookIndex<>(key -> paint.get());
         assertEquals(0, index.indexOf("xenon"));
+        assertNull(index.paint(0), "no paint: drawn as nothing");
+        assertEquals(Optional.of("xenon"), index.key(0), "but the key keeps its index");
+        assertEquals(ConduitContents.pack(0, 2, null, false),
+                index.pack(Optional.of("xenon"), 2, Optional.empty(), false), "and packs with it, not as no resource");
+        assertEquals(0, index.indexOf("xenon"), "never painted again by indexOf");
         assertNull(index.paint(0));
-        assertEquals(1, index.indexOf("water"));
-        assertEquals("water", index.paint(1));
+        paint.set("late");
+        index.repaint();
+        assertEquals("late", index.paint(0), "a look registered later is picked up by the next repaint");
     }
 
     @Test
@@ -109,9 +116,14 @@ class ResourceLookIndexTest {
     void clearResetsTheFullWarningState() {
         ResourceLookIndex<String, String> index = new ResourceLookIndex<>(key -> key, 1);
         index.indexOf("a");
+        assertEquals(false, index.warnedFull());
         assertEquals(-1, index.indexOf("b"));
+        assertEquals(true, index.warnedFull());
         index.clear();
+        assertEquals(false, index.warnedFull(), "clear lets the next full index warn again");
         assertEquals(0, index.indexOf("b"));
+        assertEquals(-1, index.indexOf("c"));
+        assertEquals(true, index.warnedFull());
     }
 
     /**

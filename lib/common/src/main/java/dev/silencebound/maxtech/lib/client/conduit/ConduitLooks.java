@@ -8,7 +8,6 @@ import dev.silencebound.maxtech.lib.api.conduit.model.ConduitQuad;
 import dev.silencebound.maxtech.lib.api.resource.KindKey;
 import dev.silencebound.maxtech.lib.api.resource.ResourceKind;
 import dev.silencebound.maxtech.lib.conduit.ResourceLookIndex;
-import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
@@ -50,15 +49,14 @@ public final class ConduitLooks {
     }
 
     private static <K> @Nullable ContentsPaint paintOf(KindKey<K> key) {
-        Optional<ResourceLook<K>> registered = ResourceLooks.get(key.kind());
-        if (registered.isEmpty()) {
+        ResourceLook<K> look = ResourceLooks.getOrNull(key.kind());
+        if (look == null) {
             if (WARNED.add(key.kind())) {
                 LOGGER.warn("Resource kind {} has no client look; conduit contents of it are drawn as nothing",
                         key.kindId());
             }
             return null;
         }
-        ResourceLook<K> look = registered.get();
         TextureAtlasSprite still = look.sprite(key.key());
         TextureAtlasSprite flowing = look.flowingSprite(key.key()).orElse(still);
         int light = Math.clamp(look.lightEmission(key.key()), 0, ConduitQuad.MAX_LIGHT);

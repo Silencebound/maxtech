@@ -19,8 +19,8 @@ import org.jspecify.annotations.Nullable;
 
 /**
  * The faces of a shell conduit's contents ({@link ConduitContents}), in pixels, before they become baked quads. Pure
- * geometry: the resource's sprites, tint and light come from its kind's look, resolved once into a {@link Paint}, and
- * caches the result per {@link #key}.
+ * geometry: the resource's sprites, tint and light come from its kind's look, resolved once into a {@link Paint}. The
+ * model caches the result per {@link #key}.
  *
  * <p>
  * The contents are opaque boxes {@link ConduitLook.Shell#inset} px inside the glass: one for the core and one per arm,

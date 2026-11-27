@@ -4,7 +4,6 @@ import com.mojang.logging.LogUtils;
 import dev.silencebound.maxtech.lib.api.conduit.ConduitConnectionRule;
 import dev.silencebound.maxtech.lib.api.conduit.ConduitConnections;
 import dev.silencebound.maxtech.lib.api.conduit.ConduitContents;
-import dev.silencebound.maxtech.lib.client.conduit.ConduitLooks;
 import dev.silencebound.maxtech.lib.api.conduit.ConduitFaceMode;
 import dev.silencebound.maxtech.lib.api.conduit.ConduitFaceModes;
 import dev.silencebound.maxtech.lib.api.conduit.ConduitHost;
@@ -669,10 +668,10 @@ public final class ConduitBlockEntity extends BlockEntity implements ConduitHost
 
     /**
      * The contents packed for the client model, with the client's look indices; 0 on the server, which never draws
-     * them, so only the client's main thread adds to the index.
+     * them, so only the client's main thread adds to the index. The packer is {@link ContentsPacking}'s hook.
      */
     private int packedContents() {
-        return level != null && level.isClientSide() ? ConduitLooks.pack(contents) : 0;
+        return level != null && level.isClientSide() ? ContentsPacking.pack(contents) : 0;
     }
 
     /** Called on the client's main thread only when a refresh was requested; chunk meshing reads the snapshot. */

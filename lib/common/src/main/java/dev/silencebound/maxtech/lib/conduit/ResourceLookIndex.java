@@ -96,6 +96,11 @@ public final class ResourceLookIndex<K, P> {
         return ConduitContents.pack(index, fill, upstream.orElse(null), lane);
     }
 
+    /** Whether the full-index warning was given since the last {@link #clear}; tests only. */
+    synchronized boolean warnedFull() {
+        return warnedFull;
+    }
+
     /** The paint of {@code index}, or null when it has none or the index is not (or no longer) held. Never locks. */
     public @Nullable P paint(int index) {
         Entry<K, P>[] current = entries;
