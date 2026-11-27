@@ -251,7 +251,6 @@ public final class LabHubBlockEntity extends BlockEntity {
         if (level instanceof ServerLevel server) {
             FarmsTasks.group(server).add(task);
             task.wake();
-            LabTubes.neighbourChanged(server, worldPosition);
         }
     }
 
@@ -267,9 +266,6 @@ public final class LabHubBlockEntity extends BlockEntity {
         lab = null;
         refusedBy = null;
         running = false;
-        if (level != null) {
-            LabTubes.neighbourChanged(level, worldPosition);
-        }
     }
 
     /** Energy left the store: room may have opened for a paused burn or fuel that waits. */
