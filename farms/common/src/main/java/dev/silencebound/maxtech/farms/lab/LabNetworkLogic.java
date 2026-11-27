@@ -20,11 +20,12 @@ import org.jspecify.annotations.Nullable;
 
 /**
  * The lab network type's logic in one level: keeps a {@link LabNetwork} per Lib network and finds the hub and fluid
- * ports next to its tubes when the topology changes ({@link #onRebuilt}) or a tube's neighbour comes or goes (hubs and
- * ports invalidate the tubes beside them). Nothing moves per tick: nutrient and output move when a port or specimen
- * calls in, MU in the lab's energy network, which sleeps until something changes. The tick only finishes a pending look
- * at the neighbours. Each look also sets the tubes' contents ({@link LabNetwork#refreshContents}); merges and splits
- * tell the lab where its tubes went, so a hub on them keeps running.
+ * ports next to its tubes when the topology changes ({@link #onRebuilt}) or a tube's neighbour comes or goes (the tube
+ * conduit attaches to blocks, so Lib invalidates it; a hub letting go of its lab invalidates the tubes beside it).
+ * Nothing moves per tick: nutrient and output move when a port or specimen calls in, MU in the lab's energy network,
+ * which sleeps until something changes. The tick only finishes a pending look at the neighbours. Each look also sets
+ * the tubes' contents ({@link LabNetwork#refreshContents}); merges and splits tell the lab where its tubes went, so a
+ * hub on them keeps running.
  */
 final class LabNetworkLogic implements NetworkLogic {
     private static final Direction[] SIDES = Direction.values();

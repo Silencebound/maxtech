@@ -59,7 +59,11 @@ public final class ResourceKind<K> {
         return fields;
     }
 
-    /** Sends a key; {@link KindKey#STREAM_CODEC} frames it so a client without this kind can skip it. */
+    /**
+     * Sends a key on its own, without its kind. {@link KindKey#CLIENTBOUND_STREAM_CODEC} (server to client) and
+     * {@link KindKey#SERVERBOUND_STREAM_CODEC} (client to server) send it after the kind id, framed with its length so
+     * a receiver without this kind can skip it.
+     */
     public StreamCodec<RegistryFriendlyByteBuf, K> streamCodec() {
         return streamCodec;
     }

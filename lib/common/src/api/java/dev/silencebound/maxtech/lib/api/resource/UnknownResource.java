@@ -4,6 +4,7 @@ import com.mojang.datafixers.util.Pair;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.DataResult;
 import com.mojang.serialization.DynamicOps;
+import com.mojang.serialization.MapCodec;
 import io.netty.handler.codec.DecoderException;
 import io.netty.handler.codec.EncoderException;
 import java.util.Objects;
@@ -36,11 +37,11 @@ public record UnknownResource(Identifier kind, CompoundTag raw) {
     /**
      * The kind of every unknown resource, {@code maxtech_lib:unknown}. Not registered: {@link ResourceKinds#byId} never
      * returns it, its {@link ResourceKind#index()} is -1, and {@link KindKey#CODEC} saves its keys from {@link #raw()}
-     * under the missing kind's id instead of its own.
+     * under the missing kind's id instead of its own. Its codec and its fields are both the whole saved tag, kind
+     * included.
      */
     public static final ResourceKind<UnknownResource> KIND = new ResourceKind<>(
-            Identifier.fromNamespaceAndPath("maxtech_lib", "unknown"), RAW_CODEC,
-            RAW_CODEC.fieldOf(KindKey.VALUE_FIELD),
+            Identifier.fromNamespaceAndPath("maxtech_lib", "unknown"), RAW_CODEC, MapCodec.assumeMapUnsafe(RAW_CODEC),
             StreamCodec.of(UnknownResource::refuseEncode, UnknownResource::refuseDecode), key -> key, AmountUnit.ITEMS,
             -1);
 
@@ -70,11 +71,11 @@ public record UnknownResource(Identifier kind, CompoundTag raw) {
     }
 
     private static void refuseEncode(RegistryFriendlyByteBuf buffer, UnknownResource resource) {
-        throw new EncoderException("Unknown resources are sent through KindKey.STREAM_CODEC only");
+        throw new EncoderException("Unknown resources are sent through KindKey.CLIENTBOUND_STREAM_CODEC only");
     }
 
     private static UnknownResource refuseDecode(RegistryFriendlyByteBuf buffer) {
-        throw new DecoderException("Unknown resources are received through KindKey.STREAM_CODEC only");
+        throw new DecoderException("Unknown resources are received through KindKey.CLIENTBOUND_STREAM_CODEC only");
     }
 
     /** The saved tag both ways; decoding reads the kind id from the tag's {@code kind}. */

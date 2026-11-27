@@ -15,6 +15,7 @@ import dev.silencebound.maxtech.lib.api.conduit.Conduits;
 import dev.silencebound.maxtech.lib.api.energy.EnergyEndpoint;
 import dev.silencebound.maxtech.lib.api.energy.EnergyPriority;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Consumer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -26,9 +27,11 @@ import net.minecraft.gametest.framework.GameTestSequence;
 import net.minecraft.gametest.framework.TestData;
 import net.minecraft.gametest.framework.TestEnvironmentDefinition;
 import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.BlockEntityType;
@@ -70,7 +73,11 @@ public final class LabNetworkGameTests {
             Map.entry("lab_tube_removed_port_hub", LabNetworkGameTests::tubeRemovedBetweenPortAndHub),
             Map.entry("lab_hub_two_networks", LabNetworkGameTests::hubBesideTwoNetworks),
             Map.entry("lab_hub_two_networks_not_running", LabNetworkGameTests::hubLeavingTwoNetworksStopsRunning),
-            Map.entry("lab_hub_disabled_face_not_running", LabNetworkGameTests::hubBehindDisabledFaceStopsRunning));
+            Map.entry("lab_hub_disabled_face_not_running", LabNetworkGameTests::hubBehindDisabledFaceStopsRunning),
+            Map.entry("lab_hub_placed_beside_tubes", LabNetworkGameTests::hubPlacedBesideTubes),
+            Map.entry("lab_hub_chunk_loads_late", LabNetworkGameTests::hubChunkLoadsLate));
+    /** Tests that force far chunks and wait for them to load and unload need more ticks. */
+    private static final Set<String> SLOW = Set.of("lab_hub_chunk_loads_late");
 
     private LabNetworkGameTests() {
     }
@@ -88,7 +95,7 @@ public final class LabNetworkGameTests {
         for (String name : TESTS.keySet()) {
             event.registerTest(MaxtechFarms.id(name),
                     new FunctionGameTestInstance(ResourceKey.create(Registries.TEST_FUNCTION, MaxtechFarms.id(name)),
-                            new TestData<>(environment, STRUCTURE, 200, 0, true)));
+                            new TestData<>(environment, STRUCTURE, SLOW.contains(name) ? 600 : 200, 0, true)));
         }
     }
 
@@ -506,6 +513,68 @@ public final class LabNetworkGameTests {
     private static <T extends BlockEntity> boolean ticker(GameTestHelper helper, BlockPos pos,
             BlockEntityType<T> type) {
         return helper.getBlockState(pos).getTicker(helper.getLevel(), type) == null;
+    }
+
+    /** A hub placed beside tubes that were there first, with nothing else changing, joins their lab. */
+    private static void hubPlacedBesideTubes(GameTestHelper helper) {
+        tubes(helper, 2, 3);
+        helper.startSequence().thenWaitUntil(() -> lab(helper, new BlockPos(2, 1, 1))).thenIdle(2)
+                .thenExecute(() -> hub(helper, HUB)).thenWaitUntil(() -> {
+                    LabHubBlockEntity hub = helper.getBlockEntity(HUB, LabHubBlockEntity.class);
+                    LabNetwork lab = lab(helper, new BlockPos(2, 1, 1));
+                    helper.assertTrue(lab.hub().orElse(null) == hub, "the lab found the hub");
+                    helper.assertTrue(hub.labLink() == LabLink.ACTIVE && hub.lab() == lab, "the hub runs the lab");
+                }).thenSucceed();
+    }
+
+    /**
+     * A tube at the edge of a loaded chunk, a hub in the next chunk, which is away when the tube appears: the hub is
+     * found once its chunk loads.
+     */
+    private static void hubChunkLoadsLate(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        int anchorX = 6100;
+        int chunkZ = 6100;
+        int tubeChunkX = anchorX + 2;
+        int hubChunkX = anchorX + 3;
+        int y = helper.absolutePos(BlockPos.ZERO).getY();
+        BlockPos tube = new BlockPos(tubeChunkX * 16 + 15, y, chunkZ * 16 + 8);
+        BlockPos hubPos = tube.east();
+        int quiet = Block.UPDATE_CLIENTS | Block.UPDATE_KNOWN_SHAPE;
+        helper.startSequence().thenExecute(() -> {
+            level.setChunkForced(hubChunkX, chunkZ, true);
+            level.setBlock(hubPos, FarmsContent.LAB_HUB.get().defaultBlockState(), quiet);
+            level.setChunkForced(hubChunkX, chunkZ, false);
+            level.setChunkForced(anchorX, chunkZ, true);
+            // Loads it now: a background load can outlast the tick budget on a slow machine.
+            level.getChunk(tubeChunkX, chunkZ);
+        }).thenWaitUntil(() -> {
+            helper.assertTrue(level.getChunkSource().getChunkNow(tubeChunkX, chunkZ) != null,
+                    "the tube's chunk is not at full status yet");
+            helper.assertTrue(level.getChunkSource().getChunkNow(hubChunkX, chunkZ) == null,
+                    "the hub's chunk is still at full status");
+        }).thenExecute(() -> {
+            // Quiet flags: neighbour and shape updates would read the hub's position and load its chunk.
+            level.setBlock(tube, LabTubes.TUBE.block().get().defaultBlockState(), quiet);
+            helper.assertTrue(level.getChunkSource().getChunkNow(hubChunkX, chunkZ) == null,
+                    "the hub's chunk loaded while the tube was placed");
+        }).thenWaitUntil(() -> helper.assertTrue(LabNetwork.at(level, tube).isPresent(), "no lab network")).thenIdle(2)
+                .thenExecute(() -> {
+                    helper.assertTrue(level.getChunkSource().getChunkNow(hubChunkX, chunkZ) == null,
+                            "the hub's chunk came back early");
+                    helper.assertTrue(LabNetwork.at(level, tube).orElseThrow().hub().isEmpty(),
+                            "the lab has a hub before its chunk loaded");
+                    level.setChunkForced(hubChunkX, chunkZ, true);
+                    level.getChunk(hubChunkX, chunkZ);
+                }).thenWaitUntil(() -> {
+                    LabNetwork lab = LabNetwork.at(level, tube).orElseThrow();
+                    helper.assertTrue(lab.hub().isPresent(), "the lab did not find the hub in the loaded chunk");
+                }).thenExecute(() -> {
+                    level.setBlock(tube, Blocks.AIR.defaultBlockState(), quiet);
+                    level.setBlock(hubPos, Blocks.AIR.defaultBlockState(), quiet);
+                    level.setChunkForced(hubChunkX, chunkZ, false);
+                    level.setChunkForced(anchorX, chunkZ, false);
+                }).thenSucceed();
     }
 
     private static LabHubBlockEntity hub(GameTestHelper helper, BlockPos pos) {

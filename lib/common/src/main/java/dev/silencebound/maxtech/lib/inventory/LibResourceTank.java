@@ -19,7 +19,7 @@ import org.slf4j.Logger;
 /**
  * Lib's {@link ResourceTank}: a {@link TankJournal} with its kind and save format, {@code resource} (the key in the
  * kind's codec) and {@code amount}, both only when the tank holds something. Saved contents that no longer decode are
- * kept as saved, block the tank and are saved back unchanged.
+ * kept as saved, block the tank and are saved back unchanged; a saved amount over the capacity is kept whole.
  *
  * @param <K>
  *            the kind's key type
@@ -69,9 +69,19 @@ public class LibResourceTank<K> implements ResourceTank<K> {
         return journal.accepts(key);
     }
 
-    /** Whether the tank holds saved contents that did not load, and so takes nothing. */
-    public final boolean blocked() {
+    @Override
+    public final boolean unknown() {
         return journal.blocked();
+    }
+
+    @Override
+    public final void discardUnknown() {
+        NoTransaction.check("Discarding unknown contents");
+        if (unloaded != null) {
+            LOGGER.info("Tank of {} discarded {} of a resource that does not load: {}", kind.id(), unloadedAmount,
+                    unloaded);
+            unblock();
+        }
     }
 
     /** Inserts as part of {@code transaction}. */
@@ -108,14 +118,20 @@ public class LibResourceTank<K> implements ResourceTank<K> {
 
     @Override
     public final void set(K key, long amount) {
-        unblock();
+        refuseUnknown();
         journal.set(key, amount);
     }
 
     @Override
     public final void clear() {
-        unblock();
+        refuseUnknown();
         journal.set(null, 0);
+    }
+
+    private void refuseUnknown() {
+        if (unloaded != null) {
+            throw new IllegalStateException("Tank of " + kind.id() + " holds unknown contents; discard them first");
+        }
     }
 
     private void unblock() {
@@ -145,10 +161,10 @@ public class LibResourceTank<K> implements ResourceTank<K> {
         long amount = input.getLongOr(AMOUNT, 0);
         Optional<K> key = amount > 0 ? input.read(RESOURCE, kind.codec()) : Optional.empty();
         if (key.isPresent()) {
-            journal.load(key.get(), Math.min(amount, journal.capacity()));
+            journal.load(key.get(), amount);
             if (amount > journal.capacity()) {
-                LOGGER.warn("Tank of {} loaded {} of {}, over its capacity {}; kept {}", kind.id(), amount, key.get(),
-                        journal.capacity(), journal.capacity());
+                LOGGER.warn("Tank of {} loaded {} of {}, over its capacity {}; it takes nothing until drained below",
+                        kind.id(), amount, key.get(), journal.capacity());
             }
             return;
         }

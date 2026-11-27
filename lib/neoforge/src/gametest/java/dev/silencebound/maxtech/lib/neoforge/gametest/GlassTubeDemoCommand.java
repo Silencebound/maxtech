@@ -97,7 +97,7 @@ public final class GlassTubeDemoCommand {
                 upstream = Optional.of(direction);
             }
         }
-        return setContents(context, new ConduitContents(fluid, fill, upstream, lane));
+        return setContents(context, ConduitContents.ofFluid(fluid, fill, upstream, lane));
     }
 
     private static int setContents(CommandContext<CommandSourceStack> context, ConduitContents contents)

@@ -20,9 +20,10 @@ import org.jspecify.annotations.Nullable;
  * The handlers are Lib's own and take part in transfer transactions: what a pipe or hopper moves is journaled and
  * rolled back with the transaction, and the inventory's change listener runs once the root transaction commits.
  * {@link #items} applies the slots' {@link SlotRole}s (inputs take what their filter accepts, outputs give, display
- * slots do neither; a slot that takes nothing reports capacity 0, so hoppers skip it as full). {@link #fluids} takes
- * and gives what the tank's filter allows. Each returns the same handler for the same inventory every time. Server
- * thread, like the inventories.
+ * slots do neither; every slot reports its real capacity, so comparators read a full output slot as full, and one that
+ * takes nothing refuses in {@code isValid} and {@code insert}; slots holding an unknown item take nothing and give
+ * nothing). {@link #fluids} takes and gives what the tank's filter allows. Each returns the same handler for the same
+ * inventory every time. Server thread, like the inventories.
  */
 public final class Handlers {
     private static volatile @Nullable Bridge bridge;

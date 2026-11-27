@@ -20,8 +20,11 @@ import org.jetbrains.annotations.ApiStatus;
  * The change listener runs once per change, never for a simulation or a rolled-back transaction: at once for the
  * methods here, when the root transaction commits for changes made through a handler.
  * <p>
- * A saved resource that no longer loads (its mod was removed) is kept as it was saved and saved back unchanged: the
- * tank then reads as empty but takes nothing in, until {@link #set} or {@link #clear} replaces it.
+ * A saved resource that no longer loads (its mod was removed) is kept as it was saved and saved back unchanged, so it
+ * returns with its mod: the tank then is {@link #unknown()}, reads as empty, takes nothing in and refuses {@link #set}
+ * and {@link #clear} until the owner calls {@link #discardUnknown()}. A save holding more than the capacity (the
+ * machine's tank shrank) loads whole: the tank takes nothing until drained below its capacity, and gauges show it as
+ * full.
  *
  * @param <K>
  *            the key type of the tank's kind
@@ -57,7 +60,7 @@ public interface ResourceTank<K> {
      */
     Optional<K> resource();
 
-    /** The amount held, 0 to {@link #capacity()}. */
+    /** The amount held, 0 to {@link #capacity()}, or more after loading a save from a larger tank. */
     long amount();
 
     /** The most the tank holds. */
@@ -76,12 +79,21 @@ public interface ResourceTank<K> {
     long extract(K key, long amount, boolean simulate);
 
     /**
+     * Whether the tank holds saved contents that no longer load (their mod was removed): kept and saved back as they
+     * were, never moved, and shown as unknown.
+     */
+    boolean unknown();
+
+    /** Throws away {@link #unknown()} contents for good, leaving the tank empty; does nothing otherwise. */
+    void discardUnknown();
+
+    /**
      * Replaces the contents with {@code amount} of {@code key} (0 empties the tank), checking neither filter nor
-     * capacity beyond {@code amount >= 0}.
+     * capacity beyond {@code amount >= 0}. Throws {@link IllegalStateException} while the tank is {@link #unknown()}.
      */
     void set(K key, long amount);
 
-    /** Empties the tank. */
+    /** Empties the tank; throws {@link IllegalStateException} while it is {@link #unknown()}. */
     void clear();
 
     /** Saves the contents into {@code output}, a child the owner names (e.g. {@code output.child("tank")}). */

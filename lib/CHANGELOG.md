@@ -13,6 +13,10 @@ Api changes are marked **Api**.
   `lib.client.gui`, `lib.client.gui.accent` and `lib.text` with the same names and drawing, so addons on the api jar
   draw the same look; `TextScale` gained an internal setter for the text size option, and `TextFit`, which is pure
   Java, lives in `lib.api.text`. Side tabs, `ScreenComponents` and the editor pieces stay internal.
+- **Api** `ConduitContents` holds a resource of any kind (`Optional<KindKey<?>> resource`) instead of a fluid; build
+  fluid contents with `ConduitContents.ofFluid`, read them with `fluid()`. Fluid contents save as before; contents of
+  other kinds save their kind and key, are not drawn yet, and load empty when their kind's mod is gone.
+  `KindKey.STREAM_CODEC` is now `CLIENTBOUND_STREAM_CODEC`.
 
 ### Fixed
 - A client with Lib but no mod that adds conduit blocks (Lib alone, or Lib with Farms) crashed at startup: the
@@ -22,6 +26,11 @@ Api changes are marked **Api**.
 - **Api** Inventories (`lib.api.inventory`, experimental, ADR-0016): `ItemSlots` with per-slot roles (input, output,
   display), filters and limits, and `ResourceTank`/`FluidTank`, both journaled so transfers through their handlers
   roll back with the transaction; `lib.neoforge.api.inventory.Handlers` gives the NeoForge handlers for capabilities.
+  Nothing saved is lost: stacks and tank contents of a removed mod are kept as unknown and saved back unchanged,
+  stacks for slots a machine no longer has are kept as overflow, and a tank keeps a saved amount over its capacity.
+- **Api** `Conduits.Builder.attachesToBlocks()` (experimental, for Farms FM1): the conduit's network logic gets
+  `onNodeInvalidated` once whenever a block entity beside it appears, goes or is replaced, also when it arrives or
+  leaves with its chunk, so addon conduits no longer need their attachable blocks to poke them. Other conduits are unchanged.
 - **Api** Resource kinds (`lib.api.resource`, experimental, ADR-0017): `ResourceKind`, the `ResourceKinds` registry
   with built-in item, fluid and energy kinds, `KindKey` with save and network codecs (one for keys clients send), and
   `UnknownResource`, which keeps the saved contents of a kind whose mod was removed. Nothing uses them yet.

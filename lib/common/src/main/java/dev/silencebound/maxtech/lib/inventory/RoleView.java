@@ -12,9 +12,9 @@ import net.neoforged.neoforge.transfer.transaction.TransactionContext;
 
 /**
  * {@link LibItemSlots} with the slots' roles applied: only {@link SlotRole#INPUT} slots take anything, and only
- * {@link SlotRole#OUTPUT} slots (and, for players, inputs too) give anything. A slot that takes nothing reports
- * capacity 0, so a hopper sees it as full and does not try. Changes go straight to the slots' journal, so they take
- * part in the caller's transaction.
+ * {@link SlotRole#OUTPUT} slots (and, for players, inputs too) give anything. Every slot reports its real capacity (for
+ * comparators); one that takes nothing through this view refuses in {@code isValid} and {@code insert}. Changes go
+ * straight to the slots' journal, so they take part in the caller's transaction.
  */
 public final class RoleView implements ResourceHandler<ItemResource> {
     private final LibItemSlots slots;
@@ -56,9 +56,10 @@ public final class RoleView implements ResourceHandler<ItemResource> {
         return slots.getAmountAsLong(index);
     }
 
+    /** The slot's real capacity whatever its role, so comparators read a full output slot as full. */
     @Override
     public long getCapacityAsLong(int index, ItemResource resource) {
-        return canInsert(index) ? slots.getCapacityAsLong(index, resource) : 0;
+        return slots.getCapacityAsLong(index, resource);
     }
 
     @Override

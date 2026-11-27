@@ -53,7 +53,7 @@ public final class FluidTankHandler implements ResourceHandler<FluidResource> {
     @Override
     public long getCapacityAsLong(int index, FluidResource resource) {
         Objects.checkIndex(index, 1);
-        if (tank.blocked() || (!resource.isEmpty() && !isValid(index, resource))) {
+        if (tank.unknown() || (!resource.isEmpty() && !isValid(index, resource))) {
             return 0;
         }
         return tank.capacity();
@@ -62,7 +62,7 @@ public final class FluidTankHandler implements ResourceHandler<FluidResource> {
     @Override
     public boolean isValid(int index, FluidResource resource) {
         Objects.checkIndex(index, 1);
-        return !tank.blocked() && tank.accepts(keyOf(resource));
+        return !tank.unknown() && tank.accepts(keyOf(resource));
     }
 
     @Override
