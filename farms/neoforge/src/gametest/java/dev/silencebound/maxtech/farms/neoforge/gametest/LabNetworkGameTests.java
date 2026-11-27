@@ -9,6 +9,7 @@ import dev.silencebound.maxtech.farms.lab.LabNetwork;
 import dev.silencebound.maxtech.farms.lab.LabTubes;
 import dev.silencebound.maxtech.farms.registry.FarmsContent;
 import dev.silencebound.maxtech.lib.api.conduit.ConduitConnections;
+import dev.silencebound.maxtech.lib.api.conduit.ConduitFaceMode;
 import dev.silencebound.maxtech.lib.api.conduit.ConduitHost;
 import dev.silencebound.maxtech.lib.api.conduit.Conduits;
 import dev.silencebound.maxtech.lib.api.energy.EnergyEndpoint;
@@ -21,6 +22,7 @@ import net.minecraft.core.Holder;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.gametest.framework.FunctionGameTestInstance;
 import net.minecraft.gametest.framework.GameTestHelper;
+import net.minecraft.gametest.framework.GameTestSequence;
 import net.minecraft.gametest.framework.TestData;
 import net.minecraft.gametest.framework.TestEnvironmentDefinition;
 import net.minecraft.network.chat.Component;
@@ -66,7 +68,9 @@ public final class LabNetworkGameTests {
             Map.entry("lab_merge_keeps_lowest_hub", LabNetworkGameTests::mergeKeepsLowestHub),
             Map.entry("lab_split_hub_one_side", LabNetworkGameTests::splitHubOneSide),
             Map.entry("lab_tube_removed_port_hub", LabNetworkGameTests::tubeRemovedBetweenPortAndHub),
-            Map.entry("lab_hub_two_networks", LabNetworkGameTests::hubBesideTwoNetworks));
+            Map.entry("lab_hub_two_networks", LabNetworkGameTests::hubBesideTwoNetworks),
+            Map.entry("lab_hub_two_networks_not_running", LabNetworkGameTests::hubLeavingTwoNetworksStopsRunning),
+            Map.entry("lab_hub_disabled_face_not_running", LabNetworkGameTests::hubBehindDisabledFaceStopsRunning));
 
     private LabNetworkGameTests() {
     }
@@ -423,6 +427,58 @@ public final class LabNetworkGameTests {
                     helper.assertValueEqual(push(helper, eastPort, water, 1000), 1000, "taken by the east port");
                     helper.assertValueEqual(hub.storage().tank().getAmountAsLong(0), 2000L, "in the tank");
                 }).thenSucceed();
+    }
+
+    /**
+     * A hub between two lab networks loses the first (its only tube goes): it stops running, so the other lab's running
+     * hub keeps that lab although the first hub is lower; the first hub is refused there.
+     */
+    private static void hubLeavingTwoNetworksStopsRunning(GameTestHelper helper) {
+        LabHubBlockEntity between = hub(helper, new BlockPos(3, 1, 1));
+        besideTwoLabs(helper, between).thenExecute(() -> helper.setBlock(new BlockPos(2, 1, 1), Blocks.AIR))
+                .thenWaitUntil(() -> helper.assertTrue(between.labLink() == LabLink.REFUSED, "the hub is refused"))
+                .thenIdle(3).thenExecute(() -> assertEastKeepsItsHub(helper, between)).thenSucceed();
+    }
+
+    /** Like the case above, with the west tube still there but its face towards the hub disabled. */
+    private static void hubBehindDisabledFaceStopsRunning(GameTestHelper helper) {
+        LabHubBlockEntity between = hub(helper, new BlockPos(3, 1, 1));
+        besideTwoLabs(helper, between).thenExecute(() -> {
+            ConduitHost west = Conduits.host(helper.getLevel(), helper.absolutePos(new BlockPos(2, 1, 1)))
+                    .orElseThrow();
+            helper.assertTrue(west.setFaceMode(Direction.EAST, ConduitFaceMode.DISABLED), "disabled the face");
+        }).thenWaitUntil(() -> helper.assertTrue(between.labLink() == LabLink.REFUSED, "the hub is refused"))
+                .thenIdle(3).thenExecute(() -> {
+                    assertEastKeepsItsHub(helper, between);
+                    helper.assertTrue(lab(helper, new BlockPos(2, 1, 1)).hub().isEmpty(), "the west lab has no hub");
+                }).thenSucceed();
+    }
+
+    /**
+     * The hub {@code between} at (3,1,1) runs the west lab (one tube at x 2); then the east lab (tubes at x 4 and 5)
+     * runs its own hub at (6,1,1). The sequence goes on once both run.
+     */
+    private static GameTestSequence besideTwoLabs(GameTestHelper helper, LabHubBlockEntity between) {
+        tubes(helper, 2, 2);
+        return helper.startSequence()
+                .thenWaitUntil(() -> helper.assertTrue(between.labLink() == LabLink.ACTIVE, "the west lab runs"))
+                .thenExecute(() -> {
+                    hub(helper, new BlockPos(6, 1, 1));
+                    tubes(helper, 4, 5);
+                }).thenWaitUntil(() -> {
+                    LabHubBlockEntity east = helper.getBlockEntity(new BlockPos(6, 1, 1), LabHubBlockEntity.class);
+                    helper.assertTrue(east.labLink() == LabLink.ACTIVE, "the east lab runs its own hub");
+                    helper.assertTrue(between.lab() == lab(helper, new BlockPos(2, 1, 1)), "the west lab keeps its");
+                });
+    }
+
+    private static void assertEastKeepsItsHub(GameTestHelper helper, LabHubBlockEntity between) {
+        LabHubBlockEntity east = helper.getBlockEntity(new BlockPos(6, 1, 1), LabHubBlockEntity.class);
+        LabNetwork lab = lab(helper, new BlockPos(4, 1, 1));
+        helper.assertTrue(lab.hub().orElse(null) == east, "the east lab keeps its running hub");
+        helper.assertTrue(!between.isRunning(), "the hub in between stopped running");
+        helper.assertTrue(between.labLink() == LabLink.REFUSED, "the hub in between is refused");
+        assertOnlyStore(helper, lab, east, between);
     }
 
     /** {@code active}'s store is the only one in the lab's energy network; {@code other}'s is in none. */
