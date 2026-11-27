@@ -22,24 +22,36 @@ import org.jspecify.annotations.Nullable;
  * @param rings
  *            arms that stop where their ring starts ({@link ConduitData#ringMask()}); the rings themselves are
  *            {@link ConduitFaceKey}s, so the body does not depend on which mode a ringed face has
+ * @param renderValue
+ *            the addon's {@link ConduitBlockEntity#renderValue()}, part of the body
  */
-public record ConduitRenderData(ConduitType type, @Nullable DyeColor colour, int arms, int rings,
+public record ConduitRenderData(ConduitType type, @Nullable DyeColor colour, int arms, int rings, int renderValue,
         List<ConduitFaceKey> faces, @Nullable BlockState facade) {
     public ConduitRenderData {
         faces = List.copyOf(faces);
     }
 
+    /** Render data with render value 0. */
+    public ConduitRenderData(ConduitType type, @Nullable DyeColor colour, int arms, int rings,
+            List<ConduitFaceKey> faces, @Nullable BlockState facade) {
+        this(type, colour, arms, rings, 0, faces, facade);
+    }
+
     /** The same conduit without its facade: what it draws while the conduits show through facades. */
     public ConduitRenderData withoutFacade() {
-        return facade == null ? this : new ConduitRenderData(type, colour, arms, rings, faces, null);
+        return facade == null ? this : new ConduitRenderData(type, colour, arms, rings, renderValue, faces, null);
     }
 
     /** The key of this conduit's body. */
     public ConduitBodyKey bodyKey() {
-        return new ConduitBodyKey(type, colour, arms, rings);
+        return new ConduitBodyKey(type, colour, arms, rings, renderValue);
     }
 
     static ConduitRenderData of(ConduitData conduit, @Nullable BlockState facade) {
+        return of(conduit, 0, facade);
+    }
+
+    static ConduitRenderData of(ConduitData conduit, int renderValue, @Nullable BlockState facade) {
         List<ConduitFaceKey> faces = new ArrayList<>();
         int decorated = conduit.ringMask() | conduit.stubMask();
         for (Direction side : Direction.values()) {
@@ -47,7 +59,7 @@ public record ConduitRenderData(ConduitType type, @Nullable DyeColor colour, int
                 faces.add(new ConduitFaceKey(conduit.type(), side, conduit.faceMode(side)));
             }
         }
-        return new ConduitRenderData(conduit.type(), conduit.colour(), conduit.armMask(), conduit.ringMask(), faces,
-                facade);
+        return new ConduitRenderData(conduit.type(), conduit.colour(), conduit.armMask(), conduit.ringMask(),
+                renderValue, faces, facade);
     }
 }

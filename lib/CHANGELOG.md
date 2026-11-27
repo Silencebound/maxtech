@@ -64,6 +64,9 @@ Api changes are marked **Api**.
 - **Api** Conduit model geometry (`lib.api.conduit.model`, experimental, for Farms FM1): `ConduitQuad`,
   `ConduitTexture` and `ConduitBodyKey` move from `lib.client.conduit`, a quad gets a `ConduitLayer` (from its sprite
   as before, or forced translucent or cutout), and `ConduitParts` hands out Lib's own body and face quads.
+- **Api** Conduit render value (experimental, for Farms FM1): `ConduitHost.setRenderValue(int)` sets an addon-defined
+  value that `ConduitView.renderValue()` reads on both sides and `ConduitBodyKey.renderValue()` hands to the client
+  model. Saved and synced as `render_value` only when non-zero and only on change; Lib's looks ignore it.
 
 ### Changed
 - Config lang keys use the full path (`maxtech_lib.configuration.overlay.detailLevel`); the old last-segment keys are

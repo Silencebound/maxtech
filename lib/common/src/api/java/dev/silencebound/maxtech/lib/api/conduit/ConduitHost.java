@@ -54,6 +54,14 @@ public interface ConduitHost extends ConduitView {
      */
     void syncedStateChanged();
 
+    /**
+     * Sets the value the conduit's client model reads ({@link #renderValue()}); what it means is up to the addon. A
+     * change saves the conduit and sends it to clients, which re-mesh it; setting the value it already has does
+     * nothing, so a network may call this whenever it recomputes. The client model's part cache keys on the value, so
+     * keep the set of distinct values small (a palette, not a counter). Server thread; does nothing on the client.
+     */
+    void setRenderValue(int renderValue);
+
     /** Hit shape of the conduit (core, arms, stubs and rings at the type's thickness); cached, never null. */
     VoxelShape shape();
 

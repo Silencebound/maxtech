@@ -5,6 +5,7 @@ import dev.silencebound.maxtech.lib.api.conduit.ConduitFaceMode;
 import dev.silencebound.maxtech.lib.api.conduit.ConduitHost;
 import dev.silencebound.maxtech.lib.api.conduit.ConduitLook;
 import dev.silencebound.maxtech.lib.api.conduit.ConduitType;
+import dev.silencebound.maxtech.lib.api.conduit.ConduitView;
 import dev.silencebound.maxtech.lib.api.conduit.Conduits;
 import dev.silencebound.maxtech.lib.api.network.Network;
 import dev.silencebound.maxtech.lib.api.network.NetworkLogic;
@@ -25,6 +26,7 @@ import net.minecraft.gametest.framework.FunctionGameTestInstance;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.gametest.framework.TestData;
 import net.minecraft.gametest.framework.TestEnvironmentDefinition;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.InteractionResult;
@@ -34,6 +36,8 @@ import net.minecraft.world.item.CreativeModeTabs;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.GameType;
+import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -50,6 +54,8 @@ import net.neoforged.neoforge.event.RegisterGameTestsEvent;
 public final class ConduitApiGameTests {
     static final String MOD_ID = "maxtech_lib";
     private static final Identifier STRUCTURE = Identifier.fromNamespaceAndPath(MOD_ID, "empty_7x2x3");
+    // The saved key is part of Lib's save format, not the api; pinned here so a rename shows up.
+    private static final String RENDER_VALUE = "render_value";
     private static final Identifier NETWORK_ID = Identifier.fromNamespaceAndPath(MOD_ID, "test_api_network");
 
     private static final AtomicInteger RULE_CALLS = new AtomicInteger();
@@ -88,6 +94,8 @@ public final class ConduitApiGameTests {
         test("conduit_api_creative_tab", ConduitApiGameTests::creativeTab);
         test("conduit_api_drops_itself", ConduitApiGameTests::dropsItself);
         test("conduit_api_loot_table_wins", ConduitApiGameTests::lootTableWins);
+        test("conduit_api_render_value_syncs", ConduitApiGameTests::renderValueSyncs);
+        test("conduit_api_render_value_saved", ConduitApiGameTests::renderValueSaved);
     }
 
     private ConduitApiGameTests() {
@@ -201,6 +209,70 @@ public final class ConduitApiGameTests {
         helper.assertItemEntityPresent(Items.STICK, pos, 2.0);
         helper.assertItemEntityNotPresent(LOOT_CONDUIT.item().get(), pos, 2.0);
         helper.succeed();
+    }
+
+    /**
+     * A new render value is saved and goes to clients in the update tag; setting the same value again marks nothing for
+     * saving (the block update is sent on the same path). A value of 0 leaves the key out of the update tag.
+     */
+    private static void renderValueSyncs(GameTestHelper helper) {
+        BlockPos pos = new BlockPos(1, 0, 1);
+        BlockPos abs = helper.absolutePos(pos);
+        helper.assertTrue(Conduits.place(helper.getLevel(), abs, CONDUIT.type().get()), "conduit not placed");
+        ConduitHost host = host(helper, pos);
+        helper.assertValueEqual(0, host.renderValue(), "render value of a fresh conduit");
+        helper.assertFalse(updateTag(helper, abs).contains(RENDER_VALUE), "a fresh conduit synced a render value");
+        LevelChunk chunk = helper.getLevel().getChunkAt(abs);
+        chunk.tryMarkSaved();
+        host.setRenderValue(0x3366CC);
+        helper.assertValueEqual(0x3366CC, host.renderValue(), "render value after setting it");
+        helper.assertTrue(chunk.isUnsaved(), "a new render value was not marked for saving");
+        helper.assertValueEqual(0x3366CC, updateTag(helper, abs).getIntOr(RENDER_VALUE, 0),
+                "render value in the update tag");
+        chunk.tryMarkSaved();
+        host.setRenderValue(0x3366CC);
+        helper.assertFalse(chunk.isUnsaved(), "setting the same render value marked the conduit for saving");
+        host.setRenderValue(0);
+        helper.assertTrue(chunk.isUnsaved(), "clearing the render value was not marked for saving");
+        helper.assertFalse(updateTag(helper, abs).contains(RENDER_VALUE), "render value 0 went into the update tag");
+        helper.succeed();
+    }
+
+    /** The render value survives a save and load of the block entity; data without it loads as 0. */
+    private static void renderValueSaved(GameTestHelper helper) {
+        BlockPos pos = new BlockPos(1, 0, 1);
+        BlockPos abs = helper.absolutePos(pos);
+        helper.assertTrue(Conduits.place(helper.getLevel(), abs, CONDUIT.type().get()), "conduit not placed");
+        host(helper, pos).setRenderValue(7);
+        CompoundTag saved = blockEntity(helper, abs).saveWithFullMetadata(helper.getLevel().registryAccess());
+        helper.assertValueEqual(7, saved.getIntOr(RENDER_VALUE, 0), "saved render value");
+        helper.assertValueEqual(7, loaded(helper, abs, saved).renderValue(), "render value after loading");
+        CompoundTag without = saved.copy();
+        without.remove(RENDER_VALUE);
+        helper.assertValueEqual(0, loaded(helper, abs, without).renderValue(), "render value of data without one");
+        helper.succeed();
+    }
+
+    private static CompoundTag updateTag(GameTestHelper helper, BlockPos abs) {
+        return blockEntity(helper, abs).getUpdateTag(helper.getLevel().registryAccess());
+    }
+
+    private static BlockEntity blockEntity(GameTestHelper helper, BlockPos abs) {
+        BlockEntity entity = helper.getLevel().getBlockEntity(abs);
+        if (entity == null) {
+            throw helper.assertionException("no block entity at " + abs);
+        }
+        return entity;
+    }
+
+    /** Loads {@code tag} into a new block entity, as a chunk load does, outside the level. */
+    private static ConduitView loaded(GameTestHelper helper, BlockPos abs, CompoundTag tag) {
+        BlockEntity loaded = BlockEntity.loadStatic(abs, helper.getLevel().getBlockState(abs), tag,
+                helper.getLevel().registryAccess());
+        if (!(loaded instanceof ConduitView view)) {
+            throw helper.assertionException("the conduit did not load");
+        }
+        return view;
     }
 
     private static ConduitHost host(GameTestHelper helper, BlockPos pos) {

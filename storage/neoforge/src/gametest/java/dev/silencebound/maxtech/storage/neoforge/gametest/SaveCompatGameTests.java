@@ -63,6 +63,7 @@ public final class SaveCompatGameTests {
         register("save_compat_unversioned_cell_item", SaveCompatGameTests::cellItem);
         register("save_compat_unversioned_cell_storage", SaveCompatGameTests::cellStorage);
         register("save_compat_unversioned_cable_part", SaveCompatGameTests::cablePart);
+        register("save_compat_cable_without_render_value", SaveCompatGameTests::cableWithoutRenderValue);
     }
 
     private SaveCompatGameTests() {
@@ -224,6 +225,25 @@ public final class SaveCompatGameTests {
         helper.assertValueEqual(LABEL, part.label(), "part label after loading pre-1.0 data");
         helper.assertValueEqual(tag, loaded.saveWithFullMetadata(helper.getLevel().registryAccess()),
                 "cable saved again after loading pre-1.0 data");
+        helper.succeed();
+    }
+
+    /**
+     * Cables never set Lib's render value, so neither their saved data nor their update tag carries the key: their
+     * saves and packets stay as they were before conduits had one.
+     */
+    private static void cableWithoutRenderValue(GameTestHelper helper) {
+        BlockPos abs = helper.absolutePos(new BlockPos(1, 1, 1));
+        ConduitBlock.placeConduit(helper.getLevel(), abs, CableContent.STORAGE_CABLE_TIER_1.type().get(), null);
+        BlockEntity cable = helper.getLevel().getBlockEntity(abs);
+        if (cable == null) {
+            throw helper.assertionException(Component.literal("no cable"));
+        }
+        CompoundTag saved = cable.saveWithFullMetadata(helper.getLevel().registryAccess());
+        CompoundTag update = cable.getUpdateTag(helper.getLevel().registryAccess());
+        helper.assertTrue(saved.contains("face_modes") && update.contains("face_modes"), "not a conduit's data");
+        helper.assertFalse(saved.contains("render_value"), "the cable saved a render value");
+        helper.assertFalse(update.contains("render_value"), "the cable synced a render value");
         helper.succeed();
     }
 
