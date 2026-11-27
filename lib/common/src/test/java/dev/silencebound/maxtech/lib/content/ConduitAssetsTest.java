@@ -3,6 +3,7 @@ package dev.silencebound.maxtech.lib.content;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import com.mojang.serialization.JsonOps;
 import dev.silencebound.maxtech.lib.api.conduit.ConduitLook;
 import net.minecraft.resources.Identifier;
@@ -21,6 +22,17 @@ class ConduitAssetsTest {
         assertEquals(ConduitAssets.MODEL_TYPE, model.get("type").getAsString());
         model.remove("type");
         assertEquals(look, ConduitLook.CODEC.codec().parse(JsonOps.INSTANCE, model).getOrThrow());
+    }
+
+    /** Pins the whole block state file as {@code docs/api/conduit-addon.md} shows it. */
+    @Test
+    void blockStateMatchesTheDocumentedFile() {
+        ConduitLook look = ConduitLook.solid(Identifier.fromNamespaceAndPath("farms", "block/lab_tube_end"),
+                Identifier.fromNamespaceAndPath("farms", "block/lab_tube_core"), 0xD0D8DC, 0xFF6400);
+        assertEquals(JsonParser.parseString("""
+                {"variants": {"": {"type": "maxtech_lib:conduit", "look": "solid", "end": "farms:block/lab_tube_end",
+                 "overlay": "farms:block/lab_tube_core", "colour": "#d0d8dc", "overlay_colour": "#ff6400"}}}
+                """), ConduitAssets.blockState(look));
     }
 
     @Test

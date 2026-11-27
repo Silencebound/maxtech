@@ -12,8 +12,9 @@ import org.jspecify.annotations.Nullable;
 
 /**
  * How a conduit block is drawn (ADR-0012). Each conduit block's block state file names Lib's conduit model with one of
- * these, written by datagen from {@code ConduitBuilder.look}; the model takes the thickness, connections and rings from
- * the block entity.
+ * these, written by Storage's datagen or, for an addon's conduit, by Lib at runtime from {@link Conduits.Builder#look};
+ * the model takes the thickness, connections and rings from the block entity. {@link #CODEC} is the documented format
+ * ({@code docs/api/conduit-addon.md}).
  *
  * <p>
  * The one look is {@link Solid}: a square conduit in one flat colour, with no seams, rims or dark lines, so a run reads

@@ -33,7 +33,7 @@ Labels: **stable** = frozen at 1.0, a breaking change needs a Lib major bump. **
 | `Configs` | Entry point: `presetConfig(modId, anchor)`, and `builder`/`register` for plain files. | experimental |
 | `PresetConfig` | A server config whose defaults come from `<modid>/presets/*.json`. | experimental |
 | `ConfigBuilder`, `ConfigFile`, `ConfigType` | Declaring values, the registered file, which file. | experimental |
-| **`lib.api.conduit`** | Conduit types (a conduit is Lib's generic framework for blocks that connect to neighbours: cables now, later pipes and wires); each type gets its own block from Lib. For MaxTech mods only: types from other mods are not supported in 1.0 (see below). | stable |
+| **`lib.api.conduit`** | Conduit types (a conduit is Lib's generic framework for blocks that connect to neighbours: cables now, later pipes and wires); each type gets its own block from Lib. Addons register their own through `Conduits` (ADR-0015, see below). | stable |
 | `ConduitType` | One conduit type: network type, tier, base colour, thickness, face modes, per-conduit state. | stable |
 | `ConduitTypes` | The `maxtech_lib:conduit_type` registry key and lookups. | stable |
 | `ConduitFaceMode` | How a conduit face meets a block: both, insert, extract, disabled; stable ids. | stable |
@@ -51,7 +51,7 @@ Labels: **stable** = frozen at 1.0, a breaking change needs a Lib major bump. **
 | `BlockInfoProvider` | Sided block capability that describes a block; brief and full detail. | stable |
 | `BlockInfoRequest` | What was asked: level, position, side, hit, detail. | stable |
 | `BlockInfoSink` | Receives lang-keyed lines. | stable |
-| **`lib.api.network`** | Network settings shared by every network type. | stable |
+| **`lib.api.network`** | Network topology for every network type: types, their logic, graphs and the per-level manager; addons register their own network types. | stable |
 | `UnloadedChunkMode` | `networks.unloadedChunkMode`: truncate or pause. | stable |
 | `NetworkManager` | The per-level entry point: add, remove and invalidate nodes, anchors, a node's network and a type's graph. Moved from `lib.network` for Farms (FM1); `tickLevel`, `clear` and `setConfigSource` are Lib's (`@ApiStatus.Internal`). | experimental |
 | `NetworkType` | A kind of network, registered with connectivity and logic factories; `byId` returns an `Optional`. | experimental |
@@ -105,13 +105,25 @@ on 2026-10-15.
 | `lib.facade`, `lib.tool`, `lib.registry`, `lib.viewer`, `lib.concurrent` | Smaller helpers. | 2-5 each | internal |
 | `lib.neoforge.perf`, `.datagen`, `.platform`, `.compat` | Perf budgets for GameTests, datagen providers, loader glue. | 25 | internal |
 
-## Not supported in 1.0: conduit types from other mods
+## Conduits from other mods
 
-Other mods adding their own cable or conduit types is not supported in Lib 1.0. `lib.api.conduit` names the type, but
-a working cable also needs Lib's content builder (`lib.content`) to register its block and a `NetworkLogic` for its
-network type (`lib.network`); both are internal, so a conduit type registered by another mod would join no network.
-`lib.api.conduit` stays stable because Storage's cable parts rely on `ConduitState`; promoting `lib.content` and
-`lib.network` to api is post-1.0 work. The package-info says the same.
+Supported since Lib 0.14.0 (ADR-0015, superseding ADR-0004; first user Farms, FM1). An addon on the api jar alone
+registers a network type with its `NetworkLogic` (`lib.api.network`) and a conduit through
+`Conduits.builder(modId, name, type)`. Lib makes the block, item and block entity, saves, syncs and draws them, takes
+dyes and facades, and adds each conduit to its type's network. With `look(...)` Lib also supplies the block state file
+and item model definition; a conduit without a loot table drops its own item. How-to, files to ship and the block
+state format: `docs/api/conduit-addon.md`.
+
+Not supported:
+
+- Subclassing Lib's conduit block or block entity, now or later. Behaviour changes go through the builder's hooks
+  (`ConduitWrenchHook`, `ConduitConnectionRule`); the conduit in the world is a `ConduitView` or `ConduitHost`.
+- Custom conduit models. Every conduit is drawn by Lib's conduit model from its `ConduitLook`, whose only kind is
+  `solid`; model hooks are planned for a later Lib minor.
+- Lib's content builder (`lib.content`) and conduit classes (`lib.conduit`) stay internal; Storage still uses them.
+
+`ConduitType`, `ConduitTypes`, `ConduitFaceMode` and `ConduitState` stay stable. The addon entry points and the moved
+helpers and engine types are experimental until Farms settles them.
 
 ## Findings and decisions
 
@@ -120,8 +132,8 @@ The owner decided the findings of the 1.0 inventory on 2026-10-15; Lib 0.9.0 car
 1. **Storage depends on Lib internals, but pinned Lib like an addon.** Done: Storage pins exactly one Lib minor
    (`lib_version_range=[0.9,0.10)`), and a Lib minor bump moves the range in the same PR. The rule is in
    `docs/workflow.md` and `lib/CLAUDE.md`. Promoting the parts Storage needs to api stays post-1.0 work.
-2. **The conduit api cannot be used alone.** Done: third-party conduit types are not supported in 1.0 (section above);
-   the package stays stable.
+2. **The conduit api cannot be used alone.** Done: third-party conduit types were not supported in 1.0; superseded in
+   Lib 0.14.0, where addons register conduits through `Conduits` (section above, ADR-0015). The package stays stable.
 3. **Nullable returns.** Done: `ConduitType.createState()` returns `Optional<ConduitState>`, `CarriedItems.locate` and
    `CarriedItemSource.locate` return `Optional<CarriedSlot>`. `BlockInfoRequest.side` and `hit` stay `@Nullable`
    record components, documented.
