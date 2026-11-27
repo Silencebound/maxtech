@@ -10,8 +10,9 @@ Api changes are marked **Api**.
 - **Api** The Accent widget set is api (`lib.api.client.gui`, client only, experimental, ADR-0016): `Accent`,
   `AccentButton`, `IconButton`, `Icon`, `AccentPanel`, `AccentInset`, `AccentRow`, `AccentReadout`, `AccentTag`,
   `AccentStatus`, `AccentTabRow`, `AccentToast`, `ScrollBar`, `TextScale`, `TextFit` and `LayoutCheck` moved from
-  `lib.client.gui`, `lib.client.gui.accent` and `lib.text` unchanged, so addons on the api jar draw the same look.
-  Side tabs, `ScreenComponents` and the editor pieces stay internal.
+  `lib.client.gui`, `lib.client.gui.accent` and `lib.text` with the same names and drawing, so addons on the api jar
+  draw the same look; `TextScale` gained an internal setter for the text size option, and `TextFit`, which is pure
+  Java, lives in `lib.api.text`. Side tabs, `ScreenComponents` and the editor pieces stay internal.
 
 ### Fixed
 - A client with Lib but no mod that adds conduit blocks (Lib alone, or Lib with Farms) crashed at startup: the
@@ -21,6 +22,11 @@ Api changes are marked **Api**.
 - **Api** `Conduits.Builder.attachesToBlocks()` (experimental, for Farms FM1): the conduit's network logic gets
   `onNodeInvalidated` once whenever a block entity beside it appears, goes or is replaced, also when it arrives with
   its chunk, so addon conduits no longer need their attachable blocks to poke them. Other conduits are unchanged.
+- **Api** Themes and bars for the Accent look (`lib.api.client.gui`, experimental): `AccentTheme` (in `lib.api.style`;
+  Lib's cyan by default, so existing screens look the same; every Accent widget and drawing method takes one),
+  `AccentTank` (the fluid's own sprite and tint through `FluidLook`), `AccentEnergyBar` (MU, with FE at the configured
+  rate in the tooltip) and `AccentProgress` (arrow or flame) on the shared `AccentBar` type, with their numbers in the
+  tooltip (hovered or keyboard-focused) and narration. The accent demo screen shows them.
 - The shell look draws a conduit's contents inside the glass: the fluid's own textures, tint and light, a fill level
   on horizontal pieces and a full column on vertical ones, the flowing texture along the flow from the upstream side
   and a second lane flowing back. **Api** `ConduitLook.Shell` gains optional `inset` and `lane_width` fields;

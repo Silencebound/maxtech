@@ -13,7 +13,7 @@ import dev.silencebound.maxtech.lib.api.client.gui.AccentTag;
 import dev.silencebound.maxtech.lib.api.client.gui.AccentToast;
 import dev.silencebound.maxtech.lib.info.InfoFormat;
 import dev.silencebound.maxtech.lib.platform.Platform;
-import dev.silencebound.maxtech.lib.api.client.gui.TextFit;
+import dev.silencebound.maxtech.lib.api.text.TextFit;
 import dev.silencebound.maxtech.storage.logic.controller.ControllerTexts;
 import dev.silencebound.maxtech.storage.logic.controller.LogicWorker;
 import dev.silencebound.maxtech.storage.logic.controller.client.ControllerLayout;

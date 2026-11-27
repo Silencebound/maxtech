@@ -13,7 +13,7 @@ import dev.silencebound.maxtech.lib.client.gui.SidePanel;
 import dev.silencebound.maxtech.lib.client.gui.UndoStack;
 import dev.silencebound.maxtech.lib.info.InfoFormat;
 import dev.silencebound.maxtech.lib.platform.Platform;
-import dev.silencebound.maxtech.lib.api.client.gui.TextFit;
+import dev.silencebound.maxtech.lib.api.text.TextFit;
 import dev.silencebound.maxtech.storage.crafting.client.KeyDisplay;
 import dev.silencebound.maxtech.storage.logic.GraphError;
 import dev.silencebound.maxtech.storage.logic.LogicCompiler;

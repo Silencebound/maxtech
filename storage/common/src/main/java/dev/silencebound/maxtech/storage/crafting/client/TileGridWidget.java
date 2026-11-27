@@ -4,7 +4,7 @@ import dev.silencebound.maxtech.lib.api.client.gui.TextScale;
 import dev.silencebound.maxtech.storage.palette.StatusPalette;
 import dev.silencebound.maxtech.lib.api.resource.StackKey;
 import dev.silencebound.maxtech.lib.client.gui.ScreenComponents;
-import dev.silencebound.maxtech.lib.api.client.gui.TextFit;
+import dev.silencebound.maxtech.lib.api.text.TextFit;
 import dev.silencebound.maxtech.storage.crafting.request.PlanView;
 import dev.silencebound.maxtech.storage.crafting.request.RequestContent;
 import dev.silencebound.maxtech.storage.machine.client.AccentFrame;

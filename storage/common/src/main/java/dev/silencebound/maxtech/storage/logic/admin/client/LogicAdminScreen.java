@@ -8,7 +8,7 @@ import dev.silencebound.maxtech.lib.api.client.gui.AccentPanel;
 import dev.silencebound.maxtech.lib.api.client.gui.AccentRow;
 import dev.silencebound.maxtech.lib.api.client.gui.AccentStatus;
 import dev.silencebound.maxtech.lib.info.InfoFormat;
-import dev.silencebound.maxtech.lib.api.client.gui.TextFit;
+import dev.silencebound.maxtech.lib.api.text.TextFit;
 import dev.silencebound.maxtech.storage.logic.admin.AdminList;
 import dev.silencebound.maxtech.storage.logic.admin.AdminRow;
 import dev.silencebound.maxtech.storage.logic.admin.AdminTexts;

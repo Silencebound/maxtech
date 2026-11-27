@@ -2,7 +2,7 @@ package dev.silencebound.maxtech.storage.logic.controller.client;
 
 import dev.silencebound.maxtech.lib.client.gui.RightAngleWire;
 import dev.silencebound.maxtech.lib.api.client.gui.Accent;
-import dev.silencebound.maxtech.lib.api.client.gui.TextFit;
+import dev.silencebound.maxtech.lib.api.text.TextFit;
 import dev.silencebound.maxtech.storage.logic.LogicGraph;
 import dev.silencebound.maxtech.storage.logic.LogicNode;
 import dev.silencebound.maxtech.storage.logic.NodeSentence;
