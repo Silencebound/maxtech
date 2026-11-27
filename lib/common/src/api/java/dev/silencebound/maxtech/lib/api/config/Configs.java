@@ -56,7 +56,7 @@ public final class Configs {
         return factory.register(modId, type, builder);
     }
 
-    /** Sets where the methods above get their files; Lib calls it once during init. */
+    /** Sets where the methods above get their files; Lib calls it once during init. Unit tests may set a fake. */
     @ApiStatus.Internal
     public static void setFactory(Factory source) {
         factory = source;
