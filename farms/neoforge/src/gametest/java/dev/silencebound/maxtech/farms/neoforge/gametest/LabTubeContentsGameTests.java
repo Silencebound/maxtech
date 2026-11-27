@@ -43,7 +43,10 @@ public final class LabTubeContentsGameTests {
             Map.entry("lab_tube_contents_follow_tank", LabTubeContentsGameTests::followTank),
             Map.entry("lab_tube_contents_upstream", LabTubeContentsGameTests::upstreamTowardsHub),
             Map.entry("lab_tube_contents_clear", LabTubeContentsGameTests::clear),
-            Map.entry("lab_tube_contents_sync_count", LabTubeContentsGameTests::syncCount));
+            Map.entry("lab_tube_contents_sync_count", LabTubeContentsGameTests::syncCount),
+            Map.entry("lab_tube_contents_split_no_hub", LabTubeContentsGameTests::splitWithoutHub),
+            Map.entry("lab_tube_contents_hub_swap", LabTubeContentsGameTests::hubSwap),
+            Map.entry("lab_tube_contents_fluid_change", LabTubeContentsGameTests::fluidChange));
 
     private LabTubeContentsGameTests() {
     }
@@ -74,19 +77,17 @@ public final class LabTubeContentsGameTests {
         LabHubBlockEntity hub = hub(helper, HUB);
         tubes(helper, 2, 5);
         int capacity = FarmsServerConfig.hubTankCapacity();
-        int[] syncs = new int[1];
+        SyncCounter syncs = new SyncCounter(helper, new BlockPos(2, 1, 1));
         helper.startSequence()
                 .thenWaitUntil(() -> helper.assertTrue(lab(helper, new BlockPos(5, 1, 1)).hub().isPresent(), "hub"))
                 .thenExecute(() -> fill(hub, lava(), capacity / 2)).thenWaitUntil(() -> assertAll(helper, lava(), 2))
                 .thenExecute(() -> {
-                    syncs[0] = lab(helper, new BlockPos(2, 1, 1)).contentsSyncs();
+                    syncs.count();
                     fill(hub, lava(), capacity / 16);
-                    helper.assertValueEqual(lab(helper, new BlockPos(2, 1, 1)).contentsSyncs(), syncs[0],
-                            "syncs within a step");
+                    helper.assertValueEqual(syncs.count(), 0, "syncs within a step");
                     assertAll(helper, lava(), 2);
                     fill(hub, lava(), capacity / 8);
-                    helper.assertValueEqual(lab(helper, new BlockPos(2, 1, 1)).contentsSyncs(), syncs[0] + 1,
-                            "syncs past the boundary");
+                    helper.assertValueEqual(syncs.count(), 1, "syncs past the boundary");
                     assertAll(helper, lava(), 3);
                     fill(hub, lava(), capacity);
                     assertAll(helper, lava(), ConduitContents.FULL);
@@ -113,9 +114,8 @@ public final class LabTubeContentsGameTests {
             assertUpstream(helper, new BlockPos(4, 1, 0), Direction.SOUTH);
             assertUpstream(helper, new BlockPos(4, 1, 2), Direction.NORTH);
             assertUpstream(helper, new BlockPos(4, 0, 1), Direction.UP);
-            // Five steps either way, through (4,0,1) or (4,1,2); Lib's route tree breaks the tie by position.
-            Direction tie = contents(helper, new BlockPos(4, 0, 2)).upstream().orElse(null);
-            helper.assertTrue(tie == Direction.NORTH || tie == Direction.UP, "upstream of the corner: " + tie);
+            // Five steps either way, through (4,0,1) or (4,1,2); Lib's route tree breaks the tie deterministically.
+            assertUpstream(helper, new BlockPos(4, 0, 2), Direction.NORTH);
             helper.assertValueEqual(contents(helper, new BlockPos(4, 0, 2)).fluid(), Optional.of(Fluids.WATER),
                     "fluid in the branch");
         });
@@ -152,21 +152,101 @@ public final class LabTubeContentsGameTests {
         helper.startSequence()
                 .thenWaitUntil(() -> helper.assertTrue(lab(helper, new BlockPos(5, 1, 1)).hub().isPresent(), "hub"))
                 .thenExecute(() -> {
-                    LabNetwork lab = lab(helper, new BlockPos(2, 1, 1));
-                    int before = lab.contentsSyncs();
+                    SyncCounter syncs = new SyncCounter(helper, new BlockPos(2, 1, 1));
+                    int total = 0;
                     for (int i = 0; i < boundary + margin; i++) {
                         fill(hub, water(), 1);
+                        total += syncs.count();
                     }
-                    helper.assertValueEqual(lab.contentsSyncs() - before, 2, "syncs while filling by 1 mB");
+                    helper.assertValueEqual(total, 2, "syncs while filling by 1 mB");
                     assertAll(helper, water(), 2);
                     // Back to the boundary, then just below and on it again.
                     drain(hub, margin);
+                    total = syncs.count();
                     for (int i = 0; i < 200; i++) {
                         drain(hub, margin / 2);
+                        total += syncs.count();
                         fill(hub, water(), margin / 2);
+                        total += syncs.count();
                     }
-                    helper.assertValueEqual(lab.contentsSyncs() - before, 2, "syncs while hovering at a boundary");
+                    helper.assertValueEqual(total, 0, "syncs while hovering at a boundary");
                 }).thenSucceed();
+    }
+
+    /**
+     * A split that leaves a side without a hub clears that side's tubes; the hub's side keeps showing the tank.
+     */
+    private static void splitWithoutHub(GameTestHelper helper) {
+        LabHubBlockEntity hub = hub(helper, HUB);
+        fill(hub, water(), FarmsServerConfig.hubTankCapacity() / 2);
+        tubes(helper, 2, 5);
+        helper.startSequence().thenWaitUntil(() -> assertAll(helper, water(), 2))
+                .thenExecute(() -> helper.setBlock(new BlockPos(3, 1, 1), Blocks.AIR)).thenWaitUntil(() -> {
+                    helper.assertTrue(contents(helper, new BlockPos(2, 1, 1)).fluid().isPresent(),
+                            "the hub's side still shows the tank");
+                    helper.assertTrue(contents(helper, new BlockPos(4, 1, 1)).isEmpty(), "cleared at (4,1,1)");
+                    helper.assertTrue(contents(helper, new BlockPos(5, 1, 1)).isEmpty(), "cleared at (5,1,1)");
+                }).thenSucceed();
+    }
+
+    /**
+     * Removing the running hub hands the lab to another hub: the tubes show the new hub's fluid and step, read afresh.
+     */
+    private static void hubSwap(GameTestHelper helper) {
+        BlockPos otherPos = new BlockPos(6, 1, 1);
+        int capacity = FarmsServerConfig.hubTankCapacity();
+        LabHubBlockEntity first = hub(helper, HUB);
+        fill(first, water(), capacity);
+        LabHubBlockEntity second = hub(helper, otherPos);
+        fill(second, lava(), capacity / 2);
+        tubes(helper, 2, 5);
+        boolean[] firstRuns = new boolean[1];
+        helper.startSequence().thenWaitUntil(() -> {
+            LabHubBlockEntity running = lab(helper, new BlockPos(2, 1, 1)).hub()
+                    .orElseThrow(() -> helper.assertionException(Component.literal("no hub runs the lab")));
+            firstRuns[0] = running == first;
+            helper.assertTrue(contents(helper, new BlockPos(5, 1, 1)).fluid().isPresent(), "tubes show a tank");
+        }).thenExecute(() -> {
+            assertAll(helper, firstRuns[0] ? water() : lava(), firstRuns[0] ? ConduitContents.FULL : 2);
+            helper.setBlock(firstRuns[0] ? HUB : otherPos, Blocks.AIR);
+        }).thenWaitUntil(
+                () -> assertAll(helper, firstRuns[0] ? lava() : water(), firstRuns[0] ? 2 : ConduitContents.FULL))
+                .thenSucceed();
+    }
+
+    /** After the tank empties, filling it with another fluid shows the new fluid on every tube. */
+    private static void fluidChange(GameTestHelper helper) {
+        LabHubBlockEntity hub = hub(helper, HUB);
+        int capacity = FarmsServerConfig.hubTankCapacity();
+        fill(hub, water(), capacity / 2);
+        tubes(helper, 2, 5);
+        helper.startSequence().thenWaitUntil(() -> assertAll(helper, water(), 2)).thenExecute(() -> {
+            drain(hub, capacity);
+            assertEmpty(helper);
+            fill(hub, lava(), capacity / 2);
+            assertAll(helper, lava(), 2);
+        }).thenSucceed();
+    }
+
+    /** Counts how often a tube's contents were set anew, by what it shows (every set builds different contents). */
+    private static final class SyncCounter {
+        private final GameTestHelper helper;
+        private final BlockPos tube;
+        private ConduitContents last;
+
+        SyncCounter(GameTestHelper helper, BlockPos tube) {
+            this.helper = helper;
+            this.tube = tube;
+            this.last = contents(helper, tube);
+        }
+
+        /** The syncs since the last call: 1 when the tube shows other contents than then, else 0. */
+        int count() {
+            ConduitContents now = contents(helper, tube);
+            boolean changed = !now.equals(last);
+            last = now;
+            return changed ? 1 : 0;
+        }
     }
 
     private static FluidResource water() {

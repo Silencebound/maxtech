@@ -57,8 +57,29 @@ class TubeFillTest {
     }
 
     @Test
-    void fullTankIsFull() {
+    void fullOnlyWhenCompletelyFull() {
         assertEquals(4, TubeFill.step(CAPACITY, CAPACITY, 3));
-        assertEquals(4, TubeFill.step(CAPACITY - MARGIN, CAPACITY, 3));
+        assertEquals(4, TubeFill.step(CAPACITY, CAPACITY, 0));
+        assertEquals(3, TubeFill.step(CAPACITY - 1, CAPACITY, 3));
+        assertEquals(3, TubeFill.step(CAPACITY - 1, CAPACITY, 0));
+        assertEquals(3, TubeFill.step(CAPACITY - 1, CAPACITY, 4));
+        assertEquals(3, TubeFill.step(CAPACITY - MARGIN, CAPACITY, 3));
+        assertEquals(3, TubeFill.step(CAPACITY * 7 / 8 + MARGIN, CAPACITY, 3));
+    }
+
+    @Test
+    void emptyOnlyWhenExactlyEmptyEvenFromFull() {
+        assertEquals(1, TubeFill.step(1, CAPACITY, 4));
+        assertEquals(1, TubeFill.step(1, CAPACITY, 1));
+        assertEquals(0, TubeFill.step(0, CAPACITY, 4));
+    }
+
+    @Test
+    void middleBoundariesAtThreeEighthsAndFiveEighths() {
+        assertEquals(1, TubeFill.step(CAPACITY * 3 / 8 + MARGIN - 1, CAPACITY, 1));
+        assertEquals(2, TubeFill.step(CAPACITY * 3 / 8 + MARGIN, CAPACITY, 1));
+        assertEquals(2, TubeFill.step(CAPACITY * 5 / 8 + MARGIN - 1, CAPACITY, 2));
+        assertEquals(3, TubeFill.step(CAPACITY * 5 / 8 + MARGIN, CAPACITY, 2));
+        assertEquals(3, TubeFill.step(CAPACITY * 7 / 8, CAPACITY, 3));
     }
 }

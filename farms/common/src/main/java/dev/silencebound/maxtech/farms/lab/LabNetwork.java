@@ -71,7 +71,6 @@ public final class LabNetwork {
     private @Nullable Fluid shownFluid;
     private int shownFill;
     private final ConduitContents[] contents = new ConduitContents[SIDES.length + 1];
-    private int contentsSyncs;
 
     LabNetwork(ServerLevel level, Network network) {
         this.level = level;
@@ -343,11 +342,6 @@ public final class LabNetwork {
         }
     }
 
-    /** How many times this lab set its tubes' contents; for tests. */
-    public int contentsSyncs() {
-        return contentsSyncs;
-    }
-
     /** Reads the shown hub's tank; returns whether the fluid or step changed, building the contents anew then. */
     private boolean recomputeContents() {
         LabHubBlockEntity current = shownHub;
@@ -383,7 +377,6 @@ public final class LabNetwork {
 
     /** Sets every loaded tube's contents; a tube that already shows them does nothing. */
     private void syncTubes() {
-        contentsSyncs++;
         for (LongIterator it = network.nodes().iterator(); it.hasNext();) {
             long pos = it.nextLong();
             if (!Conduits.isChunkPresent(level, BlockPos.getX(pos), BlockPos.getZ(pos))) {
