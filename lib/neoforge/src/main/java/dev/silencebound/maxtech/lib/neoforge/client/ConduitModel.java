@@ -77,8 +77,8 @@ public final class ConduitModel implements DynamicBlockStateModel {
 
     private final ConduitLook look;
     private final Sprites sprites;
-    // Bounded by 64 arm masks x 64 ring masks x 17 colours of this block's one type, and in practice by what the
-    // world holds: a long straight run shares one part.
+    // Bounded by 64 arm masks x 64 ring masks x 17 colours of this block's one type x the render values its addon
+    // sets, and in practice by what the world holds: a long straight run shares one part.
     private final PartCache<ConduitBodyKey, BlockStateModelPart> bodies = new PartCache<>(this::bakeBody);
     // Rings and stubs: 6 sides x 4 modes.
     private final PartCache<ConduitFaceKey, BlockStateModelPart> faces = new PartCache<>(this::bakeFace);

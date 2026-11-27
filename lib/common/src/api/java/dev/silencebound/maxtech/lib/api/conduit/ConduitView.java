@@ -52,4 +52,11 @@ public interface ConduitView {
 
     /** The block the conduit is disguised as, or empty without a facade. A facade is render-only. */
     Optional<BlockState> findFacade();
+
+    /**
+     * The value the conduit's addon last set with {@link ConduitHost#setRenderValue}, 0 until then. What it means is up
+     * to the addon (Farms' lab tube keeps the colour of its network's medium here); Lib saves it, syncs it to clients
+     * and hands it to the client model in the conduit's body key, but its own looks ignore it.
+     */
+    int renderValue();
 }

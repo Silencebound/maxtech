@@ -18,7 +18,14 @@ import org.jspecify.annotations.Nullable;
  *            sides that draw a full arm, as a {@link dev.silencebound.maxtech.lib.api.conduit.ConduitConnections} mask
  * @param rings
  *            arms that stop where their ring starts, as such a mask
+ * @param renderValue
+ *            the addon's {@link dev.silencebound.maxtech.lib.api.conduit.ConduitView#renderValue()}; Lib's own looks
+ *            ignore it
  */
 @ApiStatus.Experimental
-public record ConduitBodyKey(ConduitType type, @Nullable DyeColor colour, int arms, int rings) {
+public record ConduitBodyKey(ConduitType type, @Nullable DyeColor colour, int arms, int rings, int renderValue) {
+    /** A key with render value 0, which is what every conduit has until its addon sets one. */
+    public ConduitBodyKey(ConduitType type, @Nullable DyeColor colour, int arms, int rings) {
+        this(type, colour, arms, rings, 0);
+    }
 }

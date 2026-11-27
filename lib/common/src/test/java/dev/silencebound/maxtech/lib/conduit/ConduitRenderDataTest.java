@@ -9,6 +9,7 @@ import dev.silencebound.maxtech.lib.api.conduit.ConduitFaceKey;
 import dev.silencebound.maxtech.lib.api.conduit.ConduitFaceMode;
 import dev.silencebound.maxtech.lib.api.conduit.ConduitFaceModes;
 import dev.silencebound.maxtech.lib.api.conduit.ConduitType;
+import dev.silencebound.maxtech.lib.api.conduit.model.ConduitBodyKey;
 import java.util.List;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.Identifier;
@@ -80,6 +81,32 @@ class ConduitRenderDataTest {
         assertNotEquals(both, extract);
         assertEquals(both.arms(), extract.arms(), "the body does not depend on the mode");
         assertEquals(both.rings(), extract.rings(), "the body does not depend on the mode");
+    }
+
+    /** A new render value is a visible change: the block entity re-meshes and the body gets its own part. */
+    @Test
+    void renderValueChangesTheKeyAndTheBody() {
+        ConduitData conduit = conduit(DyeColor.RED, 0b000011);
+        ConduitRenderData plain = of(conduit);
+        ConduitRenderData set = ConduitRenderData.of(conduit, 7, null);
+        assertEquals(0, plain.renderValue());
+        assertEquals(plain, ConduitRenderData.of(conduit, 0, null), "0 is the default");
+        assertEquals(set, ConduitRenderData.of(conduit, 7, null));
+        assertEquals(set.hashCode(), ConduitRenderData.of(conduit, 7, null).hashCode());
+        assertNotEquals(plain, set);
+        assertNotEquals(set, ConduitRenderData.of(conduit, 8, null));
+        assertEquals(7, set.bodyKey().renderValue());
+        assertNotEquals(plain.bodyKey(), set.bodyKey());
+        assertEquals(plain.faces(), set.faces(), "the faces do not depend on the value");
+    }
+
+    @Test
+    void shortConstructorsDefaultTheRenderValueToZero() {
+        ConduitRenderData data = new ConduitRenderData(A, null, 0b000011, 0, List.of(), null);
+        assertEquals(0, data.renderValue());
+        assertEquals(new ConduitBodyKey(A, null, 0b000011, 0, 0), new ConduitBodyKey(A, null, 0b000011, 0));
+        assertEquals(0, new ConduitBodyKey(A, null, 0b000011, 0).renderValue());
+        assertEquals(new ConduitBodyKey(A, null, 0b000011, 0), data.bodyKey());
     }
 
     @Test
