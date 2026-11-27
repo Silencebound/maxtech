@@ -10,9 +10,10 @@ import net.neoforged.neoforge.transfer.transaction.TransactionContext;
 import org.jspecify.annotations.Nullable;
 
 /**
- * The contents of one tank as transaction state: a key (null when empty) and an amount up to the capacity. Pure apart
- * from NeoForge's transactions, which run without a game, so JUnit tests it directly. Changes inside a transaction are
- * journaled and reported once the root commits; {@link #set} reports at once. Server thread only.
+ * The contents of one tank as transaction state: a key (null when empty) and an amount, up to the capacity unless a
+ * save held more (then it takes nothing until drained below the capacity). Pure apart from NeoForge's transactions,
+ * which run without a game, so JUnit tests it directly. Changes inside a transaction are journaled and reported once
+ * the root commits; {@link #set} reports at once. Server thread only.
  *
  * @param <K>
  *            the key type, compared with {@code equals}
@@ -92,8 +93,12 @@ final class TankJournal<K> extends SnapshotJournal<TankJournal.State<K>> {
         return moved;
     }
 
-    /** Replaces the contents outside any transaction and reports it; a null key or amount 0 empties the tank. */
+    /**
+     * Replaces the contents outside any transaction and reports it; a null key or amount 0 empties the tank. Throws
+     * {@link IllegalStateException} while a transaction is open on the thread.
+     */
     void set(@Nullable K newKey, long newAmount) {
+        NoTransaction.check("Setting a tank");
         if (newAmount < 0) {
             throw new IllegalArgumentException("Negative amount " + newAmount);
         }

@@ -1,6 +1,7 @@
 package dev.silencebound.maxtech.lib.api.inventory;
 
 import java.util.Arrays;
+import java.util.List;
 import java.util.Objects;
 import java.util.function.IntConsumer;
 import java.util.function.Predicate;
@@ -22,6 +23,9 @@ import org.jspecify.annotations.Nullable;
  * through Lib's menus and {@code lib.neoforge.api.inventory.Handlers}, which follow the roles and take part in
  * transactions. Server thread only, like the block entity that owns the slots; a client menu builds its own empty copy
  * from the same builder.
+ * <p>
+ * Filters get a stack of one, which they must not change or keep; they should depend on the item and its components
+ * only, since the slots reuse the stack for the same item.
  * <p>
  * The change listener gets the index of each slot that changed, once per change and never for a simulation or a
  * transaction that was rolled back: at once for the methods here, when the root transaction commits for changes made
@@ -52,8 +56,34 @@ public interface ItemSlots {
      */
     ItemStack stack(int slot);
 
-    /** Replaces {@code slot}'s contents with a copy of {@code stack}, checking neither filter nor limit. */
+    /**
+     * Replaces {@code slot}'s contents with a copy of {@code stack}, checking neither filter nor limit. Throws
+     * {@link IllegalStateException} while the slot is {@link #unknown}.
+     */
     void set(int slot, ItemStack stack);
+
+    /**
+     * Whether {@code slot} holds a saved item that no longer loads (its mod was removed). The slot then reads as empty,
+     * takes nothing, is invisible to automation and menus, and saves the item back exactly as it was saved, so it
+     * returns with its mod; a menu or tooltip can show it as unknown.
+     */
+    boolean unknown(int slot);
+
+    /** Throws away {@code slot}'s {@link #unknown} item for good, leaving the slot empty; does nothing otherwise. */
+    void discardUnknown(int slot);
+
+    /**
+     * Stacks a save held for slots this inventory no longer has (the machine shrank), or more than one for a slot:
+     * unmodifiable and live, empty almost always. Automation and menus never see them; the owner hands them out with
+     * {@link #takeOverflow} and drops them with the block's contents, and they are saved until then.
+     */
+    List<ItemStack> overflow();
+
+    /**
+     * Removes and returns {@code index} of {@link #overflow()}, which the caller now owns. Does not call the change
+     * listener; the owner marks itself changed.
+     */
+    ItemStack takeOverflow(int index);
 
     /**
      * Puts up to {@code stack.getCount()} of {@code stack}'s item into {@code slot} if its filter takes it and the slot
@@ -72,8 +102,9 @@ public interface ItemSlots {
     void save(ValueOutput output);
 
     /**
-     * Loads saved slots from {@code input}; a save with more slots than this one (the machine shrank) keeps the ones
-     * that fit and logs what it drops. Does not call the change listener.
+     * Loads saved slots from {@code input}, replacing all contents, slot by slot: a stack that no longer loads stays
+     * {@link #unknown} in its own slot without moving any other, and stacks for slots this inventory no longer has go
+     * to {@link #overflow()}; nothing saved is lost. Does not call the change listener.
      */
     void load(ValueInput input);
 
