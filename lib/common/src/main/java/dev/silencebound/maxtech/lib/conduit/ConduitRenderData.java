@@ -3,6 +3,7 @@ package dev.silencebound.maxtech.lib.conduit;
 import dev.silencebound.maxtech.lib.api.conduit.ConduitConnections;
 import dev.silencebound.maxtech.lib.api.conduit.ConduitFaceKey;
 import dev.silencebound.maxtech.lib.api.conduit.ConduitType;
+import dev.silencebound.maxtech.lib.api.conduit.model.ConduitBodyKey;
 import java.util.ArrayList;
 import java.util.List;
 import net.minecraft.core.Direction;
@@ -31,6 +32,11 @@ public record ConduitRenderData(ConduitType type, @Nullable DyeColor colour, int
     /** The same conduit without its facade: what it draws while the conduits show through facades. */
     public ConduitRenderData withoutFacade() {
         return facade == null ? this : new ConduitRenderData(type, colour, arms, rings, faces, null);
+    }
+
+    /** The key of this conduit's body. */
+    public ConduitBodyKey bodyKey() {
+        return new ConduitBodyKey(type, colour, arms, rings);
     }
 
     static ConduitRenderData of(ConduitData conduit, @Nullable BlockState facade) {

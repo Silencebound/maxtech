@@ -2,7 +2,7 @@
  * Conduit model geometry, client half (ADR-0012): {@link ConduitGeometry} lays out the faces of a conduit's body and
  * face decorations from its {@link dev.silencebound.maxtech.lib.api.conduit.ConduitLook}, and {@link PartCache} keeps
  * one baked part per key. Plain Java on vanilla maths types, so it is unit-tested; the loader's conduit model bakes the
- * faces into quads.
+ * faces into quads. The quads and body keys themselves are api ({@code lib.api.conduit.model}).
  */
 @NullMarked
 package dev.silencebound.maxtech.lib.client.conduit;

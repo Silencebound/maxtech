@@ -1,11 +1,13 @@
 package dev.silencebound.maxtech.lib;
 
 import dev.silencebound.maxtech.lib.api.conduit.Conduits;
+import dev.silencebound.maxtech.lib.api.conduit.model.ConduitParts;
 import dev.silencebound.maxtech.lib.api.energy.EnergyNetworks;
 import dev.silencebound.maxtech.lib.api.registry.Registrar;
 import dev.silencebound.maxtech.lib.api.registry.Registrars;
 import dev.silencebound.maxtech.lib.config.LibConfigFactory;
 import dev.silencebound.maxtech.lib.content.LibConduits;
+import dev.silencebound.maxtech.lib.client.conduit.LibConduitParts;
 import net.minecraft.core.Registry;
 import net.minecraft.resources.ResourceKey;
 import dev.silencebound.maxtech.lib.api.guide.GuideConfigValues;
@@ -46,6 +48,7 @@ public final class MaxtechLib {
             }
         });
         Conduits.setFactory(new LibConduits());
+        ConduitParts.setFactory(new LibConduitParts());
         ServerConfig.register();
         OwnerSecurity.setOpsBypassSource(() -> ServerConfig.loadedOr(ServerConfig.OPS_BYPASS_OWNERSHIP, true));
         EnergyNetworks.setFeRateSource(ServerConfig::feRate);
