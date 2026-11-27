@@ -35,6 +35,20 @@ class ConduitAssetsTest {
                 """), ConduitAssets.blockState(look));
     }
 
+    /** Pins a shell conduit's block state file as {@code docs/api/conduit-addon.md} shows it. */
+    @Test
+    void shellBlockStateMatchesTheDocumentedFile() {
+        ConduitLook look = ConduitLook.shell(Identifier.fromNamespaceAndPath("farms", "block/lab_tube_glass"))
+                .withBorderColour(0x2E4A52);
+        assertEquals(JsonParser.parseString("""
+                {"variants": {"": {"type": "maxtech_lib:conduit", "look": "shell",
+                 "shell": "farms:block/lab_tube_glass", "border_colour": "#2e4a52"}}}
+                """), ConduitAssets.blockState(look));
+        JsonObject model = ConduitAssets.blockState(look).getAsJsonObject("variants").getAsJsonObject("");
+        model.remove("type");
+        assertEquals(look, ConduitLook.CODEC.codec().parse(JsonOps.INSTANCE, model).getOrThrow());
+    }
+
     @Test
     void itemDefinitionNamesTheItemModel() {
         JsonObject model = ConduitAssets.itemDefinition(Identifier.fromNamespaceAndPath("test", "tube"))
