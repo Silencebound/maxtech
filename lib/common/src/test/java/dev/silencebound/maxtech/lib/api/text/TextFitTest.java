@@ -1,4 +1,4 @@
-package dev.silencebound.maxtech.lib.api.client.gui;
+package dev.silencebound.maxtech.lib.api.text;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
