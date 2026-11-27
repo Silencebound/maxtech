@@ -1,7 +1,7 @@
 package dev.silencebound.maxtech.storage.ioport.client;
 
-import dev.silencebound.maxtech.lib.client.gui.TextScale;
-import dev.silencebound.maxtech.lib.client.gui.accent.Accent;
+import dev.silencebound.maxtech.lib.api.client.gui.TextScale;
+import dev.silencebound.maxtech.lib.api.client.gui.Accent;
 import dev.silencebound.maxtech.storage.devicetab.DeviceTabTexts;
 import dev.silencebound.maxtech.storage.devicetab.client.DeviceScreen;
 import dev.silencebound.maxtech.storage.ioport.IoPortBlockEntity;

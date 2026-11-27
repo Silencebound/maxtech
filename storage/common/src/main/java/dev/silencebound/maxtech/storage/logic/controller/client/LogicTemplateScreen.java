@@ -1,6 +1,6 @@
 package dev.silencebound.maxtech.storage.logic.controller.client;
 
-import dev.silencebound.maxtech.lib.client.gui.TextScale;
+import dev.silencebound.maxtech.lib.api.client.gui.TextScale;
 import dev.silencebound.maxtech.storage.palette.StatusPalette;
 import dev.silencebound.maxtech.lib.platform.Platform;
 import dev.silencebound.maxtech.lib.client.gui.ScreenComponents;
@@ -12,7 +12,7 @@ import dev.silencebound.maxtech.storage.logic.controller.SharePayloads;
 import dev.silencebound.maxtech.storage.logic.template.BuiltInTemplates;
 import dev.silencebound.maxtech.storage.logic.template.LogicTemplate;
 import dev.silencebound.maxtech.storage.machine.client.AccentFrame;
-import dev.silencebound.maxtech.lib.client.gui.accent.AccentButton;
+import dev.silencebound.maxtech.lib.api.client.gui.AccentButton;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;

@@ -62,6 +62,15 @@ public interface ConduitHost extends ConduitView {
      */
     void setRenderValue(int renderValue);
 
+    /**
+     * Sets what the conduit shows inside it ({@link #contents()}): fluid, fill step, upstream side and second lane. A
+     * change saves the conduit (the fluid by registry name) and sends it to clients, which re-mesh it; setting the
+     * contents it already has does nothing, so a network may call this whenever it recomputes. The client model's part
+     * cache keys on the contents, so a network should change them only when the look changes (a fill step, not every
+     * amount). {@link ConduitContents#EMPTY} clears them. Server thread; does nothing on the client.
+     */
+    void setContents(ConduitContents contents);
+
     /** Hit shape of the conduit (core, arms, stubs and rings at the type's thickness); cached, never null. */
     VoxelShape shape();
 

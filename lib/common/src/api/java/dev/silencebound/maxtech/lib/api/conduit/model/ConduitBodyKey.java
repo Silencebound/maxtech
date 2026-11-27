@@ -21,11 +21,22 @@ import org.jspecify.annotations.Nullable;
  * @param renderValue
  *            the addon's {@link dev.silencebound.maxtech.lib.api.conduit.ConduitView#renderValue()}; Lib's own looks
  *            ignore it
+ * @param contents
+ *            the conduit's {@link dev.silencebound.maxtech.lib.api.conduit.ConduitView#contents()},
+ *            {@linkplain dev.silencebound.maxtech.lib.api.conduit.ConduitContents#packed() packed} with this session's
+ *            fluid ids and read back with {@code ConduitContents}' {@code packed*} helpers; 0 for none. Lib's looks
+ *            ignore it for now
  */
 @ApiStatus.Experimental
-public record ConduitBodyKey(ConduitType type, @Nullable DyeColor colour, int arms, int rings, int renderValue) {
-    /** A key with render value 0, which is what every conduit has until its addon sets one. */
+public record ConduitBodyKey(ConduitType type, @Nullable DyeColor colour, int arms, int rings, int renderValue,
+        int contents) {
+    /** A key with render value 0 and no contents, which is what every conduit has until its addon sets them. */
     public ConduitBodyKey(ConduitType type, @Nullable DyeColor colour, int arms, int rings) {
-        this(type, colour, arms, rings, 0);
+        this(type, colour, arms, rings, 0, 0);
+    }
+
+    /** A key with no contents. */
+    public ConduitBodyKey(ConduitType type, @Nullable DyeColor colour, int arms, int rings, int renderValue) {
+        this(type, colour, arms, rings, renderValue, 0);
     }
 }

@@ -3,6 +3,7 @@ package dev.silencebound.maxtech.lib.conduit;
 import com.mojang.logging.LogUtils;
 import dev.silencebound.maxtech.lib.api.conduit.ConduitConnectionRule;
 import dev.silencebound.maxtech.lib.api.conduit.ConduitConnections;
+import dev.silencebound.maxtech.lib.api.conduit.ConduitContents;
 import dev.silencebound.maxtech.lib.api.conduit.ConduitFaceMode;
 import dev.silencebound.maxtech.lib.api.conduit.ConduitFaceModes;
 import dev.silencebound.maxtech.lib.api.conduit.ConduitHost;
@@ -91,6 +92,7 @@ public final class ConduitBlockEntity extends BlockEntity implements ConduitHost
     private @Nullable BlockState facade;
     private Optional<BlockState> facadeView = Optional.empty();
     private int renderValue;
+    private ConduitContents contents = ConduitContents.EMPTY;
     // Last render data seen by refreshModel, so updates that change nothing visible skip the re-mesh.
     private @Nullable ConduitRenderData renderData;
     private @Nullable Object stateRenderKey;
@@ -376,6 +378,20 @@ public final class ConduitBlockEntity extends BlockEntity implements ConduitHost
         sync();
     }
 
+    @Override
+    public ConduitContents contents() {
+        return contents;
+    }
+
+    @Override
+    public void setContents(ConduitContents contents) {
+        if (level == null || level.isClientSide() || this.contents.equals(contents)) {
+            return;
+        }
+        this.contents = contents;
+        sync();
+    }
+
     /** The block this conduit is disguised as, or {@code null}. Render-only. */
     public @Nullable BlockState facade() {
         return facade;
@@ -550,6 +566,7 @@ public final class ConduitBlockEntity extends BlockEntity implements ConduitHost
         facade = input.read(FACADE, BlockState.CODEC).orElse(null);
         facadeView = Optional.ofNullable(facade);
         renderValue = ConduitRenderValue.read(input);
+        contents = ConduitContentsTag.load(input);
         rebuildShape();
         refreshModel();
         if (live) {
@@ -564,7 +581,7 @@ public final class ConduitBlockEntity extends BlockEntity implements ConduitHost
      * changed. The state doesn't change, so without the explicit block update the section would keep its old mesh.
      */
     private void refreshModel() {
-        ConduitRenderData updated = ConduitRenderData.of(conduit, renderValue, facade);
+        ConduitRenderData updated = ConduitRenderData.of(conduit, renderValue, contents.packed(), facade);
         Object key = conduit.state() instanceof SyncedConduitState synced ? synced.renderKey() : null;
         boolean changed = !updated.equals(renderData) || !Objects.equals(key, stateRenderKey);
         renderData = updated;
@@ -579,7 +596,7 @@ public final class ConduitBlockEntity extends BlockEntity implements ConduitHost
     /** Called on the client's main thread only when a refresh was requested; chunk meshing reads the snapshot. */
     @Override
     public ModelData getModelData() {
-        ConduitRenderData data = ConduitRenderData.of(conduit, renderValue, facade);
+        ConduitRenderData data = ConduitRenderData.of(conduit, renderValue, contents.packed(), facade);
         Object key = conduit.state() instanceof SyncedConduitState synced ? synced.renderKey() : null;
         return key == null
                 ? ModelData.of(RENDER_DATA, data)
@@ -587,8 +604,9 @@ public final class ConduitBlockEntity extends BlockEntity implements ConduitHost
     }
 
     /**
-     * Colour, masks, the facade, the render value and a {@link SyncedConduitState}'s synced part, which is everything
-     * the client renders; with {@code withState}, also the conduit's {@link ConduitState}, which stays on the server.
+     * Colour, masks, the facade, the render value, the contents and a {@link SyncedConduitState}'s synced part, which
+     * is everything the client renders; with {@code withState}, also the conduit's {@link ConduitState}, which stays on
+     * the server.
      */
     private void write(ValueOutput output, boolean withState) {
         output.storeNullable(FACADE, BlockState.CODEC, facade);
@@ -598,6 +616,7 @@ public final class ConduitBlockEntity extends BlockEntity implements ConduitHost
         output.putByte(BLOCK_FACES, (byte) conduit.blockFaces());
         output.putInt(FACE_MODES, conduit.faceModes());
         ConduitRenderValue.write(output, renderValue);
+        ConduitContentsTag.save(output, contents);
         ConduitState state = conduit.state();
         if (withState && state != null) {
             state.save(output.child(STATE));

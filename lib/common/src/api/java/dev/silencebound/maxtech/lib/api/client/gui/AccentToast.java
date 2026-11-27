@@ -1,6 +1,6 @@
-package dev.silencebound.maxtech.lib.client.gui.accent;
+package dev.silencebound.maxtech.lib.api.client.gui;
 
-import dev.silencebound.maxtech.lib.client.gui.TextScale;
+import org.jetbrains.annotations.ApiStatus;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -22,6 +22,7 @@ import org.jspecify.annotations.Nullable;
  * Mutable, one per screen; client thread only. {@link #visible(long, long, int)}, {@link #width(int, int)} and
  * {@link #height(int, boolean)} are plain arithmetic.
  */
+@ApiStatus.Experimental
 public final class AccentToast {
     /** How long a toast shows by default. */
     public static final int DEFAULT_MILLIS = 2500;
@@ -36,7 +37,12 @@ public final class AccentToast {
 
     /** What the toast reports; sets its colour. */
     public enum Kind {
-        INFO(Accent.BAR_TOP), WARN(Accent.AMBER), ERROR(Accent.RED);
+        /** News: cyan. */
+        INFO(Accent.BAR_TOP),
+        /** Something needs a look: amber. */
+        WARN(Accent.AMBER),
+        /** Something failed: red. */
+        ERROR(Accent.RED);
 
         private final int colour;
 
@@ -44,6 +50,7 @@ public final class AccentToast {
             this.colour = colour;
         }
 
+        /** The colour of the strip on the toast's left edge (ARGB). */
         public int colour() {
             return colour;
         }
@@ -69,6 +76,7 @@ public final class AccentToast {
         show(title, detail, kind, now, DEFAULT_MILLIS);
     }
 
+    /** Hides the toast now. */
     public void hide() {
         millis = 0;
     }

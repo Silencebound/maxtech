@@ -62,6 +62,7 @@ Api changes are marked **Api**.
   a controller that still lists one as a module drops it.
 
 ### Changed
+- Needs MaxTech Lib 0.15 (the Accent widgets moved to Lib's api); screens look and work as before.
 - The logic controller, logic remote and logic admin screens use the Accent Frame look like every other Storage
   screen; the controller's label, status and power priority moved to the device side tabs.
 - With the same pattern in several providers or crafters, the highest pattern priority gets its batches first and

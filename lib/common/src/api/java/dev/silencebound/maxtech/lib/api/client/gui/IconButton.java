@@ -1,5 +1,6 @@
-package dev.silencebound.maxtech.lib.client.gui.accent;
+package dev.silencebound.maxtech.lib.api.client.gui;
 
+import org.jetbrains.annotations.ApiStatus;
 import java.util.List;
 import java.util.function.BooleanSupplier;
 import java.util.function.IntFunction;
@@ -23,6 +24,7 @@ import org.jspecify.annotations.Nullable;
  * The tooltip text is built only when the shown state (the state index, and on or off for a toggle) changes, or after
  * {@link #refreshTooltip} when it depends on something else. Client thread only.
  */
+@ApiStatus.Experimental
 public final class IconButton extends AbstractButton {
     /** The default edge length. */
     public static final int SIZE = 16;
@@ -30,6 +32,7 @@ public final class IconButton extends AbstractButton {
     /** What a click on a cycle button does: {@code forward} is true for a left click, false for a right click. */
     @FunctionalInterface
     public interface Stepper {
+        /** Moves to the next state, or the previous one when {@code forward} is false. */
         void step(boolean forward);
     }
 

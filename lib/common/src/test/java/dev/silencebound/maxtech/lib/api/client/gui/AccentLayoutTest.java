@@ -1,23 +1,11 @@
-package dev.silencebound.maxtech.lib.client;
+package dev.silencebound.maxtech.lib.api.client.gui;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import dev.silencebound.maxtech.lib.client.gui.LayoutCheck;
-import dev.silencebound.maxtech.lib.client.gui.accent.AccentButton;
-import dev.silencebound.maxtech.lib.client.gui.accent.AccentInset;
-import dev.silencebound.maxtech.lib.client.gui.accent.AccentPanel;
-import dev.silencebound.maxtech.lib.client.gui.accent.AccentReadout;
-import dev.silencebound.maxtech.lib.client.gui.accent.AccentRow;
-import dev.silencebound.maxtech.lib.client.gui.accent.AccentStatus;
-import dev.silencebound.maxtech.lib.client.gui.accent.AccentTabRow;
-import dev.silencebound.maxtech.lib.client.gui.accent.AccentTag;
-import dev.silencebound.maxtech.lib.client.gui.accent.AccentToast;
-import dev.silencebound.maxtech.lib.client.gui.accent.ScrollBar;
 import dev.silencebound.maxtech.lib.client.gui.accent.SideTabs;
 import dev.silencebound.maxtech.lib.client.gui.accent.SideTabs.Rect;
-import dev.silencebound.maxtech.lib.text.TextFit;
 import java.util.List;
 import java.util.function.ToIntFunction;
 import net.minecraft.network.chat.Component;

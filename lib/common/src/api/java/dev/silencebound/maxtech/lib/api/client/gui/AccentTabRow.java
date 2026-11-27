@@ -1,6 +1,6 @@
-package dev.silencebound.maxtech.lib.client.gui.accent;
+package dev.silencebound.maxtech.lib.api.client.gui;
 
-import dev.silencebound.maxtech.lib.client.gui.TextScale;
+import org.jetbrains.annotations.ApiStatus;
 import java.util.List;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -9,12 +9,13 @@ import net.minecraft.client.gui.GuiGraphicsExtractor;
  * A row of text tabs in the Accent look, for switching a screen's pages or views: each tab is a compact button face
  * ({@link AccentButton#COMPACT_HEIGHT} high) as wide as its text, the active one lit, the one under the mouse edged,
  * and optionally a count badge (errors on a log tab). The screen asks {@link #tabAt} on a click and calls
- * {@link #setActive}. Side tabs on a device panel are {@link SideTabs}, not this.
+ * {@link #setActive}. Side tabs on a device panel are Lib's internal side tabs, not this.
  *
  * <p>
  * Mutable (the active tab); lay a new one out when the screen resizes or a count changes, so drawing allocates nothing.
  * Client only for drawing; the static layout math is plain arithmetic.
  */
+@ApiStatus.Experimental
 public final class AccentTabRow {
     /** Room between a tab's edge and its text. */
     public static final int PAD = 4;
@@ -38,6 +39,7 @@ public final class AccentTabRow {
      *            the badge's fill (ARGB)
      */
     public record Tab(String label, int count, int badge) {
+        /** A tab with no badge. */
         public static Tab text(String label) {
             return new Tab(label, 0, Accent.RED);
         }
@@ -119,10 +121,12 @@ public final class AccentTabRow {
         return indexAt(xs, widths, px);
     }
 
+    /** The index of the active tab. */
     public int active() {
         return active;
     }
 
+    /** Makes tab {@code active} the active one, kept within the tabs. */
     public void setActive(int active) {
         this.active = Math.clamp(active, 0, Math.max(0, tabs.size() - 1));
     }

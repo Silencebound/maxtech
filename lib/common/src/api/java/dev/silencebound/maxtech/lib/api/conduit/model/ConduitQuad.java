@@ -25,10 +25,11 @@ import org.jspecify.annotations.Nullable;
  * @param sprite
  *            a sprite of a custom conduit model, by its atlas id (e.g. {@code farms:block/tube_glass}), drawn instead
  *            of {@code texture}; it must be one its model hook lists in {@code sprites()}, or the model fails when it
- *            bakes the quad. Null for one of {@code texture}'s, as all of Lib's quads are. Lib 0.14.0.
+ *            bakes the quad. Lib's own quads name only their look's sprites this way (a shell's glass). Null for one of
+ *            {@code texture}'s. Lib 0.14.0.
  * @param uv
  *            which part of the sprite the face shows and how it is turned; null for the whole sprite unturned, as all
- *            of Lib's quads so far. Lib 0.14.0.
+ *            of Lib's quads except a shell's glass. Lib 0.14.0.
  */
 @ApiStatus.Experimental
 public record ConduitQuad(AABB box, Direction facing, ConduitTexture texture, int argb, boolean culled,

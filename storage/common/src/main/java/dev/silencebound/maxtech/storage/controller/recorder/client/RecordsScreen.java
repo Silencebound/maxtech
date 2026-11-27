@@ -4,7 +4,7 @@ import dev.silencebound.maxtech.storage.MaxtechStorage;
 import dev.silencebound.maxtech.storage.controller.recorder.RecordTexts;
 import dev.silencebound.maxtech.storage.crafting.request.RequestContent;
 import dev.silencebound.maxtech.storage.terminal.TerminalMenu;
-import dev.silencebound.maxtech.lib.client.gui.accent.AccentButton;
+import dev.silencebound.maxtech.lib.api.client.gui.AccentButton;
 import dev.silencebound.maxtech.storage.terminal.client.TerminalScreen;
 import dev.silencebound.maxtech.storage.terminal.client.TerminalSubScreen;
 import dev.silencebound.maxtech.storage.terminal.client.TerminalTab;

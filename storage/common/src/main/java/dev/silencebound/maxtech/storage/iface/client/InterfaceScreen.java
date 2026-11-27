@@ -1,6 +1,6 @@
 package dev.silencebound.maxtech.storage.iface.client;
 
-import dev.silencebound.maxtech.lib.client.gui.TextScale;
+import dev.silencebound.maxtech.lib.api.client.gui.TextScale;
 import dev.silencebound.maxtech.storage.devicetab.client.DeviceScreen;
 import dev.silencebound.maxtech.lib.client.gui.ScreenComponents;
 import dev.silencebound.maxtech.storage.iface.InterfaceContent;

@@ -1,10 +1,10 @@
 package dev.silencebound.maxtech.storage.devicetab.client;
 
-import dev.silencebound.maxtech.lib.client.gui.TextScale;
-import dev.silencebound.maxtech.lib.client.gui.accent.Accent;
-import dev.silencebound.maxtech.lib.client.gui.accent.AccentButton;
-import dev.silencebound.maxtech.lib.client.gui.accent.Icon;
-import dev.silencebound.maxtech.lib.client.gui.accent.IconButton;
+import dev.silencebound.maxtech.lib.api.client.gui.TextScale;
+import dev.silencebound.maxtech.lib.api.client.gui.Accent;
+import dev.silencebound.maxtech.lib.api.client.gui.AccentButton;
+import dev.silencebound.maxtech.lib.api.client.gui.Icon;
+import dev.silencebound.maxtech.lib.api.client.gui.IconButton;
 import dev.silencebound.maxtech.lib.client.gui.accent.SideTabs;
 import dev.silencebound.maxtech.lib.platform.Platform;
 import dev.silencebound.maxtech.storage.label.LabelContent;

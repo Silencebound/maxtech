@@ -2,8 +2,8 @@ package dev.silencebound.maxtech.lib.api.schedule;
 
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import java.util.function.IntSupplier;
-import org.jetbrains.annotations.ApiStatus;
 import java.util.function.LongSupplier;
+import org.jetbrains.annotations.ApiStatus;
 
 /**
  * The budgeted work queue of one level (PRD 7.2, Performance): {@link TaskGroup}s with their own budgets, a hashed

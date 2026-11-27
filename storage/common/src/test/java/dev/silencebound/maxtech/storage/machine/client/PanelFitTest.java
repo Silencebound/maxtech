@@ -3,8 +3,8 @@ package dev.silencebound.maxtech.storage.machine.client;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import dev.silencebound.maxtech.lib.client.gui.LayoutCheck;
-import dev.silencebound.maxtech.lib.client.gui.LayoutCheck.Box;
+import dev.silencebound.maxtech.lib.api.client.gui.LayoutCheck;
+import dev.silencebound.maxtech.lib.api.client.gui.LayoutCheck.Box;
 import dev.silencebound.maxtech.storage.board.BoardMenu;
 import dev.silencebound.maxtech.storage.bulk.BulkDriveMenu;
 import dev.silencebound.maxtech.storage.storageblock.StorageBlockMenu;

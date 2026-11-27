@@ -1,7 +1,7 @@
 package dev.silencebound.maxtech.storage.condition.client;
 
-import dev.silencebound.maxtech.lib.client.gui.accent.AccentButton;
-import dev.silencebound.maxtech.lib.client.gui.TextScale;
+import dev.silencebound.maxtech.lib.api.client.gui.AccentButton;
+import dev.silencebound.maxtech.lib.api.client.gui.TextScale;
 import dev.silencebound.maxtech.storage.label.client.LabelTab;
 import dev.silencebound.maxtech.lib.info.InfoFormat;
 import dev.silencebound.maxtech.storage.condition.ConditionMenu;

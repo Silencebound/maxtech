@@ -1,6 +1,6 @@
 package dev.silencebound.maxtech.storage.logic.controller.client;
 
-import dev.silencebound.maxtech.lib.client.gui.TextScale;
+import dev.silencebound.maxtech.lib.api.client.gui.TextScale;
 import dev.silencebound.maxtech.storage.palette.StatusPalette;
 import dev.silencebound.maxtech.lib.info.InfoFormat;
 import dev.silencebound.maxtech.storage.logic.ForEach;
