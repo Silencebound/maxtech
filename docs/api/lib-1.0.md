@@ -45,8 +45,11 @@ Labels: **stable** = frozen at 1.0, a breaking change needs a Lib major bump. **
 | `ConduitView`, `ConduitHost` | The conduit in a block: type, colour, side masks, face modes, state, facade and render value; plus setting block faces, face modes and the render value, refreshing links and syncing (server only). The render value (Lib 0.14.0) is an addon-defined `int` its client model reads; it is saved and synced only when it changes. | experimental |
 | `ConduitEntry`, `ConduitWrenchHook`, `ConduitConnectionRule` | A registered conduit's type, block and item; the builder's hooks for a wrench and for which neighbouring conduits a conduit links with. | experimental |
 | **`lib.api.conduit.model`** | Conduit model geometry for an addon's own conduit model (FM1): quads before baking and Lib's own parts. | experimental |
-| `ConduitQuad`, `ConduitTexture`, `ConduitLayer` | One face of a model part in pixels; its sprite; its chunk layer (from the sprite, or forced translucent or cutout). Moved from `lib.client.conduit`. | experimental |
+| `ConduitQuad`, `ConduitTexture`, `ConduitLayer` | One face of a model part in pixels; its sprite (one of Lib's, or a custom model hook's by atlas id, Lib 0.14.0); its chunk layer (from the sprite, or forced translucent or cutout). Moved from `lib.client.conduit`. | experimental |
 | `ConduitBodyKey`, `ConduitParts` | What a conduit body looks like (type, dye, arm and ring masks, render value; the 4-argument constructor gives render value 0); Lib's default body and face quads, which ignore the render value. | experimental |
+| **`lib.neoforge.api.client.conduit`** | NeoForge-side client api (jar `maxtech_lib-neoforge-api`, Lib 0.14.0, FM1): custom models for conduits marked `Conduits.Builder.customModel(translucent)`. | experimental |
+| `ConduitModelHook` | An addon's model of one conduit: its sprites (resolved at bake time) and the body and face quads per key, Lib's own by default; called lazily on meshing threads. | experimental |
+| `RegisterConduitModelsEvent` | Client mod-bus event, fired once at startup: `register(ConduitEntry, hook)`. A marked conduit without a hook or a hook for an unmarked one stops the client. | experimental |
 | **`lib.api.energy`** | MaxTech energy (MLE): MU amounts and the FE rate, producer, consumer and buffer endpoints, networks with one sleeping pass per tick, per-level schedulers, edges to other mods' FE blocks with export settings (`EnergyEdge`, `EdgeSettings`, Lib 0.11.0), diagnostics (`EnergyNetwork.readout()`, `EnergyReadout`, the endpoint capability `EnergyNetworks.ENDPOINT_CAPABILITY`, Lib 0.12.0). Added in Lib 0.10.0; experimental until Storage's switch-over proves it. | experimental |
 | **`lib.api.guide`** | What stays of Lib's guide, retired in Lib 0.13.0 (MGM item 3; GuideME draws guides now): config values by path. `Guides`, `GuideElements`, `GuideColumns`, `GuideLiveValues` and `GuideScreens` are removed. | experimental |
 | `GuideConfigValues` | A mod's config values by dotted path, for a guide's `<Config>` tag (Storage's GuideME extension). | experimental |
@@ -121,8 +124,8 @@ Not supported:
 
 - Subclassing Lib's conduit block or block entity, now or later. Behaviour changes go through the builder's hooks
   (`ConduitWrenchHook`, `ConduitConnectionRule`); the conduit in the world is a `ConduitView` or `ConduitHost`.
-- Custom conduit models. Every conduit is drawn by Lib's conduit model from its `ConduitLook`, whose only kind is
-  `solid`; model hooks are planned for a later Lib minor.
+- Replacing Lib's conduit model. A conduit marked `customModel` supplies its own quads through a `ConduitModelHook`
+  (NeoForge api jar), but Lib's model still picks the parts, caches them and draws facades.
 - Lib's content builder (`lib.content`) and conduit classes (`lib.conduit`) stay internal; Storage still uses them.
 
 `ConduitType`, `ConduitTypes`, `ConduitFaceMode` and `ConduitState` stay stable. The addon entry points and the moved

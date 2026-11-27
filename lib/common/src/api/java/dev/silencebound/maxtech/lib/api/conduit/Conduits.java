@@ -132,6 +132,8 @@ public final class Conduits {
         private Optional<ConduitLook> look = Optional.empty();
         private ConduitWrenchHook wrench = ConduitWrenchHook.NONE;
         private ConduitConnectionRule connectionRule = ConduitConnectionRule.ANY;
+        private boolean customModel;
+        private boolean translucent;
 
         private Builder(String modId, String name, Function<Supplier<ItemLike>, T> type) {
             this.modId = modId;
@@ -172,9 +174,28 @@ public final class Conduits {
             return this;
         }
 
+        /**
+         * Has the addon's client draw the conduit's body and faces itself, through a {@code ConduitModelHook} it
+         * registers in {@code RegisterConduitModelsEvent} (both in the NeoForge-side api jar
+         * {@code maxtech_lib-neoforge-api}). The block state file must still name Lib's conduit model, so set a
+         * {@link #look look} as well (or ship that file); facades work as for any conduit. {@code translucent} says the
+         * hook draws translucent quads, which block outlines and moving (piston) blocks need to know; it does not pick
+         * a quad's chunk layer, which each quad's own layer does. A client that has the conduit but no hook for it
+         * fails at startup.
+         * <p>
+         * Experimental (Lib 0.14.0, for Farms, FM1).
+         */
+        @ApiStatus.Experimental
+        public Builder<T> customModel(boolean translucent) {
+            this.customModel = true;
+            this.translucent = translucent;
+            return this;
+        }
+
         /** Queues the type, block and item for registration and returns their entries. */
         public ConduitEntry<T> register() {
-            return factory.register(new Registration<>(modId, name, type, creativeTab, look, wrench, connectionRule));
+            return factory.register(new Registration<>(modId, name, type, creativeTab, look, wrench, connectionRule,
+                    customModel, translucent));
         }
     }
 
@@ -197,11 +218,15 @@ public final class Conduits {
      *            the wrench hook
      * @param connectionRule
      *            the connection rule
+     * @param customModel
+     *            whether an addon hook draws the model ({@link Builder#customModel})
+     * @param translucent
+     *            whether that model has translucent quads
      */
     @ApiStatus.Internal
     public record Registration<T extends ConduitType>(String modId, String name, Function<Supplier<ItemLike>, T> type,
             Optional<ResourceKey<CreativeModeTab>> creativeTab, Optional<ConduitLook> look, ConduitWrenchHook wrench,
-            ConduitConnectionRule connectionRule) {
+            ConduitConnectionRule connectionRule, boolean customModel, boolean translucent) {
     }
 
     /** Lib's side of {@link Conduits}. */

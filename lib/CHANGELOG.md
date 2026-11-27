@@ -11,6 +11,12 @@ Api changes are marked **Api**.
   facade tint extension was registered with no blocks, which NeoForge refuses.
 
 ### Added
+- **Api** Custom conduit models (experimental, for Farms FM1): `Conduits.Builder.customModel(translucent)` marks a
+  conduit whose client model comes from an addon's `ConduitModelHook`, registered in the client mod-bus event
+  `RegisterConduitModelsEvent` (both in the NeoForge-side api jar, `lib.neoforge.api.client.conduit`). The hook names
+  its sprites and supplies body and face quads per key (Lib's own by default); Lib caches the baked parts and still
+  draws facades. A marked conduit without a hook, or a hook for an unmarked one, stops the client at startup.
+  `ConduitQuad` gains a `sprite` (one of the hook's) and `ConduitQuad.ofSprite`.
 - **Api** Addon conduits (`lib.api.conduit`, experimental, for Farms FM1): `Conduits.builder(modId, name, type)`
   registers a conduit type with Lib's conduit block and item (the shared `maxtech_lib:conduit` block entity, dyes and
   facades included), with a look, a creative tab, a wrench hook (`ConduitWrenchHook`) and a connection rule

@@ -1,5 +1,6 @@
 package dev.silencebound.maxtech.lib.neoforge.gametest;
 
+import dev.silencebound.maxtech.lib.api.conduit.ConduitConnections;
 import dev.silencebound.maxtech.lib.api.conduit.ConduitEntry;
 import dev.silencebound.maxtech.lib.api.conduit.ConduitFaceMode;
 import dev.silencebound.maxtech.lib.api.conduit.ConduitHost;
@@ -86,6 +87,14 @@ public final class ConduitApiGameTests {
             .builder(MOD_ID, "test_api_conduit_loot", item -> new ConduitType(NETWORK_ID, "loot", 0x55AA55, item))
             .register();
 
+    /**
+     * Drawn by an addon model hook, as a translucent glass tube whose contents show the render value as a colour
+     * ({@link GlassTubeDemoClient}, client only); the dev client's check of custom conduit models.
+     */
+    static final ConduitEntry<ConduitType> GLASS_TUBE = Conduits
+            .builder(MOD_ID, "test_glass_tube", item -> new ConduitType(NETWORK_ID, "glass", 0xDDEEFF, 0.375F, item))
+            .look(ConduitLook.DEFAULT).customModel(true).creativeTab(CreativeModeTabs.REDSTONE_BLOCKS).register();
+
     private static final Registrar<Consumer<GameTestHelper>> FUNCTIONS = Registrars.create(MOD_ID,
             Registries.TEST_FUNCTION);
     private static final List<String> TESTS = new ArrayList<>();
@@ -98,6 +107,7 @@ public final class ConduitApiGameTests {
         test("conduit_api_loot_table_wins", ConduitApiGameTests::lootTableWins);
         test("conduit_api_render_value_syncs", ConduitApiGameTests::renderValueSyncs);
         test("conduit_api_render_value_saved", ConduitApiGameTests::renderValueSaved);
+        test("conduit_api_custom_model_places", ConduitApiGameTests::customModelPlaces);
     }
 
     private ConduitApiGameTests() {
@@ -211,6 +221,27 @@ public final class ConduitApiGameTests {
         helper.assertItemEntityPresent(Items.STICK, pos, 2.0);
         helper.assertItemEntityNotPresent(LOOT_CONDUIT.item().get(), pos, 2.0);
         helper.succeed();
+    }
+
+    /**
+     * A conduit marked {@code customModel} is an ordinary conduit on the server: it registers, places, joins its
+     * network's links and keeps a render value. Its model hook is client-only and is not tested here.
+     */
+    private static void customModelPlaces(GameTestHelper helper) {
+        BlockPos pos = new BlockPos(1, 0, 1);
+        BlockPos next = new BlockPos(2, 0, 1);
+        ConduitType type = GLASS_TUBE.type().get();
+        helper.assertTrue(Conduits.blockOf(type).filter(block -> block.equals(GLASS_TUBE.block().get())).isPresent(),
+                "the glass tube type has no block");
+        helper.assertTrue(Conduits.place(helper.getLevel(), helper.absolutePos(pos), type), "glass tube not placed");
+        helper.assertTrue(Conduits.place(helper.getLevel(), helper.absolutePos(next), type), "second tube not placed");
+        helper.assertBlockPresent(GLASS_TUBE.block().get(), pos);
+        ConduitHost host = host(helper, pos);
+        host.setRenderValue(0x3F76E4);
+        helper.assertValueEqual(0x3F76E4, host.renderValue(), "render value of a glass tube");
+        helper.succeedWhen(
+                () -> helper.assertTrue(ConduitConnections.isConnected(host(helper, pos).connections(), Direction.EAST),
+                        "the glass tubes did not link"));
     }
 
     /**
