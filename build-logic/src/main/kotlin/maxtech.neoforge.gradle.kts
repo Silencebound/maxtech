@@ -1,4 +1,6 @@
+import dev.silencebound.maxtech.gradle.CheckApiJavadoc
 import dev.silencebound.maxtech.gradle.MaxtechNeoForgeExtension
+import dev.silencebound.maxtech.gradle.hasNeoForgeApi
 import dev.silencebound.maxtech.gradle.maxtechModId
 import dev.silencebound.maxtech.gradle.modGroupName
 import dev.silencebound.maxtech.gradle.runDirectory
@@ -31,9 +33,74 @@ dependencies {
     "gametestImplementation"(sourceSets.main.get().output)
 }
 
+// A NeoForge-side public api (hasNeoForgeApi, Lib only so far): types an addon needs that name NeoForge or client
+// classes, which common's api cannot. It compiles against the mod's common api and NeoForge only, never against common
+// main or this project's main, so a use of the mod's internals fails to compile (checkCommonImports does not run here).
+// Main, GameTests and unit tests see it; it is part of the mod jar and of dev runs, and is also built as its own jar.
+val neoforgeApi = if (hasNeoForgeApi) sourceSets.create("api") else null
+
+if (neoforgeApi != null) {
+    dependencies {
+        neoforgeApi.compileOnlyConfigurationName(project(common.path, "modApi"))
+        // compileOnly like common: at dev runtime the api is part of the mod's folders (MaxtechNeoForgeExtension).
+        compileOnly(neoforgeApi.output)
+        testImplementation(neoforgeApi.output)
+    }
+
+    // Same Javadoc rules as common's api (maxtech.common).
+    tasks.named<JavaCompile>(neoforgeApi.compileJavaTaskName) {
+        options.compilerArgs.addAll(listOf("-Xdoclint:all/protected", "-Xdoclint:-missing"))
+    }
+
+    val checkApiJavadoc = tasks.register<CheckApiJavadoc>("checkApiJavadoc") {
+        projectDir = layout.projectDirectory
+        sources.from(neoforgeApi.java)
+        marker = layout.buildDirectory.file("checkApiJavadoc/ok")
+    }
+
+    tasks.check {
+        dependsOn(checkApiJavadoc)
+    }
+
+    val apiJar = tasks.register<Jar>("apiJar") {
+        group = "build"
+        description = "Assembles the $modId-neoforge-api jar."
+        archiveBaseName = "$modId-neoforge-api"
+        from(neoforgeApi.output)
+    }
+
+    val apiSourcesJar = tasks.register<Jar>("apiSourcesJar") {
+        group = "build"
+        archiveBaseName = "$modId-neoforge-api"
+        archiveClassifier = "sources"
+        from(neoforgeApi.allSource)
+    }
+
+    tasks.assemble {
+        dependsOn(apiJar)
+    }
+
+    // Addons compile against this next to common's api: compileOnly(project(":<mod>:neoforge", "modApi")).
+    configurations.consumable("modApi") {
+        outgoing.artifact(apiJar)
+    }
+
+    pluginManager.apply("maven-publish")
+    extensions.configure<PublishingExtension> {
+        publications.register<MavenPublication>("api") {
+            // The shared group of the published APIs (maxtech.common).
+            groupId = "dev.silencebound.maxtech"
+            artifactId = "$modId-neoforge-api"
+            artifact(apiJar)
+            artifact(apiSourcesJar)
+        }
+    }
+}
+
 neoForge {
     version = libs.findVersion("neoforge").get().requiredVersion
     addModdingDependenciesTo(gametest)
+    neoforgeApi?.let { addModdingDependenciesTo(it) }
 
     runs {
         register("client") {
@@ -78,12 +145,14 @@ neoForge {
 // Every other mod builds on Lib, so every run loads it and every neoforge project compiles against Lib's
 // loader glue (datagen helpers, the Platform implementation's lookups). compileOnly: at dev runtime lib/neoforge is
 // loaded as the Lib mod, and in a pack it is Lib's jar.
-// A mod on Lib's api only compiles against the api jar instead, so a use of Lib's internals fails to compile.
+// A mod on Lib's api only compiles against the api jars instead, so a use of Lib's internals fails to compile; its
+// neoforge project also sees Lib's NeoForge-side api, its common project does not (maxtech.common).
 if (modGroupName != "lib") {
     maxtech.loadMod(":lib")
     dependencies {
         if (usesLibApiOnly) {
             compileOnly(project(":lib:common", "modApi"))
+            compileOnly(project(":lib:neoforge", "modApi"))
         } else {
             compileOnly(project(":lib:neoforge"))
         }
@@ -110,11 +179,13 @@ val licenseFiles = rootProject.files("LICENSE", "COPYING", "COPYING.LESSER")
 
 tasks.jar {
     from(maxtech.sourceSetsOf(common).map { it.output })
+    neoforgeApi?.let { from(it.output) }
     from(licenseFiles) { into("META-INF") }
 }
 
 tasks.named<Jar>("sourcesJar") {
     from(maxtech.sourceSetsOf(common).map { it.allSource })
+    neoforgeApi?.let { from(it.allSource) }
 }
 
 val versionProperties = mapOf(
