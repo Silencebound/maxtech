@@ -14,6 +14,7 @@ import dev.silencebound.maxtech.lib.api.menu.ProgressValue;
 import dev.silencebound.maxtech.lib.api.menu.TankValue;
 import io.netty.buffer.Unpooled;
 import java.lang.management.ManagementFactory;
+import java.util.Optional;
 import net.minecraft.core.RegistryAccess;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.ByteBufCodecs;
@@ -44,9 +45,11 @@ class MenuValueTableTest {
     private static final EnumValue<Mode> MODE = BUILDER.enumValue(Mode.class, h -> h.mode);
     private static final EnergyValue ENERGY = BUILDER.energy(h -> h.stored, h -> h.capacity);
     private static final ProgressValue PROGRESS = BUILDER.progress(h -> h.done, h -> h.total);
-    private static final TankValue TANK = BUILDER.tank(h -> h.fluid, ByteBufCodecs.STRING_UTF8, "", h -> h.amount,
-            h -> h.tankCapacity);
+    private static final TankValue TANK = BUILDER.tank(h -> Optional.empty(), h -> h.amount, h -> h.tankCapacity);
     private static final MenuValues<Host> VALUES = BUILDER.build();
+    /** The tank holds the host's string instead of a fluid. */
+    private static final MenuLayout<Host> LAYOUT = MenuLayout.withTankContent(VALUES, TANK, h -> h.fluid,
+            ByteBufCodecs.STRING_UTF8, "");
 
     private static RegistryFriendlyByteBuf buffer() {
         return new RegistryFriendlyByteBuf(Unpooled.buffer(), RegistryAccess.EMPTY);
@@ -57,6 +60,7 @@ class MenuValueTableTest {
         server.collect(host);
         RegistryFriendlyByteBuf buf = buffer();
         server.encode(buf);
+        server.clearMarks();
         int size = buf.writerIndex();
         client.apply(buf);
         assertEquals(0, buf.readableBytes(), "whole body read");
@@ -81,8 +85,8 @@ class MenuValueTableTest {
     @Test
     void everyKindRoundTrips() {
         Host host = full();
-        MenuValueTable<Host> server = new MenuValueTable<>(VALUES);
-        MenuValueTable<Host> client = new MenuValueTable<>(VALUES);
+        MenuValueTable<Host> server = new MenuValueTable<>(LAYOUT);
+        MenuValueTable<Host> client = new MenuValueTable<>(LAYOUT);
         server.markAll();
         sync(server, host, client);
         assertEquals(-12345, client.get(COUNT));
@@ -101,8 +105,8 @@ class MenuValueTableTest {
     @Test
     void onlyChangedValuesTravel() {
         Host host = full();
-        MenuValueTable<Host> server = new MenuValueTable<>(VALUES);
-        MenuValueTable<Host> client = new MenuValueTable<>(VALUES);
+        MenuValueTable<Host> server = new MenuValueTable<>(LAYOUT);
+        MenuValueTable<Host> client = new MenuValueTable<>(LAYOUT);
         server.markAll();
         int first = sync(server, host, client);
 
@@ -111,14 +115,16 @@ class MenuValueTableTest {
         assertTrue(server.collect(host));
         RegistryFriendlyByteBuf buf = buffer();
         server.encode(buf);
-        assertFalse(server.dirty(), "encoding clears the marks");
+        assertTrue(server.dirty(), "marks stay until the payload is sent");
+        server.clearMarks();
+        assertFalse(server.dirty());
         assertEquals(1L << ENERGY.index(), buf.readVarLong(), "mask names only the energy");
         assertEquals(3_000_000_001L, buf.readVarLong());
         assertEquals(Long.MAX_VALUE, buf.readVarLong(), "capacity travels with stored");
         assertEquals(0, buf.readableBytes());
 
         // A fresh client given only this change keeps its zeros elsewhere.
-        MenuValueTable<Host> late = new MenuValueTable<>(VALUES);
+        MenuValueTable<Host> late = new MenuValueTable<>(LAYOUT);
         host.count = 7;
         int second = sync(server, host, late);
         assertEquals(7, late.get(COUNT));
@@ -129,7 +135,7 @@ class MenuValueTableTest {
 
     @Test
     void firstSyncCarriesValuesEqualToTheDefaults() {
-        MenuValueTable<Host> server = new MenuValueTable<>(VALUES);
+        MenuValueTable<Host> server = new MenuValueTable<>(LAYOUT);
         assertFalse(server.collect(new Host()), "all getters return the initial values");
         server.markAll();
         RegistryFriendlyByteBuf buf = buffer();
@@ -164,7 +170,7 @@ class MenuValueTableTest {
         RegistryFriendlyByteBuf buf = buffer();
         buf.writeVarLong(1L << MODE.index());
         buf.writeVarInt(9);
-        MenuValueTable<Host> client = new MenuValueTable<>(VALUES);
+        MenuValueTable<Host> client = new MenuValueTable<>(LAYOUT);
         client.apply(buf);
         assertEquals(Mode.FAST, client.get(MODE));
         buf = buffer();
@@ -184,6 +190,13 @@ class MenuValueTableTest {
     }
 
     @Test
+    void fluidReadOfAnotherTankIsRefused() {
+        MenuValueTable<Host> table = new MenuValueTable<>(LAYOUT);
+        assertThrows(IllegalArgumentException.class, () -> table.fluid(TANK), "tank holds a string");
+        assertEquals("", table.content(TANK));
+    }
+
+    @Test
     void builderIsSingleUse() {
         MenuValues.Builder<Host> builder = MenuValues.builder();
         builder.build();
@@ -195,9 +208,9 @@ class MenuValueTableTest {
     void idleCollectAllocatesNothing() {
         com.sun.management.ThreadMXBean threads = (com.sun.management.ThreadMXBean) ManagementFactory.getThreadMXBean();
         Host host = full();
-        MenuValueTable<Host> server = new MenuValueTable<>(VALUES);
+        MenuValueTable<Host> server = new MenuValueTable<>(LAYOUT);
         server.collect(host);
-        server.encode(buffer());
+        server.clearMarks();
         for (int i = 0; i < 20_000; i++) {
             server.collect(host);
         }

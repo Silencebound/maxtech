@@ -47,7 +47,8 @@ import net.neoforged.neoforge.event.RegisterGameTestsEvent;
  */
 @EventBusSubscriber(modid = MaxtechLib.MOD_ID)
 public final class MenuValuesGameTests {
-    private static final String[] NAMES = {"menu_values_mirror_follows_server", "menu_values_idle_sends_nothing"};
+    private static final String[] NAMES = {"menu_values_mirror_follows_server", "menu_values_idle_sends_nothing",
+            "menu_values_equal_fluid_sends_nothing", "menu_values_resync_sends_all", "menu_values_frozen_level_syncs"};
     private static final RegistryHelper.Registrar<Consumer<GameTestHelper>> FUNCTIONS = Platform.get().registry()
             .registrar(MaxtechLib.MOD_ID, Registries.TEST_FUNCTION);
     private static final int TICKS = 30;
@@ -61,9 +62,20 @@ public final class MenuValuesGameTests {
     private static final TankValue TANK = BUILDER.tank(h -> h.fluid, h -> h.amount, h -> h.tankCapacity);
     private static final MenuValues<Host> VALUES = BUILDER.build();
 
+    /** A tank whose getter builds a new but equal fluid key with components on every read. */
+    private static final MenuValues.Builder<Host> FRESH_BUILDER = MenuValues.builder();
+    private static final TankValue FRESH_TANK = FRESH_BUILDER.tank(
+            h -> Optional.of(FluidKey.of(Fluids.LAVA,
+                    DataComponentPatch.builder().set(DataComponents.CUSTOM_NAME, Component.literal("Hot")).build())),
+            h -> h.amount, h -> h.tankCapacity);
+    private static final MenuValues<Host> FRESH_VALUES = FRESH_BUILDER.build();
+
     static {
         FUNCTIONS.register(NAMES[0], () -> MenuValuesGameTests::mirrorFollowsServer);
         FUNCTIONS.register(NAMES[1], () -> MenuValuesGameTests::idleSendsNothing);
+        FUNCTIONS.register(NAMES[2], () -> MenuValuesGameTests::equalFluidSendsNothing);
+        FUNCTIONS.register(NAMES[3], () -> MenuValuesGameTests::resyncSendsAll);
+        FUNCTIONS.register(NAMES[4], () -> MenuValuesGameTests::frozenLevelSyncs);
     }
 
     private MenuValuesGameTests() {
@@ -236,5 +248,91 @@ public final class MenuValuesGameTests {
                 helper.succeed();
             }
         });
+    }
+
+    /** Only the tank getter runs, and it returns a new but equal fluid key each tick: one payload, then none. */
+    private static void equalFluidSendsNothing(GameTestHelper helper) {
+        Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+        TestMenu server = new TestMenu(4, player, FRESH_VALUES, new Host());
+        List<MenuValuesPayload> sent = new ArrayList<>();
+        server.sendValuesTo(sent::add);
+        int[] ticks = new int[1];
+        helper.onEachTick(() -> {
+            ticks[0]++;
+            if (ticks[0] <= 20) {
+                server.broadcastChanges();
+                helper.assertValueEqual(sent.size(), 1, "payloads by tick " + ticks[0]);
+            } else if (ticks[0] == 21) {
+                TestMenu client = new TestMenu(4, player, FRESH_VALUES);
+                MenuValuesPayload.apply(overTheWire(helper, sent.getFirst()), client,
+                        helper.getLevel().registryAccess());
+                helper.assertValueEqual(client.values().fluid(FRESH_TANK), server.values().fluid(FRESH_TANK),
+                        "fluid with components");
+                helper.succeed();
+            }
+        });
+    }
+
+    /** After idle ticks, a resync ({@code sendAllDataToRemote}) sends every value again in the next payload. */
+    private static void resyncSendsAll(GameTestHelper helper) {
+        Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+        Host host = new Host();
+        host.count = 7;
+        host.stored = 1234;
+        host.fluid = Optional.of(FluidKey.of(Fluids.WATER));
+        host.amount = 1000;
+        TestMenu server = new TestMenu(8, player, VALUES, host);
+        List<MenuValuesPayload> sent = new ArrayList<>();
+        server.sendValuesTo(sent::add);
+        int[] ticks = new int[1];
+        helper.onEachTick(() -> {
+            ticks[0]++;
+            int t = ticks[0];
+            if (t <= 5) {
+                server.broadcastChanges();
+                helper.assertValueEqual(sent.size(), 1, "first payload, then idle");
+            } else if (t == 6) {
+                sent.clear();
+                server.sendAllDataToRemote();
+                server.broadcastChanges();
+                helper.assertValueEqual(sent.size(), 1, "resync payload");
+                TestMenu client = new TestMenu(8, player, VALUES);
+                MenuValuesPayload.apply(overTheWire(helper, sent.getFirst()), client,
+                        helper.getLevel().registryAccess());
+                assertSame(helper, server.values(), client.values());
+                helper.assertValueEqual(client.values().get(COUNT), 7, "unchanged int resent");
+                server.broadcastChanges();
+            } else if (t == 7) {
+                server.broadcastChanges();
+                helper.assertValueEqual(sent.size(), 1, "idle after the resync");
+                helper.succeed();
+            }
+        });
+    }
+
+    /**
+     * Under {@code /tick freeze} the level's time stands while the server still ticks players, which broadcast their
+     * menus. Several server ticks within one level tick each send their change.
+     */
+    private static void frozenLevelSyncs(GameTestHelper helper) {
+        Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+        Host host = new Host();
+        TestMenu server = new TestMenu(9, player, VALUES, host);
+        TestMenu client = new TestMenu(9, player, VALUES);
+        List<MenuValuesPayload> sent = new ArrayList<>();
+        server.sendValuesTo(sent::add);
+        long[] serverTicks = new long[1];
+        server.countTicksWith(() -> serverTicks[0]);
+        for (int t = 1; t <= 5; t++) {
+            serverTicks[0]++;
+            host.count = t;
+            server.broadcastChanges();
+            helper.assertValueEqual(sent.size(), t, "payloads after server tick " + t);
+        }
+        for (MenuValuesPayload payload : sent) {
+            MenuValuesPayload.apply(overTheWire(helper, payload), client, helper.getLevel().registryAccess());
+        }
+        helper.assertValueEqual(client.values().get(COUNT), 5, "last count");
+        helper.succeed();
     }
 }

@@ -4,11 +4,10 @@ import dev.silencebound.maxtech.lib.api.resource.FluidKey;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.ToIntFunction;
 import java.util.function.ToLongFunction;
-import net.minecraft.network.RegistryFriendlyByteBuf;
-import net.minecraft.network.codec.StreamCodec;
 import org.jetbrains.annotations.ApiStatus;
 
 /**
@@ -31,52 +30,10 @@ import org.jetbrains.annotations.ApiStatus;
  *            the server-side object the getters read
  */
 public final class MenuValues<H> {
-    /** What a value is; decides its fields and its encoding. */
-    @ApiStatus.Internal
-    public enum Kind {
-        /** One int field. */
-        INT,
-        /** One long field. */
-        LONG,
-        /** One int field holding the ordinal. */
-        ENUM,
-        /** Two long fields: stored, capacity. */
-        ENERGY,
-        /** Two long fields: current, total. */
-        PROGRESS,
-        /** One object field (the content) and two long fields: amount, capacity. */
-        TANK
-    }
-
-    private final Kind[] kinds;
-    private final int[] firstInt;
-    private final int[] firstLong;
-    private final int[] firstObject;
-    private final Enum<?>[][] enumConstants;
-    private final List<ToIntFunction<? super H>> intReaders;
-    private final List<ToLongFunction<? super H>> longReaders;
-    private final List<Function<? super H, ?>> objectReaders;
-    private final List<StreamCodec<? super RegistryFriendlyByteBuf, Object>> objectCodecs;
-    private final List<Object> objectInitials;
+    private final List<Consumer<Reader<H>>> values;
 
     private MenuValues(Builder<H> builder) {
-        int size = builder.kinds.size();
-        kinds = builder.kinds.toArray(new Kind[0]);
-        firstInt = new int[size];
-        firstLong = new int[size];
-        firstObject = new int[size];
-        enumConstants = new Enum<?>[size][];
-        for (int i = 0; i < size; i++) {
-            firstInt[i] = builder.firstInt.get(i);
-            firstLong[i] = builder.firstLong.get(i);
-            firstObject[i] = builder.firstObject.get(i);
-            enumConstants[i] = builder.enumConstants.get(i);
-        }
-        intReaders = List.copyOf(builder.intReaders);
-        longReaders = List.copyOf(builder.longReaders);
-        objectReaders = List.copyOf(builder.objectReaders);
-        objectCodecs = List.copyOf(builder.objectCodecs);
-        objectInitials = List.copyOf(builder.objectInitials);
+        values = List.copyOf(builder.values);
     }
 
     /** A new, empty declaration; values are added in the order they are sent. */
@@ -86,91 +43,41 @@ public final class MenuValues<H> {
 
     /** Number of declared values. */
     public int size() {
-        return kinds.length;
+        return values.size();
     }
 
-    /** Kind of value {@code index}. */
+    /** Hands every value to {@code reader} in declaration order; Lib's menu lays out its fields from this. */
     @ApiStatus.Internal
-    public Kind kind(int index) {
-        return kinds[index];
+    public void read(Reader<H> reader) {
+        for (Consumer<Reader<H>> value : values) {
+            value.accept(reader);
+        }
     }
 
-    /** First int field of value {@code index}; ints hold {@code INT} values and {@code ENUM} ordinals. */
+    /**
+     * What a declaration is made of, one call per value in declaration order. Lib's menu implements it to lay out its
+     * fields; addons have no use for it. Called on the thread that calls {@link #read}.
+     */
     @ApiStatus.Internal
-    public int firstInt(int index) {
-        return firstInt[index];
-    }
+    public interface Reader<H> {
+        /** An int value and its getter. */
+        void intValue(IntValue handle, ToIntFunction<? super H> getter);
 
-    /** First long field of value {@code index}: one for {@code LONG}, two for energy, progress and tanks. */
-    @ApiStatus.Internal
-    public int firstLong(int index) {
-        return firstLong[index];
-    }
+        /** A long value and its getter. */
+        void longValue(LongValue handle, ToLongFunction<? super H> getter);
 
-    /** Object field of value {@code index}: a tank's fluid. */
-    @ApiStatus.Internal
-    public int firstObject(int index) {
-        return firstObject[index];
-    }
+        /** An enum value: the enum's constants (not to be changed) and a getter of the current ordinal. */
+        void enumValue(EnumValue<?> handle, Enum<?>[] constants, ToIntFunction<? super H> ordinal);
 
-    /** Number of int fields over all values. */
-    @ApiStatus.Internal
-    public int intFields() {
-        return intReaders.size();
-    }
+        /** An energy value: getters of stored and capacity. */
+        void energy(EnergyValue handle, ToLongFunction<? super H> stored, ToLongFunction<? super H> capacity);
 
-    /** Number of long fields over all values. */
-    @ApiStatus.Internal
-    public int longFields() {
-        return longReaders.size();
-    }
+        /** A progress value: getters of current and total. */
+        void progress(ProgressValue handle, ToLongFunction<? super H> current, ToLongFunction<? super H> total);
 
-    /** Number of object fields over all values. */
-    @ApiStatus.Internal
-    public int objectFields() {
-        return objectReaders.size();
-    }
-
-    /** Getter of int field {@code field}. */
-    @ApiStatus.Internal
-    public ToIntFunction<? super H> intReader(int field) {
-        return intReaders.get(field);
-    }
-
-    /** Getter of long field {@code field}. */
-    @ApiStatus.Internal
-    public ToLongFunction<? super H> longReader(int field) {
-        return longReaders.get(field);
-    }
-
-    /** Getter of object field {@code field}; never returns null. */
-    @ApiStatus.Internal
-    public Function<? super H, ?> objectReader(int field) {
-        return objectReaders.get(field);
-    }
-
-    /** Codec of object field {@code field}. */
-    @ApiStatus.Internal
-    public StreamCodec<? super RegistryFriendlyByteBuf, Object> objectCodec(int field) {
-        return objectCodecs.get(field);
-    }
-
-    /** What an object field holds before anything was read or received. */
-    @ApiStatus.Internal
-    public Object objectInitial(int field) {
-        return objectInitials.get(field);
-    }
-
-    /** Number of constants of the {@code ENUM} value {@code index}. */
-    @ApiStatus.Internal
-    public int enumCount(int index) {
-        return enumConstants[index].length;
-    }
-
-    /** The constant of {@code ENUM} value {@code index} at {@code ordinal}, which must be in range. */
-    @ApiStatus.Internal
-    public Enum<?> enumConstant(int index, int ordinal) {
-        return enumConstants[index][ordinal];
+        /** A fluid tank: getters of the fluid (never null), amount and capacity. */
+        void tank(TankValue handle, Function<? super H, Optional<FluidKey>> fluid, ToLongFunction<? super H> amount,
+                ToLongFunction<? super H> capacity);
     }
 
     /**
@@ -179,18 +86,7 @@ public final class MenuValues<H> {
      * {@link IllegalStateException}. Not thread-safe; declare during class initialisation.
      */
     public static final class Builder<H> {
-        private static final Enum<?>[] NO_CONSTANTS = new Enum<?>[0];
-
-        private final List<Kind> kinds = new ArrayList<>();
-        private final List<Integer> firstInt = new ArrayList<>();
-        private final List<Integer> firstLong = new ArrayList<>();
-        private final List<Integer> firstObject = new ArrayList<>();
-        private final List<Enum<?>[]> enumConstants = new ArrayList<>();
-        private final List<ToIntFunction<? super H>> intReaders = new ArrayList<>();
-        private final List<ToLongFunction<? super H>> longReaders = new ArrayList<>();
-        private final List<Function<? super H, ?>> objectReaders = new ArrayList<>();
-        private final List<StreamCodec<? super RegistryFriendlyByteBuf, Object>> objectCodecs = new ArrayList<>();
-        private final List<Object> objectInitials = new ArrayList<>();
+        private final List<Consumer<Reader<H>>> values = new ArrayList<>();
         private boolean built;
 
         private Builder() {
@@ -198,16 +94,16 @@ public final class MenuValues<H> {
 
         /** An int, sent as a var-int. */
         public IntValue intValue(ToIntFunction<? super H> getter) {
-            int index = add(Kind.INT, NO_CONSTANTS);
-            intReaders.add(getter);
-            return new IntValue(index);
+            IntValue handle = new IntValue(next());
+            values.add(reader -> reader.intValue(handle, getter));
+            return handle;
         }
 
         /** A long, sent as a var-long. */
         public LongValue longValue(ToLongFunction<? super H> getter) {
-            int index = add(Kind.LONG, NO_CONSTANTS);
-            longReaders.add(getter);
-            return new LongValue(index);
+            LongValue handle = new LongValue(next());
+            values.add(reader -> reader.longValue(handle, getter));
+            return handle;
         }
 
         /**
@@ -219,48 +115,35 @@ public final class MenuValues<H> {
             if (constants.length == 0) {
                 throw new IllegalArgumentException("Enum without constants: " + type.getName());
             }
-            int index = add(Kind.ENUM, constants);
-            intReaders.add(host -> getter.apply(host).ordinal());
-            return new EnumValue<>(index);
+            EnumValue<E> handle = new EnumValue<>(next());
+            ToIntFunction<H> ordinal = host -> getter.apply(host).ordinal();
+            values.add(reader -> reader.enumValue(handle, constants, ordinal));
+            return handle;
         }
 
         /** Stored energy and capacity in MU. */
         public EnergyValue energy(ToLongFunction<? super H> stored, ToLongFunction<? super H> capacity) {
-            int index = add(Kind.ENERGY, NO_CONSTANTS);
-            longReaders.add(stored);
-            longReaders.add(capacity);
-            return new EnergyValue(index);
+            EnergyValue handle = new EnergyValue(next());
+            values.add(reader -> reader.energy(handle, stored, capacity));
+            return handle;
         }
 
         /** Work done and work in total, in the host's own unit (usually ticks). */
         public ProgressValue progress(ToLongFunction<? super H> current, ToLongFunction<? super H> total) {
-            int index = add(Kind.PROGRESS, NO_CONSTANTS);
-            longReaders.add(current);
-            longReaders.add(total);
-            return new ProgressValue(index);
-        }
-
-        /** A tank: its fluid with components (empty for none), amount and capacity in mB. */
-        public TankValue tank(Function<? super H, Optional<FluidKey>> fluid, ToLongFunction<? super H> amount,
-                ToLongFunction<? super H> capacity) {
-            return tank(fluid, FluidKey.OPTIONAL_STREAM_CODEC, Optional.empty(), amount, capacity);
+            ProgressValue handle = new ProgressValue(next());
+            values.add(reader -> reader.progress(handle, current, total));
+            return handle;
         }
 
         /**
-         * A tank whose content is any {@code O} with its own codec, for tests of the encoding that cannot build fluid
-         * keys (no registries in plain JUnit). A view's {@code fluid} read of such a tank fails.
+         * A tank: its fluid with components (empty for none; {@code fluid} must not return null), amount and capacity
+         * in mB.
          */
-        @ApiStatus.Internal
-        @SuppressWarnings("unchecked") // the codec only ever sees values from its own reader
-        public <O> TankValue tank(Function<? super H, O> content, StreamCodec<? super RegistryFriendlyByteBuf, O> codec,
-                O empty, ToLongFunction<? super H> amount, ToLongFunction<? super H> capacity) {
-            int index = add(Kind.TANK, NO_CONSTANTS);
-            objectReaders.add(content);
-            objectCodecs.add((StreamCodec<? super RegistryFriendlyByteBuf, Object>) (StreamCodec<?, ?>) codec);
-            objectInitials.add(empty);
-            longReaders.add(amount);
-            longReaders.add(capacity);
-            return new TankValue(index);
+        public TankValue tank(Function<? super H, Optional<FluidKey>> fluid, ToLongFunction<? super H> amount,
+                ToLongFunction<? super H> capacity) {
+            TankValue handle = new TankValue(next());
+            values.add(reader -> reader.tank(handle, fluid, amount, capacity));
+            return handle;
         }
 
         /** The declaration; call once, after every value. */
@@ -270,14 +153,9 @@ public final class MenuValues<H> {
             return new MenuValues<>(this);
         }
 
-        private int add(Kind kind, Enum<?>[] constants) {
+        private int next() {
             checkOpen();
-            kinds.add(kind);
-            firstInt.add(intReaders.size());
-            firstLong.add(longReaders.size());
-            firstObject.add(objectReaders.size());
-            enumConstants.add(constants);
-            return kinds.size() - 1;
+            return values.size();
         }
 
         private void checkOpen() {
