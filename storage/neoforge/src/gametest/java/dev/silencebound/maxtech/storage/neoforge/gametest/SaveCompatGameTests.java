@@ -229,8 +229,8 @@ public final class SaveCompatGameTests {
     }
 
     /**
-     * Cables never set Lib's render value, so neither their saved data nor their update tag carries the key: their
-     * saves and packets stay as they were before conduits had one.
+     * Cables never set Lib's render value or contents, so neither their saved data nor their update tag carries those
+     * keys: their saves and packets stay as they were before conduits had them.
      */
     private static void cableWithoutRenderValue(GameTestHelper helper) {
         BlockPos abs = helper.absolutePos(new BlockPos(1, 1, 1));
@@ -244,6 +244,8 @@ public final class SaveCompatGameTests {
         helper.assertTrue(saved.contains("face_modes") && update.contains("face_modes"), "not a conduit's data");
         helper.assertFalse(saved.contains("render_value"), "the cable saved a render value");
         helper.assertFalse(update.contains("render_value"), "the cable synced a render value");
+        helper.assertFalse(saved.contains("contents"), "the cable saved conduit contents");
+        helper.assertFalse(update.contains("contents"), "the cable synced conduit contents");
         helper.succeed();
     }
 

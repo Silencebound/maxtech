@@ -59,4 +59,10 @@ public interface ConduitView {
      * and hands it to the client model in the conduit's body key, but its own looks ignore it.
      */
     int renderValue();
+
+    /**
+     * What the conduit shows inside it, as its addon last set with {@link ConduitHost#setContents}, or
+     * {@link ConduitContents#EMPTY} until then. Saved and synced by Lib, so it reads the same on the client.
+     */
+    ConduitContents contents();
 }
