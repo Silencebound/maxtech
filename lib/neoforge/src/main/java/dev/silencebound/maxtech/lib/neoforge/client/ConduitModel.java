@@ -248,6 +248,10 @@ public final class ConduitModel implements DynamicBlockStateModel {
         Material.Baked material = material(face);
         Transparency transparency = ConduitLayers.transparency(face.layer(),
                 material.sprite().contents().transparency());
+        if (custom != null) {
+            ConduitLayers.requireDeclared(custom.translucent(), transparency, custom.block(),
+                    face.sprite() != null ? face.sprite() : face.texture());
+        }
         BakedQuad.MaterialInfo info = BakedQuad.MaterialInfo.of(material, transparency, -1, true, 0, true);
         AABB box = face.box();
         Vector3f from = new Vector3f((float) box.minX, (float) box.minY, (float) box.minZ);
