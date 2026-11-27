@@ -28,6 +28,13 @@ Api changes are marked **Api**.
   facade tint extension was registered with no blocks, which NeoForge refuses.
 
 ### Added
+- **Api** Inventories (`lib.api.inventory`, experimental, ADR-0016): `ItemSlots` with per-slot roles (input, output,
+  display), filters and limits, and `ResourceTank`/`FluidTank`, both journaled so transfers through their handlers
+  roll back with the transaction; `lib.neoforge.api.inventory.Handlers` gives the NeoForge handlers for capabilities.
+  Nothing saved is lost: stacks and tank contents of a removed mod are kept as unknown and saved back unchanged,
+  stacks for slots a machine no longer has are kept as overflow, and a tank keeps a saved amount over its capacity.
+  An item or fluid with a removed mod's component counts as unknown too, instead of loading without it.
+  `ItemSlots.dropContents` drops the slots and overflow when a block breaks (unknown contents vanish with it).
 - **Api** `Conduits.Builder.attachesToBlocks()` (experimental, for Farms FM1): the conduit's network logic gets
   `onNodeInvalidated` once whenever a block entity beside it appears, goes or is replaced, also when it arrives or
   leaves with its chunk, so addon conduits no longer need their attachable blocks to poke them. Other conduits are unchanged.
