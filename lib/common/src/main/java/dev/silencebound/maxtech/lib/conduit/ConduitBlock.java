@@ -4,6 +4,7 @@ import com.mojang.serialization.MapCodec;
 import dev.silencebound.maxtech.lib.api.conduit.ConduitFaceMode;
 import dev.silencebound.maxtech.lib.api.conduit.ConduitShapes;
 import dev.silencebound.maxtech.lib.api.conduit.ConduitType;
+import dev.silencebound.maxtech.lib.api.conduit.ConduitWrenchHook;
 import dev.silencebound.maxtech.lib.facade.Facades;
 import dev.silencebound.maxtech.lib.info.ConduitInfo;
 import java.util.ArrayList;
@@ -32,7 +33,10 @@ import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.properties.BooleanProperty;
 import net.minecraft.world.level.material.FluidState;
 import net.minecraft.world.level.redstone.Orientation;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.storage.loot.LootParams;
+import net.minecraft.world.level.storage.loot.LootTable;
 import net.minecraft.world.level.storage.loot.parameters.LootContextParams;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
@@ -57,11 +61,14 @@ public class ConduitBlock extends Block implements EntityBlock {
      */
     public static final BooleanProperty FACADE = BooleanProperty.create("facade");
 
-    // Filled on first use, after registration: conduit types register after blocks, so a block cannot know its type
-    // while blocks register.
+    // Filled on first use after registration: conduit types register after blocks, so a block cannot know its type
+    // while blocks register. An empty map is not kept, so a call before registration (mod construction) cannot fix it
+    // empty; a non-empty one is complete, since resolving any block's type needs the conduit types, which register
+    // after every block.
     private static volatile @Nullable Reference2ObjectOpenHashMap<ConduitType, ConduitBlock> byType;
 
     private final Supplier<? extends ConduitType> type;
+    private final ConduitHooks hooks;
     private final MapCodec<ConduitBlock> codec;
     private @Nullable VoxelShape bareShape;
 
@@ -70,9 +77,20 @@ public class ConduitBlock extends Block implements EntityBlock {
      *            resolved lazily, because conduit types register after blocks
      */
     public ConduitBlock(Properties properties, Supplier<? extends ConduitType> type) {
+        this(properties, type, ConduitHooks.NONE);
+    }
+
+    /**
+     * A block whose behaviour differs through {@code hooks} rather than a subclass, as addons' conduits do.
+     *
+     * @param type
+     *            resolved lazily, because conduit types register after blocks
+     */
+    public ConduitBlock(Properties properties, Supplier<? extends ConduitType> type, ConduitHooks hooks) {
         super(properties);
         this.type = type;
-        this.codec = simpleCodec(p -> new ConduitBlock(p, type));
+        this.hooks = hooks;
+        this.codec = simpleCodec(p -> new ConduitBlock(p, type, hooks));
         registerDefaultState(stateDefinition.any().setValue(FACADE, false));
     }
 
@@ -81,9 +99,14 @@ public class ConduitBlock extends Block implements EntityBlock {
         return type.get();
     }
 
+    /** This block's behaviour hooks; {@link ConduitHooks#NONE} unless an addon's builder set some. */
+    public ConduitHooks hooks() {
+        return hooks;
+    }
+
     /**
      * The block of {@code type}, or {@code null} if it has none (a type registered without the content builder). Any
-     * thread, after registration.
+     * thread, after registration; before it, every type has none.
      */
     public static @Nullable ConduitBlock of(ConduitType type) {
         Reference2ObjectOpenHashMap<ConduitType, ConduitBlock> blocks = byType;
@@ -94,7 +117,9 @@ public class ConduitBlock extends Block implements EntityBlock {
                     blocks.put(conduit.type(), conduit);
                 }
             }
-            byType = blocks;
+            if (!blocks.isEmpty()) {
+                byType = blocks;
+            }
         }
         return blocks.get(type);
     }
@@ -217,12 +242,18 @@ public class ConduitBlock extends Block implements EntityBlock {
 
     /**
      * Lets a conduit block subclass handle a wrench itself before {@link #useWrench} does (Storage's cable parts take a
-     * wrench on a part). Returns the result, or {@code null} (the default) to leave the wrench to the conduit. Called
-     * on both sides; only the server should change anything.
+     * wrench on a part). Returns the result, or {@code null} to leave the wrench to the conduit; by default asks the
+     * {@link ConduitHooks#wrench() wrench hook}, whose {@code PASS} means {@code null}. Called on both sides; only the
+     * server should change anything.
      */
     protected @Nullable InteractionResult wrench(Level level, BlockPos pos, Player player, BlockHitResult hit,
             boolean dismantle) {
-        return null;
+        if (hooks.wrench().equals(ConduitWrenchHook.NONE)
+                || !(level.getBlockEntity(pos) instanceof ConduitBlockEntity conduit)) {
+            return null;
+        }
+        InteractionResult result = hooks.wrench().onWrench(level, conduit, player, hit, dismantle);
+        return result.equals(InteractionResult.PASS) ? null : result;
     }
 
     /**
@@ -318,10 +349,14 @@ public class ConduitBlock extends Block implements EntityBlock {
         return bare;
     }
 
-    /** The loot table's drop (the conduit itself), plus the facade if there is one. */
+    /**
+     * The loot table's drop (the conduit itself), plus the facade if there is one. A conduit whose mod ships no loot
+     * table (an addon's, which writes its resources by hand) drops its own item instead, surviving an explosion as
+     * vanilla's {@code survives_explosion} would; a loot table the mod ships always wins.
+     */
     @Override
     protected List<ItemStack> getDrops(BlockState state, LootParams.Builder params) {
-        List<ItemStack> drops = super.getDrops(state, params);
+        List<ItemStack> drops = hasLootTable(params.getLevel()) ? super.getDrops(state, params) : ownDrop(params);
         BlockState facade = params.getOptionalParameter(
                 LootContextParams.BLOCK_ENTITY) instanceof ConduitBlockEntity conduit ? conduit.facade() : null;
         if (facade != null) {
@@ -330,6 +365,21 @@ public class ConduitBlock extends Block implements EntityBlock {
             return all;
         }
         return drops;
+    }
+
+    // getLootTable answers the EMPTY instance for a missing table; identity is what tells the two apart.
+    @SuppressWarnings("ReferenceEquality")
+    private boolean hasLootTable(ServerLevel level) {
+        ResourceKey<LootTable> key = getLootTable().orElse(null);
+        return key == null || level.getServer().reloadableRegistries().getLootTable(key) != LootTable.EMPTY;
+    }
+
+    private List<ItemStack> ownDrop(LootParams.Builder params) {
+        Float radius = params.getOptionalParameter(LootContextParams.EXPLOSION_RADIUS);
+        if (radius != null && params.getLevel().getRandom().nextFloat() > 1.0F / radius) {
+            return List.of();
+        }
+        return List.of(new ItemStack(type().item()));
     }
 
     /** A facaded conduit blocks light like the full, solid block it shows ({@link Facades#canMimic} demands one). */

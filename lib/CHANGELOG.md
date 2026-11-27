@@ -11,6 +11,14 @@ Api changes are marked **Api**.
   facade tint extension was registered with no blocks, which NeoForge refuses.
 
 ### Added
+- **Api** Addon conduits (`lib.api.conduit`, experimental, for Farms FM1): `Conduits.builder(modId, name, type)`
+  registers a conduit type with Lib's conduit block and item (the shared `maxtech_lib:conduit` block entity, dyes and
+  facades included), with a look, a creative tab, a wrench hook (`ConduitWrenchHook`) and a connection rule
+  (`ConduitConnectionRule`) instead of a block subclass. `Conduits.host` gives the conduit in the world as a
+  `ConduitHost` (a read-only `ConduitView` plus face, block-face and sync mutators); `blockOf`, `connectivity`,
+  `isChunkPresent`, `place` and `useWrench` cover network logic, tests and an addon's own wrench. With a look, Lib
+  supplies the conduit's block state file and item model definition from a built-in client pack (below the mods'
+  own resources); a conduit block whose mod ships no loot table drops its own item.
 - **Api** The pure conduit helpers are api (`lib.api.conduit`, experimental, for Farms FM1): `ConduitLook`,
   `ConduitShapes`, `ConduitConnections`, `ConduitFaceKey`, `ConduitColours` and `ConduitFaceModes` moved there from
   `lib.conduit` unchanged; `ConduitFaceModes.validateRegistered` stays Lib's (`@ApiStatus.Internal`).

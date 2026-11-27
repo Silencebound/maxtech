@@ -1,9 +1,11 @@
 package dev.silencebound.maxtech.lib.conduit;
 
 import com.mojang.logging.LogUtils;
+import dev.silencebound.maxtech.lib.api.conduit.ConduitConnectionRule;
 import dev.silencebound.maxtech.lib.api.conduit.ConduitConnections;
 import dev.silencebound.maxtech.lib.api.conduit.ConduitFaceMode;
 import dev.silencebound.maxtech.lib.api.conduit.ConduitFaceModes;
+import dev.silencebound.maxtech.lib.api.conduit.ConduitHost;
 import dev.silencebound.maxtech.lib.api.conduit.ConduitShapes;
 import dev.silencebound.maxtech.lib.api.conduit.ConduitState;
 import dev.silencebound.maxtech.lib.api.conduit.ConduitType;
@@ -11,6 +13,7 @@ import dev.silencebound.maxtech.lib.api.network.NetworkManager;
 import dev.silencebound.maxtech.lib.api.network.NetworkType;
 import dev.silencebound.maxtech.lib.api.network.NodeConnectivity;
 import dev.silencebound.maxtech.lib.registry.ModBlockEntities;
+import java.util.EnumMap;
 import java.util.EnumSet;
 import java.util.Objects;
 import java.util.Optional;
@@ -50,10 +53,10 @@ import org.slf4j.Logger;
  * The block entity of every conduit block (ADR-0012): one conduit, whose type comes from its {@link ConduitBlock}, its
  * colour, connection masks and face modes, its optional {@link ConduitState} and the facade covering it. Never ticks
  * (PRD 8.1): connection masks are recomputed when a neighbour changes or the conduit itself is edited, and clients get
- * the new state through the block update packet only when something changed.
+ * the new state through the block update packet only when something changed. Addons see it as a {@link ConduitHost}.
  */
 // Name clash: vanilla has ...level.block.entity.ConduitBlockEntity (the underwater beacon); this is not it.
-public final class ConduitBlockEntity extends BlockEntity {
+public final class ConduitBlockEntity extends BlockEntity implements ConduitHost {
     private static final Logger LOGGER = LogUtils.getLogger();
     private static final String STATE = "state";
     private static final String COLOUR = "colour";
@@ -67,15 +70,26 @@ public final class ConduitBlockEntity extends BlockEntity {
             .copyOf(EnumSet.of(ConduitFaceMode.BOTH, ConduitFaceMode.DISABLED));
     // Well below a pixel (1/16).
     private static final double HIT_INSET = 1.0E-4;
+    // ConduitView answers without allocating.
+    private static final EnumMap<DyeColor, Optional<DyeColor>> DYES = new EnumMap<>(DyeColor.class);
+
+    static {
+        for (DyeColor dye : DyeColor.values()) {
+            DYES.put(dye, Optional.of(dye));
+        }
+    }
 
     /** Model data key the conduit model reads its look from. */
     public static final ModelProperty<ConduitRenderData> RENDER_DATA = new ModelProperty<>();
     /** Model data key of a {@link SyncedConduitState}'s {@link SyncedConduitState#renderKey()}; absent for none. */
     public static final ModelProperty<Object> STATE_RENDER_DATA = new ModelProperty<>();
 
+    private final ConduitConnectionRule connectionRule;
     private ConduitData conduit;
+    private Optional<ConduitState> stateView = Optional.empty();
     /** The block this conduit is disguised as; render-only (CLAUDE.md, Scope). Saved and synced. */
     private @Nullable BlockState facade;
+    private Optional<BlockState> facadeView = Optional.empty();
     // Last render data seen by refreshModel, so updates that change nothing visible skip the re-mesh.
     private @Nullable ConduitRenderData renderData;
     private @Nullable Object stateRenderKey;
@@ -85,28 +99,78 @@ public final class ConduitBlockEntity extends BlockEntity {
 
     public ConduitBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlockEntities.CONDUIT.get(), pos, state);
-        ConduitType type = typeOf(state);
+        ConduitBlock block = blockOf(state);
+        this.connectionRule = block.hooks().connectionRule();
+        ConduitType type = block.type();
         this.conduit = new ConduitData(type, null, 0);
         this.shape = ConduitShapes.shape(type.thickness(), 0, 0);
         bindState();
     }
 
     private void bindState() {
+        stateView = Optional.ofNullable(conduit.state());
         if (conduit.state() instanceof SyncedConduitState synced) {
             synced.bind(this);
         }
     }
 
-    private static ConduitType typeOf(BlockState state) {
+    private static ConduitBlock blockOf(BlockState state) {
         if (!(state.getBlock() instanceof ConduitBlock block)) {
             throw new IllegalArgumentException("Not a conduit block: " + state);
         }
-        return block.type();
+        return block;
     }
 
     /** The conduit type, fixed by the block. */
+    @Override
     public ConduitType type() {
         return conduit.type();
+    }
+
+    @Override
+    public BlockPos pos() {
+        return worldPosition;
+    }
+
+    @Override
+    public Optional<DyeColor> dyeColour() {
+        DyeColor colour = conduit.colour();
+        return colour == null ? Optional.empty() : Objects.requireNonNull(DYES.get(colour));
+    }
+
+    @Override
+    public int connections() {
+        return conduit.connections();
+    }
+
+    @Override
+    public int conduitFaces() {
+        return conduit.conduitFaces();
+    }
+
+    @Override
+    public int blockFaces() {
+        return conduit.blockFaces();
+    }
+
+    @Override
+    public int faceModes() {
+        return conduit.faceModes();
+    }
+
+    @Override
+    public ConduitFaceMode faceMode(Direction side) {
+        return conduit.faceMode(side);
+    }
+
+    @Override
+    public Optional<ConduitState> findState() {
+        return stateView;
+    }
+
+    @Override
+    public Optional<BlockState> findFacade() {
+        return facadeView;
     }
 
     /** The conduit's state: colour, masks, face modes and decor. */
@@ -160,7 +224,7 @@ public final class ConduitBlockEntity extends BlockEntity {
                 }
                 continue;
             }
-            ConduitData other = linkable(conduit, level.getBlockEntity(neighbourPos));
+            ConduitData other = linkable(side, level.getBlockEntity(neighbourPos));
             if (other == null) {
                 conduitFaces &= ~bit;
                 mask &= ~bit;
@@ -198,13 +262,28 @@ public final class ConduitBlockEntity extends BlockEntity {
         }
     }
 
-    /** The conduit in {@code neighbour} that {@code conduit} could link with, ignoring face modes. */
-    private static @Nullable ConduitData linkable(ConduitData conduit, @Nullable BlockEntity neighbour) {
-        if (neighbour instanceof ConduitBlockEntity other && ConduitConnections.canConnect(conduit.type(),
-                conduit.colour(), other.conduit.type(), other.conduit.colour())) {
+    /**
+     * The conduit in {@code neighbour}, on {@code side}, that this one could link with, ignoring face modes: Lib's
+     * rules and both conduits' {@link ConduitConnectionRule}s allow it.
+     */
+    private @Nullable ConduitData linkable(Direction side, @Nullable BlockEntity neighbour) {
+        if (neighbour instanceof ConduitBlockEntity other
+                && ConduitConnections.canConnect(conduit.type(), conduit.colour(), other.conduit.type(),
+                        other.conduit.colour())
+                && connectionRule.canConnect(this, side, other)
+                && other.connectionRule.canConnect(other, side.getOpposite(), this)) {
             return other.conduit;
         }
         return null;
+    }
+
+    @Override
+    public void refreshConnections() {
+        if (level == null || level.isClientSide()) {
+            return;
+        }
+        updateConnections();
+        updateNeighbours();
     }
 
     /** Recomputes the connections of the loaded neighbouring conduits. Server only. */
@@ -227,6 +306,7 @@ public final class ConduitBlockEntity extends BlockEntity {
      * supported modes ({@link ConduitFaceModes#allowed}). Cutting or restoring a link is a topology change; any other
      * change only makes the network re-read the node. Returns whether the mode changed.
      */
+    @Override
     public boolean setFaceMode(Direction side, ConduitFaceMode mode) {
         if (level == null || level.isClientSide()) {
             return false;
@@ -255,6 +335,7 @@ public final class ConduitBlockEntity extends BlockEntity {
      * Sets the sides that face a block the conduit can transfer with, if the conduit joins {@code networkType}. Only
      * that network's logic calls this, on the server and outside capability invalidation. Syncs only on a change.
      */
+    @Override
     public void setBlockFaces(Identifier networkType, int blockFaces) {
         if (findNetwork(networkType) == null || conduit.blockFaces() == blockFaces || level == null
                 || level.isClientSide()) {
@@ -270,6 +351,7 @@ public final class ConduitBlockEntity extends BlockEntity {
      * faces): rebuilds the hit shape, saves, has the network re-read the node and sends the block entity to clients.
      * Server thread; does nothing on the client.
      */
+    @Override
     public void syncedStateChanged() {
         if (level == null || level.isClientSide()) {
             return;
@@ -293,6 +375,7 @@ public final class ConduitBlockEntity extends BlockEntity {
             return false;
         }
         this.facade = facade;
+        facadeView = Optional.ofNullable(facade);
         sync();
         return true;
     }
@@ -301,6 +384,7 @@ public final class ConduitBlockEntity extends BlockEntity {
      * Hit shape of the conduit: core, arms, stubs and rings at the type's thickness. Cached, safe from
      * {@code getShape}.
      */
+    @Override
     public VoxelShape shape() {
         return shape;
     }
@@ -309,6 +393,7 @@ public final class ConduitBlockEntity extends BlockEntity {
      * The face a use-item hit targets (ADR-0005): the side of the arm or stub that was hit, or, for a hit on the core,
      * the clicked side of the core. That keeps a disabled face reachable through its stub or the core.
      */
+    @Override
     public Direction faceAt(BlockHitResult hit) {
         Vec3 pixels = hit.getLocation().relative(hit.getDirection(), -HIT_INSET)
                 .subtract(worldPosition.getX(), worldPosition.getY(), worldPosition.getZ()).scale(16.0);
@@ -327,6 +412,11 @@ public final class ConduitBlockEntity extends BlockEntity {
                 : conduit.type().supportedFaceModes();
         ConduitFaceMode next = conduit.faceMode(side).next(modes);
         return setFaceMode(side, next) ? next : null;
+    }
+
+    @Override
+    public Optional<ConduitFaceMode> cycleFace(Direction side) {
+        return Optional.ofNullable(cycleFaceMode(side));
     }
 
     /**
@@ -443,6 +533,7 @@ public final class ConduitBlockEntity extends BlockEntity {
             synced.loadSynced(input.childOrEmpty(SYNCED));
         }
         facade = input.read(FACADE, BlockState.CODEC).orElse(null);
+        facadeView = Optional.ofNullable(facade);
         rebuildShape();
         refreshModel();
         if (live) {
