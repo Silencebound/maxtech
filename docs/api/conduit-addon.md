@@ -70,8 +70,25 @@ final class LabLogic implements NetworkLogic {
 - `NetworkManager.get(level)` gives the level's graphs: `network(type, pos)`, `graph(type)` and anchors.
 - `Conduits.place` places a conduit as a player would (useful in GameTests); `Conduits.useWrench` lets the addon's own
   wrench item act on conduits.
+- `.attachesToBlocks()` has the logic hear about block entities appearing beside the conduit (below).
 - Leave out `connectionRule` and `onWrench` when Lib's own handling is enough. A connection rule is asked when links are
   recomputed, never per tick; it must be cheap and must not change the world.
+
+## Attaching to blocks
+
+A conduit that works with the blocks beside it (a hub, a port) needs to know when one appears. With
+`.attachesToBlocks()` on the builder (Lib 0.15.0, experimental) Lib keeps track of the block entities on the conduit's
+six sides, other than conduits, and fires `NetworkLogic.onNodeInvalidated` for the conduit's node once for each change:
+a block entity placed, broken or replaced beside it, found when the chunk across a chunk border reaches full status,
+or gone when that chunk leaves full status (neither sends a neighbour update). A change in the same update as a link change gives one invalidation, not two. Lib
+compares block entity instances, so a neighbour that reloads with its chunk counts as replaced. The logic rescans the
+conduit's attachments in `onNodeInvalidated`, and in `onNodeAdded` for a conduit that was just placed or loaded.
+
+It costs nothing per tick: Lib reads the six neighbours only on neighbour updates and on chunks arriving or leaving.
+Not noticed are a block entity set or removed without a block change and changes inside a block entity, such as a
+container's contents. When scanning, skip sides where `Conduits.isChunkPresent` is false: reading a block there loads
+its chunk. A conduit without the
+opt-in ignores block entities, as Storage's cables do. `ConduitApiGameTests` (`conduit_api_attach_*`, `conduit_attach_*`) pins it.
 
 ## Files the addon ships
 

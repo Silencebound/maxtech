@@ -19,6 +19,9 @@ Api changes are marked **Api**.
   facade tint extension was registered with no blocks, which NeoForge refuses.
 
 ### Added
+- **Api** `Conduits.Builder.attachesToBlocks()` (experimental, for Farms FM1): the conduit's network logic gets
+  `onNodeInvalidated` once whenever a block entity beside it appears, goes or is replaced, also when it arrives or
+  leaves with its chunk, so addon conduits no longer need their attachable blocks to poke them. Other conduits are unchanged.
 - **Api** Resource kinds (`lib.api.resource`, experimental, ADR-0017): `ResourceKind`, the `ResourceKinds` registry
   with built-in item, fluid and energy kinds, `KindKey` with save and network codecs (one for keys clients send), and
   `UnknownResource`, which keeps the saved contents of a kind whose mod was removed. Nothing uses them yet.
