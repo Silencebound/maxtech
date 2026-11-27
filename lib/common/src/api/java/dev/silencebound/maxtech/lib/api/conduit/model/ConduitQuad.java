@@ -29,11 +29,35 @@ import org.jspecify.annotations.Nullable;
  *            {@code texture}'s. Lib 0.14.0.
  * @param uv
  *            which part of the sprite the face shows and how it is turned; null for the whole sprite unturned, as all
- *            of Lib's quads except a shell's glass. Lib 0.14.0.
+ *            of Lib's quads except a shell's glass and contents. Lib 0.14.0.
+ * @param lightEmission
+ *            the light level the quad is drawn at, at least, 0 to 15: 0 takes the light around the block as usual, 15
+ *            is full-bright. It lights only the quad, never the block or its neighbours. Lib's quads use it for a
+ *            glowing fluid's contents (lava's 15). Lib 0.14.0.
  */
 @ApiStatus.Experimental
 public record ConduitQuad(AABB box, Direction facing, ConduitTexture texture, int argb, boolean culled,
-        ConduitLayer layer, @Nullable Identifier sprite, @Nullable ConduitUv uv) {
+        ConduitLayer layer, @Nullable Identifier sprite, @Nullable ConduitUv uv, int lightEmission) {
+    /** The highest {@link #lightEmission}. */
+    public static final int MAX_LIGHT = 15;
+
+    /**
+     * Checks the light level.
+     *
+     * @throws IllegalArgumentException
+     *             when {@code lightEmission} is outside 0 to {@value #MAX_LIGHT}
+     */
+    public ConduitQuad {
+        if (lightEmission < 0 || lightEmission > MAX_LIGHT) {
+            throw new IllegalArgumentException("lightEmission must be 0 to " + MAX_LIGHT + ", was " + lightEmission);
+        }
+    }
+
+    /** A quad drawn in the light around the block. */
+    public ConduitQuad(AABB box, Direction facing, ConduitTexture texture, int argb, boolean culled, ConduitLayer layer,
+            @Nullable Identifier sprite, @Nullable ConduitUv uv) {
+        this(box, facing, texture, argb, culled, layer, sprite, uv, 0);
+    }
     /** A quad showing its whole sprite unturned. */
     public ConduitQuad(AABB box, Direction facing, ConduitTexture texture, int argb, boolean culled, ConduitLayer layer,
             @Nullable Identifier sprite) {
