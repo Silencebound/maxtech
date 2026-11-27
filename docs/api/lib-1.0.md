@@ -50,6 +50,9 @@ Labels: **stable** = frozen at 1.0, a breaking change needs a Lib major bump. **
 | **`lib.api.recipe`** | Item inputs and outputs shared by machine recipes, the recipe viewer layout and KubeJS. | stable |
 | `ItemInput` | Ingredient, count, consumed or catalyst; codecs. | stable |
 | `ItemOutput` | Output stack and chance in hundredths of a percent; codecs. | stable |
+| **`lib.api.registry`** | Registering a mod's game objects through Lib, for Farms (FM1). | experimental |
+| `Registrars` | Entry point: `create(modId, registry)`. | experimental |
+| `Registrar`, `RegistryEntry` | A deferred registrar and its entries (`id`, `key`, `holder`, `get`). Lib's `lib.platform` types extend them. | experimental |
 | **`lib.api.resource`** | Item and fluid keys with components, interned by networks. | stable |
 | `StackKey` | Sealed key type with codecs; `Kind`. | stable |
 | `ItemKey` | Item plus component patch, never air. | stable |

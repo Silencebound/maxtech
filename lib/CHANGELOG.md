@@ -7,6 +7,9 @@ Api changes are marked **Api**.
 ## [Unreleased]
 
 ### Added
+- **Api** Registration is api (`lib.api.registry`, experimental, for Farms FM1): `Registrars.create(modId, registry)`
+  gives a `Registrar` whose entries are `RegistryEntry`s. Lib's internal `RegistryHelper.Registrar` and
+  `RegistryEntry` now extend them, so existing callers are unchanged.
 - **Api** Config files with presets are api (`lib.api.config`, experimental, for Farms FM1): `ConfigBuilder`,
   `ConfigFile` and `ConfigType` moved there from `lib.platform`; `PresetConfig` is an interface, made with
   `Configs.presetConfig(modId, anchor)` (Lib's class is now the internal `LibPresetConfig`); `Configs.builder` and
