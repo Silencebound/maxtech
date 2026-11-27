@@ -1,6 +1,6 @@
 package dev.silencebound.maxtech.storage.cable;
 
-import dev.silencebound.maxtech.lib.conduit.ConduitColours;
+import dev.silencebound.maxtech.lib.api.conduit.ConduitColours;
 import net.minecraft.world.item.DyeColor;
 import org.jspecify.annotations.Nullable;
 

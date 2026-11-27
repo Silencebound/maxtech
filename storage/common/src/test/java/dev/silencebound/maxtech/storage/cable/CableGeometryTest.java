@@ -5,7 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
-import dev.silencebound.maxtech.lib.conduit.ConduitConnections;
+import dev.silencebound.maxtech.lib.api.conduit.ConduitConnections;
 import java.util.ArrayList;
 import java.util.List;
 import net.minecraft.core.Direction;

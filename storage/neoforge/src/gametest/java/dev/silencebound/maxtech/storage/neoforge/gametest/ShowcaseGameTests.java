@@ -4,7 +4,7 @@ import dev.silencebound.maxtech.lib.api.resource.ItemKey;
 import dev.silencebound.maxtech.lib.api.resource.StackKey;
 import dev.silencebound.maxtech.lib.conduit.ConduitBlock;
 import dev.silencebound.maxtech.lib.conduit.ConduitBlockEntity;
-import dev.silencebound.maxtech.lib.conduit.ConduitConnections;
+import dev.silencebound.maxtech.lib.api.conduit.ConduitConnections;
 import dev.silencebound.maxtech.lib.conduit.ConduitData;
 import dev.silencebound.maxtech.storage.MaxtechStorage;
 import dev.silencebound.maxtech.storage.api.StorageNetwork;

@@ -1,11 +1,11 @@
 package dev.silencebound.maxtech.lib.client.conduit;
 
+import dev.silencebound.maxtech.lib.api.conduit.ConduitColours;
+import dev.silencebound.maxtech.lib.api.conduit.ConduitConnections;
+import dev.silencebound.maxtech.lib.api.conduit.ConduitFaceKey;
+import dev.silencebound.maxtech.lib.api.conduit.ConduitLook;
+import dev.silencebound.maxtech.lib.api.conduit.ConduitShapes;
 import dev.silencebound.maxtech.lib.api.conduit.ConduitType;
-import dev.silencebound.maxtech.lib.conduit.ConduitColours;
-import dev.silencebound.maxtech.lib.conduit.ConduitConnections;
-import dev.silencebound.maxtech.lib.conduit.ConduitFaceKey;
-import dev.silencebound.maxtech.lib.conduit.ConduitLook;
-import dev.silencebound.maxtech.lib.conduit.ConduitShapes;
 import java.util.ArrayList;
 import java.util.List;
 import net.minecraft.core.Direction;

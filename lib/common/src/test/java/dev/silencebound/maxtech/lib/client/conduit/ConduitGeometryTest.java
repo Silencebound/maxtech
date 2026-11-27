@@ -4,12 +4,12 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import dev.silencebound.maxtech.lib.api.conduit.ConduitColours;
+import dev.silencebound.maxtech.lib.api.conduit.ConduitConnections;
+import dev.silencebound.maxtech.lib.api.conduit.ConduitFaceKey;
 import dev.silencebound.maxtech.lib.api.conduit.ConduitFaceMode;
+import dev.silencebound.maxtech.lib.api.conduit.ConduitLook;
 import dev.silencebound.maxtech.lib.api.conduit.ConduitType;
-import dev.silencebound.maxtech.lib.conduit.ConduitColours;
-import dev.silencebound.maxtech.lib.conduit.ConduitConnections;
-import dev.silencebound.maxtech.lib.conduit.ConduitFaceKey;
-import dev.silencebound.maxtech.lib.conduit.ConduitLook;
 import java.util.List;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.Identifier;

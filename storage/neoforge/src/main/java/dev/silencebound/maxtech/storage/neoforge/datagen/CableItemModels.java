@@ -1,8 +1,8 @@
 package dev.silencebound.maxtech.storage.neoforge.datagen;
 
 import com.mojang.math.Quadrant;
-import dev.silencebound.maxtech.lib.conduit.ConduitConnections;
-import dev.silencebound.maxtech.lib.conduit.ConduitShapes;
+import dev.silencebound.maxtech.lib.api.conduit.ConduitConnections;
+import dev.silencebound.maxtech.lib.api.conduit.ConduitShapes;
 import dev.silencebound.maxtech.lib.content.ConduitEntry;
 import dev.silencebound.maxtech.storage.MaxtechStorage;
 import dev.silencebound.maxtech.storage.cable.CableContent;

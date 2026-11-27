@@ -4,9 +4,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import dev.silencebound.maxtech.lib.api.conduit.ConduitConnections;
+import dev.silencebound.maxtech.lib.api.conduit.ConduitLook;
 import dev.silencebound.maxtech.lib.api.conduit.ConduitType;
-import dev.silencebound.maxtech.lib.conduit.ConduitConnections;
-import dev.silencebound.maxtech.lib.conduit.ConduitLook;
 import dev.silencebound.maxtech.lib.conduit.ConduitRenderData;
 import java.util.HashSet;
 import java.util.List;

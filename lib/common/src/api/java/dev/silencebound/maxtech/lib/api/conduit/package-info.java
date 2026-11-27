@@ -12,6 +12,9 @@
  * Other mods adding their own conduit types is not supported in Lib 1.0: the content builder and the network framework
  * a conduit needs to do anything are internal (ADR-0004), so a third-party type would join no network. This package
  * stays stable because Storage's cable parts rely on {@link dev.silencebound.maxtech.lib.api.conduit.ConduitState}.
+ * <p>
+ * The pure helpers (look, shapes, connections, face modes, colours; moved from {@code lib.conduit} in Lib 0.14.0 for
+ * Farms, FM1) are experimental, each marked {@code @ApiStatus.Experimental}; the types above stay stable.
  */
 @NullMarked
 package dev.silencebound.maxtech.lib.api.conduit;

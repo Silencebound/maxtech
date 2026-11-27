@@ -1,15 +1,17 @@
-package dev.silencebound.maxtech.lib.conduit;
+package dev.silencebound.maxtech.lib.api.conduit;
 
-import dev.silencebound.maxtech.lib.api.conduit.ConduitFaceMode;
-import dev.silencebound.maxtech.lib.api.conduit.ConduitType;
-import dev.silencebound.maxtech.lib.api.conduit.ConduitTypes;
 import java.util.Set;
 import net.minecraft.core.Direction;
+import org.jetbrains.annotations.ApiStatus;
 
 /**
  * Packs a conduit's six face modes into one {@code int}, two bits per side at {@code 2 * get3DDataValue()}, using
  * {@link ConduitFaceMode#id()} (ADR-0005). Pure functions, any thread.
+ * <p>
+ * Experimental (Lib 0.14.0, moved from {@code lib.conduit} for Farms, FM1) until Farms, its first addon user, settles
+ * it.
  */
+@ApiStatus.Experimental
 public final class ConduitFaceModes {
     private static final int BITS = 2;
     private static final int MODE_MASK = (1 << BITS) - 1;
@@ -35,10 +37,12 @@ public final class ConduitFaceModes {
         return packed;
     }
 
+    /** The mode of {@code side} in {@code packed}. */
     public static ConduitFaceMode get(int packed, Direction side) {
         return BY_ID[(packed >>> (BITS * side.get3DDataValue())) & MODE_MASK];
     }
 
+    /** {@code packed} with {@code side} set to {@code mode}. */
     public static int with(int packed, Direction side, ConduitFaceMode mode) {
         int shift = BITS * side.get3DDataValue();
         return (packed & ~(MODE_MASK << shift)) | (mode.id() << shift);
@@ -99,7 +103,8 @@ public final class ConduitFaceModes {
         }
     }
 
-    /** {@link #validate} for every registered conduit type; runs once at common setup. */
+    /** {@link #validate} for every registered conduit type; Lib runs it once at common setup. */
+    @ApiStatus.Internal
     public static void validateRegistered() {
         for (ConduitType type : ConduitTypes.registry()) {
             validate(type, ConduitTypes.idOf(type).toString());

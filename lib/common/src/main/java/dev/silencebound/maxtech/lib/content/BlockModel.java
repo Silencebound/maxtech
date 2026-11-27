@@ -1,6 +1,6 @@
 package dev.silencebound.maxtech.lib.content;
 
-import dev.silencebound.maxtech.lib.conduit.ConduitLook;
+import dev.silencebound.maxtech.lib.api.conduit.ConduitLook;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumMap;

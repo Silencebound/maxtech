@@ -1,6 +1,6 @@
 package dev.silencebound.maxtech.storage.cable;
 
-import dev.silencebound.maxtech.lib.conduit.ConduitLook;
+import dev.silencebound.maxtech.lib.api.conduit.ConduitLook;
 import dev.silencebound.maxtech.lib.conduit.ConduitItem;
 import dev.silencebound.maxtech.lib.content.ConduitBuilder;
 import dev.silencebound.maxtech.lib.content.ConduitEntry;
