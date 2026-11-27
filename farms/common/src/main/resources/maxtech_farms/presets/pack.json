@@ -1,2 +1,5 @@
 {
+  "hub.tankCapacity": 16000,
+  "hub.energyCapacity": 100000,
+  "hub.fuelMuPerTick": 20
 }
