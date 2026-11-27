@@ -54,9 +54,9 @@ public final class FarmsContent {
             (Identifier id) -> new SamplerItem(properties(id).stacksTo(1)));
 
     public static final RegistryEntry<Block, LabHubBlock> LAB_HUB = BLOCKS.register("lab_hub",
-            (Identifier id) -> new LabHubBlock(BlockBehaviour.Properties.of()
-                    .setId(ResourceKey.create(Registries.BLOCK, id)).mapColor(MapColor.METAL).strength(3.5F)
-                    .sound(SoundType.METAL).requiresCorrectToolForDrops()));
+            (Identifier id) -> new LabHubBlock(
+                    BlockBehaviour.Properties.of().setId(ResourceKey.create(Registries.BLOCK, id))
+                            .mapColor(MapColor.METAL).strength(3.5F).sound(SoundType.METAL)));
     public static final RegistryEntry<Item, BlockItem> LAB_HUB_ITEM = ITEMS.register("lab_hub",
             (Identifier id) -> new BlockItem(LAB_HUB.get(), properties(id).useBlockDescriptionPrefix()));
     public static final RegistryEntry<BlockEntityType<?>, BlockEntityType<LabHubBlockEntity>> LAB_HUB_ENTITY = BLOCK_ENTITIES

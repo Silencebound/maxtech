@@ -2,6 +2,7 @@ package dev.silencebound.maxtech.farms.hub;
 
 import com.mojang.serialization.MapCodec;
 import dev.silencebound.maxtech.farms.lab.LabNetwork;
+import dev.silencebound.maxtech.farms.sampler.SamplerItem;
 import java.util.List;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
@@ -19,15 +20,16 @@ import net.minecraft.world.level.storage.loot.parameters.LootContextParams;
 import net.minecraft.world.phys.BlockHitResult;
 // PLATFORM-LEAK: NeoForge's fluid transfer helper fills and empties buckets and canisters against the tank.
 import net.neoforged.neoforge.transfer.fluid.FluidUtil;
-// PLATFORM-LEAK: NeoForge's item transfer type for the fuel put in by hand.
+// PLATFORM-LEAK: NeoForge's item transfer type for the fuel and the sampler put in by hand.
 import net.neoforged.neoforge.transfer.item.ItemResource;
 // PLATFORM-LEAK: see above.
 import net.neoforged.neoforge.transfer.transaction.Transaction;
 
 /**
- * The lab hub block. Registers no ticker. Until the hub has a screen, a click with a fluid container fills or empties
- * the tank, a click with furnace fuel puts it in the fuel slot, and an empty hand shows the hub's state. Drops itself
- * with everything it holds, creative breaking included.
+ * The lab hub block. Registers no ticker. Until the hub has a screen, a click with a sampler puts it in the charging
+ * slot, a click with a fluid container fills or empties the tank (a lava bucket too), a click with furnace fuel puts it
+ * in the fuel slot, an empty hand shows the hub's state and an empty hand while sneaking takes the sampler out. Drops
+ * itself with everything it holds, creative breaking and explosions included.
  */
 public final class LabHubBlock extends Block implements EntityBlock {
     private static final MapCodec<LabHubBlock> CODEC = simpleCodec(LabHubBlock::new);
@@ -55,6 +57,15 @@ public final class LabHubBlock extends Block implements EntityBlock {
         if (level.isClientSide()) {
             return InteractionResult.SUCCESS;
         }
+        if (stack.getItem() instanceof SamplerItem) {
+            if (!hub.storage().sampler().getResource(0).isEmpty()) {
+                return InteractionResult.TRY_WITH_EMPTY_HAND;
+            }
+            // The sampler moves into the hub, in creative too: it is one tool, not a material.
+            hub.storage().sampler().set(0, ItemResource.of(stack), 1);
+            stack.shrink(1);
+            return InteractionResult.SUCCESS;
+        }
         if (FluidUtil.interactWithFluidHandler(player, hand, pos, hub.storage().tank(), null)) {
             return InteractionResult.SUCCESS;
         }
@@ -76,11 +87,23 @@ public final class LabHubBlock extends Block implements EntityBlock {
     @Override
     protected InteractionResult useWithoutItem(BlockState state, Level level, BlockPos pos, Player player,
             BlockHitResult hit) {
-        if (!level.isClientSide() && level.getBlockEntity(pos) instanceof LabHubBlockEntity hub) {
-            player.sendOverlayMessage(hub.labLink() == LabHubBlockEntity.LabLink.REFUSED
-                    ? Component.translatable("message.maxtech_farms.lab_hub.refused")
-                    : Component.translatable("message.maxtech_farms.lab_hub.status_line", status(hub), link(hub)));
+        if (level.isClientSide() || !(level.getBlockEntity(pos) instanceof LabHubBlockEntity hub)) {
+            return InteractionResult.SUCCESS;
         }
+        ItemResource sampler = hub.storage().sampler().getResource(0);
+        if (player.isSecondaryUseActive() && !sampler.isEmpty()) {
+            hub.storage().sampler().set(0, ItemResource.EMPTY, 0);
+            ItemStack taken = sampler.toStack(1);
+            if (player.getMainHandItem().isEmpty()) {
+                player.setItemInHand(InteractionHand.MAIN_HAND, taken);
+            } else if (!player.getInventory().add(taken)) {
+                player.drop(taken, false);
+            }
+            return InteractionResult.SUCCESS;
+        }
+        player.sendOverlayMessage(hub.labLink() == LabHubBlockEntity.LabLink.REFUSED
+                ? Component.translatable("message.maxtech_farms.lab_hub.refused")
+                : Component.translatable("message.maxtech_farms.lab_hub.status_line", status(hub), link(hub)));
         return InteractionResult.SUCCESS;
     }
 
@@ -89,9 +112,14 @@ public final class LabHubBlock extends Block implements EntityBlock {
         Component medium = fluid > 0
                 ? hub.storage().tank().getResource(0).toStack(1).getHoverName()
                 : Component.translatable("message.maxtech_farms.lab_hub.empty");
-        return Component.translatable("message.maxtech_farms.lab_hub.status", medium, fluid,
-                hub.storage().tank().getCapacityAsLong(0, hub.storage().tank().getResource(0)), hub.energy().stored(),
-                hub.energy().capacity());
+        long capacity = hub.storage().tank().getCapacityAsLong(0, hub.storage().tank().getResource(0));
+        ItemResource sampler = hub.storage().sampler().getResource(0);
+        if (sampler.isEmpty()) {
+            return Component.translatable("message.maxtech_farms.lab_hub.status", medium, fluid, capacity,
+                    hub.energy().stored(), hub.energy().capacity());
+        }
+        return Component.translatable("message.maxtech_farms.lab_hub.status_sampler", medium, fluid, capacity,
+                hub.energy().stored(), hub.energy().capacity(), SamplerItem.charge(sampler), SamplerItem.capacity());
     }
 
     private static Component link(LabHubBlockEntity hub) {

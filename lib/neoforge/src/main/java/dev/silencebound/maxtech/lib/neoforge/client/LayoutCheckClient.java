@@ -2,7 +2,7 @@ package dev.silencebound.maxtech.lib.neoforge.client;
 
 import com.mojang.logging.LogUtils;
 import dev.silencebound.maxtech.lib.MaxtechLib;
-import dev.silencebound.maxtech.lib.client.gui.LayoutCheck;
+import dev.silencebound.maxtech.lib.api.client.gui.LayoutCheck;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;

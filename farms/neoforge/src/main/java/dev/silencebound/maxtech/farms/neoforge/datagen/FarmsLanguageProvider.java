@@ -24,6 +24,9 @@ final class FarmsLanguageProvider extends LanguageProvider {
         add("maxtech_farms.configuration.hub.fuelMuPerTick", "Fuel energy (MU per burn tick)");
         add("maxtech_farms.configuration.hub.fuelMuPerTick.tooltip",
                 "MU the lab hub's fuel slot makes per tick of furnace burn time.");
+        add("maxtech_farms.configuration.hub.samplerChargeMuPerTick", "Sampler charging (MU per tick)");
+        add("maxtech_farms.configuration.hub.samplerChargeMuPerTick.tooltip",
+                "MU per tick the lab hub moves from its store into its sampler.");
         add("maxtech_farms.configuration.hub.tankCapacity", "Tank capacity (mB)");
         add("maxtech_farms.configuration.hub.tankCapacity.tooltip", "Nutrient the lab hub's tank holds, in mB.");
         add("maxtech_farms.configuration.preset", "Preset");
@@ -41,6 +44,7 @@ final class FarmsLanguageProvider extends LanguageProvider {
         add("message.maxtech_farms.lab_hub.refused",
                 "Inactive: another lab hub runs this lab network. This hub still burns fuel into its own MU store");
         add("message.maxtech_farms.lab_hub.status", "%s: %s / %s mB, energy %s / %s MU");
+        add("message.maxtech_farms.lab_hub.status_sampler", "%s: %s / %s mB, energy %s / %s MU, sampler %s / %s MU");
         add("message.maxtech_farms.lab_hub.status_line", "%s | %s");
         add("message.maxtech_farms.lab_hub.tubes", "%s lab tubes, %s fluid ports");
         add("message.maxtech_farms.sampler.boss", "Bosses can't be sampled");

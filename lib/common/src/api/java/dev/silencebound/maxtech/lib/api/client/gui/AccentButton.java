@@ -1,8 +1,8 @@
-package dev.silencebound.maxtech.lib.client.gui.accent;
+package dev.silencebound.maxtech.lib.api.client.gui;
 
+import org.jetbrains.annotations.ApiStatus;
 import java.util.function.IntFunction;
 import java.util.function.IntSupplier;
-import dev.silencebound.maxtech.lib.client.gui.TextScale;
 import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
@@ -27,6 +27,7 @@ import org.jspecify.annotations.Nullable;
  * ({@link #setTooltip}, or {@link #tooltip(IntSupplier, IntFunction)} for one that follows a state). A right click runs
  * {@link #onRightClick} when one is set (step buttons that go back). Client thread only.
  */
+@ApiStatus.Experimental
 public class AccentButton extends AbstractButton {
     /** The normal height. */
     public static final int HEIGHT = 16;
@@ -49,6 +50,7 @@ public class AccentButton extends AbstractButton {
     /** Whether it has a tooltip of its own, so a cut label does not add its own. */
     private boolean explained;
 
+    /** A button that runs {@code action} when pressed. */
     public AccentButton(int x, int y, int width, int height, Component label, Runnable action) {
         super(x, y, width, height, label);
         this.action = input -> action.run();

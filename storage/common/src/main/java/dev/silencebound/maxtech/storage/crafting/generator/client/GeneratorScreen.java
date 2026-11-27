@@ -6,7 +6,7 @@ import dev.silencebound.maxtech.lib.client.gui.accent.SideTabs;
 import dev.silencebound.maxtech.storage.devicetab.client.DeviceScreen;
 import net.minecraft.network.chat.CommonComponents;
 import dev.silencebound.maxtech.storage.machine.client.MenuClick;
-import dev.silencebound.maxtech.lib.client.gui.TextScale;
+import dev.silencebound.maxtech.lib.api.client.gui.TextScale;
 import dev.silencebound.maxtech.storage.crafting.generator.GeneratorContent;
 import dev.silencebound.maxtech.storage.crafting.generator.GeneratorMenu;
 import dev.silencebound.maxtech.storage.crafting.provider.StuckReason;

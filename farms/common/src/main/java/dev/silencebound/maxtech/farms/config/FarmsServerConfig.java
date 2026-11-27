@@ -28,6 +28,7 @@ public final class FarmsServerConfig {
     private static final IntSupplier HUB_TANK_CAPACITY;
     private static final LongSupplier HUB_ENERGY_CAPACITY;
     private static final LongSupplier HUB_FUEL_MU_PER_TICK;
+    private static final LongSupplier HUB_SAMPLER_CHARGE_MU_PER_TICK;
 
     private static volatile @Nullable ConfigFile file;
 
@@ -45,6 +46,9 @@ public final class FarmsServerConfig {
                 CONFIG.longDefault("hub.energyCapacity"), 1L, 1L << 40);
         HUB_FUEL_MU_PER_TICK = BUILDER.comment("MU the lab hub's fuel slot makes per tick of furnace burn time.")
                 .defineInRange("fuelMuPerTick", CONFIG.longDefault("hub.fuelMuPerTick"), 0L, 1L << 20);
+        HUB_SAMPLER_CHARGE_MU_PER_TICK = BUILDER
+                .comment("MU per tick the lab hub moves from its store into its sampler.").defineInRange(
+                        "samplerChargeMuPerTick", CONFIG.longDefault("hub.samplerChargeMuPerTick"), 0L, 1L << 20);
         BUILDER.pop();
     }
 
@@ -82,6 +86,14 @@ public final class FarmsServerConfig {
     /** MU per burn tick of the hub's fuel slot ({@code hub.fuelMuPerTick}); the preset default while none is loaded. */
     public static long hubFuelMuPerTick() {
         return loadedOr(HUB_FUEL_MU_PER_TICK, "hub.fuelMuPerTick");
+    }
+
+    /**
+     * MU per tick the hub charges its sampler with ({@code hub.samplerChargeMuPerTick}); the preset default while none
+     * is loaded.
+     */
+    public static long hubSamplerChargeMuPerTick() {
+        return loadedOr(HUB_SAMPLER_CHARGE_MU_PER_TICK, "hub.samplerChargeMuPerTick");
     }
 
     /** Where the built-in presets and the declared values disagree; empty when they agree. */

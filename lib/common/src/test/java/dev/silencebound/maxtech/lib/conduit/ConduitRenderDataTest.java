@@ -88,16 +88,30 @@ class ConduitRenderDataTest {
     void renderValueChangesTheKeyAndTheBody() {
         ConduitData conduit = conduit(DyeColor.RED, 0b000011);
         ConduitRenderData plain = of(conduit);
-        ConduitRenderData set = ConduitRenderData.of(conduit, 7, null);
+        ConduitRenderData set = ConduitRenderData.of(conduit, 7, 0, null);
         assertEquals(0, plain.renderValue());
-        assertEquals(plain, ConduitRenderData.of(conduit, 0, null), "0 is the default");
-        assertEquals(set, ConduitRenderData.of(conduit, 7, null));
-        assertEquals(set.hashCode(), ConduitRenderData.of(conduit, 7, null).hashCode());
+        assertEquals(plain, ConduitRenderData.of(conduit, 0, 0, null), "0 is the default");
+        assertEquals(set, ConduitRenderData.of(conduit, 7, 0, null));
+        assertEquals(set.hashCode(), ConduitRenderData.of(conduit, 7, 0, null).hashCode());
         assertNotEquals(plain, set);
-        assertNotEquals(set, ConduitRenderData.of(conduit, 8, null));
+        assertNotEquals(set, ConduitRenderData.of(conduit, 8, 0, null));
         assertEquals(7, set.bodyKey().renderValue());
         assertNotEquals(plain.bodyKey(), set.bodyKey());
         assertEquals(plain.faces(), set.faces(), "the faces do not depend on the value");
+    }
+
+    /** New packed contents are a visible change too, independent of the render value. */
+    @Test
+    void contentsChangeTheKeyAndTheBody() {
+        ConduitData conduit = conduit(DyeColor.RED, 0b000011);
+        ConduitRenderData plain = of(conduit);
+        ConduitRenderData set = ConduitRenderData.of(conduit, 0, 0x2_0005, null);
+        assertEquals(0, plain.contents());
+        assertNotEquals(plain, set);
+        assertEquals(set, ConduitRenderData.of(conduit, 0, 0x2_0005, null));
+        assertEquals(0x2_0005, set.bodyKey().contents());
+        assertNotEquals(plain.bodyKey(), set.bodyKey());
+        assertEquals(set.contents(), set.withoutFacade().contents());
     }
 
     @Test
@@ -107,6 +121,10 @@ class ConduitRenderDataTest {
         assertEquals(new ConduitBodyKey(A, null, 0b000011, 0, 0), new ConduitBodyKey(A, null, 0b000011, 0));
         assertEquals(0, new ConduitBodyKey(A, null, 0b000011, 0).renderValue());
         assertEquals(new ConduitBodyKey(A, null, 0b000011, 0), data.bodyKey());
+        assertEquals(0, data.contents());
+        assertEquals(new ConduitBodyKey(A, null, 0b000011, 0, 3, 0), new ConduitBodyKey(A, null, 0b000011, 0, 3));
+        assertEquals(new ConduitRenderData(A, null, 0b000011, 0, 3, 0, List.of(), null),
+                new ConduitRenderData(A, null, 0b000011, 0, 3, List.of(), null));
     }
 
     @Test

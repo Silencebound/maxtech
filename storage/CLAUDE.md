@@ -27,6 +27,6 @@ Rules for the Storage addon (`maxtech_storage`). The root `CLAUDE.md` holds the 
 ## Look, guide and recipe viewers
 
 - Storage's GUI style is the Accent Frame (cyan on graphite, pixel art that fits Minecraft); the look and its widgets
-  live in Lib (`lib.client.gui.accent`) and Storage uses them.
+  live in Lib's api (`lib.api.client.gui`, ADR-0016) and Storage uses them.
 - Storage has its own guide book (`maxtech_storage:guide`), drawn by the bundled GuideME; pages are short and concise like AE2's (rules and facts: the `guideme` skill).
 - Every Storage recipe type needs a JEI category (`compat.jei`) and a KubeJS schema (`compat.kubejs`, built on Lib's helpers); GameTests fail when one is missing (#308, #309).

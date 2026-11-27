@@ -1,5 +1,6 @@
-package dev.silencebound.maxtech.lib.text;
+package dev.silencebound.maxtech.lib.api.client.gui;
 
+import org.jetbrains.annotations.ApiStatus;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.ToIntFunction;
@@ -10,6 +11,7 @@ import java.util.function.ToIntFunction;
  * as a tooltip. Pure: widths come from a measure function (the font on the client, a fixed width per character in
  * tests), so it is safe on both sides. Moved here from Storage's logic editor so Lib's GUI pieces share it.
  */
+@ApiStatus.Experimental
 public final class TextFit {
     /** What ends a shortened text. */
     public static final String ELLIPSIS = "…";

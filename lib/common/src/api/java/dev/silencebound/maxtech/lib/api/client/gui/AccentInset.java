@@ -1,5 +1,6 @@
-package dev.silencebound.maxtech.lib.client.gui.accent;
+package dev.silencebound.maxtech.lib.api.client.gui;
 
+import org.jetbrains.annotations.ApiStatus;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 
 /**
@@ -9,6 +10,7 @@ import net.minecraft.client.gui.GuiGraphicsExtractor;
  * clipping. Clipping follows the current pose, so it works under a screen's own scale. Client only for drawing; the
  * size math is plain arithmetic.
  */
+@ApiStatus.Experimental
 public final class AccentInset {
     /** How far content stays inside the given rectangle on every side: the edge and a one-pixel margin. */
     public static final int BORDER = 2;

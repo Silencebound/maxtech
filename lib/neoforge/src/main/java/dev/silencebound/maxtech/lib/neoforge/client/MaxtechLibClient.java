@@ -1,6 +1,8 @@
 package dev.silencebound.maxtech.lib.neoforge.client;
 
 import dev.silencebound.maxtech.lib.MaxtechLib;
+import dev.silencebound.maxtech.lib.api.client.gui.TextScale;
+import dev.silencebound.maxtech.lib.config.ClientConfig;
 import java.util.List;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.fml.ModContainer;
@@ -18,5 +20,6 @@ public final class MaxtechLibClient {
 
     public MaxtechLibClient(ModContainer container) {
         ConfigScreens.register(container, CONFIG_ORDER);
+        TextScale.setOptionSource(ClientConfig::textScale);
     }
 }

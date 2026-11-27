@@ -1,6 +1,6 @@
 package dev.silencebound.maxtech.storage.display.client;
 
-import dev.silencebound.maxtech.lib.client.gui.accent.AccentButton;
+import dev.silencebound.maxtech.lib.api.client.gui.AccentButton;
 import dev.silencebound.maxtech.lib.platform.Platform;
 import dev.silencebound.maxtech.storage.crafting.order.ListCode;
 import dev.silencebound.maxtech.storage.crafting.order.OrderList;

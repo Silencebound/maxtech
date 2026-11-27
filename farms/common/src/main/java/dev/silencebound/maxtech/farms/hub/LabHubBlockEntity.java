@@ -4,6 +4,7 @@ import dev.silencebound.maxtech.farms.config.FarmsServerConfig;
 import dev.silencebound.maxtech.farms.lab.LabNetwork;
 import dev.silencebound.maxtech.farms.lab.LabTubes;
 import dev.silencebound.maxtech.farms.registry.FarmsContent;
+import dev.silencebound.maxtech.farms.sampler.SamplerItem;
 import dev.silencebound.maxtech.lib.api.energy.EnergyEndpoint;
 import dev.silencebound.maxtech.lib.api.energy.EnergyNetworks;
 import dev.silencebound.maxtech.lib.api.energy.EnergyPriority;
@@ -22,16 +23,20 @@ import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.level.storage.ValueOutput;
+// PLATFORM-LEAK: NeoForge's item transfer type, which the sampler slot holds.
+import net.neoforged.neoforge.transfer.item.ItemResource;
 import org.jspecify.annotations.Nullable;
 
 /**
- * The lab hub: one nutrient tank, an output buffer, an MU store and a small fuel generator. Nothing ticks. The fuel
- * generator is a task in Farms' task group of the level: it runs while fuel burns, crediting MU in steps of
- * {@link #BURN_STEP} ticks, and waits for an event (fuel put in, energy used) otherwise. A full store pauses the burn
- * instead of wasting it ({@link FuelBurner}). Other mods reach the tank, the fuel slot, the output and the FE input
- * through the capabilities the loader glue registers. Beside a lab tube the hub runs that lab network, and its MU store
- * becomes the buffer of the lab's energy network ({@link LabNetwork}); a lab takes only one hub, so a second one on the
- * same tubes stays out of it ({@link LabLink#REFUSED}). Server thread only.
+ * The lab hub: one nutrient tank, an output buffer, an MU store, a small fuel generator and a sampler charging slot.
+ * Nothing ticks. One task in Farms' task group of the level does the hub's work: while fuel burns it credits MU in
+ * steps of {@link #BURN_STEP} ticks, and while a sampler is not full and the store holds MU it charges the sampler in
+ * steps of the same length. Otherwise it waits for an event (fuel or a sampler put in, energy used, output room) with
+ * no timer. A full store pauses the burn instead of wasting it ({@link FuelBurner}). Energy coming in wakes the task
+ * only for a sampler that waits for charge, and then not before the next step. Other mods reach the tank, the fuel
+ * slot, the output and the FE input through the capabilities the loader glue registers. Beside a lab tube the hub runs
+ * that lab network, and its MU store becomes the buffer of the lab's energy network ({@link LabNetwork}); a lab takes
+ * only one hub, so another one on the same tubes stays out of it ({@link LabLink#REFUSED}). Server thread only.
  */
 public final class LabHubBlockEntity extends BlockEntity {
     /** How the hub stands towards the lab tubes beside it. */
@@ -44,7 +49,7 @@ public final class LabHubBlockEntity extends BlockEntity {
         REFUSED
     }
 
-    /** Ticks between MU credits while fuel burns. */
+    /** Ticks between MU credits while fuel burns, and between sampler charging steps. */
     static final int BURN_STEP = 20;
 
     private final HubStorage storage = new HubStorage(() -> level, new HubStorage.Listener() {
@@ -59,12 +64,28 @@ public final class LabHubBlockEntity extends BlockEntity {
                 task.wake();
             }
         }
+
+        @Override
+        public void outputChanged() {
+            // A fuel remainder that did not fit may fit now.
+            Level current = level;
+            if (current != null && !burner.isBurning() && storage.hasFuel(current)) {
+                wakeIfWaiting();
+            }
+        }
+
+        @Override
+        public void samplerChanged() {
+            if (!working) {
+                task.wake();
+            }
+        }
     });
     private final EnergyEndpoint energy;
     private final FuelBurner burner = new FuelBurner();
     private final FuelTask task = new FuelTask();
     private final HubEnergyHandler feHandler;
-    /** Set while the fuel task runs, so its own changes do not wake it again. */
+    /** Set while the task runs, so its own changes do not wake it again. */
     private boolean working;
     /** The lab network this hub runs. */
     private @Nullable LabNetwork lab;
@@ -75,13 +96,16 @@ public final class LabHubBlockEntity extends BlockEntity {
      * lab against hubs placed later ({@link LabNetwork}). Not saved: after a restart no hub is running.
      */
     private boolean running;
+    /** Game tick from which the next sampler charging step may run; steps are at least {@link #BURN_STEP} apart. */
+    private long nextCharge = Long.MIN_VALUE;
 
     public LabHubBlockEntity(BlockPos pos, BlockState state) {
         super(FarmsContent.LAB_HUB_ENTITY.get(), pos, state);
         long capacity = FarmsServerConfig.hubEnergyCapacity();
         energy = EnergyEndpoint.buffer(capacity, capacity, capacity, EnergyPriority.DEFAULT);
-        energy.setListener(endpoint -> energyChanged());
-        feHandler = new HubEnergyHandler(energy, EnergyNetworks::feRate, this::energyChanged);
+        // A flow change can mean energy leaves the store, which may let a paused burn go on.
+        energy.setListener(endpoint -> energyUsed());
+        feHandler = new HubEnergyHandler(energy, EnergyNetworks::feRate, this::energyReceived);
     }
 
     /** The tank, fuel slot and output buffer. */
@@ -98,7 +122,7 @@ public final class LabHubBlockEntity extends BlockEntity {
     public long useEnergy(long mu) {
         long taken = energy.extract(mu);
         if (taken > 0) {
-            energyChanged();
+            energyUsed();
         }
         return taken;
     }
@@ -113,7 +137,7 @@ public final class LabHubBlockEntity extends BlockEntity {
         return burner;
     }
 
-    /** The fuel generator's task, for tests. */
+    /** The hub's task (fuel and sampler charging), for tests. */
     public ScheduledTask fuelTask() {
         return task;
     }
@@ -238,12 +262,37 @@ public final class LabHubBlockEntity extends BlockEntity {
         }
     }
 
-    private void energyChanged() {
+    /** Energy left the store: room may have opened for a paused burn or fuel that waits. */
+    private void energyUsed() {
         setChanged();
-        // Room may have opened for a paused burn or waiting fuel; FE coming in every tick wakes nothing otherwise.
-        if (!working && (burner.isBurning() || !storage.fuel().getResource(0).isEmpty())) {
+        Level current = level;
+        if (current != null && (burner.isBurning() || storage.hasFuel(current))) {
+            wakeIfWaiting();
+        }
+    }
+
+    /**
+     * Energy came in (FE every tick from a generator): only a sampler that waits for charge in an empty store needs the
+     * task, and the task does not charge before {@link #nextCharge}, so this costs at most one run per step.
+     */
+    private void energyReceived() {
+        setChanged();
+        if (FarmsServerConfig.hubSamplerChargeMuPerTick() > 0 && samplerRoom() > 0) {
+            wakeIfWaiting();
+        }
+    }
+
+    /** Wakes the task when it waits for an event; a pending timer is kept, since the task already runs then. */
+    private void wakeIfWaiting() {
+        if (!working && !task.isQueued() && task.wakeAt() == -1) {
             task.wake();
         }
+    }
+
+    /** MU the sampler in the hub still takes; 0 without one. */
+    private long samplerRoom() {
+        ItemResource sampler = storage.sampler().getResource(0);
+        return sampler.isEmpty() ? 0 : SamplerItem.capacity() - SamplerItem.charge(sampler);
     }
 
     @Override
@@ -263,7 +312,7 @@ public final class LabHubBlockEntity extends BlockEntity {
         burner.load(in.getIntOr("burn_left", 0), in.getIntOr("burn_total", 0));
     }
 
-    /** Burns fuel into the MU store while there is fuel and room; sleeps otherwise. */
+    /** Charges the sampler and burns fuel into the MU store while there is work; sleeps otherwise. */
     private final class FuelTask extends ScheduledTask {
         FuelTask() {
             super(TaskPriority.BACKGROUND);
@@ -273,17 +322,43 @@ public final class LabHubBlockEntity extends BlockEntity {
         protected int run(TaskGroup group, long gameTime) {
             working = true;
             try {
-                return burn(gameTime);
+                Level current = level;
+                if (current == null || isRemoved()) {
+                    return DONE;
+                }
+                // Charging first: what it takes from a full store lets the burn go on in the same run.
+                int charge = charge(gameTime);
+                int burn = burn(current, gameTime);
+                if (charge == WAIT) {
+                    return burn;
+                }
+                return burn == WAIT ? charge : Math.min(charge, burn);
             } finally {
                 working = false;
             }
         }
 
-        private int burn(long gameTime) {
-            Level current = level;
-            if (current == null || isRemoved()) {
-                return DONE;
+        /** One charging step when it is due; returns the ticks to the next one, or WAIT for none. */
+        private int charge(long gameTime) {
+            long rate = FarmsServerConfig.hubSamplerChargeMuPerTick();
+            long room = samplerRoom();
+            if (rate <= 0 || room <= 0 || energy.stored() <= 0) {
+                return WAIT;
             }
+            if (gameTime < nextCharge) {
+                return (int) Math.max(NEXT_TICK, nextCharge - gameTime);
+            }
+            long moved = energy.extract(Math.min(room, rate * BURN_STEP));
+            if (moved > 0) {
+                ItemResource sampler = storage.sampler().getResource(0);
+                storage.sampler().set(0,
+                        sampler.with(FarmsContent.SAMPLER_CHARGE.get(), SamplerItem.charge(sampler) + moved), 1);
+            }
+            nextCharge = gameTime + BURN_STEP;
+            return samplerRoom() <= 0 || energy.stored() <= 0 ? WAIT : BURN_STEP;
+        }
+
+        private int burn(Level current, long gameTime) {
             long rate = FarmsServerConfig.hubFuelMuPerTick();
             if (rate <= 0) {
                 burner.pause();

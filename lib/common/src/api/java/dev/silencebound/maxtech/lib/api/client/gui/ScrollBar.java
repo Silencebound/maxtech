@@ -1,5 +1,6 @@
-package dev.silencebound.maxtech.lib.client.gui.accent;
+package dev.silencebound.maxtech.lib.api.client.gui;
 
+import org.jetbrains.annotations.ApiStatus;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.narration.NarrationElementOutput;
@@ -15,6 +16,7 @@ import org.jspecify.annotations.Nullable;
  * The thumb math ({@link #thumbSize}, {@link #thumbPos}, {@link #offsetFor}) is plain arithmetic for JUnit. Client
  * thread only.
  */
+@ApiStatus.Experimental
 public final class ScrollBar extends AbstractWidget {
     /** The usual width. */
     public static final int WIDTH = 6;
@@ -47,10 +49,12 @@ public final class ScrollBar extends AbstractWidget {
     private int grab;
     private boolean dragging;
 
+    /** A bar {@link #WIDTH} wide over {@code model}. */
     public ScrollBar(int x, int y, int height, Model model) {
         this(x, y, WIDTH, height, model);
     }
 
+    /** A bar of any width over {@code model}. */
     public ScrollBar(int x, int y, int width, int height, Model model) {
         super(x, y, width, height, Component.empty());
         this.model = model;

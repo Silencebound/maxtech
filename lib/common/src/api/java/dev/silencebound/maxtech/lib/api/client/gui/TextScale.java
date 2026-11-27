@@ -1,16 +1,18 @@
-package dev.silencebound.maxtech.lib.client.gui;
+package dev.silencebound.maxtech.lib.api.client.gui;
 
-import dev.silencebound.maxtech.lib.config.ClientConfig;
+import java.util.function.Supplier;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.FormattedCharSequence;
+import org.jetbrains.annotations.ApiStatus;
 
 /**
  * The client's text size option for MaxTech screens, independent of the GUI scale. Screens draw text through
  * {@link #text} and size layouts with {@link #width} and {@link #lineHeight}, so the option changes both what is drawn
  * and the room it takes. Text is scaled around its top-left corner. Client thread only.
  */
+@ApiStatus.Experimental
 public final class TextScale {
     /** Config value for the unscaled size. */
     public static final String NORMAL = "normal";
@@ -19,7 +21,21 @@ public final class TextScale {
     /** Config value for 1.5 times. */
     public static final String LARGER = "larger";
 
+    private static volatile Supplier<String> option = () -> NORMAL;
+
     private TextScale() {
+    }
+
+    /**
+     * Sets where the option is read from; Lib calls it once at client init with its client config. Until then the size
+     * is {@link #NORMAL}.
+     *
+     * @param source
+     *            read on every draw on the client thread; must not throw
+     */
+    @ApiStatus.Internal
+    public static void setOptionSource(Supplier<String> source) {
+        option = source;
     }
 
     /** The factor for a config value; anything unknown is 1. */
@@ -33,7 +49,7 @@ public final class TextScale {
 
     /** The current factor: 1, 1.25 or 1.5. */
     public static float factor() {
-        return factorFor(ClientConfig.textScale());
+        return factorFor(option.get());
     }
 
     /** {@code width} (an unscaled text width) as drawn, rounded up. */

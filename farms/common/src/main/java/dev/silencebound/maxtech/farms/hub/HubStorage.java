@@ -1,6 +1,7 @@
 package dev.silencebound.maxtech.farms.hub;
 
 import dev.silencebound.maxtech.farms.config.FarmsServerConfig;
+import dev.silencebound.maxtech.farms.sampler.SamplerItem;
 import java.util.function.Supplier;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.ItemStackTemplate;
@@ -25,22 +26,28 @@ import net.neoforged.neoforge.transfer.transaction.Transaction;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Everything the lab hub holds besides energy: the nutrient tank, the fuel slot and the output buffer, with their save
- * format and the view other mods get ({@link #itemHandler()}). The one place the hub's storage lives, so it can move
- * onto Lib's own slot and tank types later without touching the block entity or the capability glue. Server thread
- * only.
+ * Everything the lab hub holds besides energy: the nutrient tank, the fuel slot, the output buffer and the sampler
+ * charging slot, with their save format and the view other mods get ({@link #itemHandler()}). The one place the hub's
+ * storage lives, so it can move onto Lib's own slot and tank types later without touching the block entity or the
+ * capability glue. Server thread only.
  */
 public final class HubStorage {
     /** Output slots: three rows. */
     public static final int OUTPUT_SLOTS = 27;
 
-    /** Told when the contents change; fuel changes separately, since they can start a burn. */
+    /** Told when the contents change; fuel, output and sampler changes separately, since they can start work. */
     public interface Listener {
         /** Anything changed (after the root transaction committed, or at once for direct sets). */
         void changed();
 
         /** The fuel slot changed. */
         void fuelChanged();
+
+        /** The output buffer changed: room may have opened for a fuel remainder. */
+        void outputChanged();
+
+        /** The sampler slot changed. */
+        void samplerChanged();
     }
 
     private final Supplier<@Nullable Level> level;
@@ -48,6 +55,7 @@ public final class HubStorage {
     private final Tank tank = new Tank();
     private final FuelSlot fuel = new FuelSlot();
     private final Output output = new Output();
+    private final SamplerSlot sampler = new SamplerSlot();
     private final HubItemHandler itemHandler = new HubItemHandler(fuel, output);
 
     /** Storage for a hub in {@code level} (null while the block entity has none). */
@@ -71,14 +79,26 @@ public final class HubStorage {
         return output;
     }
 
+    /** The sampler charging slot: one sampler, put in and taken out by hand; not part of {@link #itemHandler()}. */
+    public ItemStacksResourceHandler sampler() {
+        return sampler;
+    }
+
     /** The item capability: fuel goes in, output (and a spent fuel remainder) comes out. */
     public HubItemHandler itemHandler() {
         return itemHandler;
     }
 
-    /** Whether tank, fuel slot and output are all empty. */
+    /** Whether tank, fuel slot, output and sampler slot are all empty. */
     public boolean isEmpty() {
-        return tank.getAmountAsLong(0) == 0 && ResourceHandlerUtil.isEmpty(fuel) && ResourceHandlerUtil.isEmpty(output);
+        return tank.getAmountAsLong(0) == 0 && ResourceHandlerUtil.isEmpty(fuel) && ResourceHandlerUtil.isEmpty(output)
+                && sampler.getResource(0).isEmpty();
+    }
+
+    /** Whether the fuel slot holds something that burns (not just a spent remainder). */
+    boolean hasFuel(Level current) {
+        ItemResource resource = fuel.getResource(0);
+        return !resource.isEmpty() && burnTime(current, resource.toStack(1)) > 0;
     }
 
     /** Ticks {@code stack} burns in a furnace, from NeoForge's burn time hook (data map and item overrides). */
@@ -122,12 +142,14 @@ public final class HubStorage {
         tank.serialize(out.child("tank"));
         fuel.serialize(out.child("fuel"));
         output.serialize(out.child("output"));
+        sampler.serialize(out.child("sampler"));
     }
 
     void load(ValueInput in) {
         in.child("tank").ifPresent(tank::deserialize);
         in.child("fuel").ifPresent(fuel::deserialize);
         in.child("output").ifPresent(output::deserialize);
+        in.child("sampler").ifPresent(sampler::deserialize);
     }
 
     /** One tank for any fluid; its capacity follows the config, and contents above a lowered capacity are kept. */
@@ -174,6 +196,30 @@ public final class HubStorage {
         @Override
         protected void onContentsChanged(int index, ItemStack previousContents) {
             listener.changed();
+            listener.outputChanged();
+        }
+    }
+
+    /** Holds one sampler. */
+    private final class SamplerSlot extends ItemStacksResourceHandler {
+        SamplerSlot() {
+            super(1);
+        }
+
+        @Override
+        public boolean isValid(int index, ItemResource resource) {
+            return resource.getItem() instanceof SamplerItem;
+        }
+
+        @Override
+        protected int getCapacity(int index, ItemResource resource) {
+            return 1;
+        }
+
+        @Override
+        protected void onContentsChanged(int index, ItemStack previousContents) {
+            listener.changed();
+            listener.samplerChanged();
         }
     }
 }

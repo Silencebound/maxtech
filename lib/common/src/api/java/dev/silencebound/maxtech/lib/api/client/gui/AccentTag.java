@@ -1,6 +1,6 @@
-package dev.silencebound.maxtech.lib.client.gui.accent;
+package dev.silencebound.maxtech.lib.api.client.gui;
 
-import dev.silencebound.maxtech.lib.client.gui.TextScale;
+import org.jetbrains.annotations.ApiStatus;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 
@@ -10,6 +10,7 @@ import net.minecraft.client.gui.GuiGraphicsExtractor;
  * switches on and off is an {@link AccentButton} lit while on. Client only for drawing; the size math is plain
  * arithmetic.
  */
+@ApiStatus.Experimental
 public final class AccentTag {
     /** Room between the edge and the text, left and right. */
     public static final int PAD = 3;

@@ -3,5 +3,6 @@
   "sampler.capacityMu": 6400,
   "hub.tankCapacity": 16000,
   "hub.energyCapacity": 100000,
-  "hub.fuelMuPerTick": 20
+  "hub.fuelMuPerTick": 20,
+  "hub.samplerChargeMuPerTick": 32
 }

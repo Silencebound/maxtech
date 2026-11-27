@@ -20,7 +20,7 @@ import org.jetbrains.annotations.ApiStatus;
  * the level or the main thread; {@link #body} and {@link #face} are called later on chunk meshing threads, possibly at
  * once, so they must not touch the level or any shared mutable state.
  * <p>
- * Breaking and landing particles use the end sprite of the conduit's {@link ConduitLook} (Lib's
+ * Breaking and landing particles use the end sprite (a shell's glass) of the conduit's {@link ConduitLook} (Lib's
  * {@code ConduitModel.particleMaterial()}), which a hook cannot change yet; pick a look whose end sprite suits the
  * conduit, or accept that the particles do not match a custom model's sprites.
  * <p>

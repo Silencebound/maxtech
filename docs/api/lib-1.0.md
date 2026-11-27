@@ -33,21 +33,29 @@ Labels: **stable** = frozen at 1.0, a breaking change needs a Lib major bump. **
 | `Configs` | Entry point: `presetConfig(modId, anchor)`, and `builder`/`register` for plain files. | experimental |
 | `PresetConfig` | A server config whose defaults come from `<modid>/presets/*.json`. | experimental |
 | `ConfigBuilder`, `ConfigFile`, `ConfigType` | Declaring values, the registered file, which file. | experimental |
+| **`lib.api.client.gui`** | The Accent Frame look and its widgets for MaxTech screens, client only (ADR-0016). Moved from `lib.client.gui`, `lib.client.gui.accent` and `lib.text` in Lib 0.15.0 for Farms (FM1). | experimental |
+| `Accent` | Palette (ARGB) and drawing: panels with a title tab, boxes, slots, bars, button faces, fitted text. | experimental |
+| `AccentButton`, `IconButton`, `Icon` | Text buttons (normal and compact, toggles lit while on); icon buttons (plain, toggle, cycle) and what they show (sprite, glyph, swatch, item). | experimental |
+| `AccentPanel`, `AccentInset`, `AccentRow`, `AccentTabRow` | A panel as a layout with content edges; a dark well; list rows; page tabs with badges. | experimental |
+| `AccentReadout`, `AccentTag`, `AccentStatus`, `AccentToast`, `ScrollBar` | A label and value; a small tag; state colours and dots; an in-screen toast and a notice outside screens; the scroll bar. | experimental |
+| `TextScale`, `TextFit`, `LayoutCheck` | The client's text size option for drawing and measuring (`setOptionSource` is Lib's, `@ApiStatus.Internal`); fitting text with an ellipsis (pure); the 320 x 240 layout check and placement math. | experimental |
 | **`lib.api.conduit`** | Conduit types (a conduit is Lib's generic framework for blocks that connect to neighbours: cables now, later pipes and wires); each type gets its own block from Lib. Addons register their own through `Conduits` (ADR-0015, see below). | stable |
 | `ConduitType` | One conduit type: network type, tier, base colour, thickness, face modes, per-conduit state. | stable |
 | `ConduitTypes` | The `maxtech_lib:conduit_type` registry key and lookups. | stable |
 | `ConduitFaceMode` | How a conduit face meets a block: both, insert, extract, disabled; stable ids. | stable |
 | `ConduitState` | Server-side state a conduit saves in its block entity (cable parts). | stable |
 | `ConduitLook` | How a conduit block is drawn; its codec is the `look` object of the block state file. Moved from `lib.conduit` for Farms (FM1). | experimental |
+| `ConduitLook.Shell` | The `shell` look: translucent glass with border lines and rims Lib computes from the connections; `shell` sprite, optional `border_colour`, `border`, `rim` (Lib 0.14.0). | experimental |
 | `ConduitShapes`, `ConduitFaceKey` | A conduit's boxes (core, arms, stubs, rings) in pixels and hit shapes; one face decoration. | experimental |
 | `ConduitConnections`, `ConduitFaceModes`, `ConduitColours` | Whether two conduits connect, side masks; six face modes packed in an `int`; body and face colours. `ConduitFaceModes.validateRegistered` is Lib's (`@ApiStatus.Internal`). | experimental |
 | `Conduits` | An addon's entry point: `builder(modId, name, type)` with `look`, `creativeTab`, `onWrench`, `connectionRule` and `register()`; `host`, `blockOf`, `connectivity`, `isChunkPresent`, `place`, `useWrench`. Lib owns the block, its block entity, dyes and facades; with `look` it also supplies the block state file and item model definition, and a conduit without a loot table drops its item, so the addon ships the item model and lang. Added for Farms (FM1); `setFactory` and `Factory` are Lib's (`@ApiStatus.Internal`). | experimental |
-| `ConduitView`, `ConduitHost` | The conduit in a block: type, colour, side masks, face modes, state, facade and render value; plus setting block faces, face modes and the render value, refreshing links and syncing (server only). The render value (Lib 0.14.0) is an addon-defined `int` its client model reads; it is saved and synced only when it changes. | experimental |
+| `ConduitView`, `ConduitHost` | The conduit in a block: type, colour, side masks, face modes, state, facade and render value; plus setting block faces, face modes and the render value, refreshing links and syncing (server only). The render value (Lib 0.14.0) is an addon-defined `int` its client model reads; it is saved and synced only when it changes. Contents (`contents()`, `setContents`) work the same way with a fixed meaning. | experimental |
 | `ConduitEntry`, `ConduitWrenchHook`, `ConduitConnectionRule` | A registered conduit's type, block and item; the builder's hooks for a wrench and for which neighbouring conduits a conduit links with. | experimental |
 | **`lib.api.conduit.model`** | Conduit model geometry for an addon's own conduit model (FM1): quads before baking and Lib's own parts. | experimental |
 | `ConduitQuad`, `ConduitTexture`, `ConduitLayer` | One face of a model part in pixels; its sprite (one of Lib's, or a custom model hook's by atlas id, Lib 0.14.0); its chunk layer (from the sprite, or forced translucent or cutout). Moved from `lib.client.conduit`. | experimental |
 | `ConduitUv` | Which part of its sprite a `ConduitQuad` shows (0 to 16 pixels) and its clockwise quarter turns, as a block model face's `uv` and `rotation`; a quad without one shows the whole sprite unturned (Lib 0.14.0). | experimental |
-| `ConduitBodyKey`, `ConduitParts` | What a conduit body looks like (type, dye, arm and ring masks, render value; the 4-argument constructor gives render value 0); Lib's default body and face quads, which ignore the render value. | experimental |
+| `ConduitContents` | What a conduit shows inside it: fluid (any mod's, saved by registry name), fill step 0..4, upstream side, second lane; `EMPTY` for none. `packed()` and the static `pack`/`packed*` helpers give the client render key's int (bits 0-15 fluid registry id + 1, 16-18 fill, 19-21 upstream side + 1, 22 lane), valid only within one session. | experimental |
+| `ConduitBodyKey`, `ConduitParts` | What a conduit body looks like (type, dye, arm and ring masks, render value, packed contents; the 4- and 5-argument constructors give 0 for what they leave out); Lib's default body and face quads, which ignore the render value and contents. | experimental |
 | **`lib.neoforge.api.client.conduit`** | NeoForge-side client api (jar `maxtech_lib-neoforge-api`, Lib 0.14.0, FM1): custom models for conduits marked `Conduits.Builder.customModel(translucent)`. | experimental |
 | `ConduitModelHook` | An addon's model of one conduit: its sprites (resolved at bake time) and the body and face quads per key, Lib's own by default; called lazily on meshing threads. | experimental |
 | `RegisterConduitModelsEvent` | Client mod-bus event, fired once at startup: `register(ConduitEntry, hook)`. A marked conduit without a hook or a hook for an unmarked one stops the client. | experimental |
@@ -95,7 +103,7 @@ on 2026-10-15.
 | Package | Purpose | Imports | Label |
 |---|---|---|---|
 | `lib.platform` | Loader seam for `common` code. | 233 | internal |
-| `lib.client.gui` | Widget toolkit and screen base classes. | 113 | internal; candidate for api after 1.0 |
+| `lib.client.gui` | Screen helpers, side tabs and the editor toolkit; the Accent widgets are api since Lib 0.15.0. | 113 | internal |
 | `lib.content` | Content builder (blocks, items, datagen declarations). | 72 | internal ("until it settles") |
 | `lib.conduit` | Conduit block, block entity, item and per-conduit data. | 70 | internal |
 | `lib.client` (top level) | Client glue. | 60 | internal |
@@ -103,7 +111,7 @@ on 2026-10-15.
 | `lib.energy` | FE buffers and transfer helpers. | 26 | internal; waits for the energy decision |
 | `lib.resource` | Key interning, counts, palette codec. | 26 | internal |
 | `lib.network` | `NetworkBootstrap`: config and lifecycle for `lib.api.network.NetworkManager`. | 25 | internal |
-| `lib.text` | Rich text and text fitting. | 25 | internal |
+| `lib.text` | Rich text (text fitting is api since Lib 0.15.0). | 25 | internal |
 | `lib.schedule` | `LevelTasks`: one scheduler per level, behind `lib.api.schedule.TaskSchedulers`. | 15 | internal |
 | `lib.sync` | Synced lists for open screens. | 15 | internal |
 | `lib.highlight` | World highlights. | 11 | internal |

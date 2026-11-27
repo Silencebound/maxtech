@@ -1,6 +1,7 @@
 package dev.silencebound.maxtech.lib.neoforge.gametest;
 
 import dev.silencebound.maxtech.lib.api.conduit.ConduitConnections;
+import dev.silencebound.maxtech.lib.api.conduit.ConduitContents;
 import dev.silencebound.maxtech.lib.api.conduit.ConduitEntry;
 import dev.silencebound.maxtech.lib.api.conduit.ConduitFaceMode;
 import dev.silencebound.maxtech.lib.api.conduit.ConduitHost;
@@ -16,6 +17,7 @@ import dev.silencebound.maxtech.lib.api.registry.Registrar;
 import dev.silencebound.maxtech.lib.api.registry.Registrars;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import net.minecraft.core.BlockPos;
@@ -30,6 +32,7 @@ import net.minecraft.gametest.framework.TestEnvironmentDefinition;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
+import net.minecraft.util.ProblemReporter;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.CreativeModeTab;
@@ -39,8 +42,10 @@ import net.minecraft.world.item.Items;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.storage.TagValueInput;
-import net.minecraft.util.ProblemReporter;
 import net.minecraft.world.level.chunk.LevelChunk;
+import net.minecraft.world.level.material.Fluid;
+import net.minecraft.world.level.material.Fluids;
+import net.minecraft.world.level.material.EmptyFluid;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -59,6 +64,7 @@ public final class ConduitApiGameTests {
     private static final Identifier STRUCTURE = Identifier.fromNamespaceAndPath(MOD_ID, "empty_7x2x3");
     // The saved key is part of Lib's save format, not the api; pinned here so a rename shows up.
     private static final String RENDER_VALUE = "render_value";
+    private static final String CONTENTS = "contents";
     private static final Identifier NETWORK_ID = Identifier.fromNamespaceAndPath(MOD_ID, "test_api_network");
 
     private static final AtomicInteger RULE_CALLS = new AtomicInteger();
@@ -88,12 +94,18 @@ public final class ConduitApiGameTests {
             .register();
 
     /**
-     * Drawn by an addon model hook, as a translucent glass tube whose contents show the render value as a colour
-     * ({@link GlassTubeDemoClient}, client only); the dev client's check of custom conduit models.
+     * Lib's shell look on an original clear glass sprite ({@code textures/block/glass_tube.png}), borders in the type's
+     * colour; the dev client's check of the shell look.
      */
     static final ConduitEntry<ConduitType> GLASS_TUBE = Conduits
-            .builder(MOD_ID, "test_glass_tube", item -> new ConduitType(NETWORK_ID, "glass", 0xDDEEFF, 0.375F, item))
-            .look(ConduitLook.DEFAULT).customModel(true).creativeTab(CreativeModeTabs.REDSTONE_BLOCKS).register();
+            .builder(MOD_ID, "test_glass_tube", item -> new ConduitType(NETWORK_ID, "glass", 0x6E8A94, 0.375F, item))
+            .look(ConduitLook.shell(Identifier.fromNamespaceAndPath(MOD_ID, "block/glass_tube")))
+            .creativeTab(CreativeModeTabs.REDSTONE_BLOCKS).register();
+
+    /** Drawn through a model hook that overrides nothing ({@link HookedTubeDemoClient}, client only). */
+    static final ConduitEntry<ConduitType> HOOKED_TUBE = Conduits
+            .builder(MOD_ID, "test_hooked_tube", item -> new ConduitType(NETWORK_ID, "hooked", 0xAA7744, 0.25F, item))
+            .look(ConduitLook.DEFAULT).customModel(false).register();
 
     private static final Registrar<Consumer<GameTestHelper>> FUNCTIONS = Registrars.create(MOD_ID,
             Registries.TEST_FUNCTION);
@@ -107,7 +119,10 @@ public final class ConduitApiGameTests {
         test("conduit_api_loot_table_wins", ConduitApiGameTests::lootTableWins);
         test("conduit_api_render_value_syncs", ConduitApiGameTests::renderValueSyncs);
         test("conduit_api_render_value_saved", ConduitApiGameTests::renderValueSaved);
+        test("conduit_api_contents_syncs", ConduitApiGameTests::contentsSyncs);
+        test("conduit_api_contents_saved", ConduitApiGameTests::contentsSaved);
         test("conduit_api_custom_model_places", ConduitApiGameTests::customModelPlaces);
+        test("conduit_api_shell_places", ConduitApiGameTests::shellPlaces);
     }
 
     private ConduitApiGameTests() {
@@ -228,20 +243,32 @@ public final class ConduitApiGameTests {
      * network's links and keeps a render value. Its model hook is client-only and is not tested here.
      */
     private static void customModelPlaces(GameTestHelper helper) {
+        placesAndLinks(helper, HOOKED_TUBE);
+    }
+
+    /**
+     * A conduit in Lib's shell look is an ordinary conduit on the server too: it registers, places, links and keeps a
+     * render value. Its model is client-only and is not tested here.
+     */
+    private static void shellPlaces(GameTestHelper helper) {
+        placesAndLinks(helper, GLASS_TUBE);
+    }
+
+    private static void placesAndLinks(GameTestHelper helper, ConduitEntry<ConduitType> entry) {
         BlockPos pos = new BlockPos(1, 0, 1);
         BlockPos next = new BlockPos(2, 0, 1);
-        ConduitType type = GLASS_TUBE.type().get();
-        helper.assertTrue(Conduits.blockOf(type).filter(block -> block.equals(GLASS_TUBE.block().get())).isPresent(),
-                "the glass tube type has no block");
-        helper.assertTrue(Conduits.place(helper.getLevel(), helper.absolutePos(pos), type), "glass tube not placed");
+        ConduitType type = entry.type().get();
+        helper.assertTrue(Conduits.blockOf(type).filter(block -> block.equals(entry.block().get())).isPresent(),
+                "the tube type has no block");
+        helper.assertTrue(Conduits.place(helper.getLevel(), helper.absolutePos(pos), type), "tube not placed");
         helper.assertTrue(Conduits.place(helper.getLevel(), helper.absolutePos(next), type), "second tube not placed");
-        helper.assertBlockPresent(GLASS_TUBE.block().get(), pos);
+        helper.assertBlockPresent(entry.block().get(), pos);
         ConduitHost host = host(helper, pos);
         host.setRenderValue(0x3F76E4);
-        helper.assertValueEqual(0x3F76E4, host.renderValue(), "render value of a glass tube");
+        helper.assertValueEqual(0x3F76E4, host.renderValue(), "render value of a tube");
         helper.succeedWhen(
                 () -> helper.assertTrue(ConduitConnections.isConnected(host(helper, pos).connections(), Direction.EAST),
-                        "the glass tubes did not link"));
+                        "the tubes did not link"));
     }
 
     /**
@@ -292,6 +319,104 @@ public final class ConduitApiGameTests {
                 TagValueInput.create(ProblemReporter.DISCARDING, helper.getLevel().registryAccess(), without));
         helper.assertValueEqual(0, host(helper, pos).renderValue(), "render value kept after loading data without one");
         helper.succeed();
+    }
+
+    /**
+     * New contents are saved and go to clients in the update tag, the fluid by name; setting the same contents again
+     * marks nothing for saving. Empty contents leave the key out, and a conduit holding contents that loads an update
+     * tag without the key (the client's reset path) shows none.
+     */
+    private static void contentsSyncs(GameTestHelper helper) {
+        BlockPos pos = new BlockPos(1, 0, 1);
+        BlockPos abs = helper.absolutePos(pos);
+        helper.assertTrue(Conduits.place(helper.getLevel(), abs, CONDUIT.type().get()), "conduit not placed");
+        ConduitHost host = host(helper, pos);
+        helper.assertValueEqual(ConduitContents.EMPTY, host.contents(), "contents of a fresh conduit");
+        helper.assertFalse(updateTag(helper, abs).contains(CONTENTS), "a fresh conduit synced contents");
+        ConduitContents water = new ConduitContents(Optional.of(Fluids.WATER), 3, Optional.of(Direction.WEST), true);
+        LevelChunk chunk = helper.getLevel().getChunkAt(abs);
+        chunk.tryMarkSaved();
+        host.setContents(water);
+        helper.assertValueEqual(water, host.contents(), "contents after setting them");
+        helper.assertTrue(chunk.isUnsaved(), "new contents were not marked for saving");
+        CompoundTag update = updateTag(helper, abs);
+        helper.assertValueEqual("minecraft:water", update.getCompoundOrEmpty(CONTENTS).getStringOr("fluid", ""),
+                "fluid name in the update tag");
+        chunk.tryMarkSaved();
+        host.setContents(new ConduitContents(Optional.of(Fluids.WATER), 3, Optional.of(Direction.WEST), true));
+        helper.assertFalse(chunk.isUnsaved(), "setting equal contents marked the conduit for saving");
+        // The client's reset path: the conduit holding water loads an update tag without the key.
+        CompoundTag without = update.copy();
+        without.remove(CONTENTS);
+        blockEntity(helper, abs).loadWithComponents(
+                TagValueInput.create(ProblemReporter.DISCARDING, helper.getLevel().registryAccess(), without));
+        helper.assertValueEqual(ConduitContents.EMPTY, host(helper, pos).contents(),
+                "contents kept after loading an update tag without them");
+        host.setContents(water);
+        chunk.tryMarkSaved();
+        host.setContents(ConduitContents.EMPTY);
+        helper.assertTrue(chunk.isUnsaved(), "clearing the contents was not marked for saving");
+        helper.assertFalse(updateTag(helper, abs).contains(CONTENTS), "empty contents went into the update tag");
+        helper.assertTrue(rejects(() -> new ConduitContents(Optional.of(Fluids.EMPTY), 0, Optional.empty(), false)),
+                "the empty fluid was taken as a fluid");
+        helper.assertTrue(rejects(() -> new ConduitContents(Optional.of(Fluids.LAVA), 5, Optional.empty(), false)),
+                "fill 5 was accepted");
+        helper.assertTrue(
+                rejects(() -> new ConduitContents(Optional.of(unregisteredFluid()), 0, Optional.empty(), false)),
+                "an unregistered fluid was accepted");
+        helper.assertValueEqual(new ConduitContents(Optional.of(Fluids.WATER), 2, Optional.empty(), false),
+                new ConduitContents(Optional.of(Fluids.FLOWING_WATER), 2, Optional.empty(), false),
+                "flowing water was not normalised to water");
+        helper.assertValueEqual(Fluids.LAVA,
+                new ConduitContents(Optional.of(Fluids.FLOWING_LAVA), 0, Optional.empty(), false).fluid().get(),
+                "flowing lava was not stored as its source");
+        helper.succeed();
+    }
+
+    /**
+     * Contents survive a save and load of the block entity with the fluid by registry name; data without them, or
+     * naming a fluid that is no longer registered, loads as empty.
+     */
+    private static void contentsSaved(GameTestHelper helper) {
+        BlockPos pos = new BlockPos(1, 0, 1);
+        BlockPos abs = helper.absolutePos(pos);
+        helper.assertTrue(Conduits.place(helper.getLevel(), abs, CONDUIT.type().get()), "conduit not placed");
+        ConduitContents lava = new ConduitContents(Optional.of(Fluids.LAVA), ConduitContents.FULL,
+                Optional.of(Direction.UP), false);
+        host(helper, pos).setContents(lava);
+        CompoundTag saved = blockEntity(helper, abs).saveWithFullMetadata(helper.getLevel().registryAccess());
+        CompoundTag contents = saved.getCompoundOrEmpty(CONTENTS);
+        helper.assertValueEqual("minecraft:lava", contents.getStringOr("fluid", ""), "saved fluid name");
+        helper.assertValueEqual(lava, loaded(helper, abs, saved).contents(), "contents after loading");
+        CompoundTag without = saved.copy();
+        without.remove(CONTENTS);
+        helper.assertValueEqual(ConduitContents.EMPTY, loaded(helper, abs, without).contents(),
+                "contents of data without them");
+        CompoundTag unknown = saved.copy();
+        unknown.getCompoundOrEmpty(CONTENTS).putString("fluid", "removed_mod:goo");
+        helper.assertValueEqual(ConduitContents.EMPTY, loaded(helper, abs, unknown).contents(),
+                "contents naming an unknown fluid");
+        helper.succeed();
+    }
+
+    /** A fluid instance outside the registry: created without its constructor, which would need an open registry. */
+    private static Fluid unregisteredFluid() {
+        try {
+            return (Fluid) sun.reflect.ReflectionFactory.getReflectionFactory()
+                    .newConstructorForSerialization(EmptyFluid.class, Object.class.getDeclaredConstructor())
+                    .newInstance();
+        } catch (ReflectiveOperationException e) {
+            throw new IllegalStateException(e);
+        }
+    }
+
+    private static boolean rejects(Runnable construct) {
+        try {
+            construct.run();
+            return false;
+        } catch (IllegalArgumentException expected) {
+            return true;
+        }
     }
 
     private static CompoundTag updateTag(GameTestHelper helper, BlockPos abs) {

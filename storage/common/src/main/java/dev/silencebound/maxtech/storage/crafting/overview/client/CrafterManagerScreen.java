@@ -1,7 +1,7 @@
 package dev.silencebound.maxtech.storage.crafting.overview.client;
 
 import dev.silencebound.maxtech.lib.api.resource.StackKey;
-import dev.silencebound.maxtech.lib.client.gui.accent.ScrollBar;
+import dev.silencebound.maxtech.lib.api.client.gui.ScrollBar;
 import dev.silencebound.maxtech.lib.platform.Platform;
 import dev.silencebound.maxtech.storage.crafting.client.KeyDisplay;
 import dev.silencebound.maxtech.storage.crafting.overview.CrafterManager;

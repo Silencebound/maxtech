@@ -1,6 +1,6 @@
 package dev.silencebound.maxtech.storage.crafting.client;
 
-import dev.silencebound.maxtech.lib.client.gui.accent.AccentToast;
+import dev.silencebound.maxtech.lib.api.client.gui.AccentToast;
 import dev.silencebound.maxtech.storage.terminal.TerminalMenu;
 import dev.silencebound.maxtech.storage.terminal.client.TerminalScreen;
 import java.util.UUID;

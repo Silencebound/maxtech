@@ -1,7 +1,6 @@
-package dev.silencebound.maxtech.lib.client.gui.accent;
+package dev.silencebound.maxtech.lib.api.client.gui;
 
-import dev.silencebound.maxtech.lib.client.gui.TextScale;
-import dev.silencebound.maxtech.lib.text.TextFit;
+import org.jetbrains.annotations.ApiStatus;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.network.chat.Component;
@@ -18,6 +17,7 @@ import org.jspecify.annotations.Nullable;
  * Tooltips are placed at the mouse position as given, so a screen drawing under its own scale passes GUI coordinates or
  * draws rows unscaled.
  */
+@ApiStatus.Experimental
 public final class AccentRow {
     /** The selected row's strip on the left. */
     public static final int STRIP = 2;

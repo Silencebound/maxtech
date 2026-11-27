@@ -1,10 +1,10 @@
 package dev.silencebound.maxtech.storage.terminal.client;
 
-import dev.silencebound.maxtech.lib.client.gui.TextScale;
-import dev.silencebound.maxtech.lib.client.gui.accent.AccentButton;
-import dev.silencebound.maxtech.lib.client.gui.accent.IconButton;
-import dev.silencebound.maxtech.lib.client.gui.accent.Accent;
-import dev.silencebound.maxtech.lib.client.gui.accent.AccentToast;
+import dev.silencebound.maxtech.lib.api.client.gui.TextScale;
+import dev.silencebound.maxtech.lib.api.client.gui.AccentButton;
+import dev.silencebound.maxtech.lib.api.client.gui.IconButton;
+import dev.silencebound.maxtech.lib.api.client.gui.Accent;
+import dev.silencebound.maxtech.lib.api.client.gui.AccentToast;
 import dev.silencebound.maxtech.lib.client.gui.accent.SideTabs;
 import dev.silencebound.maxtech.storage.crafting.client.JobToastPanel;
 import dev.silencebound.maxtech.storage.crafting.cpu.client.JobToasts;
@@ -17,7 +17,7 @@ import dev.silencebound.maxtech.lib.client.gui.VirtualGrid;
 import dev.silencebound.maxtech.lib.resource.StackKeys;
 import dev.silencebound.maxtech.lib.sync.ListSort;
 import dev.silencebound.maxtech.lib.sync.SyncedListIndex;
-import dev.silencebound.maxtech.lib.text.TextFit;
+import dev.silencebound.maxtech.lib.api.client.gui.TextFit;
 import dev.silencebound.maxtech.storage.config.StorageClientConfig;
 import dev.silencebound.maxtech.storage.crafting.terminal.PatternPanel;
 import dev.silencebound.maxtech.storage.crafting.terminal.client.PatternPanelView;
@@ -134,16 +134,16 @@ public final class TerminalScreen extends AbstractContainerScreen<TerminalMenu> 
     private static final int VIEW_ICON = 10;
 
     /** The crafting panel's clear button: a cross. */
-    private static final dev.silencebound.maxtech.lib.client.gui.accent.Icon CLEAR_ICON = dev.silencebound.maxtech.lib.client.gui.accent.Icon
+    private static final dev.silencebound.maxtech.lib.api.client.gui.Icon CLEAR_ICON = dev.silencebound.maxtech.lib.api.client.gui.Icon
             .glyph("#....#", ".#..#.", "..##..", "..##..", ".#..#.", "#....#");
 
     /** The size button's icons, in {@link TerminalSize} order: a low box, a tall box, a box between two arrows. */
-    private static final List<dev.silencebound.maxtech.lib.client.gui.accent.Icon> SIZE_ICONS = List.of(
-            dev.silencebound.maxtech.lib.client.gui.accent.Icon.glyph("########", "#......#", "#......#", "#......#",
+    private static final List<dev.silencebound.maxtech.lib.api.client.gui.Icon> SIZE_ICONS = List.of(
+            dev.silencebound.maxtech.lib.api.client.gui.Icon.glyph("########", "#......#", "#......#", "#......#",
                     "########"),
-            dev.silencebound.maxtech.lib.client.gui.accent.Icon.glyph("########", "#......#", "#......#", "#......#",
+            dev.silencebound.maxtech.lib.api.client.gui.Icon.glyph("########", "#......#", "#......#", "#......#",
                     "#......#", "#......#", "#......#", "#......#", "#......#", "########"),
-            dev.silencebound.maxtech.lib.client.gui.accent.Icon.glyph("...##...", "..####..", "........", "########",
+            dev.silencebound.maxtech.lib.api.client.gui.Icon.glyph("...##...", "..####..", "........", "########",
                     "#......#", "#......#", "########", "........", "..####..", "...##..."));
 
     /** The sizes in the order of {@link #SIZE_ICONS}. */
