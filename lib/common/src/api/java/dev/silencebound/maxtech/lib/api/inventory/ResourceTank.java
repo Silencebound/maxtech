@@ -20,11 +20,12 @@ import org.jetbrains.annotations.ApiStatus;
  * The change listener runs once per change, never for a simulation or a rolled-back transaction: at once for the
  * methods here, when the root transaction commits for changes made through a handler.
  * <p>
- * A saved resource that no longer loads (its mod was removed) is kept as it was saved and saved back unchanged, so it
- * returns with its mod: the tank then is {@link #unknown()}, reads as empty, takes nothing in and refuses {@link #set}
- * and {@link #clear} until the owner calls {@link #discardUnknown()}. A save holding more than the capacity (the
- * machine's tank shrank) loads whole: the tank takes nothing until drained below its capacity, and gauges show it as
- * full.
+ * A saved resource that no longer loads, wholly (its mod was removed, or a component of it was), is kept as it was
+ * saved and saved back unchanged, so it returns with its mod: the tank then is {@link #unknown()}, reads as empty,
+ * takes nothing in and refuses {@link #set} and {@link #clear} until the owner calls {@link #discardUnknown()}. This
+ * holds while the block exists: unknown contents cannot go into the block's item, so they vanish when it is broken. A
+ * save holding more than the capacity (the machine's tank shrank) loads whole: the tank takes nothing until drained
+ * below its capacity, and gauges show it as full.
  *
  * @param <K>
  *            the key type of the tank's kind

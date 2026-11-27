@@ -12,7 +12,10 @@ import java.util.List;
 import java.util.Optional;
 import java.util.function.IntConsumer;
 import java.util.function.Predicate;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.Containers;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.level.storage.ValueOutput;
 // Lib's slots are NeoForge item handlers, so transactions, pipes and hoppers use them directly (ADR-0002).
@@ -38,6 +41,8 @@ public final class LibItemSlots extends ItemStacksResourceHandler implements Ite
     private static final String ITEMS = "items";
     private static final String SLOT = "slot";
     private static final String ITEM = "item";
+    /** The index the change listener gets for a change to {@link #overflow}. */
+    private static final int OVERFLOW = -1;
 
     private final SlotRole[] roles;
     private final @Nullable Predicate<ItemStack>[] filters;
@@ -132,7 +137,36 @@ public final class LibItemSlots extends ItemStacksResourceHandler implements Ite
     public ItemStack takeOverflow(int index) {
         NoTransaction.check("Taking overflow");
         overflowSlots.removeInt(index);
-        return overflow.remove(index);
+        ItemStack taken = overflow.remove(index);
+        onChange.accept(OVERFLOW);
+        return taken;
+    }
+
+    @Override
+    public List<ItemStack> contentsToDrop() {
+        NoTransaction.check("Taking the contents");
+        List<ItemStack> contents = new ArrayList<>();
+        for (int i = 0; i < stacks.size(); i++) {
+            ItemStack stack = stacks.get(i);
+            if (!stack.isEmpty()) {
+                contents.add(stack);
+                super.set(i, ItemResource.EMPTY, 0);
+            }
+        }
+        if (!overflow.isEmpty()) {
+            contents.addAll(overflow);
+            overflow.clear();
+            overflowSlots.clear();
+            onChange.accept(OVERFLOW);
+        }
+        return contents;
+    }
+
+    @Override
+    public void dropContents(Level level, BlockPos pos) {
+        for (ItemStack stack : contentsToDrop()) {
+            Containers.dropItemStack(level, pos.getX(), pos.getY(), pos.getZ(), stack);
+        }
     }
 
     @Override
@@ -236,7 +270,13 @@ public final class LibItemSlots extends ItemStacksResourceHandler implements Ite
         for (ValueInput entry : input.childrenListOrEmpty(ITEMS)) {
             int slot = entry.getIntOr(SLOT, -1);
             boolean fits = slot >= 0 && slot < stacks.size() && stacks.get(slot).isEmpty() && unknown[slot] == null;
-            Optional<ItemStack> stack = entry.read(ITEM, ItemStack.CODEC);
+            Optional<Dynamic<?>> raw = entry.read(ITEM, Codec.PASSTHROUGH);
+            if (raw.isEmpty()) {
+                continue;
+            }
+            // Only a full success: a partial result would silently drop what did not decode (a removed mod's
+            // component on a vanilla item, say), so anything less stays unknown as saved.
+            Optional<ItemStack> stack = ItemStack.CODEC.parse(raw.get()).result();
             if (stack.isPresent()) {
                 if (fits) {
                     stacks.set(slot, stack.get());
@@ -244,10 +284,6 @@ public final class LibItemSlots extends ItemStacksResourceHandler implements Ite
                     overflow.add(stack.get());
                     overflowSlots.add(slot);
                 }
-                continue;
-            }
-            Optional<Dynamic<?>> raw = entry.read(ITEM, Codec.PASSTHROUGH);
-            if (raw.isEmpty()) {
                 continue;
             }
             unknownCount++;

@@ -159,7 +159,10 @@ public class LibResourceTank<K> implements ResourceTank<K> {
     public final void load(ValueInput input) {
         unblock();
         long amount = input.getLongOr(AMOUNT, 0);
-        Optional<K> key = amount > 0 ? input.read(RESOURCE, kind.codec()) : Optional.empty();
+        Optional<Dynamic<?>> raw = amount > 0 ? input.read(RESOURCE, Codec.PASSTHROUGH) : Optional.empty();
+        // Only a full success: a partial result would silently drop what did not decode (a removed mod's component
+        // on a fluid, say), so anything less stays unknown as saved.
+        Optional<K> key = raw.flatMap(saved -> kind.codec().parse(saved).result());
         if (key.isPresent()) {
             journal.load(key.get(), amount);
             if (amount > journal.capacity()) {
@@ -169,7 +172,6 @@ public class LibResourceTank<K> implements ResourceTank<K> {
             return;
         }
         journal.load(null, 0);
-        Optional<Dynamic<?>> raw = amount > 0 ? input.read(RESOURCE, Codec.PASSTHROUGH) : Optional.empty();
         if (raw.isPresent()) {
             unloaded = raw.get();
             unloadedAmount = amount;

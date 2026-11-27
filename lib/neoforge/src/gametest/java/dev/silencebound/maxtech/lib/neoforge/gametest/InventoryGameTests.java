@@ -11,6 +11,7 @@ import dev.silencebound.maxtech.lib.neoforge.api.inventory.Handlers;
 import dev.silencebound.maxtech.lib.platform.Platform;
 import dev.silencebound.maxtech.lib.platform.RegistryEntry;
 import dev.silencebound.maxtech.lib.platform.RegistryHelper;
+import it.unimi.dsi.fastutil.ints.IntArrayList;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Consumer;
@@ -28,6 +29,9 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.util.ProblemReporter;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.item.ItemEntity;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Block;
@@ -67,7 +71,8 @@ public final class InventoryGameTests {
             "inventory_hoppers_follow_roles", "inventory_tank_handler", "inventory_tank_keeps_unloaded",
             "inventory_slots_round_trip", "inventory_slots_keep_unknown", "inventory_slots_keep_overflow",
             "inventory_tank_keeps_overfull", "inventory_output_comparator", "inventory_no_set_in_transaction",
-            "inventory_filter_reuses_stack"};
+            "inventory_filter_reuses_stack", "inventory_slots_drop_contents", "inventory_slots_keep_unknown_component",
+            "inventory_tank_keeps_unknown_component"};
 
     /** Slot 0: input for coal, at most 16. Slot 1: output. Slot 2: display. Slot 3: input for anything. */
     static final ItemSlots.Builder SLOTS = ItemSlots.builder(4).input(0, 1, stack -> stack.is(Items.COAL))
@@ -97,6 +102,9 @@ public final class InventoryGameTests {
         FUNCTIONS.register(NAMES[9], () -> InventoryGameTests::outputComparator);
         FUNCTIONS.register(NAMES[10], () -> InventoryGameTests::noSetInTransaction);
         FUNCTIONS.register(NAMES[11], () -> InventoryGameTests::filterReusesStack);
+        FUNCTIONS.register(NAMES[12], () -> InventoryGameTests::slotsDropContents);
+        FUNCTIONS.register(NAMES[13], () -> InventoryGameTests::slotsKeepUnknownComponent);
+        FUNCTIONS.register(NAMES[14], () -> InventoryGameTests::tankKeepsUnknownComponent);
     }
 
     private InventoryGameTests() {
@@ -425,8 +433,8 @@ public final class InventoryGameTests {
         ItemSlots slots = filled();
         CompoundTag saved = save(helper, slots::save);
         ItemSlots.Builder small = ItemSlots.builder(2);
-        ItemSlots loaded = small.build(slot -> {
-        });
+        IntArrayList changes = new IntArrayList();
+        ItemSlots loaded = small.build(changes::add);
         loaded.load(input(helper, saved));
         helper.assertTrue(ItemStack.matches(loaded.stack(0), slots.stack(0)), "slot 0");
         helper.assertValueEqual(loaded.overflow().size(), 2, "overflow size");
@@ -443,6 +451,7 @@ public final class InventoryGameTests {
         ItemStack taken = loaded.takeOverflow(0);
         helper.assertTrue(ItemStack.matches(taken, slots.stack(2)), "taken overflow");
         helper.assertValueEqual(loaded.overflow().size(), 1, "overflow after take");
+        helper.assertValueEqual(changes, IntArrayList.of(-1), "taking overflow did not report a change");
         ItemSlots reloaded = small.build(slot -> {
         });
         reloaded.load(input(helper, save(helper, loaded::save)));
@@ -522,6 +531,94 @@ public final class InventoryGameTests {
         helper.succeed();
     }
 
+    /**
+     * Breaking a block that drops its slots from {@code preRemoveSideEffects} drops every stack and the overflow, and
+     * reports the change; an unknown item is not dropped.
+     */
+    private static void slotsDropContents(GameTestHelper helper) {
+        ItemSlots six = ItemSlots.builder(6).build(slot -> {
+        });
+        six.set(0, new ItemStack(Items.COAL, 9));
+        six.set(3, new ItemStack(Items.STICK, 5));
+        six.set(4, new ItemStack(Items.DIAMOND, 2));
+        six.set(5, new ItemStack(Items.EMERALD, 3));
+        CompoundTag saved = save(helper, six::save);
+        CompoundTag item = saved.getListOrEmpty("items").getCompoundOrEmpty(1).getCompoundOrEmpty("item");
+        item.putString("id", "gone_mod:widget");
+
+        BlockPos pos = new BlockPos(1, 1, 1);
+        helper.setBlock(pos, SLOTS_BLOCK.get());
+        SlotsEntity entity = helper.getBlockEntity(pos, SlotsEntity.class);
+        entity.slots.load(input(helper, saved));
+        helper.assertTrue(entity.slots.unknown(3), "slot 3 not unknown");
+        helper.assertValueEqual(entity.slots.overflow().size(), 2, "overflow before breaking");
+        helper.destroyBlock(pos);
+        helper.assertValueEqual(dropped(helper, pos, Items.COAL), 9, "dropped coal");
+        helper.assertValueEqual(dropped(helper, pos, Items.DIAMOND), 2, "dropped overflow diamonds");
+        helper.assertValueEqual(dropped(helper, pos, Items.EMERALD), 3, "dropped overflow emeralds");
+        helper.assertValueEqual(dropped(helper, pos, Items.STICK), 0, "dropped the unknown item");
+        helper.assertTrue(entity.slots.overflow().isEmpty(), "overflow kept after dropping");
+        helper.assertTrue(entity.slots.stack(0).isEmpty(), "slot kept after dropping");
+        helper.assertValueEqual(entity.changes, IntArrayList.of(0, -1), "changes reported by dropping");
+        helper.succeed();
+    }
+
+    private static int dropped(GameTestHelper helper, BlockPos pos, Item item) {
+        int count = 0;
+        for (ItemEntity entity : helper.getEntities(EntityType.ITEM, pos, 2)) {
+            if (entity.getItem().is(item)) {
+                count += entity.getItem().getCount();
+            }
+        }
+        return count;
+    }
+
+    /**
+     * A vanilla item carrying a component of a removed mod does not load without it: the slot is unknown and saves the
+     * entry back exactly as it was.
+     */
+    private static void slotsKeepUnknownComponent(GameTestHelper helper) {
+        ItemSlots slots = filled();
+        CompoundTag saved = save(helper, slots::save);
+        CompoundTag entry = saved.getListOrEmpty("items").getCompoundOrEmpty(0);
+        helper.assertValueEqual(entry.getIntOr("slot", -1), 0, "first entry slot");
+        CompoundTag item = entry.getCompoundOrEmpty("item");
+        CompoundTag components = new CompoundTag();
+        components.putInt("gone_mod:charge", 5);
+        item.put("components", components);
+
+        ItemSlots loaded = SLOTS.build(slot -> {
+        });
+        loaded.load(input(helper, saved));
+        helper.assertTrue(loaded.unknown(0), "an item with an unknown component loaded: " + loaded.stack(0));
+        helper.assertTrue(ItemStack.matches(loaded.stack(1), slots.stack(1)), "slot 1 moved");
+        helper.assertValueEqual(save(helper, loaded::save), saved, "unknown component not saved back unchanged");
+        helper.succeed();
+    }
+
+    /**
+     * A fluid carrying a component of a removed mod does not load without it: the tank is unknown and saves its
+     * contents back exactly as they were.
+     */
+    private static void tankKeepsUnknownComponent(GameTestHelper helper) {
+        FluidTank tank = FluidTank.create(8000, () -> {
+        });
+        tank.set(FluidKey.of(Fluids.WATER), 2500);
+        CompoundTag saved = save(helper, tank::save);
+        CompoundTag resource = saved.getCompoundOrEmpty("resource");
+        CompoundTag components = new CompoundTag();
+        components.putInt("gone_mod:charge", 5);
+        resource.put("components", components);
+
+        FluidTank loaded = FluidTank.create(8000, () -> {
+        });
+        loaded.load(input(helper, saved));
+        helper.assertTrue(loaded.unknown(), "a fluid with an unknown component loaded: " + loaded.resource());
+        helper.assertValueEqual(loaded.amount(), 0L, "unknown tank amount");
+        helper.assertValueEqual(save(helper, loaded::save), saved, "unknown component not saved back unchanged");
+        helper.succeed();
+    }
+
     static final class SlotsBlock extends Block implements EntityBlock {
         static final MapCodec<SlotsBlock> CODEC = simpleCodec(SlotsBlock::new);
 
@@ -540,13 +637,24 @@ public final class InventoryGameTests {
         }
     }
 
-    /** {@link #SLOTS} and a 4,000 mB tank; not saved. */
+    /** {@link #SLOTS} and a 4,000 mB tank; not saved. Drops its slots when broken and records their changes. */
     static final class SlotsEntity extends BlockEntity {
-        final ItemSlots slots = SLOTS.build(slot -> setChanged());
+        final IntArrayList changes = new IntArrayList();
+        final ItemSlots slots = SLOTS.build(slot -> {
+            changes.add(slot);
+            setChanged();
+        });
         final FluidTank tank = FluidTank.create(4000, this::setChanged);
 
         SlotsEntity(BlockPos pos, BlockState state) {
             super(SLOTS_ENTITY.get(), pos, state);
+        }
+
+        @Override
+        public void preRemoveSideEffects(BlockPos pos, BlockState state) {
+            if (level != null) {
+                slots.dropContents(level, pos);
+            }
         }
     }
 }
