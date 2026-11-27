@@ -8,7 +8,6 @@ import dev.silencebound.maxtech.lib.api.conduit.model.ConduitBodyKey;
 import dev.silencebound.maxtech.lib.api.conduit.model.ConduitLayer;
 import dev.silencebound.maxtech.lib.api.conduit.model.ConduitQuad;
 import dev.silencebound.maxtech.lib.api.conduit.model.ConduitTexture;
-import dev.silencebound.maxtech.lib.api.conduit.model.ConduitUv;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -34,23 +33,28 @@ import org.jspecify.annotations.Nullable;
  * ({@link ConduitUvs#flowTurns}; vanilla's flowing sprites move towards +v). An arm flows away from the core, the
  * upstream arm towards it; the core flows away from the upstream side, and its faces across that direction flow along
  * the first downstream arm (in {@link Direction} order) that runs along them. A face the flow runs into, and every face
- * without an upstream side, shows the still sprite. The flowing sprite is drawn at half density, as vanilla draws
- * flowing fluid.
+ * without an upstream side, shows the still sprite. Both sprites are drawn block-projected at full size (one sprite per
+ * block, {@link ConduitUvs}), so the flowing sprite runs on without a seam along a run of any length; vanilla draws
+ * flowing fluid at half density, which would jump at every block boundary here.
  *
  * <p>
  * The second lane is a strip {@link ConduitLook.Shell#laneWidth} px square in cross-section, in the inner (+, +) corner
  * of each run (the top south corner of an east-west run, the south east corner of a vertical one), reaching
- * {@value #LANE_LIFT} px past the contents so it shows in front of them, and flowing opposite to the piece it runs
- * along. Where the runs of a bend or branch meet, the strips meet in a corner cube at the core's (+, +, +) corner. A
+ * {@value #LANE_LIFT} px past the contents so it shows in front of them, whatever the inset, and flowing opposite to
+ * the piece it runs along. On a horizontal piece it lies on the fluid's surface, no wider than the fill is high. Where
+ * the runs of a bend or branch meet, the strips meet in a corner cube at the core's (+, +, +) corner, at the core's own
+ * top; on a vertical bend, whose core is a full column, the corner reaches down to the horizontal arms' surface. A
  * conduit without arms has no run and no lane.
  */
 public final class ConduitContentsGeometry {
     private static final Direction[] DIRECTIONS = Direction.values();
     private static final double EPSILON = 1.0E-4;
-    /** How far the lane reaches past the contents, in pixels, so its faces never fight with theirs. */
+    /**
+     * How far the lane reaches past the contents, in pixels, so its faces never fight with theirs. Independent of the
+     * inset: at an inset below this the lane pokes through the glass by the difference, too little to see, where a lift
+     * clamped to the inset would be 0 at inset 0 and fight.
+     */
     static final double LANE_LIFT = 0.02;
-    /** The flowing sprite is drawn at half density, as vanilla's fluid renderer draws it. */
-    private static final float FLOWING_SCALE = 0.5F;
 
     private ConduitContentsGeometry() {
     }
@@ -138,7 +142,7 @@ public final class ConduitContentsGeometry {
         }
         double width = Math.min(look.laneWidth(), inner.maxX - inner.minX);
         if (ConduitContents.packedLane(packed) && width >= EPSILON && arms != 0) {
-            addLane(out, inner, thickness, arms, rings, upstream, width, Math.min(LANE_LIFT, inset), paint);
+            addLane(out, inner, thickness, arms, rings, upstream, vertical, top, width, paint);
         }
         return out;
     }
@@ -180,35 +184,52 @@ public final class ConduitContentsGeometry {
 
     /**
      * The lane: a strip along each arm's run from the arm's end to the corner cube, the corner cube itself, each face
-     * left out where it meets another part of the lane.
+     * left out where it meets another part of the lane. Horizontal strips lie on the fluid's surface at {@code top}, no
+     * wider than the fill is high; the corner sits at the core's top, reaching down to that surface when the core is a
+     * full column.
      */
     @SuppressWarnings("TooManyParameters") // one lane, laid out from the contents' measures; kept primitive
     private static void addLane(List<ConduitQuad> out, AABB inner, float thickness, int arms, int rings,
-            @Nullable Direction upstream, double width, double lift, Paint paint) {
-        AABB corner = new AABB(inner.maxX - width, inner.maxY - width, inner.maxZ - width, inner.maxX + lift,
-                inner.maxY + lift, inner.maxZ + lift);
-        for (Direction side : DIRECTIONS) {
-            if (!ConduitConnections.isConnected(arms, side)) {
+            @Nullable Direction upstream, boolean vertical, double top, double width, Paint paint) {
+        double flatWidth = Math.min(width, top - inner.minY);
+        // A vertical piece's lane keeps its width; a horizontal one's shrinks with the fill.
+        double side = vertical ? width : flatWidth;
+        double coreTop = vertical ? inner.maxY : top;
+        boolean flatArms = (arms
+                & ~(ConduitConnections.bit(Direction.UP) | ConduitConnections.bit(Direction.DOWN))) != 0;
+        double cornerBottom = vertical && flatArms ? Math.min(coreTop - side, top - flatWidth) : coreTop - side;
+        AABB corner = new AABB(inner.maxX - side, cornerBottom, inner.maxZ - side, inner.maxX + LANE_LIFT,
+                coreTop + LANE_LIFT, inner.maxZ + LANE_LIFT);
+        AABB flat = with(corner, Direction.Axis.Y, top - flatWidth, top + LANE_LIFT);
+        int covered = 0;
+        for (Direction armSide : DIRECTIONS) {
+            if (!ConduitConnections.isConnected(arms, armSide)) {
                 continue;
             }
-            Direction.Axis axis = side.getAxis();
-            AABB end = armBox(inner, thickness, side, rings);
-            AABB strip = side.getAxisDirection() == Direction.AxisDirection.POSITIVE
-                    ? with(corner, axis, corner.max(axis), end.max(axis))
-                    : with(corner, axis, end.min(axis), corner.min(axis));
+            Direction.Axis axis = armSide.getAxis();
+            AABB base = axis == Direction.Axis.Y ? corner : flat;
+            AABB end = armBox(inner, thickness, armSide, rings);
+            AABB strip = armSide.getAxisDirection() == Direction.AxisDirection.POSITIVE
+                    ? with(base, axis, corner.max(axis), end.max(axis))
+                    : with(base, axis, end.min(axis), corner.min(axis));
             if (strip.max(axis) - strip.min(axis) < EPSILON) {
                 continue;
             }
-            Direction flow = upstream == null ? null : armFlow(side, upstream).getOpposite();
+            if (axis == Direction.Axis.Y
+                    || (Math.abs(base.minY - corner.minY) < EPSILON && Math.abs(base.maxY - corner.maxY) < EPSILON)) {
+                covered |= ConduitConnections.bit(armSide);
+            }
+            Direction flow = upstream == null ? null : armFlow(armSide, upstream).getOpposite();
             for (Direction face : DIRECTIONS) {
                 // The face towards the core meets the corner cube.
-                if (face != side.getOpposite()) {
+                if (face != armSide.getOpposite()) {
                     out.add(contentsFace(strip, face, flow, paint));
                 }
             }
         }
         for (Direction face : DIRECTIONS) {
-            if (!ConduitConnections.isConnected(arms, face)) {
+            // A corner face is left out where a strip as tall as the corner meets it.
+            if (!ConduitConnections.isConnected(covered, face)) {
                 Direction flow = upstream == null ? null : coreFlow(face, arms, upstream);
                 out.add(contentsFace(corner, face, flow == null ? null : flow.getOpposite(), paint));
             }
@@ -223,17 +244,11 @@ public final class ConduitContentsGeometry {
         AABB plane = face(box, face);
         OptionalInt turns = flow == null ? OptionalInt.empty() : ConduitUvs.flowTurns(face, flow);
         if (turns.isPresent()) {
-            ConduitUv uv = scaled(ConduitUvs.projected(plane, face, turns.getAsInt()));
             return new ConduitQuad(plane, face, ConduitTexture.FLAT, paint.argb(), false, ConduitLayer.CUTOUT,
-                    paint.flowing(), uv, paint.light());
+                    paint.flowing(), ConduitUvs.projected(plane, face, turns.getAsInt()), paint.light());
         }
         return new ConduitQuad(plane, face, ConduitTexture.FLAT, paint.argb(), false, ConduitLayer.CUTOUT,
                 paint.still(), ConduitUvs.projected(plane, face), paint.light());
-    }
-
-    private static ConduitUv scaled(ConduitUv uv) {
-        return new ConduitUv(uv.u0() * FLOWING_SCALE, uv.v0() * FLOWING_SCALE, uv.u1() * FLOWING_SCALE,
-                uv.v1() * FLOWING_SCALE, uv.quarterTurns());
     }
 
     /** The pane of {@code box} flat on its face {@code face}. */

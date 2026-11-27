@@ -254,7 +254,9 @@ public final class ConduitModel implements DynamicBlockStateModel {
 
     /**
      * The contents of a shell conduit in its fluid's baked fluid model; the fluid model set is replaced on a resource
-     * reload together with this model, so the part never outlives the sprites it names.
+     * reload together with this model, so the part never outlives the sprites it names. The tint is the fluid's default
+     * one, taken without a level or position, so it ignores the biome (water is the same blue everywhere): the part is
+     * cached per key and shared by every conduit with the same contents.
      */
     private BlockStateModelPart bakeContents(ConduitBodyKey key) {
         if (!(look instanceof ConduitLook.Shell shell)) {
@@ -315,13 +317,15 @@ public final class ConduitModel implements DynamicBlockStateModel {
         }
         // The chunk path lights a quad by its MaterialInfo's emission; ExtraFaceData carries the same for consistency.
         int light = face.lightEmission();
-        BakedQuad.MaterialInfo info = BakedQuad.MaterialInfo.of(material, transparency, -1, true, light, true);
+        // A glowing quad drops ambient occlusion, as vanilla renders light-emitting blocks without it.
+        boolean ao = light == 0;
+        BakedQuad.MaterialInfo info = BakedQuad.MaterialInfo.of(material, transparency, -1, true, light, ao);
         AABB box = face.box();
         Vector3f from = new Vector3f((float) box.minX, (float) box.minY, (float) box.minZ);
         Vector3f to = new Vector3f((float) box.maxX, (float) box.maxY, (float) box.maxZ);
         return FaceBakery.bakeQuad(NO_INTERNING, from, to, ConduitFaceUvs.uvs(face.uv()),
                 ConduitFaceUvs.rotation(face.uv()), info, face.facing(), BlockModelRotation.IDENTITY, null,
-                new ExtraFaceData(face.argb(), light, true));
+                new ExtraFaceData(face.argb(), light, ao));
     }
 
     private Material.Baked material(ConduitQuad face, Map<Identifier, Material.Baked> extra) {

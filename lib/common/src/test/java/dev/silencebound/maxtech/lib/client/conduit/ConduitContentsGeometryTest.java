@@ -18,6 +18,7 @@ import dev.silencebound.maxtech.lib.api.conduit.model.ConduitUv;
 import com.google.common.base.Splitter;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.TreeMap;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.Identifier;
@@ -162,7 +163,7 @@ class ConduitContentsGeometryTest {
      */
     @Test
     void laneSitsInTheInnerCorner() {
-        int packed = ConduitContents.pack(FLUID, 1, Direction.WEST, true);
+        int packed = ConduitContents.pack(FLUID, 4, Direction.WEST, true);
         double lift = ConduitContentsGeometry.LANE_LIFT;
         assertBox(new AABB(0, HIGH - 1, HIGH - 1, 16, HIGH + lift, HIGH + lift),
                 bounds(lanes(quads(SHELL, mask("we"), 0, packed))));
@@ -171,6 +172,86 @@ class ConduitContentsGeometryTest {
         assertTrue(lanes(quads(SHELL.withLaneWidth(0), mask("we"), 0, packed)).isEmpty());
         assertTrue(lanes(quads(SHELL, 0, 0, packed)).isEmpty());
         assertTrue(lanes(quads(SHELL, mask("we"), 0, ConduitContents.pack(FLUID, 1, Direction.WEST, false))).isEmpty());
+    }
+
+    /**
+     * On a horizontal run the lane lies on the fluid's surface, no wider than the fill is high, the corner cube of a
+     * bend at the same height; at fill 4 it is where {@link #laneSitsInTheInnerCorner} puts it.
+     */
+    @ParameterizedTest
+    @CsvSource({"1, 1", "2, 1", "3, 1", "4, 1", "1, 2", "2, 2", "3, 2", "4, 2"})
+    void laneLiesOnTheSurface(int fill, float laneWidth) {
+        double lift = ConduitContentsGeometry.LANE_LIFT;
+        double top = LOW + (HIGH - LOW) * fill / 4;
+        double width = Math.min(laneWidth, top - LOW);
+        ConduitLook.Shell look = SHELL.withLaneWidth(laneWidth);
+        assertBox(new AABB(0, top - width, HIGH - width, 16, top + lift, HIGH + lift),
+                bounds(laneOnly(look, "we", fill, Direction.WEST)));
+        assertBox(new AABB(HIGH - width, top - width, 0, 16, top + lift, HIGH + lift),
+                bounds(laneOnly(look, "ne", fill, Direction.NORTH)));
+    }
+
+    /**
+     * On a vertical bend the core is a full column, so the corner sits at its top and reaches down to the horizontal
+     * arm's surface, where that arm's strip lies.
+     */
+    @ParameterizedTest
+    @CsvSource({"1", "2", "3", "4"})
+    void laneOnAVerticalBendRunsDownToTheSurface(int fill) {
+        double lift = ConduitContentsGeometry.LANE_LIFT;
+        double top = LOW + (HIGH - LOW) * fill / 4;
+        double width = Math.min(1, top - LOW);
+        List<ConduitQuad> lane = laneOnly(SHELL, "ue", fill, Direction.UP);
+        List<ConduitQuad> east = lane.stream().filter(q -> q.box().maxX > HIGH + lift + EPS).toList();
+        List<ConduitQuad> up = lane.stream().filter(q -> q.box().maxY > HIGH + lift + EPS).toList();
+        List<ConduitQuad> corner = lane.stream().filter(q -> !east.contains(q) && !up.contains(q)).toList();
+        assertBox(new AABB(HIGH + lift, top - width, HIGH - 1, 16, top + lift, HIGH + lift), bounds(east));
+        assertBox(new AABB(HIGH - 1, HIGH + lift, HIGH - 1, HIGH + lift, 16, HIGH + lift), bounds(up));
+        assertBox(new AABB(HIGH - 1, Math.min(HIGH - 1, top - width), HIGH - 1, HIGH + lift, HIGH + lift, HIGH + lift),
+                bounds(corner));
+    }
+
+    /** The lane reaches past the contents at inset 0 too, so its faces never share a plane with theirs. */
+    @Test
+    void laneLiftsAtInsetZero() {
+        double lift = ConduitContentsGeometry.LANE_LIFT;
+        AABB lane = bounds(laneOnly(SHELL.withInset(0), "we", 4, Direction.WEST));
+        assertEquals(11 + lift, lane.maxY, EPS);
+        assertEquals(11 + lift, lane.maxZ, EPS);
+    }
+
+    /**
+     * The flowing sprite runs on without a seam from one block to the next along a straight run in each axis: the
+     * downstream arm's end face shows the sprite rows the next block's upstream arm starts with, across the same
+     * columns. Along the flow the sprite's v runs from v0 to v1 ({@link #flow}).
+     */
+    @ParameterizedTest
+    @CsvSource({"we, w", "ns, n", "du, d"})
+    void flowingSpriteRunsOnAcrossBlocks(String arms, String upstream) {
+        Direction from = Objects.requireNonNull(side(upstream));
+        Direction to = from.getOpposite();
+        List<ConduitQuad> quads = quads(SHELL, mask(arms), 0, ConduitContents.pack(FLUID, 4, from, false));
+        int checked = 0;
+        for (ConduitQuad out : quads) {
+            if (!flowing(out) || !piece(out).equals(letter(to)) || out.facing().getAxis() == to.getAxis()) {
+                continue;
+            }
+            for (ConduitQuad in : quads) {
+                if (flowing(in) && piece(in).equals(letter(from)) && in.facing() == out.facing()) {
+                    ConduitUv a = out.uv();
+                    ConduitUv b = in.uv();
+                    assertTrue(a != null && b != null);
+                    assertEquals(a.quarterTurns(), b.quarterTurns(), out + " / " + in);
+                    assertEquals(a.u0(), b.u0(), EPS, out + " / " + in);
+                    assertEquals(a.u1(), b.u1(), EPS, out + " / " + in);
+                    // the same sprite row, a whole number of sprites apart
+                    float rows = a.v1() - b.v0();
+                    assertEquals(Math.round(rows / ConduitUv.SIZE) * ConduitUv.SIZE, rows, EPS, out + " / " + in);
+                    checked++;
+                }
+            }
+        }
+        assertEquals(4, checked, "faces along the run");
     }
 
     /** Every contents quad is opaque cutout, tinted and lit by the paint. */
@@ -271,6 +352,13 @@ class ConduitContentsGeometryTest {
             }
         }
         return false;
+    }
+
+    /** The lane's quads alone: those drawn with the lane and not without it. */
+    private static List<ConduitQuad> laneOnly(ConduitLook.Shell look, String arms, int fill, Direction upstream) {
+        List<ConduitQuad> without = quads(look, mask(arms), 0, ConduitContents.pack(FLUID, fill, upstream, false));
+        return quads(look, mask(arms), 0, ConduitContents.pack(FLUID, fill, upstream, true)).stream()
+                .filter(quad -> !without.contains(quad)).toList();
     }
 
     private static List<ConduitQuad> lanes(List<ConduitQuad> quads) {

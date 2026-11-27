@@ -159,7 +159,9 @@ particles show the `shell` sprite. In code: `ConduitLook.shell(id).withBorderCol
 
 A shell draws the conduit's `ConduitContents` (`ConduitHost.setContents`) inside the glass, opaque, with the fluid's
 own still and flowing sprites and tint from its fluid model, so any mod's fluid works, and at the fluid's light level
-(lava is full-bright). Horizontal pieces fill from the bottom by quarter steps; vertical pieces show a full column at
+(lava is full-bright, without ambient occlusion). The tint is the fluid's default one, not the biome's: the contents are
+baked once per shape and fluid and shared, so water is the same blue in every biome. Horizontal pieces fill from the bottom by quarter steps; vertical pieces show a full column at
 any fill above 0. With an upstream side the flowing sprite runs from that side downstream on every face, else the
-still sprite shows; the second lane is a thin strip in the run's inner (+, +) corner flowing the other way.
+still sprite shows, both at full size, one sprite per block, so they tile on without a seam; the second lane is a thin
+strip in the run's inner (+, +) corner, on the fluid's surface on horizontal pieces, flowing the other way.
 `ConduitContentsGeometryTest` pins the flow direction per face.

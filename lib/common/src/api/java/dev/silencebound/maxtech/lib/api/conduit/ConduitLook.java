@@ -112,8 +112,9 @@ public sealed interface ConduitLook {
      * A conduit's {@link ConduitContents} show inside the glass, opaque, in the fluid's own textures and tint and at
      * its own light level, {@code inset} px in from the glass: from the bottom up to the fill level on horizontal
      * pieces, as a full column on vertical ones. With an upstream side the fluid's flowing texture runs along the flow,
-     * else its still one; a second lane is a strip {@code laneWidth} px wide in the run's inner (+, +) corner, flowing
-     * the other way.
+     * else its still one; a second lane is a strip {@code laneWidth} px wide in the run's inner (+, +) corner, on the
+     * fluid's surface on horizontal pieces, flowing the other way. The fluid's tint is its default one, not the
+     * biome's.
      * <p>
      * The block state fields are {@code shell}, then {@code border_colour}, {@code border}, {@code rim}, {@code inset}
      * and {@code lane_width}, each left out at its default; later fields will be optional too, so files stay valid.
