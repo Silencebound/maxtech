@@ -36,7 +36,7 @@ public final class EnergyNetworks {
     /**
      * The server's configured FE exchange rate ({@code energy.feRateFe} FE are worth {@code energy.feRateMu} MU), or
      * {@link FeRate#ONE_TO_ONE} while no server config is loaded. For an addon's own FE edges, such as an item that
-     * shows its MU to other mods' chargers as FE. Server thread.
+     * shows its MU to other mods' chargers as FE. Any thread; on a client in a world it is the rate the server sent.
      */
     public static FeRate feRate() {
         return feRate.get();
