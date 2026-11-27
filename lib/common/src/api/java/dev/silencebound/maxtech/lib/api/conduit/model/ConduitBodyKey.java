@@ -23,9 +23,9 @@ import org.jspecify.annotations.Nullable;
  *            ignore it
  * @param contents
  *            the conduit's {@link dev.silencebound.maxtech.lib.api.conduit.ConduitView#contents()},
- *            {@linkplain dev.silencebound.maxtech.lib.api.conduit.ConduitContents#packed() packed} with this session's
- *            fluid ids and read back with {@code ConduitContents}' {@code packed*} helpers; 0 for none. Lib's looks
- *            ignore it for now
+ *            {@linkplain dev.silencebound.maxtech.lib.api.conduit.ConduitContents#pack packed} with this session's look
+ *            indices and read back with {@code ConduitContents}' {@code packed*} helpers; 0 for none. The shell look
+ *            draws it; the solid look ignores it
  */
 @ApiStatus.Experimental
 public record ConduitBodyKey(ConduitType type, @Nullable DyeColor colour, int arms, int rings, int renderValue,

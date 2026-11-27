@@ -26,8 +26,9 @@ import org.jspecify.annotations.Nullable;
  * @param renderValue
  *            the addon's {@link ConduitBlockEntity#renderValue()}, part of the body
  * @param contents
- *            the conduit's {@link ConduitBlockEntity#contents()}, {@linkplain ConduitContents#packed() packed} with
- *            this session's fluid ids; part of the body, 0 for none
+ *            the conduit's {@link ConduitBlockEntity#contents()}, {@linkplain ConduitContents#pack packed} with this
+ *            session's look indices (on the client only; 0 on the server, which draws nothing); part of the body, 0 for
+ *            none
  */
 public record ConduitRenderData(ConduitType type, @Nullable DyeColor colour, int arms, int rings, int renderValue,
         int contents, List<ConduitFaceKey> faces, @Nullable BlockState facade) {

@@ -174,12 +174,15 @@ file written now stays valid. The model is translucent, so block outlines and mo
 particles show the `shell` sprite. In code: `ConduitLook.shell(id).withBorderColour(0x2E4A52)`, `.withBorder(1)`,
 `.withRim(2)`, `.withInset(1)`, `.withLaneWidth(0.5F)`. `ConduitLookTest` and `ConduitAssetsTest` pin this format too.
 
-A shell draws the conduit's `ConduitContents` (`ConduitHost.setContents`) inside the glass, opaque, with the fluid's
-own still and flowing sprites and tint from its fluid model, so any mod's fluid works, and at the fluid's light level
-(lava is full-bright, without ambient occlusion). The tint is the fluid's default one, not the biome's: the contents are
-baked once per shape and fluid and shared, so water is the same blue in every biome. Horizontal pieces fill from the bottom by quarter steps; vertical pieces show a full column at
+A shell draws the conduit's `ConduitContents` (`ConduitHost.setContents`) inside the glass, opaque, with the
+resource kind's client look (`ResourceLook`, registered with `ResourceLooks.register` on the client): its still and
+flowing sprites (the still one where a kind has no flowing sprite), tint and light level (lava is full-bright, without
+ambient occlusion). Lib registers the fluid kind's look from each fluid's model, so any mod's fluid works; contents of
+a kind without a look draw nothing (Lib warns once). The look sees the resource's draw base, and its paint is resolved
+once on the main thread when the resource is first shown and again after a resource reload: the contents are baked
+once per shape and resource and shared, so water is the same blue in every biome. Horizontal pieces fill from the bottom by quarter steps; vertical pieces show a full column at
 any fill above 0. With an upstream side the flowing sprite runs from that side downstream on every face, else the
 still sprite shows, both at full size, one sprite per block, so they tile on without a seam; the second lane is a thin
 strip in the run's inner (+, +) corner, on the fluid's surface on horizontal pieces, flowing the other way.
 `ConduitContentsGeometryTest` pins the flow direction per face. Fluid contents come from `ConduitContents.ofFluid`;
-contents of another resource kind (`lib.api.resource`) save and sync, but draw nothing yet.
+contents of any other kind from the constructor with a `KindKey`.

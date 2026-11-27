@@ -1,6 +1,5 @@
 package dev.silencebound.maxtech.lib.api.conduit;
 
-import com.mojang.logging.LogUtils;
 import dev.silencebound.maxtech.lib.api.resource.FluidKey;
 import dev.silencebound.maxtech.lib.api.resource.KindKey;
 import dev.silencebound.maxtech.lib.api.resource.ResourceKind;
@@ -8,8 +7,6 @@ import dev.silencebound.maxtech.lib.api.resource.ResourceKinds;
 import dev.silencebound.maxtech.lib.api.resource.UnknownResource;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.Objects;
 import java.util.Optional;
 import net.minecraft.core.Direction;
@@ -18,15 +15,14 @@ import net.minecraft.world.level.material.FlowingFluid;
 import net.minecraft.world.level.material.Fluid;
 import org.jetbrains.annotations.ApiStatus;
 import org.jspecify.annotations.Nullable;
-import org.slf4j.Logger;
 
 /**
  * What a conduit shows inside it, in a meaning shared by every addon: the resource it carries (a fluid, or any other
  * {@link ResourceKind}), how full it looks, the side its flow comes from and whether a second lane flows the other way.
  * The addon sets it on the server with {@link ConduitHost#setContents}; Lib saves it (by the resource's kind and names,
  * so it survives registry id changes between sessions), syncs it on change and hands it to the client model. It says
- * only what to draw; it holds no amount and moves nothing. For now the client draws fluids only; contents of other
- * kinds are saved and synced but show nothing.
+ * only what to draw; it holds no amount and moves nothing. The client draws a resource with its kind's
+ * {@code ResourceLook} (registered in {@code lib.api.client.resource}); a kind without one shows nothing.
  * <p>
  * An immutable value, safe to share between threads. Its record accessors return the stored components and never
  * allocate.
@@ -54,15 +50,15 @@ public record ConduitContents(Optional<KindKey<?>> resource, int fill, Optional<
     /** Nothing inside: no resource, fill 0, no upstream side, no second lane. What every conduit has until set. */
     public static final ConduitContents EMPTY = new ConduitContents(Optional.empty(), 0, Optional.empty(), false);
 
-    private static final int FLUID_BITS = 16;
-    private static final int FLUID_MASK = (1 << FLUID_BITS) - 1;
+    /** The highest look index {@link #pack} takes: bits 0-15 hold the index + 1. */
+    public static final int MAX_LOOK_INDEX = 0xFFFE;
+
+    private static final int RESOURCE_MASK = 0xFFFF;
     private static final int FILL_SHIFT = 16;
     private static final int FILL_MASK = 0b111;
     private static final int UPSTREAM_SHIFT = 19;
     private static final int UPSTREAM_MASK = 0b111;
     private static final int LANE_BIT = 1 << 22;
-    private static final Logger LOGGER = LogUtils.getLogger();
-    private static final Set<Integer> OVERFLOWED = ConcurrentHashMap.newKeySet();
     // Index 0 is none, then Direction.get3DDataValue() + 1; shared so packedUpstream never allocates.
     private static final List<Optional<Direction>> UPSTREAM = upstreamOptions();
 
@@ -144,59 +140,34 @@ public record ConduitContents(Optional<KindKey<?>> resource, int fill, Optional<
     }
 
     /**
-     * These contents packed into one int for a client render key, using the fluid's registry id in this session (see
-     * {@link #pack(int, int, Direction, boolean)}). Only meaningful within the session that packed it: never save or
-     * send it. {@link #EMPTY} packs to 0. A resource of another kind packs as no fluid, so nothing is drawn for it yet.
-     * A fluid whose registry id does not fit the layout packs as no fluid (and logs a warning once), so it never fails
-     * a load or sync.
-     */
-    public int packed() {
-        Optional<Fluid> fluid = fluid();
-        int fluidId = fluid.isPresent() ? BuiltInRegistries.FLUID.getId(fluid.get()) : -1;
-        if (fluidId >= FLUID_MASK) {
-            if (OVERFLOWED.add(fluidId)) {
-                LOGGER.warn("Conduit fluid {} has registry id {}, too large to draw; showing no fluid", fluid.get(),
-                        fluidId);
-            }
-        }
-        Direction side = upstream.isPresent() ? upstream.get() : null;
-        return packClamped(fluidId, fill, side, lane);
-    }
-
-    /**
-     * Like {@link #pack}, but a fluid id that does not fit packs as no fluid instead of throwing. Pure, so the overflow
-     * can be tested without a registry of that size.
-     */
-    static int packClamped(int fluidId, int fill, @Nullable Direction upstream, boolean lane) {
-        return pack(fluidId >= FLUID_MASK ? -1 : fluidId, fill, upstream, lane);
-    }
-
-    /**
-     * Packs contents into one int; pure, so the layout can be pinned. Bits 0-15 hold the fluid (0 for none, else its
-     * registry id + 1), bits 16-18 the fill step, bits 19-21 the upstream side (0 for none, else
-     * {@link Direction#get3DDataValue()} + 1), bit 22 the second lane; bits 23-31 are 0. All-empty packs to 0.
+     * Packs contents into the int a client render key holds; pure, so the layout can be pinned. Bits 0-15 hold the
+     * resource (0 for none, else its look index + 1), bits 16-18 the fill step, bits 19-21 the upstream side (0 for
+     * none, else {@link Direction#get3DDataValue()} + 1), bit 22 the second lane; bits 23-31 are 0. All-empty packs to
+     * 0. The look index is a number Lib's client hands out per resource (kind and draw base) for the session, so a
+     * packed value is only meaningful within the session that packed it: never save or send it. Lib packs the contents
+     * of its conduits itself; addons read packed values (in a {@code ConduitBodyKey}) with the {@code packed*} helpers.
      *
-     * @param fluidId
-     *            the fluid's registry id, or -1 for none; at most 65534
+     * @param lookIndex
+     *            the resource's look index, or -1 for none; at most 65534
      * @param upstream
      *            the upstream side, or null for none
      * @throws IllegalArgumentException
-     *             if {@code fluidId} or {@code fill} is out of range
+     *             if {@code lookIndex} or {@code fill} is out of range
      */
-    public static int pack(int fluidId, int fill, @Nullable Direction upstream, boolean lane) {
-        if (fluidId < -1 || fluidId >= FLUID_MASK) {
-            throw new IllegalArgumentException("fluid id out of range: " + fluidId);
+    public static int pack(int lookIndex, int fill, @Nullable Direction upstream, boolean lane) {
+        if (lookIndex < -1 || lookIndex > MAX_LOOK_INDEX) {
+            throw new IllegalArgumentException("look index out of range: " + lookIndex);
         }
         if (fill < 0 || fill > FULL) {
             throw new IllegalArgumentException("fill must be 0.." + FULL + ": " + fill);
         }
         int side = upstream == null ? 0 : upstream.get3DDataValue() + 1;
-        return (fluidId + 1) | fill << FILL_SHIFT | side << UPSTREAM_SHIFT | (lane ? LANE_BIT : 0);
+        return (lookIndex + 1) | fill << FILL_SHIFT | side << UPSTREAM_SHIFT | (lane ? LANE_BIT : 0);
     }
 
-    /** The fluid's registry id in packed contents, or -1 for none. */
-    public static int packedFluidId(int packed) {
-        return (packed & FLUID_MASK) - 1;
+    /** The resource's look index in packed contents, or -1 for none. */
+    public static int packedLookIndex(int packed) {
+        return (packed & RESOURCE_MASK) - 1;
     }
 
     /** The fill step in packed contents, {@code 0..}{@link #FULL}. */

@@ -15,7 +15,6 @@ class ConduitContentsTest {
     @Test
     void emptyIsEmptyAndPacksToZero() {
         assertTrue(ConduitContents.EMPTY.isEmpty());
-        assertEquals(0, ConduitContents.EMPTY.packed());
         assertEquals(0, ConduitContents.pack(-1, 0, null, false));
         assertFalse(new ConduitContents(Optional.empty(), 0, Optional.of(Direction.UP), false).isEmpty());
         assertFalse(new ConduitContents(Optional.empty(), 0, Optional.empty(), true).isEmpty());
@@ -34,8 +33,8 @@ class ConduitContentsTest {
 
     @Test
     void layoutIsPinned() {
-        assertEquals(0x0000_0001, ConduitContents.pack(0, 0, null, false), "fluid id + 1 in bits 0-15");
-        assertEquals(0x0000_FFFF, ConduitContents.pack(0xFFFE, 0, null, false));
+        assertEquals(0x0000_0001, ConduitContents.pack(0, 0, null, false), "look index + 1 in bits 0-15");
+        assertEquals(0x0000_FFFF, ConduitContents.pack(ConduitContents.MAX_LOOK_INDEX, 0, null, false));
         assertEquals(0x0004_0000, ConduitContents.pack(-1, 4, null, false), "fill in bits 16-18");
         assertEquals(0x0008_0000, ConduitContents.pack(-1, 0, Direction.DOWN, false), "upstream in bits 19-21");
         assertEquals(0x0030_0000, ConduitContents.pack(-1, 0, Direction.EAST, false), "EAST is 3D value 5");
@@ -47,24 +46,16 @@ class ConduitContentsTest {
     }
 
     @Test
-    void oversizedFluidIdPacksAsNoFluid() {
-        assertEquals(ConduitContents.pack(-1, 0, Direction.UP, true),
-                ConduitContents.packClamped(0xFFFF, 0, Direction.UP, true));
-        assertEquals(ConduitContents.pack(-1, 0, null, false), ConduitContents.packClamped(1_000_000, 0, null, false));
-        assertEquals(ConduitContents.pack(0xFFFE, 2, null, false), ConduitContents.packClamped(0xFFFE, 2, null, false));
-    }
-
-    @Test
     void packedValuesRoundTrip() {
         Direction[] sides = {null, Direction.DOWN, Direction.UP, Direction.NORTH, Direction.SOUTH, Direction.WEST,
                 Direction.EAST};
-        for (int fluid : new int[]{-1, 0, 1, 300, 0xFFFE}) {
+        for (int index : new int[]{-1, 0, 1, 300, 0xFFFE}) {
             for (int fill = 0; fill <= ConduitContents.FULL; fill++) {
                 for (Direction side : sides) {
                     for (boolean lane : new boolean[]{false, true}) {
-                        int packed = ConduitContents.pack(fluid, fill, side, lane);
+                        int packed = ConduitContents.pack(index, fill, side, lane);
                         assertEquals(0, packed >>> 23, "reserved bits");
-                        assertEquals(fluid, ConduitContents.packedFluidId(packed));
+                        assertEquals(index, ConduitContents.packedLookIndex(packed));
                         assertEquals(fill, ConduitContents.packedFill(packed));
                         assertEquals(Optional.ofNullable(side), ConduitContents.packedUpstream(packed));
                         assertEquals(lane, ConduitContents.packedLane(packed));

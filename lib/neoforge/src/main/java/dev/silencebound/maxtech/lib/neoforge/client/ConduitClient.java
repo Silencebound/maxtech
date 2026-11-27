@@ -1,12 +1,14 @@
 package dev.silencebound.maxtech.lib.neoforge.client;
 
 import dev.silencebound.maxtech.lib.MaxtechLib;
+import dev.silencebound.maxtech.lib.client.conduit.ConduitLooks;
 import dev.silencebound.maxtech.lib.content.CustomConduitModels;
 import dev.silencebound.maxtech.lib.neoforge.api.client.conduit.RegisterConduitModelsEvent;
 import java.util.IdentityHashMap;
 import java.util.Map;
 import net.minecraft.client.renderer.block.dispatch.BlockStateModel;
 import net.minecraft.client.resources.model.sprite.Material;
+import net.minecraft.server.packs.resources.ResourceManagerReloadListener;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.level.block.Block;
@@ -15,14 +17,21 @@ import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.ModLoader;
 import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.client.event.AddClientReloadListenersEvent;
+import net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent;
 import net.neoforged.neoforge.client.event.ModelEvent;
 import net.neoforged.neoforge.client.event.RegisterBlockStateModels;
+import net.neoforged.neoforge.client.resources.VanillaClientListeners;
 
 /**
  * Client wiring for conduit blocks: their block state model type, and the addon hooks of conduits marked
  * {@code customModel}. The hooks are collected once at startup ({@link RegisterConduitModelsEvent}, fired from here);
  * after every bake each hooked block's {@link ConduitModel} is replaced by one drawn by its hook. Storage's cable
  * blocks are never marked, so this never touches the models Storage wraps.
+ * <p>
+ * Contents paints ({@link ConduitLooks}) are resolved again after every resource reload, once the new models, atlases
+ * and fluid models are in place and before the chunks re-mesh; the look indices themselves stay, since loaded conduits'
+ * render data still names them, and are dropped on leaving a world.
  */
 @EventBusSubscriber(modid = MaxtechLib.MOD_ID, value = Dist.CLIENT)
 final class ConduitClient {
@@ -38,6 +47,18 @@ final class ConduitClient {
         ConduitModelHooks collected = new ConduitModelHooks(CustomConduitModels.all());
         ModLoader.postEvent(new RegisterConduitModelsEvent(collected::add));
         hooks = collected.finish();
+    }
+
+    @SubscribeEvent
+    static void addReloadListener(AddClientReloadListenersEvent event) {
+        Identifier id = MaxtechLib.id("conduit_contents_paints");
+        event.addListener(id, (ResourceManagerReloadListener) manager -> ConduitLooks.INDEX.repaint());
+        event.addDependency(VanillaClientListeners.MODELS, id);
+    }
+
+    @SubscribeEvent
+    static void loggedOut(ClientPlayerNetworkEvent.LoggingOut event) {
+        ConduitLooks.INDEX.clear();
     }
 
     @SubscribeEvent

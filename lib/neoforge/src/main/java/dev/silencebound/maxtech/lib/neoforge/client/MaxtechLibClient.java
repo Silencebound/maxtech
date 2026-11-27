@@ -1,9 +1,12 @@
 package dev.silencebound.maxtech.lib.neoforge.client;
 
 import dev.silencebound.maxtech.lib.MaxtechLib;
-import dev.silencebound.maxtech.lib.api.client.gui.FluidLook;
 import dev.silencebound.maxtech.lib.api.client.gui.TextScale;
+import dev.silencebound.maxtech.lib.api.client.resource.ResourceLooks;
+import dev.silencebound.maxtech.lib.api.resource.ResourceKinds;
+import dev.silencebound.maxtech.lib.client.conduit.ConduitLooks;
 import dev.silencebound.maxtech.lib.config.ClientConfig;
+import dev.silencebound.maxtech.lib.conduit.ContentsPacking;
 import java.util.List;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.fml.ModContainer;
@@ -22,6 +25,7 @@ public final class MaxtechLibClient {
     public MaxtechLibClient(ModContainer container) {
         ConfigScreens.register(container, CONFIG_ORDER);
         TextScale.setOptionSource(ClientConfig::textScale);
-        FluidLook.install(new NeoForgeFluidLook());
+        ResourceLooks.register(ResourceKinds.FLUID, new NeoForgeFluidLook());
+        ContentsPacking.install(ConduitLooks::pack);
     }
 }
