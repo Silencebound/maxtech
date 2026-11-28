@@ -7,8 +7,6 @@ import net.neoforged.neoforge.transfer.ResourceHandler;
 // PLATFORM-LEAK: see above.
 import net.neoforged.neoforge.transfer.fluid.FluidResource;
 // PLATFORM-LEAK: see above.
-import net.neoforged.neoforge.transfer.fluid.FluidStacksResourceHandler;
-// PLATFORM-LEAK: see above.
 import net.neoforged.neoforge.transfer.transaction.TransactionContext;
 import org.jspecify.annotations.Nullable;
 
@@ -24,10 +22,10 @@ public final class PortFluidHandler implements ResourceHandler<FluidResource> {
         this.port = port;
     }
 
-    private @Nullable FluidStacksResourceHandler tank() {
+    private @Nullable ResourceHandler<FluidResource> tank() {
         LabNetwork lab = port.labOrNull();
         LabHubBlockEntity hub = lab == null ? null : lab.hub().orElse(null);
-        return hub == null ? null : hub.storage().tank();
+        return hub == null ? null : hub.storage().fluidHandler();
     }
 
     @Override
@@ -38,28 +36,28 @@ public final class PortFluidHandler implements ResourceHandler<FluidResource> {
     @Override
     public FluidResource getResource(int index) {
         Objects.checkIndex(index, size());
-        FluidStacksResourceHandler tank = tank();
+        ResourceHandler<FluidResource> tank = tank();
         return tank == null ? FluidResource.EMPTY : tank.getResource(0);
     }
 
     @Override
     public long getAmountAsLong(int index) {
         Objects.checkIndex(index, size());
-        FluidStacksResourceHandler tank = tank();
+        ResourceHandler<FluidResource> tank = tank();
         return tank == null ? 0 : tank.getAmountAsLong(0);
     }
 
     @Override
     public long getCapacityAsLong(int index, FluidResource resource) {
         Objects.checkIndex(index, size());
-        FluidStacksResourceHandler tank = tank();
+        ResourceHandler<FluidResource> tank = tank();
         return tank == null ? 0 : tank.getCapacityAsLong(0, resource);
     }
 
     @Override
     public boolean isValid(int index, FluidResource resource) {
         Objects.checkIndex(index, size());
-        FluidStacksResourceHandler tank = tank();
+        ResourceHandler<FluidResource> tank = tank();
         return tank != null && tank.isValid(0, resource);
     }
 

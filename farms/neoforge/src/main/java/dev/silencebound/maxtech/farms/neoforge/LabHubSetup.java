@@ -1,9 +1,13 @@
 package dev.silencebound.maxtech.farms.neoforge;
 
 import dev.silencebound.maxtech.farms.MaxtechFarms;
+import dev.silencebound.maxtech.farms.hub.HubHandlers;
 import dev.silencebound.maxtech.farms.registry.FarmsContent;
 import dev.silencebound.maxtech.lib.api.energy.EnergyEndpoint;
 import dev.silencebound.maxtech.lib.api.energy.EnergyNetworks;
+import dev.silencebound.maxtech.lib.api.inventory.FluidTank;
+import dev.silencebound.maxtech.lib.api.inventory.ItemSlots;
+import dev.silencebound.maxtech.lib.neoforge.api.inventory.Handlers;
 import net.minecraft.core.Direction;
 import net.minecraft.world.item.CreativeModeTabs;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -12,6 +16,9 @@ import net.neoforged.neoforge.capabilities.BlockCapability;
 import net.neoforged.neoforge.capabilities.Capabilities;
 import net.neoforged.neoforge.capabilities.RegisterCapabilitiesEvent;
 import net.neoforged.neoforge.event.BuildCreativeModeTabContentsEvent;
+import net.neoforged.neoforge.transfer.ResourceHandler;
+import net.neoforged.neoforge.transfer.fluid.FluidResource;
+import net.neoforged.neoforge.transfer.item.ItemResource;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -28,10 +35,25 @@ final class LabHubSetup {
     private LabHubSetup() {
     }
 
+    /** Hands Lib's inventory handlers to Farms' common code; once, during mod construction. */
+    static void init() {
+        HubHandlers.install(new HubHandlers.Bridge() {
+            @Override
+            public ResourceHandler<ItemResource> items(ItemSlots slots) {
+                return Handlers.items(slots);
+            }
+
+            @Override
+            public ResourceHandler<FluidResource> fluids(FluidTank tank) {
+                return Handlers.fluids(tank);
+            }
+        });
+    }
+
     @SubscribeEvent
     static void registerCapabilities(RegisterCapabilitiesEvent event) {
         event.registerBlockEntity(Capabilities.Fluid.BLOCK, FarmsContent.LAB_HUB_ENTITY.get(),
-                (hub, side) -> hub.storage().tank());
+                (hub, side) -> hub.storage().fluidHandler());
         event.registerBlockEntity(Capabilities.Item.BLOCK, FarmsContent.LAB_HUB_ENTITY.get(),
                 (hub, side) -> hub.storage().itemHandler());
         event.registerBlockEntity(Capabilities.Energy.BLOCK, FarmsContent.LAB_HUB_ENTITY.get(),

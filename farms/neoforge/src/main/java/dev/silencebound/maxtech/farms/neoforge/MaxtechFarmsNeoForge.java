@@ -7,5 +7,6 @@ import net.neoforged.fml.common.Mod;
 public final class MaxtechFarmsNeoForge {
     public MaxtechFarmsNeoForge() {
         MaxtechFarms.init();
+        LabHubSetup.init();
     }
 }

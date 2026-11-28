@@ -23,8 +23,6 @@ import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.level.storage.ValueOutput;
-// PLATFORM-LEAK: NeoForge's item transfer type, which the sampler slot holds.
-import net.neoforged.neoforge.transfer.item.ItemResource;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -118,7 +116,7 @@ public final class LabHubBlockEntity extends BlockEntity {
         feHandler = new HubEnergyHandler(energy, EnergyNetworks::feRate, this::energyReceived);
     }
 
-    /** The tank, fuel slot and output buffer. */
+    /** The tank, fuel slot, output buffer and sampler slot. */
     public HubStorage storage() {
         return storage;
     }
@@ -297,7 +295,7 @@ public final class LabHubBlockEntity extends BlockEntity {
 
     /** MU the sampler in the hub still takes; 0 without one. */
     private long samplerRoom() {
-        ItemResource sampler = storage.sampler().getResource(0);
+        ItemStack sampler = storage.sampler();
         return sampler.isEmpty() ? 0 : SamplerItem.capacity() - SamplerItem.charge(sampler);
     }
 
@@ -356,9 +354,9 @@ public final class LabHubBlockEntity extends BlockEntity {
             }
             long moved = energy.extract(Math.min(room, rate * BURN_STEP));
             if (moved > 0) {
-                ItemResource sampler = storage.sampler().getResource(0);
-                storage.sampler().set(0,
-                        sampler.with(FarmsContent.SAMPLER_CHARGE.get(), SamplerItem.charge(sampler) + moved), 1);
+                ItemStack sampler = storage.sampler().copy();
+                SamplerItem.setCharge(sampler, SamplerItem.charge(sampler) + moved);
+                storage.slots().set(HubStorage.SAMPLER, sampler);
             }
             nextCharge = gameTime + BURN_STEP;
             return samplerRoom() <= 0 || energy.stored() <= 0 ? WAIT : BURN_STEP;
