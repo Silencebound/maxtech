@@ -69,6 +69,4 @@ RULES = [
               name="drop 26.1 item layer slots", files=(f"{_DATAGEN}/ContentDatagen.java",)),
     *[Regex(rf"import {m.replace('.', chr(92) + '.')}[\w.]*;\n", "", files=(f"{_DATAGEN}/ContentDatagen.java",))
       for m in _MODEL_IMPORTS],
-    # 1.21.1 has one GatherDataEvent for client and server data.
-    Regex(r"GatherDataEvent\.Client\b", "GatherDataEvent", files=(f"{_DATAGEN}/ContentDatagen.java",)),
 ]

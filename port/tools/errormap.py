@@ -1,7 +1,17 @@
 #!/usr/bin/env python3
 """Turns the errorMap javac log into port/errors.md and port/ownership.txt (port/README.md, "Error map").
 
-    python3 -I port/tools/errormap.py port/build/errormap.log [--write-ownership]
+    python3 -I port/tools/errormap.py --run [--single] [--symbols] [--write-ownership]   (what errormap.sh calls)
+    python3 -I port/tools/errormap.py port/build/errormap.log [--symbols] [--write-ownership]  (an existing javac log)
+
+--run compiles with the javac inputs that `gradlew errorMapInputs` wrote. The default is the per-package mode: one javac
+run per work package that names only that package's files (ownership.txt) and finds the rest through -sourcepath; only
+errors inside the package's own files count. One javac over everything (--single) stops attributing once a type is
+missing, so a package whose files depend on another package's broken files shows few errors (saving: 75 reported vs
+about 480 compiled alone). Trade-offs: per-package takes five javac runs (run in parallel), an error in a file another
+package owns is not counted for you, and counts overlap in effect (fixing one shim removes errors in several runs).
+--single is the quick all-in-one view and lists files that have no owner yet. --write-ownership implies --single,
+since owners are derived from the errors.
 
 Each error gets an area from its message, source line and symbol (AREAS, first match wins). Each file with errors gets
 one work package: the package of its dominant area, unless a path rule (PATH_OWNER) says otherwise. errors.md lists
@@ -12,7 +22,10 @@ do that only when the split is (re)planned, since agents work from it.
 from __future__ import annotations
 
 import collections
+import concurrent.futures
+import os
 import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -64,15 +77,17 @@ PATH_OWNER = [
     (r"/client/.*(screen|Screen|gui|Gui|widget|Widget|Overlay|Hud|Tooltip)", "gui"),
 ]
 
-ERR = re.compile(r"^(/\S+\.java):(\d+): error: (.*)$")
+# javac prints /abs/Foo.java or C:\abs\Foo.java; messages are English because the run passes -J-Duser.language=en.
+ERR = re.compile(r"^((?:[A-Za-z]:)?[^:]+?\.java):(\d+): error: (.*)$")
 
 
-def parse(log: Path) -> list[dict]:
+def parse(text: str, only: set[str] | None = None) -> list[dict]:
+    """The errors in javac's output; `only` keeps those in files of that set (paths below out/, '/' separators)."""
     errs, cur = [], None
-    for line in log.read_text(encoding="utf-8", errors="replace").splitlines():
+    for line in text.splitlines():
         m = ERR.match(line)
         if m:
-            cur = {"file": m.group(1), "line": int(m.group(2)), "msg": m.group(3), "src": "", "sym": ""}
+            cur = {"file": m.group(1).replace("\\", "/"), "line": int(m.group(2)), "msg": m.group(3), "src": "", "sym": ""}
             errs.append(cur)
             continue
         if cur is None:
@@ -82,14 +97,14 @@ def parse(log: Path) -> list[dict]:
             cur["sym"] = s.group(1)
         elif not cur["src"] and line.strip() and not line.strip().startswith("^") and not line.startswith("  location"):
             cur["src"] = line.strip()
+    out = _ci(OUT.as_posix()) + "/"
     for e in errs:
-        rel = Path(e["file"])
-        try:
-            rel = rel.relative_to(OUT)
-        except ValueError:
-            pass
-        e["rel"] = rel.as_posix()
-        text = f"{e['msg']} {e['src']} {e['sym']}"
+        f = e["file"]
+        e["rel"] = f[len(out):] if _ci(f).startswith(out) else f
+    if only is not None:
+        errs = [e for e in errs if e["rel"] in only]
+    for e in errs:
+        text =f"{e['msg']} {e['src']} {e['sym']}"
         e["area"], e["pkg"] = "other", "other"
         for area, pkg, rx in AREAS:
             if re.search(rx, text):
@@ -126,16 +141,93 @@ def short(rel: str) -> str:
     return re.sub(r"^lib/(common|neoforge)/src/(\w+)/java/dev/silencebound/maxtech/lib/", r"\1/\2: ", rel)
 
 
+_ci = (lambda s: s.lower()) if os.name == "nt" else (lambda s: s)
+
+
+def read_ownership() -> dict[str, str]:
+    owners = {}
+    for line in (PORT / "ownership.txt").read_text(encoding="utf-8").splitlines():
+        if line and not line.startswith("#"):
+            pkg, _, path = line.partition(" ")
+            owners[path.strip()] = pkg
+    return owners
+
+
+def javac_cmd(work: Path, extra: list[str]) -> list[str]:
+    ne = PORT / "projects/lib-neoforge/build/errorMap"
+    cm = PORT / "projects/lib-common/build/errorMap"
+    jars = sorted({line for f in (cm / "classpath.txt", ne / "classpath.txt")
+                   for line in f.read_text(encoding="utf-8").splitlines() if line})
+    return [(ne / "javac.txt").read_text(encoding="utf-8").strip(), "-J-Duser.language=en", "-J-Duser.country=US",
+            "-XDshould-stop.ifError=FLOW", "-proc:none", "-encoding", "UTF-8", "-Xmaxerrs", "100000", "-Xmaxwarns", "0", "-nowarn",
+            "-implicit:none", "-d", str(work / "classes"), "-cp", os.pathsep.join(jars), *extra]
+
+
+def source_files() -> list[str]:
+    files = []
+    for proj in ("lib-common", "lib-neoforge"):
+        files += (PORT / "projects" / proj / "build/errorMap/sources.txt").read_text(encoding="utf-8").splitlines()
+    return [f.replace("\\", "/") for f in files if f]
+
+
+def run_javac(cmd: list[str], work: Path) -> str:
+    # javac drops a javac.<date>.args file into the working directory on errors; exit status 1 is the point of the run.
+    p = subprocess.run(cmd, cwd=work, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
+                       encoding="utf-8", errors="replace")
+    return p.stdout
+
+
+def run_all(single: bool) -> list[dict]:
+    work = PORT / "build" / "errorMap"
+    work.mkdir(parents=True, exist_ok=True)
+    files = source_files()
+    out = _ci(OUT.as_posix()) + "/"
+    rels = {f: (f[len(out):] if _ci(f).startswith(out) else f) for f in files}
+    if single:
+        (work / "sources.txt").write_text("\n".join(files) + "\n", encoding="utf-8")
+        text = run_javac(javac_cmd(work, [f"@{work / 'sources.txt'}"]), work)
+        (PORT / "build" / "errormap.log").write_text(text, encoding="utf-8")
+        return parse(text)
+    # one run per package: its files explicit, everything else on the sourcepath (resolved, not reported)
+    dirs = sorted({f[:f.index("/java/") + 5] for f in files if "/java/" in f})
+    owners = read_ownership()
+    mine = {p: [f for f in files if owners.get(rels[f], "other") == p] for p in PACKAGES}
+
+    def one(pkg: str) -> tuple[str, str]:
+        w = work / pkg
+        w.mkdir(exist_ok=True)
+        (w / "sources.txt").write_text("\n".join(mine[pkg]) + "\n", encoding="utf-8")
+        return pkg, run_javac(javac_cmd(w, ["-sourcepath", os.pathsep.join(dirs), f"@{w / 'sources.txt'}"]), w)
+
+    errs, logs = [], []
+    with concurrent.futures.ThreadPoolExecutor(len(PACKAGES)) as pool:
+        for pkg, text in pool.map(one, PACKAGES):
+            logs.append(text)
+            errs += parse(text, {rels[f] for f in mine[pkg]})
+    (PORT / "build" / "errormap.log").write_text("\n".join(logs), encoding="utf-8")
+    return errs
+
+
 def main() -> int:
     if len(sys.argv) < 2:
         sys.exit(__doc__)
-    errs = parse(Path(sys.argv[1]))
+    single = "--single" in sys.argv or "--write-ownership" in sys.argv
+    if "--run" in sys.argv:
+        errs = run_all(single)
+    else:
+        errs = parse(Path(sys.argv[1]).read_text(encoding="utf-8", errors="replace"))
+        single = True
     by_file = collections.defaultdict(list)
     for e in errs:
         by_file[e["rel"]].append(e)
-    owners = {f: owner(f, es) for f, es in by_file.items()}
+    if single:
+        owners = {f: owner(f, es) for f, es in by_file.items()}
+    else:
+        listed = read_ownership()
+        owners = {f: listed.get(f, "other") for f in by_file}
 
-    lines = [f"total {len(errs)} errors in {len(by_file)} files", ""]
+    lines = [f"total {len(errs)} errors in {len(by_file)} files"
+             f" ({'one javac run over all files' if single else 'per package, own files only'})", ""]
     lines.append("by area:")
     areas = collections.defaultdict(list)
     for e in errs:

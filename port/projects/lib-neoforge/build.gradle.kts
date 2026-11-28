@@ -100,8 +100,11 @@ neoForge {
         }
         register("gameTestServer") {
             type = "gameTestServer"
-            programArguments.addAll(providers.gradleProperty("gametest").map { listOf("--tests", it) }
-                .orElse(emptyList()))
+            // 1.21.1's GameTest server has no `--tests` filter (that is 26.1's). -Pgametest=<namespace> sets
+            // NeoForge's neoforge.enabledGameTestNamespaces (GameTestHooks); the default is this mod's namespace.
+            // Any `<ns>:<pattern>` is cut to `<ns>`; there is no per-test pattern.
+            systemProperty("neoforge.enabledGameTestNamespaces",
+                providers.gradleProperty("gametest").map { it.substringBefore(':') }.orElse(modId).get())
         }
         configureEach {
             gameDirectory = rootProject.file("run/$name")

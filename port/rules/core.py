@@ -28,6 +28,15 @@ NAMING = [
 MOVES = [
     ImportMove("net.minecraft.util.Util", "net.minecraft.Util"),
     ImportMove("net.minecraft.advancements.criterion", "net.minecraft.advancements.critereon"),
+    # NeoForge's model data is a client package on 1.21.1.
+    ImportMove("net.neoforged.neoforge.model.data", "net.neoforged.neoforge.client.model.data"),
+    # 26.1 renamed ClickType to ContainerInput (same constants).
+    ImportMove("net.minecraft.world.inventory.ContainerInput", "net.minecraft.world.inventory.ClickType"),
+    Rename("ContainerInput", "ClickType"),
+    # 26.1's Level.recipeAccess() is getRecipeManager() on 1.21.1.
+    Regex(r"\.recipeAccess\(\)", ".getRecipeManager()"),
+    # 1.21.1 has one GatherDataEvent for client and server data.
+    Regex(r"GatherDataEvent\.Client\b", "GatherDataEvent"),
 ]
 
 # Contract moves: 26.1 types that 1.21.1 lacks point at a Lib shim of the same name and shape, which the named work

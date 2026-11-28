@@ -167,8 +167,6 @@ RECIPE_RULES = [
     # RecipeSerializer is an interface on 1.21.1.
     Regex(r"new RecipeSerializer<>\(", f"{SHIM}.RecipeSerializers.of(",
           files=(API + "recipe/MachineRecipeType.java", LIB + "facade/FacadeRecipe.java")),
-    # The recipe manager hangs off the level.
-    Regex(r"\.recipeAccess\(\)", ".getRecipeManager()", files=(API + "recipe/MachineRecipeLookup.java",)),
     # Datagen builders and ingredients take tag keys, not registry lookups.
     Regex(r"Ingredient\.of\(items\.getOrThrow\((\w+)\)\)", r"Ingredient.of(\1)",
           files=(API + "recipe/MachineRecipeBuilder.java", LIB + "content/RecipeContext.java")),
@@ -232,9 +230,6 @@ DATAGEN_RULES = [
     edit(("super(output, registries, content.modId());",
           f"super(output, registries, {_NO_BLOCK_TAGS}, content.modId(), null);"),
          files=(NEO + "datagen/ContentItemTagsProvider.java",), name="ContentItemTagsProvider"),
-    # No client/server split of the event on 1.21.1.
-    Regex(r"GatherDataEvent\.Client", "GatherDataEvent",
-          files=(NEO + "datagen/LibDataGenerators.java", NEO + "datagen/ContentIndexProvider.java")),
     # The recipe provider is the DataProvider itself (no Runner around it).
     Regex(r"RecipeProvider\.Runner", "RecipeProvider", files=(NEO + "datagen/ContentIndexProvider.java",)),
 ]
@@ -247,6 +242,19 @@ GUIDE_RULES = [
 """, ""), files=(NEO + "guide/LibGuides.java",), name="LibGuides export hook"),
 ]
 
+
+# --- Tooltips: 1.21.1's appendHoverText takes a List, not a TooltipDisplay and a Consumer ---------------------------
+TOOLTIP_USERS = (LIB + "facade/FacadeItem.java", LIB + "info/ScannerItem.java")
+TOOLTIP_RULES = [
+    edit(("TooltipContext context, TooltipDisplay display,\n            Consumer<Component> builder, TooltipFlag flag)",
+          "TooltipContext context,\n            java.util.List<Component> builder, TooltipFlag flag)"),
+         files=TOOLTIP_USERS, name="appendHoverText"),
+    Regex(r"builder\.accept\(", "builder.add(", files=TOOLTIP_USERS),
+    drop_import("net.minecraft.world.item.component.TooltipDisplay", TOOLTIP_USERS),
+    # Cooldowns are per item on 1.21.1; 26.1 keys them by the stack's cooldown group, which this scanner leaves unset.
+    Regex(r"getCooldowns\(\)\.(isOnCooldown|addCooldown)\(stack\b", r"getCooldowns().\1(stack.getItem()",
+          files=(LIB + "info/ScannerItem.java",)),
+]
 
 RULES = [
     # --- misc: types 1.21.1 lacks ------------------------------------------------------------------------------------
@@ -285,4 +293,5 @@ RULES = [
     *CONDUIT_RULES,
     *DATAGEN_RULES,
     *GUIDE_RULES,
+    *TOOLTIP_RULES,
 ]

@@ -346,7 +346,7 @@ transfer   lib/common/src/main/java/dev/silencebound/maxtech/lib/energy/FeTransf
 other      lib/common/src/main/java/dev/silencebound/maxtech/lib/energy/LevelEnergy.java
 other      lib/common/src/main/java/dev/silencebound/maxtech/lib/energy/package-info.java
 other      lib/common/src/main/java/dev/silencebound/maxtech/lib/facade/FacadeContent.java
-gui        lib/common/src/main/java/dev/silencebound/maxtech/lib/facade/FacadeItem.java
+other      lib/common/src/main/java/dev/silencebound/maxtech/lib/facade/FacadeItem.java
 other      lib/common/src/main/java/dev/silencebound/maxtech/lib/facade/FacadeRecipe.java
 other      lib/common/src/main/java/dev/silencebound/maxtech/lib/facade/FacadeView.java
 other      lib/common/src/main/java/dev/silencebound/maxtech/lib/facade/Facades.java
@@ -367,7 +367,7 @@ other      lib/common/src/main/java/dev/silencebound/maxtech/lib/info/InfoEntrie
 other      lib/common/src/main/java/dev/silencebound/maxtech/lib/info/InfoEntry.java
 other      lib/common/src/main/java/dev/silencebound/maxtech/lib/info/InfoFormat.java
 other      lib/common/src/main/java/dev/silencebound/maxtech/lib/info/InfoLookups.java
-gui        lib/common/src/main/java/dev/silencebound/maxtech/lib/info/ScannerItem.java
+other      lib/common/src/main/java/dev/silencebound/maxtech/lib/info/ScannerItem.java
 other      lib/common/src/main/java/dev/silencebound/maxtech/lib/info/package-info.java
 transfer   lib/common/src/main/java/dev/silencebound/maxtech/lib/inventory/FluidTankHandler.java
 transfer   lib/common/src/main/java/dev/silencebound/maxtech/lib/inventory/JournalTank.java
