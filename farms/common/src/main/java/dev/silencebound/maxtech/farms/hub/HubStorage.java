@@ -4,7 +4,10 @@ import dev.silencebound.maxtech.farms.config.FarmsServerConfig;
 import dev.silencebound.maxtech.farms.sampler.SamplerItem;
 import dev.silencebound.maxtech.lib.api.inventory.FluidTank;
 import dev.silencebound.maxtech.lib.api.inventory.ItemSlots;
+import com.mojang.serialization.Codec;
+import com.mojang.serialization.Dynamic;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 import net.minecraft.world.item.ItemStack;
@@ -18,6 +21,7 @@ import net.minecraft.world.level.storage.ValueOutput;
 import net.neoforged.neoforge.transfer.ResourceHandler;
 // PLATFORM-LEAK: see above.
 import net.neoforged.neoforge.transfer.fluid.FluidResource;
+import org.jetbrains.annotations.VisibleForTesting;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -72,13 +76,21 @@ public final class HubStorage {
         void samplerChanged();
     }
 
+    private static final String PENDING_REMAINDER = "pending_remainder";
+
     private final ItemSlots slots;
     private final FluidTank tank;
+    private final Listener listener;
+    private ItemStack pendingRemainder = ItemStack.EMPTY;
+    /** A saved pending remainder that no longer loads (its mod was removed), kept as saved; null when none. */
+    private @Nullable Dynamic<?> unknownRemainder;
     private @Nullable ResourceHandler<FluidResource> fluidHandler;
     private @Nullable HubItemHandler itemHandler;
 
-    /** Storage for a hub in {@code level} (null while the block entity has none). */
+    /** Storage for a hub in {@code level} (null while the block entity has none); public for GameTests. */
+    @VisibleForTesting
     public HubStorage(Supplier<@Nullable Level> level, Listener listener) {
+        this.listener = listener;
         slots = shape(stack -> {
             Level current = level.get();
             return current != null && burnTime(current.fuelValues(), stack) > 0;
@@ -145,9 +157,10 @@ public final class HubStorage {
         return handler;
     }
 
-    /** Whether tank, slots and the slots' overflow are all empty. */
+    /** Whether tank, slots, the slots' overflow and the pending fuel remainder are all empty. */
     public boolean isEmpty() {
-        if (tank.amount() > 0 || tank.unknown() || !slots.overflow().isEmpty()) {
+        if (tank.amount() > 0 || tank.unknown() || !slots.overflow().isEmpty() || !pendingRemainder.isEmpty()
+                || unknownRemainder != null) {
             return false;
         }
         for (int slot = 0; slot < SIZE; slot++) {
@@ -177,8 +190,10 @@ public final class HubStorage {
 
     /**
      * Takes one fuel item out of the fuel slot and returns its burn time, or 0 when nothing burns. Its remainder (an
-     * empty bucket) goes into the output buffer, so pipes can take it; when it does not fit, nothing is taken: if the
-     * buffer changed under the extraction and the remainder no longer fits, the fuel is put back and nothing is lost.
+     * empty bucket) goes into the output buffer, so pipes can take it; when it does not fit, nothing is taken. If the
+     * buffer changed under the extraction and the remainder no longer fits, the fuel is put back; if that fails too,
+     * the fuel burns and the part of the remainder that did not fit becomes the {@link #pendingRemainder()}, which is
+     * saved and goes into the output before any further fuel is taken.
      */
     int takeFuel(Level current) {
         return takeFuel(current, () -> {
@@ -189,7 +204,11 @@ public final class HubStorage {
      * {@link #takeFuel(Level)} running {@code afterExtract} between taking the fuel and inserting its remainder: a hook
      * for tests that change the output buffer right there.
      */
+    @VisibleForTesting
     public int takeFuel(Level current, Runnable afterExtract) {
+        if (!flushPendingRemainder()) {
+            return 0;
+        }
         ItemStack stack = slots.stack(FUEL);
         int time = stack.isEmpty() ? 0 : burnTime(current.fuelValues(), stack);
         if (time <= 0) {
@@ -200,7 +219,7 @@ public final class HubStorage {
         if (!left.isEmpty() && insertOutput(left, true) < left.getCount()) {
             return 0;
         }
-        ItemStack before = stack.copy();
+        ItemStack fuel = stack.copyWithCount(1);
         if (slots.extract(FUEL, 1, false) != 1) {
             return 0;
         }
@@ -209,14 +228,52 @@ public final class HubStorage {
             int inserted = insertOutput(left, false);
             if (inserted < left.getCount()) {
                 // The listener of the extraction changed the buffer in between: undo, so neither fuel nor remainder is
-                // lost
-                // or duplicated.
-                extractOutput(left, inserted);
-                slots.set(FUEL, before);
-                return 0;
+                // lost or duplicated. The fuel goes back onto what the slot holds now, which may have changed too.
+                if (slots.insert(FUEL, fuel, false) == 1) {
+                    extractOutput(left, inserted);
+                    return 0;
+                }
+                // The fuel slot filled up or changed item meanwhile too: the fuel burns after all and the part of its
+                // remainder that did not fit waits as the pending remainder. Only a test hook changes both inside this
+                // call.
+                pendingRemainder = left.copyWithCount(left.getCount() - inserted);
+                listener.changed();
             }
         }
         return time;
+    }
+
+    /**
+     * A fuel remainder that found no room in the output when its fuel burned (empty when none); read only. It is saved,
+     * travels on the dropped hub and counts for {@link #isEmpty()}. One that no longer loads is kept as saved instead
+     * ({@link #pendingRemainderUnknown()}).
+     */
+    public ItemStack pendingRemainder() {
+        return pendingRemainder;
+    }
+
+    /**
+     * Whether the save held a pending remainder that no longer loads (its mod was removed): it is saved back as it was,
+     * so it returns with its mod, and like an unknown fuel item it stops further fuel from being taken until then.
+     */
+    public boolean pendingRemainderUnknown() {
+        return unknownRemainder != null;
+    }
+
+    /** Moves what it can of the pending remainder into the output; whether none is left. */
+    private boolean flushPendingRemainder() {
+        if (unknownRemainder != null) {
+            return false;
+        }
+        if (pendingRemainder.isEmpty()) {
+            return true;
+        }
+        int inserted = insertOutput(pendingRemainder, false);
+        if (inserted > 0) {
+            pendingRemainder = pendingRemainder.copyWithCount(pendingRemainder.getCount() - inserted);
+            listener.changed();
+        }
+        return pendingRemainder.isEmpty();
     }
 
     private void extractOutput(ItemStack stack, int amount) {
@@ -252,10 +309,29 @@ public final class HubStorage {
     void save(ValueOutput out) {
         tank.save(out.child("nutrient"));
         slots.save(out.child("items"));
+        Dynamic<?> unknown = unknownRemainder;
+        if (unknown != null) {
+            out.store(PENDING_REMAINDER, Codec.PASSTHROUGH, unknown);
+        } else if (!pendingRemainder.isEmpty()) {
+            out.store(PENDING_REMAINDER, ItemStack.CODEC, pendingRemainder);
+        }
     }
 
     void load(ValueInput in) {
         in.child("nutrient").ifPresent(tank::load);
         in.child("items").ifPresent(slots::load);
+        // Like Lib's ItemSlots: only a full decode counts (a partial one would drop what did not decode, a removed
+        // mod's component say), anything less is kept as saved.
+        pendingRemainder = ItemStack.EMPTY;
+        unknownRemainder = null;
+        Optional<Dynamic<?>> raw = in.read(PENDING_REMAINDER, Codec.PASSTHROUGH);
+        if (raw.isPresent()) {
+            Optional<ItemStack> stack = ItemStack.CODEC.parse(raw.get()).result();
+            if (stack.isPresent()) {
+                pendingRemainder = stack.get();
+            } else {
+                unknownRemainder = raw.get();
+            }
+        }
     }
 }

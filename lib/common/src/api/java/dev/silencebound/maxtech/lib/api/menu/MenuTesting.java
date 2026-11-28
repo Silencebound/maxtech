@@ -48,7 +48,10 @@ public final class MenuTesting {
         <H> Session<H> openTesting(MenuDefinition<H> definition, ServerPlayer player, H host);
     }
 
-    /** One open menu under test. Closing it restores the normal values delivery for menus opened later. */
+    /**
+     * One open menu under test. Closing it closes the player's container and restores the normal values delivery for
+     * menus opened later.
+     */
     public interface Session<H> extends AutoCloseable {
         /** The open menu: slots, carried stack and clicks as vanilla has them. */
         AbstractContainerMenu menu();

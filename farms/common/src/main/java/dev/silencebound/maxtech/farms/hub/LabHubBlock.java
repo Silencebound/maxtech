@@ -1,14 +1,12 @@
 package dev.silencebound.maxtech.farms.hub;
 
 import com.mojang.serialization.MapCodec;
-import dev.silencebound.maxtech.farms.lab.LabNetwork;
 import dev.silencebound.maxtech.farms.sampler.SamplerItem;
-import dev.silencebound.maxtech.lib.api.inventory.FluidTank;
 import dev.silencebound.maxtech.lib.api.inventory.ItemSlots;
-import dev.silencebound.maxtech.lib.api.resource.FluidKey;
 import java.util.List;
+import java.util.function.BiConsumer;
 import net.minecraft.core.BlockPos;
-import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.item.ItemEntity;
@@ -23,18 +21,32 @@ import net.minecraft.world.level.storage.loot.parameters.LootContextParams;
 import net.minecraft.world.phys.BlockHitResult;
 // PLATFORM-LEAK: NeoForge's fluid transfer helper fills and empties buckets and canisters against the tank.
 import net.neoforged.neoforge.transfer.fluid.FluidUtil;
+import org.jetbrains.annotations.VisibleForTesting;
+import org.jspecify.annotations.Nullable;
 
 /**
- * The lab hub block. Registers no ticker. Until the hub has a screen, a click with a sampler puts it in the charging
- * slot, a click with a fluid container fills or empties the tank (a lava bucket too), a click with furnace fuel puts it
- * in the fuel slot, an empty hand shows the hub's state and an empty hand while sneaking takes the sampler out. Drops
- * itself with everything it holds, creative breaking and explosions included.
+ * The lab hub block. Registers no ticker. A click with a sampler puts it in the charging slot, a click with a fluid
+ * container fills or empties the tank (a lava bucket too), a click with furnace fuel puts it in the fuel slot, an empty
+ * hand while sneaking takes the sampler out, and an empty hand otherwise opens the hub's screen ({@link HubMenu}); any
+ * other held item is placed or used as usual. Drops itself with everything it holds, creative breaking and explosions
+ * included.
  */
 public final class LabHubBlock extends Block implements EntityBlock {
     private static final MapCodec<LabHubBlock> CODEC = simpleCodec(LabHubBlock::new);
+    private static final BiConsumer<ServerPlayer, LabHubBlockEntity> OPEN_SCREEN = HubMenu.MENU::open;
+    private static volatile BiConsumer<ServerPlayer, LabHubBlockEntity> screenOpener = OPEN_SCREEN;
 
     public LabHubBlock(Properties properties) {
         super(properties);
+    }
+
+    /**
+     * Replaces what a use that opens the hub's screen does, or restores it with null: GameTests record the opening
+     * instead, since Lib refuses to send a menu's values to a mock player. Server thread.
+     */
+    @VisibleForTesting
+    public static void openScreenWith(@Nullable BiConsumer<ServerPlayer, LabHubBlockEntity> opener) {
+        screenOpener = opener == null ? OPEN_SCREEN : opener;
     }
 
     @Override
@@ -82,6 +94,11 @@ public final class LabHubBlock extends Block implements EntityBlock {
     @Override
     protected InteractionResult useWithoutItem(BlockState state, Level level, BlockPos pos, Player player,
             BlockHitResult hit) {
+        // Only an empty hand opens the screen: a held item the hub did not take (lab tubes, any block) is placed or
+        // used as usual.
+        if (!player.getMainHandItem().isEmpty()) {
+            return InteractionResult.PASS;
+        }
         if (level.isClientSide() || !(level.getBlockEntity(pos) instanceof LabHubBlockEntity hub)) {
             return InteractionResult.SUCCESS;
         }
@@ -96,33 +113,10 @@ public final class LabHubBlock extends Block implements EntityBlock {
             }
             return InteractionResult.SUCCESS;
         }
-        player.sendOverlayMessage(hub.labLink() == LabHubBlockEntity.LabLink.REFUSED
-                ? Component.translatable("message.maxtech_farms.lab_hub.refused")
-                : Component.translatable("message.maxtech_farms.lab_hub.status_line", status(hub), link(hub)));
-        return InteractionResult.SUCCESS;
-    }
-
-    private static Component status(LabHubBlockEntity hub) {
-        FluidTank tank = hub.storage().tank();
-        long fluid = tank.amount();
-        FluidKey key = tank.resource().orElse(null);
-        Component medium = fluid > 0 && key != null
-                ? key.fluid().getFluidType().getDescription()
-                : Component.translatable("message.maxtech_farms.lab_hub.empty");
-        ItemStack sampler = hub.storage().sampler();
-        if (sampler.isEmpty()) {
-            return Component.translatable("message.maxtech_farms.lab_hub.status", medium, fluid, tank.capacity(),
-                    hub.energy().stored(), hub.energy().capacity());
+        if (player instanceof ServerPlayer server) {
+            screenOpener.accept(server, hub);
         }
-        return Component.translatable("message.maxtech_farms.lab_hub.status_sampler", medium, fluid, tank.capacity(),
-                hub.energy().stored(), hub.energy().capacity(), SamplerItem.charge(sampler), SamplerItem.capacity());
-    }
-
-    private static Component link(LabHubBlockEntity hub) {
-        LabNetwork lab = hub.lab();
-        return lab == null
-                ? Component.translatable("message.maxtech_farms.lab_hub.no_tubes")
-                : Component.translatable("message.maxtech_farms.lab_hub.tubes", lab.tubes(), lab.portCount());
+        return InteractionResult.SUCCESS;
     }
 
     /** The loot table's hub, carrying what it holds. */
