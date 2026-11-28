@@ -24,7 +24,9 @@ import org.jspecify.annotations.Nullable;
 
 /**
  * The item and fluid {@link KindBridge}s: thin wrappers over NeoForge's {@code ResourceHandler} capabilities, which
- * always take part in transactions. Amounts saturate to {@code int}.
+ * always take part in transactions. Amounts saturate to {@code int}. A handler wrapper keeps the last resource it read
+ * and the last key it converted (by equality), so reading an unchanged handler or moving the same resource again
+ * allocates nothing.
  */
 public final class ResourceHandlerBridge<K, R extends Resource> implements KindBridge<K> {
     private final BlockCapability<ResourceHandler<R>, @Nullable Direction> capability;
@@ -70,6 +72,10 @@ public final class ResourceHandlerBridge<K, R extends Resource> implements KindB
 
     private final class Wrapped implements KindHandler<K> {
         private final ResourceHandler<R> handler;
+        private @Nullable R lastRead;
+        private Optional<K> lastReadKey = Optional.empty();
+        private @Nullable K lastKey;
+        private @Nullable R lastResource;
 
         Wrapped(ResourceHandler<R> handler) {
             this.handler = handler;
@@ -81,9 +87,17 @@ public final class ResourceHandlerBridge<K, R extends Resource> implements KindB
         }
 
         @Override
+        @SuppressWarnings("ReferenceEquality") // identity first, equals for handlers that make a new resource per read
         public Optional<K> resourceAt(int index) {
             R resource = handler.getResource(index);
-            return resource.isEmpty() ? Optional.empty() : Optional.of(toKey.apply(resource));
+            if (resource.isEmpty()) {
+                return Optional.empty();
+            }
+            if (resource != lastRead && !resource.equals(lastRead)) {
+                lastRead = resource;
+                lastReadKey = Optional.of(toKey.apply(resource));
+            }
+            return lastReadKey;
         }
 
         @Override
@@ -93,12 +107,22 @@ public final class ResourceHandlerBridge<K, R extends Resource> implements KindB
 
         @Override
         public long insert(K key, long amount, TransactionContext transaction) {
-            return handler.insert(toResource.apply(key), Ints.saturatedCast(amount), transaction);
+            return handler.insert(resourceOf(key), Ints.saturatedCast(amount), transaction);
         }
 
         @Override
         public long extract(K key, long amount, TransactionContext transaction) {
-            return handler.extract(toResource.apply(key), Ints.saturatedCast(amount), transaction);
+            return handler.extract(resourceOf(key), Ints.saturatedCast(amount), transaction);
+        }
+
+        private R resourceOf(K key) {
+            R resource = lastResource;
+            if (resource == null || !key.equals(lastKey)) {
+                resource = toResource.apply(key);
+                lastResource = resource;
+                lastKey = key;
+            }
+            return resource;
         }
 
         @Override
