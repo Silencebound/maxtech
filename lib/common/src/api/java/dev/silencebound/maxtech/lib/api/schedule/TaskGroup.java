@@ -220,7 +220,16 @@ public final class TaskGroup {
             return false;
         }
         opsLeft--;
-        int next = task.run(this, gameTime);
+        TaskScheduler.RunListener listener = TaskScheduler.runListener;
+        int next;
+        if (listener == null) {
+            next = task.run(this, gameTime);
+        } else {
+            LongSupplier clock = scheduler.clock;
+            long start = clock.getAsLong();
+            next = task.run(this, gameTime);
+            listener.ran(this, task, clock.getAsLong() - start);
+        }
         if (task.group != this) {
             return true;
         }

@@ -34,6 +34,7 @@ public final class NetworkGraph implements RouteTree.Links {
     private static final byte UNANCHOR = 4;
     /** Cut edges whose target loaded without a node coming back are dropped on this cadence. */
     static final int STALE_EDGE_INTERVAL = 20;
+    private static int profilingUsers;
     /** Whether ticks record their cost; see {@link #setProfiling}. */
     private static boolean profiling;
     /**
@@ -79,6 +80,31 @@ public final class NetworkGraph implements RouteTree.Links {
     public static void setProfiling(boolean enabled) {
         profiling = enabled;
         profilingEpoch++;
+    }
+
+    /**
+     * Counted {@link #setProfiling}: timing turns on with the first user and off when the last releases it, so users
+     * such as a profile session and a perf environment do not cut each other off. Server thread only.
+     */
+    @ApiStatus.Internal
+    public static void acquireProfiling() {
+        if (profilingUsers++ == 0) {
+            setProfiling(true);
+        }
+    }
+
+    /** Ends one {@link #acquireProfiling}. */
+    @ApiStatus.Internal
+    public static void releaseProfiling() {
+        if (profilingUsers > 0 && --profilingUsers == 0) {
+            setProfiling(false);
+        }
+    }
+
+    /** Whether tick timing is on; see {@link #setProfiling}. */
+    @ApiStatus.Internal
+    public static boolean isProfiling() {
+        return profiling;
     }
 
     /** Nanoseconds the latest profiled {@link #tick} took; -1 while profiling is off and until it has timed one. */

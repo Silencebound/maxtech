@@ -29,6 +29,7 @@ import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.MenuType;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
@@ -529,10 +530,11 @@ public final class MenuDefinition<H> {
 
         /**
          * The host's transfer port, synced for {@link Layout#faces} and {@link #sideConfig}: per kind of {@code kinds}
-         * its face modes and the modes the kind allows, and the host's facing. The facing is the block state's vanilla
-         * {@code BlockStateProperties.HORIZONTAL_FACING} or {@code FACING} property when the host is a block entity
-         * whose block has one (other facing properties are not detected), and none otherwise (faces are then named
-         * absolutely); {@link #port(Function, Function, ResourceKind...)} takes it from the host instead.
+         * its face modes and the modes the kind allows, the host's facing and, for a block entity host, its block state
+         * for the preview. The facing is the block state's vanilla {@code BlockStateProperties.HORIZONTAL_FACING} or
+         * {@code FACING} property when the host is a block entity whose block has one (other facing properties are not
+         * detected), and none otherwise (faces are then named absolutely);
+         * {@link #port(Function, Function, ResourceKind...)} takes it from the host instead.
          * <p>
          * A click on a face names the mode it asks for, so a click the server sees twice sets the same mode twice. The
          * server sets it through {@link TransferPort#setSettings} only when the port allows that mode for the kind
@@ -572,6 +574,7 @@ public final class MenuDefinition<H> {
                         "A port value needs 1 to " + PortValue.MAX_KINDS + " distinct kinds, got " + list);
             }
             IntValue facingValue = values.intValue(facing);
+            IntValue block = values.intValue(Builder::blockOf);
             IntValue[] faces = new IntValue[list.size()];
             IntValue[] allowed = new IntValue[list.size()];
             for (int i = 0; i < faces.length; i++) {
@@ -579,7 +582,7 @@ public final class MenuDefinition<H> {
                 faces[i] = values.intValue(host -> port.apply(host).settings().faces(kind));
                 allowed[i] = values.intValue(host -> allowedMask(port.apply(host).allowed(kind)));
             }
-            PortValue handle = new PortValue(ports.size(), list, facingValue, faces, allowed);
+            PortValue handle = new PortValue(ports.size(), list, facingValue, block, faces, allowed);
             ports.add(new Port<>(handle, port, 0));
             handles.add(handle);
             return handle;
@@ -621,6 +624,11 @@ public final class MenuDefinition<H> {
                 }
             }
             return PortValue.NO_FACING;
+        }
+
+        /** The block state id of a block entity host, or {@link PortValue#NO_BLOCK}. */
+        private static int blockOf(Object host) {
+            return host instanceof BlockEntity entity ? Block.getId(entity.getBlockState()) : PortValue.NO_BLOCK;
         }
 
         /** {@code allowed} as a bit mask by mode id, without iterating the set (read every tick). */

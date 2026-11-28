@@ -4,6 +4,7 @@ import dev.silencebound.maxtech.lib.MaxtechLib;
 import dev.silencebound.maxtech.lib.api.client.gui.AccentEnergyBar;
 import dev.silencebound.maxtech.lib.api.client.gui.AccentProgress;
 import dev.silencebound.maxtech.lib.api.client.gui.AccentTank;
+import dev.silencebound.maxtech.lib.api.machine.MachineStatus;
 import dev.silencebound.maxtech.lib.api.conduit.ConduitFaceMode;
 import dev.silencebound.maxtech.lib.api.machine.RedstoneMode;
 import dev.silencebound.maxtech.lib.api.resource.AmountUnit;
@@ -24,6 +25,7 @@ import dev.silencebound.maxtech.lib.neoforge.client.ConfigScreens;
 import dev.silencebound.maxtech.lib.neoforge.compat.jade.BlockInfoLines;
 import dev.silencebound.maxtech.lib.neoforge.guide.GuideConfigText;
 import dev.silencebound.maxtech.lib.neoforge.platform.ConfigTranslations;
+import dev.silencebound.maxtech.lib.profile.ProfileCommand;
 import dev.silencebound.maxtech.lib.viewer.RecipeViewText;
 import java.util.Locale;
 import net.minecraft.core.Direction;
@@ -43,6 +45,23 @@ final class LibLanguageProvider extends LanguageProvider {
         add(ScannerItem.DESCRIPTION_KEY, "Use on a block to print its stats and network to chat.");
         add(ScannerItem.HEADER_KEY, "Scan: %s");
         add(ScannerItem.NOTHING_KEY, "Nothing to report.");
+        add(ProfileCommand.STARTED_KEY,
+                "Profiling Lib's scheduler and networks for %s s; the report follows. /maxtech_lib profile stop ends it"
+                        + " early.");
+        add(ProfileCommand.RUNNING_KEY, "A Lib profile is running already; /maxtech_lib profile stop ends it");
+        add(ProfileCommand.NOT_RUNNING_KEY, "No Lib profile is running");
+        add(ProfileCommand.STOPPED_KEY, "Stopped the Lib profile started by %s; its report follows");
+        add(ProfileCommand.HEADER_KEY,
+                "Lib profile over %s ticks: scheduler %s µs/tick, networks %s µs/tick (%s of a tick), %s task runs");
+        add(ProfileCommand.EMPTY_KEY, "Nothing ran on Lib's scheduler or networks while profiling");
+        add(ProfileCommand.OWNERS_KEY, "Scheduler by mod:");
+        add(ProfileCommand.OWNER_ROW_KEY, "%s: %s µs/tick, %s runs");
+        add(ProfileCommand.KINDS_KEY, "Most expensive:");
+        add(ProfileCommand.KIND_ROW_KEY, "%s. %s (%s, %s): %s µs/tick, %s runs");
+        add(ProfileCommand.KIND_TASK_KEY, "task");
+        add(ProfileCommand.KIND_NETWORK_KEY, "network type");
+        add(ProfileCommand.NETWORKS_KEY, "Largest of %s networks:");
+        add(ProfileCommand.NETWORK_ROW_KEY, "%s. %s, %s nodes, %s %s: %s µs/tick");
         add(BlockInfoLines.CONFIG_KEY, "Block Info");
         add(BlockInfoLines.MORE_KEY, "...and %s more; use a scanner for the rest");
         add(EnergyInfo.PRODUCING_KEY, "Producing: %s / %s MU/t");
@@ -111,11 +130,18 @@ final class LibLanguageProvider extends LanguageProvider {
         addRedstoneMode(RedstoneMode.LOW, "Low", "Runs only without a redstone signal");
         addRedstoneMode(RedstoneMode.PULSE, "Pulse", "Runs once for each redstone pulse");
         addRedstoneMode(RedstoneMode.NEVER, "Never", "Never runs, whatever the redstone signal");
+        add(MachineStatus.IDLE.translationKey(), "Idle");
+        add(MachineStatus.RUNNING.translationKey(), "Running");
+        add(MachineStatus.NO_RECIPE.translationKey(), "No matching recipe");
+        add(MachineStatus.NO_ENERGY.translationKey(), "No energy");
+        add(MachineStatus.OUTPUT_FULL.translationKey(), "Output full");
+        add(MachineStatus.REDSTONE_OFF.translationKey(), "Off by redstone");
         addFaceTranslations();
     }
 
     private void addFaceTranslations() {
         add(FaceTexts.TAB_KEY, "Side config");
+        add(FaceTexts.PREVIEW_KEY, "Block preview: drag to turn, click a face to change it");
         add(FaceTexts.FACE_KEY, "%s (%s)");
         add(FaceTexts.MODE_KEY, "%s: %s");
         add(FaceTexts.HINT_KEY, "Left click: next mode, right click: previous");

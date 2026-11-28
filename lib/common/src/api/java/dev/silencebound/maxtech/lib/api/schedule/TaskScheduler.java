@@ -4,6 +4,7 @@ import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import java.util.function.IntSupplier;
 import java.util.function.LongSupplier;
 import org.jetbrains.annotations.ApiStatus;
+import org.jspecify.annotations.Nullable;
 
 /**
  * The budgeted work queue of one level (PRD 7.2, Performance): {@link TaskGroup}s with their own budgets, a hashed
@@ -21,6 +22,11 @@ public final class TaskScheduler {
     private static final int MASK = WHEEL_SIZE - 1;
     /** Backoff periods from this many ticks get a per-task offset. */
     static final int SPREAD_MIN = 16;
+    /**
+     * Gets every task run of every scheduler while set; null (the default) outside a profile, where a run costs one
+     * static read more. See {@link #setRunListener}.
+     */
+    static @Nullable RunListener runListener;
     /** Whether backoff wake-ups are spread; tests turn it off to assert exact periods. */
     boolean spread = true;
     private int spreadCounter;
@@ -54,6 +60,26 @@ public final class TaskScheduler {
      */
     public TaskGroup newGroup(LongSupplier budgetNanos, IntSupplier budgetOps) {
         return new TaskGroup(this, budgetNanos, budgetOps);
+    }
+
+    /**
+     * Times one task run while a profile is on; Lib's {@code /maxtech_lib profile} sets one. Called on the server
+     * thread right after the run, so it must not allocate once it has seen a task's class, nor touch the scheduler.
+     */
+    @ApiStatus.Internal
+    @FunctionalInterface
+    public interface RunListener {
+        /** {@code task} of {@code group} ran for {@code nanos} on its scheduler's clock. */
+        void ran(TaskGroup group, ScheduledTask task, long nanos);
+    }
+
+    /**
+     * Sets the listener that gets every task run of every scheduler from now on, or {@code null} to stop. While one is
+     * set each run reads the clock twice more. Server thread only.
+     */
+    @ApiStatus.Internal
+    public static void setRunListener(@Nullable RunListener listener) {
+        runListener = listener;
     }
 
     /** Groups with queued tasks. */

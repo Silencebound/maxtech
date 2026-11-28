@@ -95,7 +95,15 @@ finish)` and keep `tick()` free of allocation, since it runs inside the measured
 - **In game:** `/maxtech network profile [seconds]` (game masters) reports which networks, devices, device kinds and
   logic rules cost the most, in microseconds per tick and as a share; `/maxtech network` lists the heaviest networks.
   Each network also shows its own timing in the controller.
-- **Spark** in a dev client or server for a full profile; the PRD's targets are measured with it.
+- **In game, Lib:** `/maxtech_lib profile [seconds]` (default 10, `stop` ends it early; game masters) reports Lib's
+  scheduler and network time per tick, scheduler time by mod, the ten most expensive task classes and network types,
+  and the largest networks with their node counts. A task kind is its class (`LibTransferPort.Task`), its mod comes
+  from the package. While no session runs the cost is one static read per task run (`TaskScheduler.setRunListener`
+  is null); `perf_profiler_off_task_runs` guards that. During a session it turns on `LevelTasks`/`NetworkGraph`
+  timing and puts every task run in a per-class tally.
+- **Spark** in a dev client or server for a full profile; the PRD's targets are measured with it. Lib tasks show in
+  its call tree under `TaskGroup.runOne` by their class name; spark's api (statistics, GC, placeholders) has no hook
+  to name sections, and Lib's tasks all run on the server thread, so Lib registers nothing for Spark.
 - **JFR** on a GameTest run: `-Pgametest.jfr=<file.jfr>`. The `profile` settings sample every 10 to 20 ms, which
   misses windows of a few microseconds per tick; add a settings file with `jdk.ExecutionSample` at `1 ms`
   (`-Pgametest.jfr=<file.jfr>,settings=<fast.jfc>`) and `-Pgametest.repeat=100` to get a few hundred samples in the
