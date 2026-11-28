@@ -28,7 +28,8 @@ public final class MenuTesting {
     /**
      * Opens {@code definition} over {@code host} for {@code player} like {@link MenuDefinition#open}, but sends the
      * menu's values payloads to the returned session instead of the player's connection. Close the session when the
-     * test is done; it does not remove the player.
+     * test is done; it does not remove the player. Throws {@link IllegalStateException} for a real player in a
+     * production run: only GameTest mock players (or any player in a dev run) are accepted.
      */
     public static <H> Session<H> open(MenuDefinition<H> definition, ServerPlayer player, H host) {
         return support.openTesting(definition, player, host);
@@ -54,11 +55,15 @@ public final class MenuTesting {
 
         /**
          * Runs one server tick of the menu: reads the host's getters and, if anything changed, captures one values
-         * payload. Call it after changing the host and before reading {@link #clientValues}.
+         * payload. Only this sends payloads (at most one per call); call it after changing the host and before reading
+         * {@link #clientValues}.
          */
         void tick();
 
-        /** The values the server read at the last {@link #tick} (or when opening). */
+        /**
+         * The values the server read at the last {@link #tick} (or when opening); if the mock player is ticked, its
+         * menu also reads them, so they may be newer than what {@link #clientValues} shows.
+         */
         MenuValueView serverValues();
 
         /**
@@ -84,12 +89,16 @@ public final class MenuTesting {
         void shiftClick(MenuSlots group, int index);
 
         /**
-         * Shift-clicks the player's main-inventory slot {@code index} (0 to 26, left to right, top row first), the
-         * slots the menu shows below the machine's.
+         * Shift-clicks the player's slot {@code index} (0 to 35: the main inventory 0 to 26, left to right, top row
+         * first, then the hotbar 27 to 35), the slots the menu shows below the machine's. Throws
+         * {@link IllegalStateException} when the definition has no player inventory.
          */
         void shiftClickPlayerSlot(int index);
 
-        /** Delivers payloads to the player's connection again for menus built from now on. */
+        /**
+         * Closes the player's open container and delivers payloads to the player's connection again for menus built
+         * from now on.
+         */
         @Override
         void close();
     }

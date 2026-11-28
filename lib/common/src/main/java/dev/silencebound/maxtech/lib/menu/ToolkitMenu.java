@@ -211,6 +211,12 @@ public abstract class ToolkitMenu<H> extends AbstractContainerMenu {
     @VisibleForTesting
     public final void countTicksWith(LongSupplier ticks) {
         this.ticks = ticks;
+        sentTick = Long.MIN_VALUE;
+    }
+
+    /** Menu index of the player's first main-inventory slot, or -1 when the menu has no player inventory. */
+    final int playerFirst() {
+        return playerFirst;
     }
 
     @Override

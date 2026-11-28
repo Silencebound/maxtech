@@ -5,11 +5,14 @@ import dev.silencebound.maxtech.lib.api.menu.MenuSlots;
 import dev.silencebound.maxtech.lib.api.menu.MenuTesting;
 import dev.silencebound.maxtech.lib.api.menu.MenuValueView;
 import dev.silencebound.maxtech.lib.api.menu.TankValue;
+import io.netty.channel.Channel;
+import io.netty.channel.embedded.EmbeddedChannel;
 import java.util.ArrayList;
 import java.util.List;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.ContainerInput;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Lib's {@link MenuTesting.Session}: the server menu with its payloads captured, and a hostless client menu of the same
@@ -26,8 +29,16 @@ final class MenuTestSession<H> implements MenuTesting.Session<H> {
     private int applied;
     private long ticks;
 
+    /**
+     * {@code strict}: a dev run (not production). Outside one only GameTest mock players (an embedded channel, which no
+     * real connection has) are accepted, so a real player's menu never gets the capture sink.
+     */
     @SuppressWarnings("unchecked") // LibMenus opens a DefinedMenu of this definition
-    MenuTestSession(MenuDefinition<H> definition, ServerPlayer player, H host) {
+    MenuTestSession(MenuDefinition<H> definition, ServerPlayer player, H host, boolean strict) {
+        if (!permitted(strict, player.connection == null ? null : player.connection.getConnection().channel())) {
+            throw new IllegalStateException(
+                    "MenuTesting is for GameTest mock players; " + player.getName().getString() + " is a real player");
+        }
         this.definition = definition;
         this.player = player;
         ToolkitMenu.sendNewMenusValuesTo(captured::add);
@@ -41,7 +52,12 @@ final class MenuTestSession<H> implements MenuTesting.Session<H> {
         }
         server = (DefinedMenu<H>) opened;
         server.countTicksWith(() -> ticks);
+        // The opening payload went out on the server's own tick count; this session counts from its first tick().
         client = new DefinedMenu<>(definition, server.containerId, player.getInventory(), null);
+    }
+
+    static boolean permitted(boolean strict, @Nullable Channel channel) {
+        return strict || channel instanceof EmbeddedChannel;
     }
 
     @Override
@@ -100,14 +116,19 @@ final class MenuTestSession<H> implements MenuTesting.Session<H> {
 
     @Override
     public void shiftClickPlayerSlot(int index) {
-        if (index < 0 || index >= 27) {
-            throw new IndexOutOfBoundsException("Main inventory slot " + index);
+        int first = server.playerFirst();
+        if (first < 0) {
+            throw new IllegalStateException(definition.name() + " has no player inventory");
         }
-        server.clicked(server.slots.size() - PLAYER_SLOTS + index, 0, ContainerInput.QUICK_MOVE, player);
+        if (index < 0 || index >= PLAYER_SLOTS) {
+            throw new IndexOutOfBoundsException("Player slot " + index + " of " + PLAYER_SLOTS);
+        }
+        server.clicked(first + index, 0, ContainerInput.QUICK_MOVE, player);
     }
 
     @Override
     public void close() {
+        player.closeContainer();
         ToolkitMenu.sendNewMenusValuesTo(null);
     }
 }

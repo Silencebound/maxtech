@@ -2,6 +2,7 @@ package dev.silencebound.maxtech.lib.neoforge.gametest;
 
 import dev.silencebound.maxtech.lib.MaxtechLib;
 import dev.silencebound.maxtech.lib.api.menu.MenuTesting;
+import dev.silencebound.maxtech.lib.menu.DefinedMenu;
 import dev.silencebound.maxtech.lib.api.registry.Registrar;
 import dev.silencebound.maxtech.lib.api.registry.Registrars;
 import dev.silencebound.maxtech.lib.api.resource.FluidKey;
@@ -39,7 +40,8 @@ import net.neoforged.neoforge.event.RegisterGameTestsEvent;
 @EventBusSubscriber(modid = MaxtechLib.MOD_ID)
 public final class ToolkitApiGameTests {
     private static final String[] NAMES = {"toolkit_api_opens", "toolkit_api_values_sync", "toolkit_api_shift_click",
-            "toolkit_api_bucket_clicks", "toolkit_api_output_take_only", "toolkit_api_machine_runs"};
+            "toolkit_api_bucket_clicks", "toolkit_api_output_take_only", "toolkit_api_machine_runs",
+            "toolkit_api_hotbar_shift_click", "toolkit_api_close", "toolkit_api_first_tick"};
     private static final Registrar<Consumer<GameTestHelper>> FUNCTIONS = Registrars.create(MaxtechLib.MOD_ID,
             Registries.TEST_FUNCTION);
 
@@ -54,6 +56,9 @@ public final class ToolkitApiGameTests {
         FUNCTIONS.register(NAMES[3], () -> ToolkitApiGameTests::bucketClicks);
         FUNCTIONS.register(NAMES[4], () -> ToolkitApiGameTests::outputTakeOnly);
         FUNCTIONS.register(NAMES[5], () -> ToolkitApiGameTests::machineRuns);
+        FUNCTIONS.register(NAMES[6], () -> ToolkitApiGameTests::hotbarShiftClick);
+        FUNCTIONS.register(NAMES[7], () -> ToolkitApiGameTests::close);
+        FUNCTIONS.register(NAMES[8], () -> ToolkitApiGameTests::firstTick);
     }
 
     private ToolkitApiGameTests() {
@@ -215,6 +220,47 @@ public final class ToolkitApiGameTests {
             h.assertValueEqual(machine.status(), ToolkitDemo.Status.IDLE, "status once the ore is used");
             machine.slots.set(ToolkitDemo.INPUT_SLOT, new ItemStack(Items.RAW_GOLD));
             h.assertValueEqual(machine.status(), ToolkitDemo.Status.NO_FUEL, "status after the fuel is gone");
+        });
+    }
+
+    /** The player's hotbar (indices 27 to 35) shift-clicks like the main inventory, from the same menu rows. */
+    private static void hotbarShiftClick(GameTestHelper helper) {
+        withOpenMenu(helper, (h, player, machine, session) -> {
+            player.getInventory().setItem(0, new ItemStack(Items.RAW_IRON, 4));
+            session.shiftClickPlayerSlot(27);
+            h.assertValueEqual(machine.slots.stack(ToolkitDemo.INPUT_SLOT).getCount(), 4, "ore from the hotbar");
+            h.assertTrue(player.getInventory().getItem(0).isEmpty(), "hotbar slot emptied");
+            try {
+                session.shiftClickPlayerSlot(36);
+            } catch (IndexOutOfBoundsException expected) {
+                return;
+            }
+            throw h.assertionException("Player slot 36 was accepted");
+        });
+    }
+
+    /** Closing the session closes the player's container. */
+    private static void close(GameTestHelper helper) {
+        withOpenMenu(helper, (h, player, machine, session) -> {
+            h.assertTrue(player.containerMenu.equals(session.menu()), "menu open");
+            session.close();
+            h.assertTrue(player.containerMenu.equals(player.inventoryMenu), "container closed");
+        });
+    }
+
+    /** A tick count equal to the one the opening payload went out on does not swallow the session's first tick. */
+    private static void firstTick(GameTestHelper helper) {
+        withOpenMenu(helper, (h, player, machine, session) -> {
+            DefinedMenu<?> menu = (DefinedMenu<?>) session.menu();
+            int before = session.payloadsSent();
+            menu.countTicksWith(() -> 1L);
+            machine.cycles = 3;
+            menu.broadcastChanges();
+            h.assertValueEqual(session.payloadsSent(), before + 1, "payload on a counter of 1");
+            menu.countTicksWith(() -> 1L);
+            machine.cycles = 4;
+            session.tick();
+            h.assertValueEqual(session.payloadsSent(), before + 2, "payload on the first tick of a new counter");
         });
     }
 }
