@@ -104,7 +104,8 @@ public final class ConduitContentsGeometry {
             return out;
         }
         AABB core = ConduitShapes.core(thickness);
-        double inset = look.inset();
+        // Frame bars set the glass one bar in, so the contents go in by as much more.
+        double inset = look.inset() + ConduitFrameGeometry.barWidth(look, thickness);
         if (2 * inset >= ConduitShapes.width(thickness) - EPSILON) {
             return out;
         }

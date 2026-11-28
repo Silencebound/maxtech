@@ -30,7 +30,8 @@ Api changes are marked **Api**.
   with a running hub each are joined. A hub beside two separate lab networks runs only the first that took it; the
   other has no hub (a misconfiguration), and when the first lets it go it no longer counts as running there. The hub's
   MU store is the lab's energy buffer. Tubes are cyan glass with gunmetal borders and show the hub tank's fluid and
-  level (in quarters) flowing from the hub along the tubes.
+  level (in quarters) flowing from the hub along the tubes. The borders are a raised gunmetal frame of 1 px bars on
+  every edge, the glass set in between them.
 - Lab fluid port (`maxtech_farms:fluid_port`): pipes and pumps push fluid into the lab hub's tank through it; it never
   pulls or gives fluid back.
 - Creative tab "MaxTech Farms" with the lab hub, fluid port, lab tube and sampler; they are no longer listed in the

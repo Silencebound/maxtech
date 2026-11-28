@@ -15,8 +15,8 @@ import net.minecraft.world.level.Level;
 
 /**
  * The lab tube conduit and the lab network type it forms. Lib owns the tube block: it saves, syncs and draws it (Lib's
- * shell look: cyan glass with gunmetal borders, showing the contents the lab network sets), takes dyes and facades and
- * reports each tube to the lab network. Tubes never tick.
+ * shell look: cyan glass set in a gunmetal frame of bars, showing the contents the lab network sets), takes dyes and
+ * facades and reports each tube to the lab network. Tubes never tick.
  */
 public final class LabTubes {
     private static final Direction[] SIDES = Direction.values();
@@ -30,7 +30,7 @@ public final class LabTubes {
             .builder(MaxtechFarms.MOD_ID, "lab_tube",
                     item -> new ConduitType(NETWORK_ID, "lab", 0xE4F4F4, 0.375F, item))
             .look(ConduitLook.shell(MaxtechFarms.id("block/lab_tube_glass")).withBorderColour(BORDER_COLOUR)
-                    .withBorder(1.0F))
+                    .withBorder(1.0F).withFrameBars())
             .attachesToBlocks().register();
 
     private LabTubes() {
