@@ -1,7 +1,11 @@
 /**
- * Menu values synced from server to client for MaxTech screens (ADR-0016), on both sides. A menu declares its values
- * once ({@link dev.silencebound.maxtech.lib.api.menu.MenuValues#builder()}) with getters over a server-side host (a
- * block entity, say) and gets a handle per value: {@link dev.silencebound.maxtech.lib.api.menu.IntValue},
+ * MaxTech menus and their screens (ADR-0016), on both sides. {@link dev.silencebound.maxtech.lib.api.menu.Menus#define}
+ * declares a whole menu (slots, tanks, energy, progress, shift-clicks, theme and a
+ * {@link dev.silencebound.maxtech.lib.api.menu.Layout}) from which Lib builds the menus and the screen.
+ * <p>
+ * Underneath are the menu values synced from server to client. A menu declares its values once
+ * ({@link dev.silencebound.maxtech.lib.api.menu.MenuValues#builder()}) with getters over a server-side host (a block
+ * entity, say) and gets a handle per value: {@link dev.silencebound.maxtech.lib.api.menu.IntValue},
  * {@link dev.silencebound.maxtech.lib.api.menu.LongValue}, {@link dev.silencebound.maxtech.lib.api.menu.EnumValue},
  * {@link dev.silencebound.maxtech.lib.api.menu.EnergyValue},
  * {@link dev.silencebound.maxtech.lib.api.menu.ProgressValue} and

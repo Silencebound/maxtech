@@ -147,6 +147,11 @@ public interface ItemSlots {
             Arrays.fill(limits, Item.ABSOLUTE_MAX_STACK_SIZE);
         }
 
+        /** The number of slots the shape has. */
+        public int size() {
+            return roles.length;
+        }
+
         /** Slots {@code from} (inclusive) to {@code to} (exclusive) are inputs taking any item. */
         public Builder input(int from, int to) {
             return role(from, to, SlotRole.INPUT, null);
