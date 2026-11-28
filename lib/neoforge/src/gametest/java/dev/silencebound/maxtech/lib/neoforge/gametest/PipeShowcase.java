@@ -44,9 +44,10 @@ import org.jspecify.annotations.Nullable;
  * A showcase of pipe looks for picking one by eye (dev runs only: the GameTest source set, which no jar contains).
  * {@code /maxtech_lib_demo pipes} (gamemaster) builds, in an area in front of the player that must be clear, labelled
  * rows of demo pipes there, Lib's shell look with frame bars as the lab tube has it, each variant as a straight run, an
- * L, a T and a crossing filled with water or lava: bar colours, glass tints, bar thickness, textured bar patterns and
- * three ways to mark tiers 1 to 4. {@code /maxtech_lib_demo pipes clear} removes every showcase in loaded chunks. Each
- * variant is a demo conduit type of its own, registered here only.
+ * L, a T and a crossing filled with water or lava: first the picked look (also in tiers 1 to 4 by its tier stripe),
+ * then bar colours, glass tints, bar thickness, textured bar patterns and three ways to mark tiers 1 to 4.
+ * {@code /maxtech_lib_demo pipes clear} removes every showcase in loaded chunks. Each variant is a demo conduit type of
+ * its own, registered here only.
  */
 @EventBusSubscriber(modid = ConduitApiGameTests.MOD_ID)
 public final class PipeShowcase {
@@ -72,6 +73,12 @@ public final class PipeShowcase {
     private static final Identifier CYAN = demo("glass_cyan");
     private static final ConduitLook.Shell LAB = ConduitLook.shell(CYAN).withBorderColour(GUNMETAL).withBorder(1)
             .withFrameBars();
+    /** The look picked for all pipes (2026-11-28), with the lab tube's smoky glass; a tier stripe goes on per tier. */
+    private static final ConduitLook.Shell PICKED = glass("glass_smoky_lab");
+    /** Tier 1's stripe (iron). */
+    private static final int IRON = 0xD6DBE0;
+    /** The lab tube's stripe, near-black: lab tubes have no tiers. */
+    private static final int LAB_STRIPE = 0x16181A;
 
     // Shapes as cells of a 3 x 3 square (across, forward), centre (1, 1).
     private static final int[][] STRAIGHT = {{0, 1}, {1, 1}, {2, 1}};
@@ -87,6 +94,10 @@ public final class PipeShowcase {
     private static final int HEIGHT = 4;
 
     static final List<Section> SECTIONS = List.of(
+            new Section(0, "Picked look (smoky glass, 1 px gunmetal bars, tier stripe)", List.of(
+                    row("picked (lab tube)", "picked", PICKED.withTierStripe(LAB_STRIPE)),
+                    tiers("tier stripes", "picked_tier", PICKED.withTierStripe(IRON), PICKED.withTierStripe(0xF2C94C),
+                            PICKED.withTierStripe(0x4FE6DC), PICKED.withTierStripe(0x8A6F7D)))),
             new Section(0, "Bar colours (1 px bars, clear cyan glass)",
                     List.of(row("gunmetal (lab tube)", "colour_gunmetal", LAB),
                             row("copper", "colour_copper", LAB.withBorderColour(0xB87333)),

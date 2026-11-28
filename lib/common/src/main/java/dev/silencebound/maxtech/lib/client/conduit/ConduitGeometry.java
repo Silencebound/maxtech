@@ -194,6 +194,7 @@ public final class ConduitGeometry {
 
     private static void shellBody(List<ConduitQuad> out, ConduitLook.Shell look, float thickness, int arms, int rings,
             int borderArgb) {
+        int start = out.size();
         AABB core = ConduitShapes.core(thickness);
         Direction.Axis straight = straightAxis(arms);
         double bar = ConduitFrameGeometry.barWidth(look, thickness);
@@ -232,11 +233,14 @@ public final class ConduitGeometry {
                 }
             }
         }
-        int borders = out.size();
         if (look.frameBars()) {
             // Bars half the tube wide or more leave no window: drop the glass that has shrunk to nothing.
             out.removeIf(quad -> !ConduitFrameGeometry.hasArea(quad.box(), quad.facing().getAxis()));
-            ConduitFrameGeometry.addFrame(out, look, thickness, arms, rings, borderArgb);
+        }
+        int borders = out.size();
+        List<AABB> frame = List.of();
+        if (look.frameBars()) {
+            frame = ConduitFrameGeometry.addFrame(out, look, thickness, arms, rings, borderArgb);
         } else {
             borderLines(out, look, core, thickness, arms, rings, borderArgb);
         }
@@ -244,6 +248,10 @@ public final class ConduitGeometry {
             for (int i = borders; i < out.size(); i++) {
                 out.set(i, textured(out.get(i), look.barTexture().get()));
             }
+        }
+        if (look.tierStripe().isPresent() && !frame.isEmpty()) {
+            ConduitFrameGeometry.addTierStripes(out, List.copyOf(out.subList(start, borders)), frame,
+                    0xFF000000 | look.tierStripe().get(), STRIP_OFFSET);
         }
     }
 
