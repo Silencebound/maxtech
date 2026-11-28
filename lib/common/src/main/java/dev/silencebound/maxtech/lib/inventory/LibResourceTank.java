@@ -74,6 +74,11 @@ public class LibResourceTank<K> implements ResourceTank<K> {
         return journal.blocked();
     }
 
+    /** The saved amount of {@link #unknown()} contents, for gauges; 0 otherwise. */
+    public final long unknownAmount() {
+        return unloadedAmount;
+    }
+
     @Override
     public final void discardUnknown() {
         NoTransaction.check("Discarding unknown contents");

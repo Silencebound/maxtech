@@ -1,14 +1,19 @@
 package dev.silencebound.maxtech.lib.api.menu;
 
+import dev.silencebound.maxtech.lib.api.inventory.ResourceTank;
 import dev.silencebound.maxtech.lib.api.resource.FluidKey;
+import dev.silencebound.maxtech.lib.api.resource.KindKey;
+import dev.silencebound.maxtech.lib.api.resource.ResourceKind;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.ToIntFunction;
 import java.util.function.ToLongFunction;
 import org.jetbrains.annotations.ApiStatus;
+import org.jspecify.annotations.Nullable;
 
 /**
  * The values one kind of menu syncs to its screen, declared once (usually in a static field) and shared by the server
@@ -78,6 +83,19 @@ public final class MenuValues<H> {
         /** A fluid tank: getters of the fluid (never null), amount and capacity. */
         void tank(TankValue handle, Function<? super H, Optional<FluidKey>> fluid, ToLongFunction<? super H> amount,
                 ToLongFunction<? super H> capacity);
+
+        /**
+         * A tank of {@code kind}, or of any kind when null: {@code changeKey} is read every tick and compared with
+         * {@code equals} (it must not allocate), and {@code content} is read only when the key changed; a null
+         * {@code content} sends the change key itself, which then is an {@code Optional<KindKey<?>>}.
+         */
+        void kindTank(TankValue handle, @Nullable ResourceKind<?> kind, Function<? super H, ?> changeKey,
+                @Nullable Function<? super H, Optional<KindKey<?>>> content, ToLongFunction<? super H> amount,
+                ToLongFunction<? super H> capacity);
+
+        /** A tank of {@code kind} read from a Lib {@link ResourceTank}, unknown contents included. */
+        <K> void resourceTank(TankValue handle, ResourceKind<K> kind,
+                Function<? super H, ? extends ResourceTank<K>> tank);
     }
 
     /**
@@ -136,13 +154,62 @@ public final class MenuValues<H> {
         }
 
         /**
-         * A tank: its fluid with components (empty for none; {@code fluid} must not return null), amount and capacity
-         * in mB.
+         * A fluid tank: its fluid with components (empty for none; {@code fluid} must not return null), amount and
+         * capacity in mB. The fluid travels with {@code FluidKey.OPTIONAL_STREAM_CODEC}; tanks of other kinds are
+         * {@link #kindTank} and {@link #tank(ResourceKind, Function, ToLongFunction, ToLongFunction)}.
          */
         public TankValue tank(Function<? super H, Optional<FluidKey>> fluid, ToLongFunction<? super H> amount,
                 ToLongFunction<? super H> capacity) {
             TankValue handle = new TankValue(next());
             values.add(reader -> reader.tank(handle, fluid, amount, capacity));
+            return handle;
+        }
+
+        /**
+         * A tank of any {@link ResourceKind}: its resource as a {@link KindKey} (empty for none; {@code resource} must
+         * not return null), amount and capacity in the resource's {@linkplain ResourceKind#unit() unit}. Reads with
+         * {@link MenuValueView#resource(TankValue)}; {@link MenuValueView#fluid(TankValue)} refuses it, since its kind
+         * can change. The resource travels with {@link KindKey#CLIENTBOUND_STREAM_CODEC}, so a client without the kind
+         * gets an {@link dev.silencebound.maxtech.lib.api.resource.UnknownResource UnknownResource}, as does one sent
+         * an unknown resource. As with fluids, the getter should return a kept {@code Optional}: it is compared with
+         * {@code equals} every tick.
+         */
+        public TankValue kindTank(Function<? super H, Optional<KindKey<?>>> resource, ToLongFunction<? super H> amount,
+                ToLongFunction<? super H> capacity) {
+            TankValue handle = new TankValue(next());
+            values.add(reader -> reader.kindTank(handle, null, resource, null, amount, capacity));
+            return handle;
+        }
+
+        /**
+         * A tank of one {@code kind}: its key (empty for none; {@code resource} must not return null), amount and
+         * capacity in the kind's unit. Sent like {@link #kindTank}; a tank of
+         * {@link dev.silencebound.maxtech.lib.api.resource.ResourceKinds#FLUID ResourceKinds.FLUID} also reads with
+         * {@link MenuValueView#fluid(TankValue)}. A {@link ResourceTank}'s {@code resource()} is a kept
+         * {@code Optional} and fits as the getter; {@link #tank(ResourceKind, Function)} also shows its unknown
+         * contents.
+         */
+        public <K> TankValue tank(ResourceKind<K> kind, Function<? super H, Optional<K>> resource,
+                ToLongFunction<? super H> amount, ToLongFunction<? super H> capacity) {
+            Objects.requireNonNull(kind, "kind");
+            TankValue handle = new TankValue(next());
+            Function<H, Optional<KindKey<?>>> content = host -> resource.apply(host)
+                    .<KindKey<?>>map(key -> new KindKey<>(kind, key));
+            values.add(reader -> reader.kindTank(handle, kind, resource, content, amount, capacity));
+            return handle;
+        }
+
+        /**
+         * A Lib {@link ResourceTank} of {@code kind}, with its resource, amount and capacity. Unknown contents (a saved
+         * resource that no longer loads) show as an {@link dev.silencebound.maxtech.lib.api.resource.UnknownResource
+         * UnknownResource} of the tank's kind with the amount saved, not as empty. Sent like {@link #kindTank}; a fluid
+         * tank also reads with {@link MenuValueView#fluid(TankValue)}. {@code tank} must not return null, and the
+         * tank's kind must be {@code kind}.
+         */
+        public <K> TankValue tank(ResourceKind<K> kind, Function<? super H, ? extends ResourceTank<K>> tank) {
+            Objects.requireNonNull(kind, "kind");
+            TankValue handle = new TankValue(next());
+            values.add(reader -> reader.resourceTank(handle, kind, tank));
             return handle;
         }
 

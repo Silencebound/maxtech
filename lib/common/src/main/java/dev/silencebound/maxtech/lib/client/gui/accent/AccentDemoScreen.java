@@ -7,7 +7,12 @@ import dev.silencebound.maxtech.lib.api.client.gui.AccentEnergyBar;
 import dev.silencebound.maxtech.lib.api.client.gui.AccentProgress;
 import dev.silencebound.maxtech.lib.api.client.gui.AccentTank;
 import dev.silencebound.maxtech.lib.api.style.AccentTheme;
+import dev.silencebound.maxtech.lib.api.resource.AmountUnit;
 import dev.silencebound.maxtech.lib.api.resource.FluidKey;
+import dev.silencebound.maxtech.lib.api.resource.KindKey;
+import dev.silencebound.maxtech.lib.api.resource.ResourceKind;
+import dev.silencebound.maxtech.lib.api.resource.ResourceKinds;
+import dev.silencebound.maxtech.lib.api.resource.UnknownResource;
 import dev.silencebound.maxtech.lib.api.client.gui.IconButton;
 import dev.silencebound.maxtech.lib.api.client.gui.Icon;
 import dev.silencebound.maxtech.lib.api.client.gui.AccentInset;
@@ -31,7 +36,9 @@ import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.Identifier;
 import net.minecraft.util.Util;
 import net.minecraft.world.level.material.Fluids;
 import org.jspecify.annotations.Nullable;
@@ -41,9 +48,10 @@ import org.jspecify.annotations.Nullable;
  * text buttons (normal, compact, greyed out, changing label, right click), icon buttons (plain, toggle, cycle), the
  * scroll bar on a list of rows (selected, hovered, dimmed, with status dots), a tab row with a badge, a readout and
  * tags, the in-screen toast and the vanilla notice, and side tabs with flyouts, a changed dot and both badge levels;
- * right of them a water, a lava and an empty tank, an energy bar and both progress shapes. Opened with the client
- * command {@code /maxtech_lib accent_demo}, which the loader glue registers only outside production. The texts are
- * example data, not player-facing, so they are literals rather than lang keys. Client only.
+ * right of them a water, a lava and an empty tank, an energy bar and both progress shapes, and below those a tank of
+ * the GameTest kind {@code maxtech_lib:test_glow} (empty without the GameTest source set) and one of unknown contents.
+ * Opened with the client command {@code /maxtech_lib accent_demo}, which the loader glue registers only outside
+ * production. The texts are example data, not player-facing, so they are literals rather than lang keys. Client only.
  */
 public final class AccentDemoScreen extends Screen {
     /** The width of the widget column on the left; the bars sit right of it. */
@@ -53,6 +61,7 @@ public final class AccentDemoScreen extends Screen {
     static final int WIDTH = MAIN + 3 * AccentTank.WIDTH + 3 * 4 + AccentEnergyBar.WIDTH + 8;
     static final int HEIGHT = 202;
     private static final long TANK = 8_000;
+    private static final Identifier GLOW = Identifier.fromNamespaceAndPath(MaxtechLib.MOD_ID, "test_glow");
     private static final long CELL = 8_000_000_000L;
     private static final long ARROW_TICKS = 200;
     private static final long FLAME_TICKS = 300;
@@ -202,7 +211,32 @@ public final class AccentDemoScreen extends Screen {
                 () -> Util.getMillis() / 50 % (ARROW_TICKS + 1), () -> ARROW_TICKS));
         bars.add(new AccentProgress(x + AccentProgress.Shape.ARROW.width() + 6, progressY, AccentProgress.Shape.FLAME,
                 theme, () -> Util.getMillis() / 50 % (FLAME_TICKS + 1), () -> FLAME_TICKS));
+        int kindsY = progressY + AccentProgress.Shape.ARROW.height() + 8;
+        Optional<KindKey<?>> unknown = Optional.of(unknown());
+        bars.add(new AccentTank(x, kindsY, AccentTank.WIDTH, BAR_HEIGHT, theme, AmountUnit.ITEMS, () -> unknown,
+                () -> 3_000, () -> TANK));
+        bars.add(new AccentTank(x + AccentTank.WIDTH + 4, kindsY, AccentTank.WIDTH, BAR_HEIGHT, theme, AmountUnit.ITEMS,
+                () -> Glow.KEY, () -> 2_500, () -> TANK));
         return bars;
+    }
+
+    /** Glow 25 of the GameTest kind, looked up when first drawn; empty without the GameTest source set. */
+    private static final class Glow {
+        static final Optional<KindKey<?>> KEY = ResourceKinds.byId(GLOW).map(AccentDemoScreen::glow);
+    }
+
+    /** Glow 25 of the GameTest kind, whose keys are integers. */
+    @SuppressWarnings("unchecked") // the GameTest source set registers test_glow with Integer keys
+    private static KindKey<?> glow(ResourceKind<?> kind) {
+        return new KindKey<>((ResourceKind<Integer>) kind, 25);
+    }
+
+    /** Contents of a kind no mod registers, as a tank of a removed mod would hold them. */
+    private static KindKey<?> unknown() {
+        Identifier gone = Identifier.fromNamespaceAndPath("removed_mod", "essence");
+        CompoundTag raw = new CompoundTag();
+        raw.putString(KindKey.KIND_FIELD, gone.toString());
+        return UnknownResource.key(gone, raw);
     }
 
     private static AccentTank tank(int x, int y, Supplier<Optional<FluidKey>> fluid, long amount) {

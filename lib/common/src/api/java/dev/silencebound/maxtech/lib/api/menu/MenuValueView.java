@@ -1,11 +1,12 @@
 package dev.silencebound.maxtech.lib.api.menu;
 
 import dev.silencebound.maxtech.lib.api.resource.FluidKey;
+import dev.silencebound.maxtech.lib.api.resource.KindKey;
 import java.util.Optional;
 
 /**
  * The current values of one open menu. On the client: what the server sent last, or zero, the enum's first constant and
- * no fluid before the first values arrive (on the first tick after the menu opens). On the server: what the getters
+ * no resource before the first values arrive (on the first tick after the menu opens). On the server: what the getters
  * returned when the menu last read them. Reads never allocate. Each method throws {@link IllegalArgumentException} for
  * a handle from another declaration (wrong position or kind). Main thread of its side.
  */
@@ -31,12 +32,23 @@ public interface MenuValueView {
     /** Work in total; zero when the host reports none. */
     long total(ProgressValue value);
 
-    /** The tank's fluid with its components; empty when the tank is. */
+    /**
+     * The fluid of a tank declared as a fluid tank (the fluid {@code tank}, or a tank of {@code ResourceKinds.FLUID}),
+     * with its components; empty when the tank is, or holds unknown contents. Throws {@link IllegalArgumentException}
+     * for a tank of another or any kind.
+     */
     Optional<FluidKey> fluid(TankValue value);
 
-    /** Amount in mB. */
+    /**
+     * The resource of any tank, with its kind; empty when the tank is. Unknown contents (a kind the client lacks, or a
+     * saved resource that no longer loads) are an {@link dev.silencebound.maxtech.lib.api.resource.UnknownResource
+     * UnknownResource}, which screens show as unknown rather than empty.
+     */
+    Optional<KindKey<?>> resource(TankValue value);
+
+    /** Amount in the resource's unit (mB for fluids). */
     long amount(TankValue value);
 
-    /** Capacity in mB. */
+    /** Capacity in the resource's unit. */
     long capacity(TankValue value);
 }

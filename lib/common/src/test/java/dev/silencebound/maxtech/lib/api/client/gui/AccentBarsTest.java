@@ -6,11 +6,20 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.mojang.serialization.Codec;
 import dev.silencebound.maxtech.lib.api.energy.FeRate;
+import dev.silencebound.maxtech.lib.api.resource.AmountUnit;
+import dev.silencebound.maxtech.lib.api.resource.KindKey;
+import dev.silencebound.maxtech.lib.api.resource.ResourceKind;
+import dev.silencebound.maxtech.lib.api.resource.TestKindTable;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
+import java.util.concurrent.atomic.AtomicReference;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.contents.TranslatableContents;
+import net.minecraft.network.codec.ByteBufCodecs;
+import net.minecraft.resources.Identifier;
 import org.junit.jupiter.api.Test;
 
 /** The bars' maths and text: fill heights, tick marks, shapes, tooltip numbers, and Lib's theme. */
@@ -44,6 +53,47 @@ class AccentBarsTest {
         int height = 50;
         int[] rows = AccentTank.tickRows(height);
         assertEquals(rows[1], height - AccentBar.fill(4000, 8000, height), "the half mark is where half a tank ends");
+    }
+
+    @Test
+    void tankAmountFollowsTheUnit() {
+        assertTranslation(AccentTank.amountLine(1250, 8000, AmountUnit.MILLIBUCKETS), AccentTank.AMOUNT_KEY, "1,250",
+                "8,000");
+        assertTranslation(AccentTank.amountLine(1250, 8000, AmountUnit.ITEMS), AccentTank.UNIT_AMOUNT_KEY, "1,250",
+                AmountUnit.ITEMS.format(8000));
+        assertTranslation(AccentTank.amountLine(-4, 5_000_000_000L, AmountUnit.MU), AccentTank.UNIT_AMOUNT_KEY, "0",
+                AmountUnit.MU.format(5_000_000_000L));
+        List<Component> items = AccentTank.tooltip(Component.literal("Glow"), 64, 128, AmountUnit.ITEMS);
+        assertEquals("Glow", items.get(0).getString());
+        assertTranslation(items.get(1), AccentTank.UNIT_AMOUNT_KEY, "64", AmountUnit.ITEMS.format(128));
+        assertTranslation(AccentTank.tooltip(null, 0, 128, AmountUnit.ITEMS).get(1), AccentTank.UNIT_AMOUNT_KEY, "0",
+                AmountUnit.ITEMS.format(128));
+    }
+
+    @Test
+    void unknownContentsAreNeverEmpty() {
+        List<Component> lines = AccentTank.unknownTooltip(0, 8000, AmountUnit.MILLIBUCKETS);
+        assertTranslation(lines.get(0), AccentTank.UNKNOWN_KEY);
+        assertTranslation(lines.get(1), AccentTank.AMOUNT_KEY, "0", "8,000");
+        assertTranslation(AccentTank.unknownTooltip(300, 8000, AmountUnit.ITEMS).get(1), AccentTank.UNIT_AMOUNT_KEY,
+                "300", AmountUnit.ITEMS.format(8000));
+    }
+
+    /** A kind without a look: named by its kind id, amounts in its unit, and the empty unit while empty. */
+    @Test
+    void kindTankWithoutLookShowsKindIdAndUnit() {
+        ResourceKind<Integer> spark = new TestKindTable().register(Identifier.fromNamespaceAndPath("test", "spark"),
+                Codec.INT, ByteBufCodecs.VAR_INT.cast(), AmountUnit.ITEMS);
+        AtomicReference<Optional<KindKey<?>>> held = new AtomicReference<>(Optional.of(new KindKey<>(spark, 3)));
+        AccentTank tank = new AccentTank(0, 0, AccentTank.WIDTH, 40, AccentTheme.LIB, AmountUnit.MILLIBUCKETS,
+                held::get, () -> 2500, () -> 8000);
+        List<Component> lines = tank.tooltip();
+        assertEquals("test:spark", lines.get(0).getString());
+        assertTranslation(lines.get(1), AccentTank.UNIT_AMOUNT_KEY, "2,500", AmountUnit.ITEMS.format(8000));
+        held.set(Optional.empty());
+        lines = tank.tooltip();
+        assertTranslation(lines.get(0), AccentTank.EMPTY_KEY);
+        assertTranslation(lines.get(1), AccentTank.AMOUNT_KEY, "0", "8,000");
     }
 
     @Test
