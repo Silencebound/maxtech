@@ -326,22 +326,27 @@ public final class TransferPortTankGameTests {
     }
 
     /**
-     * Two pushing glow tanks and a store without transactions: one operation makes one foreign move, so the second tank
-     * is touched only once the first is empty, and the totals stay the same on every tick.
+     * Two pushing glow tanks and a store without transactions: the first tank holds less than one operation moves, so
+     * an operation that went on would take the rest from the second tank in the same tick. One operation makes one
+     * foreign move, so on the tick the first tank first reaches 0 the second still holds all it had, and the totals
+     * stay the same on every tick.
      */
     private static void foreignOneMove(GameTestHelper helper) {
         PortEntity port = port(helper, PORT);
         ForeignEntity store = TestTanks.foreign(helper.getLevel(), helper.absolutePos(PORT.east()), 5, 0, 100_000);
-        port.glowOut.set(5, 1000);
+        port.glowOut.set(5, 300);
         port.glowOut2.set(5, 1000);
         port.port.setSettings(PortSettings.EMPTY.withMode(ConduitApiGameTests.TEST_KIND, Direction.EAST, PUSH));
+        boolean[] firstEmptied = {false};
         helper.onEachTick(() -> {
-            helper.assertValueEqual(port.glowOut.amount() + port.glowOut2.amount() + store.handler.amount, 2000L,
+            helper.assertValueEqual(port.glowOut.amount() + port.glowOut2.amount() + store.handler.amount, 1300L,
                     "glow in the port and the store");
-            helper.assertTrue(port.glowOut.amount() == 0 || port.glowOut2.amount() == 1000,
-                    "second tank moved while the first holds " + port.glowOut.amount());
+            if (!firstEmptied[0] && port.glowOut.amount() == 0) {
+                firstEmptied[0] = true;
+                helper.assertValueEqual(port.glowOut2.amount(), 1000L, "second tank on the tick the first one emptied");
+            }
         });
-        helper.succeedWhen(() -> helper.assertValueEqual(store.handler.amount, 2000L, "glow in the store"));
+        helper.succeedWhen(() -> helper.assertValueEqual(store.handler.amount, 1300L, "glow in the store"));
     }
 
     /**
@@ -512,7 +517,9 @@ public final class TransferPortTankGameTests {
     /**
      * A face whose cache already holds the tank's handler (the port is blocked by lava) when the tank's chunk drops
      * below full status and comes back: once the lava is gone the water goes into the live tank, and the totals never
-     * change on any tick.
+     * change on any tick. The chunk comes back from memory with the same block entity, so this pins only that the
+     * totals are preserved; it cannot pin the face-cache rebuild, which a chunk reloaded from disk (a new block entity)
+     * needs.
      */
     private static void staleCache(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();

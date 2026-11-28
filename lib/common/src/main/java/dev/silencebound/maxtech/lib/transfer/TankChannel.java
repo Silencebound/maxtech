@@ -145,6 +145,7 @@ final class TankChannel<K> extends PortChannel {
                 poll |= mode == PortFaceMode.PUSH ? pushWork() : pullRoom();
                 continue;
             }
+            // Covers a chunk reloaded from disk (a new block entity), which a GameTest cannot reach; kept on purpose.
             if (face.stale) {
                 face.live = false;
                 face = new Face(port, port.level(), port.neighbourPos(i), FACES[i].getOpposite());

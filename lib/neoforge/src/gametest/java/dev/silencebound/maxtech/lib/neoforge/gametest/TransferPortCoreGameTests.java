@@ -486,7 +486,9 @@ public final class TransferPortCoreGameTests {
     /**
      * A face whose cache already holds the chest's handler (the port is blocked by a full chest) when the chest's chunk
      * drops below full status and comes back: once the chest is emptied the stone goes into the live chest, and the
-     * totals never change on any tick.
+     * totals never change on any tick. The chunk comes back from memory with the same block entity, so this pins only
+     * that the totals are preserved; it cannot pin the face-cache rebuild, which a chunk reloaded from disk (a new
+     * block entity) needs.
      */
     private static void staleCache(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
