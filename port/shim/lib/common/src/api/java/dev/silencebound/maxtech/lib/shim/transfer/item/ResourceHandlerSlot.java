@@ -16,7 +16,7 @@ import dev.silencebound.maxtech.lib.shim.transfer.IndexModifier;
 import dev.silencebound.maxtech.lib.shim.transfer.ResourceHandler;
 import dev.silencebound.maxtech.lib.shim.transfer.StacksResourceHandler;
 import dev.silencebound.maxtech.lib.shim.transfer.transaction.Transaction;
-import net.neoforged.neoforge.world.inventory.StackCopySlot;
+import dev.silencebound.maxtech.lib.shim.transfer.port.StackCopySlot;
 
 /**
  * Base implementation for a {@link Slot} backed by a {@code ResourceHandler<ItemResource>}.

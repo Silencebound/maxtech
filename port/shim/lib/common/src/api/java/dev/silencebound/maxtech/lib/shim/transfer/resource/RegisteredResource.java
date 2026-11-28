@@ -11,7 +11,7 @@ package dev.silencebound.maxtech.lib.shim.transfer.resource;
 
 import java.util.function.Predicate;
 import net.minecraft.core.Holder;
-import net.minecraft.core.TypedInstance;
+import dev.silencebound.maxtech.lib.shim.transfer.port.TypedInstance;
 import org.jetbrains.annotations.ApiStatus;
 
 /**
