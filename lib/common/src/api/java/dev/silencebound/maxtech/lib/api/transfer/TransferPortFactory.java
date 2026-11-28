@@ -1,5 +1,6 @@
 package dev.silencebound.maxtech.lib.api.transfer;
 
+import dev.silencebound.maxtech.lib.api.energy.EnergyEndpoint;
 import dev.silencebound.maxtech.lib.api.resource.ResourceKind;
 import dev.silencebound.maxtech.lib.api.schedule.TaskGroup;
 import java.util.List;
@@ -81,5 +82,17 @@ public final class TransferPortFactory {
      */
     @ApiStatus.Internal
     public record Buffer(ResourceKind<?> kind, Object buffer, Set<PortFaceMode> modes) {
+    }
+
+    /**
+     * An energy buffer as {@link Buffer#buffer} holds it.
+     *
+     * @param endpoint
+     *            the standalone buffer endpoint
+     * @param onChange
+     *            runs after the port changed its stored energy
+     */
+    @ApiStatus.Internal
+    public record EnergyBuffer(EnergyEndpoint endpoint, Runnable onChange) {
     }
 }

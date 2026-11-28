@@ -37,7 +37,7 @@ import org.jetbrains.annotations.ApiStatus;
  * buffers always take part in transactions.</li>
  * </ul>
  * <p>
- * Host rule: the owner's block must expose the capability of each kind it moves (items, fluids, a compat kind's) on
+ * Host rule: the owner's block must expose the capability of each kind it moves (items, fluids, FE, a compat kind's) on
  * every face that can pull, and should expose it on all faces. A neighbouring port pushes into this port's pulling
  * buffers only while that capability is there, since it shows the block still exists; without it, nothing arrives. What
  * the capability itself offers is the owner's choice (the port never uses it).
@@ -93,12 +93,16 @@ public interface TransferPort {
     /** What the port last did with {@code kind}; {@link PortStatus#OFF} for a kind it does not move. */
     PortStatus status(ResourceKind<?> kind);
 
-    /** Saves the settings into the owner's block entity data, the builder's defaults included. */
+    /**
+     * Saves the settings into the owner's block entity data, the builder's defaults included, and the energy remainder
+     * (the part of one MU an energy port holds between operations), if any.
+     */
     void save(ValueOutput output);
 
     /**
-     * Loads settings saved by {@link #save}; data without settings loads as the builder's
-     * {@link TransferPorts.Builder#defaults} ({@link PortSettings#EMPTY} unless the owner set some).
+     * Loads the settings and energy remainder saved by {@link #save}; data without settings loads as the builder's
+     * {@link TransferPorts.Builder#defaults} ({@link PortSettings#EMPTY} unless the owner set some), data without a
+     * remainder (or a corrupt one) as none.
      */
     void load(ValueInput input);
 }

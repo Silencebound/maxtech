@@ -56,12 +56,16 @@ class TransferPortsTest {
 
     @Test
     void refusesEnergyThatIsNotAStandaloneBuffer() {
-        assertThrows(IllegalArgumentException.class, () -> builder().energy(EnergyEndpoint.producer(), Set.of(PUSH)));
         assertThrows(IllegalArgumentException.class,
-                () -> builder().energy(EnergyEndpoint.consumer(EnergyPriority.DEFAULT), Set.of(PULL)));
+                () -> builder().energy(EnergyEndpoint.producer(), Set.of(PUSH), () -> {
+                }));
+        assertThrows(IllegalArgumentException.class,
+                () -> builder().energy(EnergyEndpoint.consumer(EnergyPriority.DEFAULT), Set.of(PULL), () -> {
+                }));
         EnergyEndpoint networked = EnergyEndpoint.buffer(1000, 10, 10, EnergyPriority.DEFAULT);
         new EnergyScheduler(() -> 0L).createNetwork().add(networked);
-        assertThrows(IllegalArgumentException.class, () -> builder().energy(networked, Set.of(PUSH)), "in a network");
+        assertThrows(IllegalArgumentException.class, () -> builder().energy(networked, Set.of(PUSH), () -> {
+        }), "in a network");
     }
 
     @Test
