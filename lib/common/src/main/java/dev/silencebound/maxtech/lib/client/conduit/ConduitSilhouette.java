@@ -30,7 +30,8 @@ import org.jspecify.annotations.Nullable;
  * <p>
  * A caged outline ({@link ConduitLook.Shell#junctionCage}, for bends and branches) gives the core a line on all twelve
  * edges, inner creases included, and breaks every line at the core's faces: each arm's lines and each of the core's are
- * separate {@link Line}s that meet end to end there.
+ * separate {@link Line}s that meet end to end there. The geometry draws a core line only on the faces no arm leaves
+ * from.
  */
 public final class ConduitSilhouette {
     private static final Direction[] DIRECTIONS = Direction.values();

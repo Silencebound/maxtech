@@ -145,10 +145,10 @@ Lib works the outline out from the connections and draws it as opaque strips jus
   next tube, never across it, and leave out the inner crease of a bend, branch or crossing;
 - a rim around the end face where a run ends in the open (a single tube with no connections has plain borders on all
   twelve edges instead);
-- a rim band around an arm that meets a block, just inside Lib's connector ring, which stays as on any conduit.
-- with `junction_cage` (Lib 0.15.0), border lines on all twelve edges of the core wherever a tube bends or branches
-  (not on straight runs, open ends or single tubes): each arm's lines end on that frame instead of at the crease,
-  so lines seen through the next arm's glass no longer look cut off, and the core's glass stays clear inside it.
+- a rim band around an arm that meets a block, just inside Lib's connector ring, which stays as on any conduit;
+- with `junction_cage` (Lib 0.15.0), a frame of border lines around each face of the core that no arm leaves from,
+  wherever a tube bends or branches (not on straight runs, open ends or single tubes): each arm's lines end on that
+  frame instead of at the crease, and the core's glass stays clear inside it.
 
 ```json
 {
@@ -171,7 +171,7 @@ Lib works the outline out from the connections and draws it as opaque strips jus
 | `rim` | `1.5` | rim width in pixels, 0 to 4; 0 draws none |
 | `inset` | `0.5` | how far the contents sit inside the glass, in pixels, 0 to 4 |
 | `lane_width` | `1` | width of the second lane's strip, in pixels, 0 to 4; 0 draws none |
-| `junction_cage` | `false` | frame bends and branches with border lines on all twelve core edges (Lib 0.15.0) |
+| `junction_cage` | `false` | frame the core faces of bends and branches that no arm leaves from (Lib 0.15.0) |
 
 Lib leaves out each field at its default when it writes the file. Later Lib versions add more optional fields, so a
 file written now stays valid. The model is translucent, so block outlines and moving blocks treat it as such;

@@ -117,9 +117,9 @@ public sealed interface ConduitLook {
      * biome's.
      * <p>
      * With {@code junctionCage} (Lib 0.15.0) a tube that turns or branches (a bend, T, crossing or any junction of two
-     * or more arms that is not one straight run) draws border lines on all twelve edges of its core, so every arm's
-     * lines end on a frame around the core instead of at the crease and the core's glass stays clear between them.
-     * Straight runs, open ends and single tubes look as without it.
+     * or more arms that is not one straight run) frames each face of its core that no arm leaves from with border
+     * lines, so every arm's lines end on that frame instead of at the crease and the core's glass stays clear inside
+     * it. Straight runs, open ends and single tubes look as without it.
      * <p>
      * The block state fields are {@code shell}, then {@code border_colour}, {@code border}, {@code rim}, {@code inset},
      * {@code lane_width} and {@code junction_cage}, each left out at its default; later fields will be optional too, so
@@ -138,7 +138,7 @@ public sealed interface ConduitLook {
      * @param laneWidth
      *            width of the second lane's strip, in pixels, 0 to {@value #MAX_WIDTH}; 0 draws none
      * @param junctionCage
-     *            whether bends and branches draw border lines on all twelve edges of the core
+     *            whether bends and branches frame the core's faces that no arm leaves from
      */
     record Shell(Identifier shell, int borderColour, float border, float rim, float inset, float laneWidth,
             boolean junctionCage) implements ConduitLook {
@@ -212,7 +212,7 @@ public sealed interface ConduitLook {
         }
 
         /**
-         * This look with a junction cage: bends and branches draw border lines on all twelve edges of the core
+         * This look with a junction cage: bends and branches frame the core's faces that no arm leaves from
          * ({@link #junctionCage}). Lib 0.15.0.
          */
         public Shell withJunctionCage() {

@@ -16,6 +16,7 @@ import dev.silencebound.maxtech.lib.api.conduit.model.ConduitLayer;
 import dev.silencebound.maxtech.lib.api.conduit.model.ConduitQuad;
 import dev.silencebound.maxtech.lib.api.conduit.model.ConduitTexture;
 import dev.silencebound.maxtech.lib.api.conduit.model.ConduitUv;
+import java.util.ArrayList;
 import java.util.List;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.Identifier;
@@ -45,9 +46,8 @@ class ConduitShellGeometryTest {
             "isolated, '', '', 6, 24, false", "cap, e, '', 9, 16, false", "straight, we, '', 4, 8, false",
             "straight y, du, '', 4, 8, false", "L, es, '', 12, 18, false", "T, wes, '', 15, 20, false",
             "crossing, nswe, '', 18, 32, false", "six-way, dunswe, '', 24, 48, false",
-            "ringed straight, we, e, 4, 12, false", "ringed cap, e, e, 9, 20, false", "caged L, es, '', 12, 40, true",
-            "caged T, wes, '', 15, 48, true", "caged crossing, nswe, '', 18, 56, true",
-            "caged straight, we, '', 4, 8, true"})
+            "ringed straight, we, e, 4, 12, false", "ringed cap, e, e, 9, 20, false", "caged L, es, '', 12, 32, true",
+            "caged T, wes, '', 15, 36, true", "caged crossing, nswe, '', 18, 40, true"})
     void quadCounts(String name, String arms, String rings, int glass, int strips, boolean caged) {
         List<ConduitQuad> quads = ConduitGeometry.body(caged ? SHELL.withJunctionCage() : SHELL,
                 new ConduitBodyKey(TYPE, null, mask(arms), mask(rings)));
@@ -171,14 +171,14 @@ class ConduitShellGeometryTest {
     }
 
     /**
-     * A junction cage frames all six faces of the core of a bend or branch, the faces arms leave from included: the
-     * middle of each of the core's 24 face edges is covered by exactly one strip on that face. Without the cage the
-     * inner creases have none.
+     * A junction cage frames each face of a bend's or branch's core that no arm leaves from: the middle of each edge of
+     * such a face is covered by exactly one strip on it. A face an arm leaves from has no frame, which would lie inside
+     * the arm's glass. Without the cage some core edges have no strip.
      */
     @ParameterizedTest(name = "{0}")
     @CsvSource({"corner, es", "corner up, eu", "T, wes", "crossing, nswe", "3D corner, esu", "six-way, dunswe",
             "ringed T, wes"})
-    void junctionCageFramesEveryCoreFace(String name, String arms) {
+    void junctionCageFramesFreeCoreFaces(String name, String arms) {
         AABB core = ConduitShapes.core(TYPE.thickness());
         int mask = mask(arms);
         List<ConduitQuad> caged = ConduitGeometry.body(CAGED, new ConduitBodyKey(TYPE, null, mask, 0));
@@ -195,7 +195,8 @@ class ConduitShellGeometryTest {
                         : core.min(across) + 0.5;
                 double[] point = {across == Direction.Axis.X ? edge : 8, across == Direction.Axis.Y ? edge : 8,
                         across == Direction.Axis.Z ? edge : 8};
-                assertEquals(1, covering(caged, face, point), name + ": " + face + " beside " + beside);
+                int expected = ConduitConnections.isConnected(mask, face) ? 0 : 1;
+                assertEquals(expected, covering(caged, face, point), name + ": " + face + " beside " + beside);
                 if (covering(plain, face, point) == 0) {
                     uncovered++;
                 }
@@ -225,26 +226,52 @@ class ConduitShellGeometryTest {
                 ConduitGeometry.body(CAGED, new ConduitBodyKey(TYPE, null, mask(arms), mask(rings))));
     }
 
-    /** No glass or strip of a caged junction lies inside the core, where it would hide the contents' centre. */
+    /**
+     * Every strip of a caged junction lies on the outside of the tube: just behind it is glass, just in front of it is
+     * air. A strip inside the glass (a frame on a face an arm leaves from, or one inside the core) would only ever be
+     * seen through glass and look like it floats.
+     */
     @ParameterizedTest(name = "{0}")
-    @CsvSource({"corner, es", "T, wes", "crossing, nswe", "3D corner, esu", "six-way, dunswe"})
-    void junctionCageKeepsTheCoreClear(String name, String arms) {
-        AABB core = ConduitShapes.core(TYPE.thickness());
-        for (ConduitQuad quad : ConduitGeometry.body(CAGED, new ConduitBodyKey(TYPE, null, mask(arms), 0))) {
-            // a quad is its box's face on the side it faces
-            Direction.Axis normal = quad.facing().getAxis();
-            double plane = quad.facing().getAxisDirection() == Direction.AxisDirection.POSITIVE
-                    ? quad.box().max(normal)
-                    : quad.box().min(normal);
-            boolean outside = plane <= core.min(normal) + 1.0E-9 || plane >= core.max(normal) - 1.0E-9;
-            for (Direction.Axis axis : Direction.Axis.values()) {
-                if (axis != normal && (quad.box().max(axis) <= core.min(axis) + 1.0E-9
-                        || quad.box().min(axis) >= core.max(axis) - 1.0E-9)) {
-                    outside = true;
+    @CsvSource({"corner, es", "corner up, eu", "T, wes", "crossing, nswe", "3D corner, esu", "T up, weu",
+            "five-way, unswe"})
+    void junctionCageStripsLieOnTheOutside(String name, String arms) {
+        int mask = mask(arms);
+        List<AABB> volume = new ArrayList<>();
+        volume.add(ConduitShapes.core(TYPE.thickness()));
+        for (Direction side : Direction.values()) {
+            if (ConduitConnections.isConnected(mask, side)) {
+                volume.add(ConduitShapes.arm(TYPE.thickness(), side));
+            }
+        }
+        for (ConduitQuad quad : ConduitGeometry.body(CAGED, new ConduitBodyKey(TYPE, null, mask, 0))) {
+            if (isGlass(quad)) {
+                continue;
+            }
+            Direction facing = quad.facing();
+            AABB box = quad.box();
+            for (double s : new double[]{0.25, 0.75}) {
+                for (double t : new double[]{0.25, 0.75}) {
+                    double x = box.minX + (box.maxX - box.minX) * (facing.getAxis() == Direction.Axis.Z ? s : t);
+                    double y = box.minY + (box.maxY - box.minY) * (facing.getAxis() == Direction.Axis.X ? s : t);
+                    double z = box.minZ + (box.maxZ - box.minZ) * (facing.getAxis() == Direction.Axis.Y ? s : t);
+                    double step = 0.05;
+                    double dx = facing.getStepX() * step;
+                    double dy = facing.getStepY() * step;
+                    double dz = facing.getStepZ() * step;
+                    assertTrue(inside(volume, x - dx, y - dy, z - dz), name + ": no glass behind " + quad);
+                    assertFalse(inside(volume, x + dx, y + dy, z + dz), name + ": glass in front of " + quad);
                 }
             }
-            assertTrue(outside, name + ": inside the core: " + quad);
         }
+    }
+
+    private static boolean inside(List<AABB> volume, double x, double y, double z) {
+        for (AABB box : volume) {
+            if (x > box.minX && x < box.maxX && y > box.minY && y < box.maxY && z > box.minZ && z < box.maxZ) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /** Arm strips beside a caged core start where its frame ends, with no gap: the arm's edge is covered once. */
@@ -252,8 +279,8 @@ class ConduitShellGeometryTest {
     @CsvSource({
             // name, arms, face, x, y, z: points on the arm just past the core, on its crease side and its outer side
             "corner crease, es, u, 11.01, 0, 10.5", "corner outer, es, u, 11.01, 0, 5.5",
-            "corner mouth, es, s, 10.5, 10.5, 0", "corner arm side, es, s, 11.01, 10.5, 0",
-            "T crease, wes, u, 4.99, 0, 10.5", "T core face, wes, u, 8, 0, 10.5"})
+            "corner arm side, es, s, 11.01, 10.5, 0", "T crease, wes, u, 4.99, 0, 10.5",
+            "3D corner crease under the up arm, esu, u, 11.01, 0, 10.5", "T core face, wes, u, 8, 0, 10.5"})
     void junctionCageMeetsArmLines(String name, String arms, String face, double x, double y, double z) {
         List<ConduitQuad> quads = ConduitGeometry.body(CAGED, new ConduitBodyKey(TYPE, null, mask(arms), 0));
         assertEquals(1, covering(quads, side(face.charAt(0)), new double[]{x, y, z}), name);
