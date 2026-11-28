@@ -17,9 +17,13 @@ sourcepath), so one package's errors never mask another's; `--single` is the all
 
 ## Tests (2026-11-28)
 
-- **Unit tests** (`./gradlew test`): all pass. Common, plain JUnit: 741 run, 0 failed, 11 skipped (the legacy
-  bridge's, which need FML). Neoforge, inside FML: 78 run, 0 failed (its 40 plus common's 38 legacy-bridge tests,
-  the 11 above among them).
+- **Unit tests** (`./gradlew test`): all pass. Common, plain JUnit: 752 run, 0 failed, 12 skipped (legacy bridge
+  tests that need FML). Neoforge, inside FML: 89 run, 0 failed, 0 skipped (its 40 plus common's 49 legacy-bridge
+  tests, the 12 above among them).
+- **Jar**: `checkTransferJar` fails: `shim.transfer.bridge` is in both jars (the vendored `Capabilities` in the
+  nested one, Lib's `ForeignKinds`, added by the transfer package's foreign-last change, in Lib's). FML refuses a
+  package split over two modules, so the built jar cannot load until `ForeignKinds` moves to a Lib-only package
+  (for example `bridge.legacy`). Dev runs and tests are not affected (one mod there).
 - **GameTests** (`./gradlew :lib:neoforge:runGameTestServer`): 198 ran, 173 passed, 25 failed. By cause:
   - *Jade and mock players* (20: `menu_action_*` 2, `menu_definition_opens`, `side_config_*` 7, `toolkit_api_*` 10):
     `GameTestHelper.makeMockServerPlayerInLevel` runs `PlayerList.placeNewPlayer`, where Jade (runtimeOnly in dev

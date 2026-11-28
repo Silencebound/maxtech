@@ -25,6 +25,7 @@ python3 -I port/convert.py --check         # exit 1 on warnings (stale overrides
 (cd port && ./gradlew test)                            # unit tests: common's in plain JUnit, neoforge's inside FML
 (cd port && ./gradlew :lib:neoforge:runGameTestServer) # GameTests (whole maxtech_lib namespace; see below)
 (cd port && ./gradlew :lib:neoforge:jar)               # the jar, with the transfer api nested (NOTICE-transfer.md)
+(cd port && ./gradlew :lib:neoforge:checkTransferJar)  # fails when Lib's jar and the nested one share a package
 (cd port && ./gradlew :lib:neoforge:runClient)         # dev client
 port/tools/errormap.sh                     # regenerate, then one javac per work package; summary on stdout
 port/tools/errormap.sh --single            # ... or ONE javac over everything (faster, can hide errors)
@@ -93,7 +94,8 @@ generated from main compiles against them unchanged and the packages can work in
 keeps NeoForge's LGPL-2.1-only headers plus a modification notice. It ships as its own nested jar
 (`maxtech_lib-transfer`, `FMLModType: GAMELIBRARY`) with `NOTICE-transfer.md` and the LGPL-2.1 text
 (`LICENSE-transfer.txt`) in its META-INF; `bridge/legacy/` is Lib's own code and stays in Lib's jar. Dev runs and
-tests load it from the source sets as part of Lib, so only the built jar has the split.
+tests load it from the source sets as part of Lib, so only the built jar has the split. No package may be in both jars
+(FML's module layer refuses a split package); Lib's own code next to the vendored api goes into `bridge.legacy`.
 Re-vendoring (`python3 -I port/tools/vendor_transfer.py <neoforge-26.1.2.x-sources.jar>`) overwrites the hand edits
 made for 1.21.1, so diff before committing one.
 

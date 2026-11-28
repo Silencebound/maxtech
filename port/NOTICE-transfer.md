@@ -24,9 +24,11 @@ Lib's classes. Lib's 1.21.1 jar carries it as `META-INF/jarjar/dev.silencebound.
 (built by `transferJar` in `port/projects/lib-common`), with this file and the LGPL-2.1 text (`LICENSE-transfer.txt`)
 in its META-INF. `bridge/legacy/` stays in Lib's jar.
 
-The nested jar uses Lib's `shim.saving` interfaces (`ValueInput`, `ValueOutput`, `ValueIOSerializable`) at runtime and
-carries no copy of them. Licence: the vendored code only calls Lib's interfaces, so no LGPL-3.0 code lands in the
+The nested jar uses Lib's classes at runtime and carries no copy of them: the `shim.saving` interfaces (`ValueInput`,
+`ValueOutput`, `ValueIOSerializable`) and, from `EnergyHandlerUtil`, `bridge.legacy.LegacyForeignLast`. Licence: the
+vendored code only calls Lib's classes, so no LGPL-3.0 code lands in the
 LGPL-2.1 jar and nothing is relicensed; each jar can be replaced on its own. Classloading: the nested jar is a game
 library (`FMLModType: GAMELIBRARY`), loaded in the same layer as Lib, where both see each other; a copy would put the
 `shim.saving` package into two jars, which the module layer refuses (split package), or need a second package that
-Lib's implementations would then have to implement.
+Lib's implementations would then have to implement. `:lib:neoforge:checkTransferJar` (part of `check`) fails when
+the two jars share a package.

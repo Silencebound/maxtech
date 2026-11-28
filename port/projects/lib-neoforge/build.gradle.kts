@@ -1,4 +1,6 @@
 import java.util.Properties
+import java.util.zip.ZipFile
+import java.util.zip.ZipInputStream
 
 // Lib's NeoForge side on 1.21.1: the source sets of main's maxtech.neoforge (api, main, gametest, test), compiled from
 // the generated tree port/out/lib/neoforge, plus the dev runs and the `errorMap` task (port/README.md).
@@ -155,6 +157,30 @@ tasks.jar {
     from(apiSourceSet.output)
     from(rootProject.files("../LICENSE", "../COPYING", "../COPYING.LESSER", "NOTICE-transfer.md")) { into("META-INF") }
 }
+
+// FML loads Lib and the nested transfer jar into one module layer, which refuses a package that both jars hold.
+val checkTransferJar = tasks.register("checkTransferJar") {
+    group = "verification"
+    description = "Fails when Lib's jar and its nested transfer jar share a package."
+    val libJar = tasks.jar.flatMap { it.archiveFile }
+    inputs.file(libJar)
+    doLast {
+        val packages = { entries: Sequence<String> ->
+            entries.filter { it.endsWith(".class") }.map { it.substringBeforeLast('/') }.toSet()
+        }
+        ZipFile(libJar.get().asFile).use { lib ->
+            val nestedEntry = lib.entries().asSequence().single { it.name.contains("maxtech_lib-transfer") }
+            val nested = ZipInputStream(lib.getInputStream(nestedEntry)).use { zip ->
+                packages(generateSequence { zip.nextEntry }.map { it.name }.toList().asSequence())
+            }
+            val shared = packages(lib.entries().asSequence().map { it.name }) intersect nested
+            if (shared.isNotEmpty()) {
+                throw GradleException("Packages in both Lib's jar and the nested transfer jar: $shared")
+            }
+        }
+    }
+}
+tasks.check { dependsOn(checkTransferJar) }
 
 val versionProperties = mapOf(
     "mod_version" to version.toString(),
