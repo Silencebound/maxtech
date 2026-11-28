@@ -81,3 +81,15 @@ until Farms ships.
 - Order: T1 the api types, config and this ADR (no moving yet: `build()` throws); T2 the port core with items, dupe
   and chunk GameTests and an idle perf test; T3 fluids, the generic tank-kind core and the adapter for handlers
   without transactions; T4 energy; T5 documentation and the GUI toolkit's face node. Farms' hub then uses it.
+
+## Amendment (T3, 2026-11-28)
+
+- Tank buffers of any kind move through the kind's `KindBridge`, which common code reaches through Lib's platform;
+  a tank of a kind without a bridge is refused at `build()`. Items keep Lib's own item caches (T2). Every tank kind
+  moves up to `transfer.fluidPerOp` per operation until a kind needs its own key.
+- With a handler that lacks transactions an operation makes one move and commits right after the foreign side is
+  carried out; a short execute is kept exactly on Lib's side (the nested part rolls back and only the executed amount
+  is moved again). A port's own buffers always roll back, so two such handlers never meet inside a port; the refusal
+  is kept in the move itself.
+- All ports of a level without a group of their own share Lib's transfer group and with it one owner's scheduler
+  budget; no transfer-specific budget, since operations past it only wait for the next tick.

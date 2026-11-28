@@ -49,6 +49,9 @@ abstract class PortChannel {
     /** Reads what the channel keeps from the settings (the filter). */
     abstract void settingsChanged(PortSettings settings);
 
+    /** Forgets the filter's cached answer (tags may have changed); the next test asks the filter again. */
+    abstract void forgetFilterAnswers();
+
     /** One operation over the faces active in {@code faces}, moving at most {@code amount}; {@link #NONE} etc. */
     abstract int operate(LibTransferPort port, int faces, long amount);
 

@@ -64,11 +64,18 @@ public final class LibTransferPort implements TransferPort {
     /** Fixed per-port value that spreads backoff wake-ups, from the position. */
     private int spreadKey;
 
-    LibTransferPort(@Nullable Function<ServerLevel, TaskGroup> groups, @Nullable ItemChannel items,
-            PortSettings defaults, Runnable onSettingsChanged) {
+    /** A port over {@code channels}, one per kind in the order the builder first added a buffer of it. */
+    LibTransferPort(@Nullable Function<ServerLevel, TaskGroup> groups, PortChannel[] channels, PortSettings defaults,
+            Runnable onSettingsChanged) {
         this.groups = groups;
-        this.items = items;
-        this.channels = items == null ? new PortChannel[0] : new PortChannel[]{items};
+        this.channels = channels.clone();
+        ItemChannel itemChannel = null;
+        for (PortChannel channel : this.channels) {
+            if (channel instanceof ItemChannel found) {
+                itemChannel = found;
+            }
+        }
+        this.items = itemChannel;
         ResourceKind<?>[] moved = new ResourceKind<?>[channels.length];
         for (int i = 0; i < channels.length; i++) {
             moved[i] = channels[i].kind;
@@ -185,8 +192,8 @@ public final class LibTransferPort implements TransferPort {
 
     /** Forgets the filters' cached answers (tags may have changed). */
     void forgetFilterAnswers() {
-        if (items != null) {
-            items.forgetFilterAnswers();
+        for (PortChannel channel : channels) {
+            channel.forgetFilterAnswers();
         }
     }
 
@@ -332,7 +339,9 @@ public final class LibTransferPort implements TransferPort {
         return result;
     }
 
-    private @Nullable PortChannel channel(ResourceKind<?> kind) {
+    /** The channel of {@code kind}, or null for a kind the port does not move. Allocates nothing. */
+    @Nullable
+    PortChannel channel(ResourceKind<?> kind) {
         for (PortChannel channel : channels) {
             if (channel.kind == kind) {
                 return channel;
