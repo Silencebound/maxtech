@@ -1,10 +1,26 @@
 package dev.silencebound.maxtech.lib.shim.saving;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
+import net.minecraft.nbt.CompoundTag;
 import org.jspecify.annotations.Nullable;
+
+/**
+ * 26.1's {@code net.minecraft.world.level.storage.ValueOutput} with NeoForge's {@code ValueOutputExtension} folded in:
+ * a write-only view of data being saved.
+ */
 public interface ValueOutput {
-    default void store(net.minecraft.nbt.CompoundTag tag) { throw new UnsupportedOperationException("port stub"); }
-    default void putChild(String key, ValueIOSerializable child) { throw new UnsupportedOperationException("port stub"); }
+    /** Stores every entry of {@code tag} at this object's top level, under the same keys. */
+    default void store(CompoundTag tag) {
+        for (String key : tag.getAllKeys()) {
+            store(key, PortSaving.NBT, tag.get(key));
+        }
+    }
+
+    /** Stores {@code child} at {@code key}. */
+    default void putChild(String key, ValueIOSerializable child) {
+        child.serialize(child(key));
+    }
+
     <T> void store(String name, Codec<T> codec, T value);
     <T> void storeNullable(String name, Codec<T> codec, @Nullable T value);
     @Deprecated
