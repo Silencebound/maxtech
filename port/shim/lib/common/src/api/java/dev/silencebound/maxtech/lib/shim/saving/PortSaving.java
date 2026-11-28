@@ -21,7 +21,28 @@ public final class PortSaving {
     public static final Codec<Tag> NBT = Codec.PASSTHROUGH.xmap(d -> d.convert(NbtOps.INSTANCE).getValue(),
             tag -> new Dynamic<>(NbtOps.INSTANCE, tag));
 
+    private static final ThreadLocal<Boolean> SKIP_SIDE_EFFECTS = ThreadLocal.withInitial(() -> false);
+
     private PortSaving() {
+    }
+
+    /**
+     * Runs {@code change} (a block change) without the block entities' {@code preRemoveSideEffects}, as 26.1's
+     * {@code Block.UPDATE_SKIP_BLOCK_ENTITY_SIDEEFFECTS} flag does; 1.21.1 has no such flag.
+     */
+    public static void withoutSideEffects(Runnable change) {
+        boolean before = SKIP_SIDE_EFFECTS.get();
+        SKIP_SIDE_EFFECTS.set(true);
+        try {
+            change.run();
+        } finally {
+            SKIP_SIDE_EFFECTS.set(before);
+        }
+    }
+
+    /** Whether the current block change skips the block entities' {@code preRemoveSideEffects}. */
+    public static boolean skippingSideEffects() {
+        return SKIP_SIDE_EFFECTS.get();
     }
 
     /** A reporter that logs each problem with the field path below {@code owner} (a block entity's {@link #problemPath}). */

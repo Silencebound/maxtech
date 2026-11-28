@@ -1,5 +1,6 @@
 package dev.silencebound.maxtech.lib.shim.saving;
 
+import java.util.Optional;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.NumericTag;
@@ -64,6 +65,11 @@ public final class Nbt {
 
     public static String getStringOr(CompoundTag tag, String name, String defaultValue) {
         return tag.get(name) instanceof StringTag string ? string.getAsString() : defaultValue;
+    }
+
+    /** 26.1's {@code getString(name)}: the string, if the key holds one (1.21.1's returns "" otherwise). */
+    public static Optional<String> getString(CompoundTag tag, String name) {
+        return tag.get(name) instanceof StringTag string ? Optional.of(string.getAsString()) : Optional.empty();
     }
 
     public static CompoundTag getCompoundOrEmpty(CompoundTag tag, String name) {
