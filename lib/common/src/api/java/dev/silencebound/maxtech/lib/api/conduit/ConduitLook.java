@@ -3,6 +3,7 @@ package dev.silencebound.maxtech.lib.api.conduit;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
+import java.util.Objects;
 import java.util.Optional;
 import net.minecraft.resources.Identifier;
 import net.minecraft.util.ExtraCodecs;
@@ -125,9 +126,19 @@ public sealed interface ConduitLook {
      * {@code inset} px inside the inset glass. Label marks sit on the inset glass between the bars, mode glyphs past
      * the collar.
      * <p>
+     * With a {@code barTexture} (Lib 0.15.0) the border lines, rims, bars and collars show that sprite instead of a
+     * flat colour, still tinted with {@code borderColour} (white, {@code 0xFFFFFF}, shows the sprite's own colours).
+     * Like the glass it is projected onto the block, turned so that the sprite's rows (its u axis) run along each bar,
+     * so a pattern runs on from one tube to the next. A bar shows only a slice of the sprite as wide as the bar, so a
+     * bar sprite should change along its rows only (stripes, rivets, bands across the bar), with every row alike.
+     * <p>
+     * With a {@code tierStripe} colour (Lib 0.15.0) and {@code frameBars}, each glass face has a flat stripe 1 px wide
+     * (at most half the face) on the glass beside every bar and collar around it, along the bar's length, opaque in
+     * that colour, so a pipe's tier shows without changing its shape. Without frame bars it draws nothing.
+     * <p>
      * The block state fields are {@code shell}, then {@code border_colour}, {@code border}, {@code rim}, {@code inset},
-     * {@code lane_width} and {@code frame_bars}, each left out at its default; later fields will be optional too, so
-     * files stay valid.
+     * {@code lane_width}, {@code frame_bars}, {@code bar_texture} and {@code tier_stripe} ({@code #RRGGBB}), each left
+     * out at its default; later fields will be optional too, so files stay valid.
      *
      * @param shell
      *            sprite of the glass (block atlas), usually mostly transparent
@@ -143,9 +154,14 @@ public sealed interface ConduitLook {
      *            width of the second lane's strip, in pixels, 0 to {@value #MAX_WIDTH}; 0 draws none
      * @param frameBars
      *            whether the borders are solid bars on every edge, with the glass set in between them
+     * @param barTexture
+     *            sprite of the borders, rims and bars (block atlas), or empty to draw them flat in
+     *            {@code borderColour}; never null
+     * @param tierStripe
+     *            colour of the tier stripes beside the frame bars ({@code 0xRRGGBB}), or empty for none; never null
      */
     record Shell(Identifier shell, int borderColour, float border, float rim, float inset, float laneWidth,
-            boolean frameBars) implements ConduitLook {
+            boolean frameBars, Optional<Identifier> barTexture, Optional<Integer> tierStripe) implements ConduitLook {
         /** Default {@link #border}, in pixels. */
         public static final float DEFAULT_BORDER = 0.5F;
         /** Default {@link #rim}, in pixels. */
@@ -164,7 +180,9 @@ public sealed interface ConduitLook {
                         widthField("rim", DEFAULT_RIM).forGetter(Shell::rim),
                         widthField("inset", DEFAULT_INSET).forGetter(Shell::inset),
                         widthField("lane_width", DEFAULT_LANE_WIDTH).forGetter(Shell::laneWidth),
-                        Codec.BOOL.optionalFieldOf("frame_bars", false).forGetter(Shell::frameBars))
+                        Codec.BOOL.optionalFieldOf("frame_bars", false).forGetter(Shell::frameBars),
+                        Identifier.CODEC.optionalFieldOf("bar_texture").forGetter(Shell::barTexture),
+                        ExtraCodecs.STRING_RGB_COLOR.optionalFieldOf("tier_stripe").forGetter(Shell::tierStripe))
                 .apply(i, Shell::new));
 
         /**
@@ -172,8 +190,13 @@ public sealed interface ConduitLook {
          *
          * @throws IllegalArgumentException
          *             when a width is outside 0 to {@value #MAX_WIDTH} or not a number
+         * @throws NullPointerException
+         *             when {@code barTexture} or {@code tierStripe} is null (use {@link Optional#empty()})
          */
         public Shell {
+            Objects.requireNonNull(barTexture, "barTexture");
+            Objects.requireNonNull(tierStripe, "tierStripe");
+            tierStripe = tierStripe.map(colour -> colour & 0xFFFFFF);
             requireWidth("border", border);
             requireWidth("rim", rim);
             requireWidth("inset", inset);
@@ -190,34 +213,77 @@ public sealed interface ConduitLook {
             this(shell, borderColour, border, rim, inset, laneWidth, false);
         }
 
+        /** A shell with flat borders, as shells before {@link #barTexture} were. */
+        public Shell(Identifier shell, int borderColour, float border, float rim, float inset, float laneWidth,
+                boolean frameBars) {
+            this(shell, borderColour, border, rim, inset, laneWidth, frameBars, Optional.empty());
+        }
+
+        /** A shell without tier stripes, as shells before {@link #tierStripe} were. */
+        public Shell(Identifier shell, int borderColour, float border, float rim, float inset, float laneWidth,
+                boolean frameBars, Optional<Identifier> barTexture) {
+            this(shell, borderColour, border, rim, inset, laneWidth, frameBars, barTexture, Optional.empty());
+        }
+
         /** This look with its borders and rims in {@code colour} ({@code 0xRRGGBB} or {@link #TYPE_COLOUR}). */
         public Shell withBorderColour(int colour) {
-            return new Shell(shell, colour, border, rim, inset, laneWidth, frameBars);
+            return new Shell(shell, colour, border, rim, inset, laneWidth, frameBars, barTexture, tierStripe);
         }
 
         /** This look with border lines {@code border} px wide. */
         public Shell withBorder(float border) {
-            return new Shell(shell, borderColour, border, rim, inset, laneWidth, frameBars);
+            return new Shell(shell, borderColour, border, rim, inset, laneWidth, frameBars, barTexture, tierStripe);
         }
 
         /** This look with rims {@code rim} px wide. */
         public Shell withRim(float rim) {
-            return new Shell(shell, borderColour, border, rim, inset, laneWidth, frameBars);
+            return new Shell(shell, borderColour, border, rim, inset, laneWidth, frameBars, barTexture, tierStripe);
         }
 
         /** This look with its contents {@code inset} px inside the glass. */
         public Shell withInset(float inset) {
-            return new Shell(shell, borderColour, border, rim, inset, laneWidth, frameBars);
+            return new Shell(shell, borderColour, border, rim, inset, laneWidth, frameBars, barTexture, tierStripe);
         }
 
         /** This look with a second lane {@code laneWidth} px wide. */
         public Shell withLaneWidth(float laneWidth) {
-            return new Shell(shell, borderColour, border, rim, inset, laneWidth, frameBars);
+            return new Shell(shell, borderColour, border, rim, inset, laneWidth, frameBars, barTexture, tierStripe);
         }
 
         /** This look with its borders as solid frame bars and the glass set in between them ({@link #frameBars}). */
         public Shell withFrameBars() {
-            return new Shell(shell, borderColour, border, rim, inset, laneWidth, true);
+            return new Shell(shell, borderColour, border, rim, inset, laneWidth, true, barTexture, tierStripe);
+        }
+
+        /**
+         * This look with its borders, rims and bars showing {@code texture} (a block atlas sprite id, e.g.
+         * {@code farms:block/pipe_bar}) tinted with {@link #borderColour}, instead of flat ({@link #barTexture}).
+         */
+        public Shell withBarTexture(Identifier texture) {
+            return withBarTexture(Optional.of(texture));
+        }
+
+        /** This look with its bar sprite set to {@code texture}, or, when empty, back to flat bars. */
+        public Shell withBarTexture(Optional<Identifier> texture) {
+            return new Shell(shell, borderColour, border, rim, inset, laneWidth, frameBars, texture, tierStripe);
+        }
+
+        /** This look with flat borders, rims and bars in {@link #borderColour} again. */
+        public Shell withoutBarTexture() {
+            return withBarTexture(Optional.empty());
+        }
+
+        /**
+         * This look with a tier stripe in {@code colour} ({@code 0xRRGGBB}; higher bits are ignored, the stripe is
+         * opaque) on the glass beside each frame bar ({@link #tierStripe}); it shows only with {@link #frameBars}.
+         */
+        public Shell withTierStripe(int colour) {
+            return withTierStripe(Optional.of(colour));
+        }
+
+        /** This look with its tier stripe set to {@code colour}, or, when empty, without one. */
+        public Shell withTierStripe(Optional<Integer> colour) {
+            return new Shell(shell, borderColour, border, rim, inset, laneWidth, frameBars, barTexture, colour);
         }
 
         @Override

@@ -96,7 +96,7 @@ For a conduit `<modid>:<name>` registered with a look:
 
 | File | Needed |
 |---|---|
-| `assets/<modid>/models/item/<name>.json` | yes; Lib's item model definition names `<modid>:item/<name>` |
+| `assets/<modid>/models/item/<name>.json` | yes; Lib's item model definition names `<modid>:item/<name>`. For a shell look, `ConduitItemModels.shell` (Lib's NeoForge api, Lib 0.15.0) writes it in the addon's datagen as a straight piece of the tube |
 | `assets/<modid>/textures/block/...png` | only for sprites the look names in the addon's namespace (`end`, `overlay`, `shell`); `ConduitLook.FLAT` is Lib's |
 | `assets/<modid>/lang/en_us.json` | yes: `block.<modid>.<name>` (the item uses the block's name) |
 | `data/<modid>/loot_table/blocks/<name>.json` | only to drop something other than the conduit's item; without one Lib drops the item, and a facade drops either way |
@@ -156,6 +156,16 @@ run to the block face and meet the next tube's end to end. A rim band becomes a 
 The contents sit `inset` px inside the set-in glass, and the label marks (dye letter, mode glyphs) on it between the
 bars, the mode glyphs past the collar.
 
+With `bar_texture` (Lib 0.15.0) the border lines, rims, bars and collars show that sprite instead of a flat colour,
+still tinted with `border_colour` (`#ffffff` keeps the sprite's own colours). It is projected onto the block like the
+glass and turned so the sprite's rows run along each bar, so a pattern runs on from tube to tube. A bar shows only a
+slice of the sprite as wide as the bar, so draw the pattern along the rows (stripes, rivets, bands) with every row
+alike.
+
+With `tier_stripe` (Lib 0.15.0) and frame bars, each glass face gets a flat stripe 1 px wide (at most half the face)
+on the glass beside every bar and collar around it, opaque in that colour and unaffected by dyes, so tiers of one pipe
+differ without changing its shape. Without frame bars it draws nothing.
+
 ```json
 {
   "variants": {
@@ -178,12 +188,15 @@ bars, the mode glyphs past the collar.
 | `inset` | `0.5` | how far the contents sit inside the glass, in pixels, 0 to 4 |
 | `lane_width` | `1` | width of the second lane's strip, in pixels, 0 to 4; 0 draws none |
 | `frame_bars` | `false` | draw the borders as solid bars on every edge with the glass set in between (Lib 0.15.0) |
+| `bar_texture` | none (flat) | sprite (block atlas) of borders, rims and bars, tinted with `border_colour` (Lib 0.15.0) |
+| `tier_stripe` | none | `#rrggbb` of the tier stripes beside the frame bars (Lib 0.15.0) |
 
 Lib leaves out each field at its default when it writes the file. Later Lib versions add more optional fields, so a
 file written now stays valid. The model is translucent, so block outlines and moving blocks treat it as such;
 particles show the `shell` sprite. In code: `ConduitLook.shell(id).withBorderColour(0x2E4A52)`, `.withBorder(1)`,
-`.withRim(2)`, `.withInset(1)`, `.withLaneWidth(0.5F)`, `.withFrameBars()`. `ConduitLookTest` and `ConduitAssetsTest`
-pin this format too.
+`.withRim(2)`, `.withInset(1)`, `.withLaneWidth(0.5F)`, `.withFrameBars()`, `.withBarTexture(id)`
+(`.withoutBarTexture()` goes back to flat bars; `barTexture()` is an `Optional`), `.withTierStripe(0xD6DBE0)`
+(`tierStripe()` is an `Optional`). `ConduitLookTest` and `ConduitAssetsTest` pin this format too.
 
 A shell draws the conduit's `ConduitContents` (`ConduitHost.setContents`) inside the glass, opaque, with the
 resource kind's client look (`ResourceLook`, registered with `ResourceLooks.register` on the client): its still and

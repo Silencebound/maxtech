@@ -598,7 +598,7 @@ public final class TerminalScreen extends AbstractContainerScreen<TerminalMenu> 
         graphics.item(icon.stack(), x + 1, y + 1);
         if (id <= CRAFT_ONLY) {
             // Not stored, only craftable: a greyed icon with the craftable mark and "craftable" under it.
-            graphics.fill(x + 1, y + 1, x + 17, y + 17, 0x9015181B);
+            graphics.fill(x + 1, y + 1, x + 17, y + 17, 0x90101215);
             craftableMark(graphics, x, y);
             String label = Component.translatable(RequestContent.CRAFTABLE_KEY).getString();
             graphics.pose().pushMatrix();

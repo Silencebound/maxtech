@@ -59,7 +59,7 @@ public final class PortScreen extends DeviceScreen<PortMenu> {
     /** Digits of the largest keep amount. */
     private static final int KEEP_CHARS = 10;
     /** Greys out a card slot that does nothing (storage mode). */
-    private static final int IDLE_SLOT = 0xA025292D;
+    private static final int IDLE_SLOT = 0xA01C2023;
 
     /** The filter slot the keep field edits. */
     private int selected;

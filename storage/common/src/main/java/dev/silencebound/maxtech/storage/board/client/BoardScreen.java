@@ -155,7 +155,7 @@ public final class BoardScreen extends DeviceScreen<BoardMenu> {
             // The held item, dimmed: what the Post buttons ask for with nothing picked.
             graphics.item(minecraft.player.getMainHandItem(), leftPos + slotX(), topPos + slotY());
             graphics.fill(leftPos + slotX(), topPos + slotY(), leftPos + slotX() + 16, topPos + slotY() + 16,
-                    0x9015181B);
+                    0x90101215);
         }
         List<BoardView.Entry> entries = menu.entries();
         for (int i = 0; i < VISIBLE && scroll + i < entries.size(); i++) {
