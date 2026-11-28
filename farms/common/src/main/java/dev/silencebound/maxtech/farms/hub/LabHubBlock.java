@@ -58,7 +58,7 @@ public final class LabHubBlock extends Block implements EntityBlock {
         }
         ItemSlots slots = hub.storage().slots();
         if (stack.getItem() instanceof SamplerItem) {
-            if (!slots.stack(HubStorage.SAMPLER).isEmpty()) {
+            if (!slots.stack(HubStorage.SAMPLER).isEmpty() || slots.unknown(HubStorage.SAMPLER)) {
                 return InteractionResult.TRY_WITH_EMPTY_HAND;
             }
             // The sampler moves into the hub, in creative too: it is one tool, not a material.

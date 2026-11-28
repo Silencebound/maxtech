@@ -19,6 +19,10 @@ import net.minecraft.core.Direction;
 import net.minecraft.core.Holder;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.Registries;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.StringTag;
+import net.minecraft.nbt.Tag;
 import net.minecraft.gametest.framework.FunctionGameTestInstance;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.gametest.framework.GameTestSequence;
@@ -87,7 +91,10 @@ public final class LabHubGameTests {
             Map.entry("hub_survives_explosion", LabHubGameTests::survivesExplosion),
             Map.entry("hub_sampler_charges", LabHubGameTests::samplerCharges),
             Map.entry("hub_sampler_stops_when_full", LabHubGameTests::samplerStopsWhenFull),
-            Map.entry("hub_overflow_kept", LabHubGameTests::overflowKept));
+            Map.entry("hub_overflow_kept", LabHubGameTests::overflowKept),
+            Map.entry("hub_fuel_restored_when_remainder_short", LabHubGameTests::fuelRestoredWhenRemainderShort),
+            Map.entry("hub_hand_sampler_unknown_slot", LabHubGameTests::handSamplerUnknownSlot),
+            Map.entry("hub_unknown_survives_drop", LabHubGameTests::unknownSurvivesDrop));
 
     private LabHubGameTests() {
     }
@@ -488,6 +495,112 @@ public final class LabHubGameTests {
         helper.assertTrue(ItemStack.matches(taken, new ItemStack(Items.BONE, 9)), "overflow stack " + taken);
         helper.assertTrue(placed.isPristine(), "pristine after the overflow was handed out");
         helper.succeed();
+    }
+
+    /**
+     * The output buffer fills up between the simulated and the real remainder insert (the extraction's listener fills
+     * the last free slot): the fuel goes back, the output holds no bucket, and the burn does not start.
+     */
+    private static void fuelRestoredWhenRemainderShort(GameTestHelper helper) {
+        HubStorage storage = new HubStorage(helper::getLevel, new HubStorage.Listener() {
+            @Override
+            public void changed() {
+            }
+
+            @Override
+            public void tankChanged() {
+            }
+
+            @Override
+            public void fuelChanged() {
+            }
+
+            @Override
+            public void outputChanged() {
+            }
+
+            @Override
+            public void samplerChanged() {
+            }
+        });
+        for (int slot = HubStorage.OUTPUT_FIRST; slot < HubStorage.SAMPLER - 1; slot++) {
+            storage.slots().set(slot, new ItemStack(Items.DIRT, 64));
+        }
+        storage.slots().set(HubStorage.FUEL, new ItemStack(Items.LAVA_BUCKET));
+        helper.assertValueEqual(
+                storage.takeFuel(helper.getLevel(),
+                        () -> storage.slots().set(HubStorage.SAMPLER - 1, new ItemStack(Items.DIRT, 64))),
+                0, "burn time of a fuel that lost its room");
+        helper.assertTrue(storage.slots().stack(HubStorage.FUEL).is(Items.LAVA_BUCKET), "the fuel was not restored");
+        helper.assertValueEqual(storage.slots().stack(HubStorage.FUEL).getCount(), 1, "restored fuel count");
+        for (int slot = HubStorage.OUTPUT_FIRST; slot < HubStorage.SAMPLER; slot++) {
+            helper.assertTrue(storage.slots().stack(slot).is(Items.DIRT), "output slot " + slot + " holds a remainder");
+        }
+        helper.succeed();
+    }
+
+    /** A hand click with a sampler on a sampler slot that holds an unknown item neither throws nor replaces it. */
+    private static void handSamplerUnknownSlot(GameTestHelper helper) {
+        LabHubBlockEntity hub = unknownHub(helper);
+        helper.assertTrue(hub.storage().slots().unknown(HubStorage.SAMPLER), "sampler slot not unknown");
+        ServerPlayer player = player(helper, GameType.SURVIVAL);
+        use(helper, player, sampler(5));
+        helper.assertValueEqual(player.getMainHandItem().getCount(), 1, "the sampler left the hand");
+        helper.assertTrue(hub.storage().slots().unknown(HubStorage.SAMPLER), "the unknown item is gone");
+        helper.getLevel().getServer().getPlayerList().remove(player);
+        helper.succeed();
+    }
+
+    /** Unknown items and an unknown tank stay in the hub's save and in its dropped item. */
+    private static void unknownSurvivesDrop(GameTestHelper helper) {
+        LabHubBlockEntity hub = unknownHub(helper);
+        var registries = helper.getLevel().registryAccess();
+        CompoundTag before = hub.saveCustomOnly(registries);
+        helper.assertTrue(hub.storage().tank().unknown(), "tank not unknown");
+        helper.assertTrue(!hub.isPristine(), "a hub holding unknown things counts as pristine");
+        helper.getLevel().destroyBlock(helper.absolutePos(HUB), true);
+        LabHubBlockEntity placed = placeDrop(helper);
+        helper.assertTrue(placed.storage().tank().unknown(), "tank lost its unknown contents");
+        helper.assertTrue(placed.storage().slots().unknown(HubStorage.SAMPLER), "sampler slot lost its unknown item");
+        helper.assertTrue(placed.storage().slots().unknown(HubStorage.OUTPUT_FIRST), "output lost its unknown item");
+        CompoundTag after = placed.saveCustomOnly(registries);
+        helper.assertValueEqual(after.getCompoundOrEmpty("items"), before.getCompoundOrEmpty("items"), "items saved");
+        helper.assertValueEqual(after.getCompoundOrEmpty("nutrient"), before.getCompoundOrEmpty("nutrient"), "tank");
+        helper.succeed();
+    }
+
+    /** A hub loaded from a save whose sampler slot, first output slot and tank hold things that no longer load. */
+    private static LabHubBlockEntity unknownHub(GameTestHelper helper) {
+        LabHubBlockEntity hub = hub(helper);
+        var registries = helper.getLevel().registryAccess();
+        hub.storage().tank().set(FluidKey.of(Fluids.WATER), 4000);
+        hub.storage().slots().set(HubStorage.SAMPLER, new ItemStack(Items.STICK));
+        hub.storage().slots().set(HubStorage.OUTPUT_FIRST, new ItemStack(Items.BONE, 3));
+        CompoundTag saved = hub.saveCustomOnly(registries);
+        rename(saved, Map.of("minecraft:stick", "gone_mod:stick", "minecraft:bone", "gone_mod:bone", "minecraft:water",
+                "gone_mod:goo"));
+        hub.storage().slots().set(HubStorage.SAMPLER, ItemStack.EMPTY);
+        hub.storage().slots().set(HubStorage.OUTPUT_FIRST, ItemStack.EMPTY);
+        hub.storage().tank().clear();
+        hub.loadWithComponents(TagValueInput.create(ProblemReporter.DISCARDING, registries, saved));
+        return hub;
+    }
+
+    private static void rename(CompoundTag tag, Map<String, String> ids) {
+        for (String key : List.copyOf(tag.keySet())) {
+            Tag value = tag.get(key);
+            if (value instanceof CompoundTag child) {
+                rename(child, ids);
+            } else if (value instanceof ListTag list) {
+                for (Tag entry : list) {
+                    if (entry instanceof CompoundTag child) {
+                        rename(child, ids);
+                    }
+                }
+            } else if (value instanceof StringTag string && ids.containsKey(string.value())) {
+                tag.putString(key, ids.get(string.value()));
+            }
+        }
     }
 
     private static ItemStack sampler(long charge) {

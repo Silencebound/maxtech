@@ -25,6 +25,12 @@ import org.jspecify.annotations.Nullable;
  * {@link ItemSlots} with the fuel slot ({@link #FUEL}), the output buffer ({@link #OUTPUT_FIRST} on,
  * {@link #OUTPUT_SLOTS} slots, take-only) and the sampler charging slot ({@link #SAMPLER}), with their save format and
  * the views other mods get. Server thread only.
+ *
+ * <p>
+ * Stacks a save held for no slot (the overflow of {@link #slots()}) stay in the hub's save and its dropped item and are
+ * never handed out in production; unknown items and an unknown tank are kept the same way. The tank's capacity is fixed
+ * when the storage is made: a changed {@code hub.tankCapacity} applies to hubs placed afterwards (a screen shows
+ * {@link FluidTank#capacity()}, never the config).
  */
 public final class HubStorage {
     /** The fuel slot: any furnace fuel. */
@@ -72,7 +78,7 @@ public final class HubStorage {
     private @Nullable HubItemHandler itemHandler;
 
     /** Storage for a hub in {@code level} (null while the block entity has none). */
-    HubStorage(Supplier<@Nullable Level> level, Listener listener) {
+    public HubStorage(Supplier<@Nullable Level> level, Listener listener) {
         slots = shape(stack -> {
             Level current = level.get();
             return current != null && burnTime(current.fuelValues(), stack) > 0;
@@ -171,9 +177,19 @@ public final class HubStorage {
 
     /**
      * Takes one fuel item out of the fuel slot and returns its burn time, or 0 when nothing burns. Its remainder (an
-     * empty bucket) goes into the output buffer, so pipes can take it; when it does not fit, nothing is taken.
+     * empty bucket) goes into the output buffer, so pipes can take it; when it does not fit, nothing is taken: if the
+     * buffer changed under the extraction and the remainder no longer fits, the fuel is put back and nothing is lost.
      */
     int takeFuel(Level current) {
+        return takeFuel(current, () -> {
+        });
+    }
+
+    /**
+     * {@link #takeFuel(Level)} running {@code afterExtract} between taking the fuel and inserting its remainder: a hook
+     * for tests that change the output buffer right there.
+     */
+    public int takeFuel(Level current, Runnable afterExtract) {
         ItemStack stack = slots.stack(FUEL);
         int time = stack.isEmpty() ? 0 : burnTime(current.fuelValues(), stack);
         if (time <= 0) {
@@ -184,13 +200,32 @@ public final class HubStorage {
         if (!left.isEmpty() && insertOutput(left, true) < left.getCount()) {
             return 0;
         }
+        ItemStack before = stack.copy();
         if (slots.extract(FUEL, 1, false) != 1) {
             return 0;
         }
+        afterExtract.run();
         if (!left.isEmpty()) {
-            insertOutput(left, false);
+            int inserted = insertOutput(left, false);
+            if (inserted < left.getCount()) {
+                // The listener of the extraction changed the buffer in between: undo, so neither fuel nor remainder is
+                // lost
+                // or duplicated.
+                extractOutput(left, inserted);
+                slots.set(FUEL, before);
+                return 0;
+            }
         }
         return time;
+    }
+
+    private void extractOutput(ItemStack stack, int amount) {
+        int left = amount;
+        for (int slot = OUTPUT_FIRST; slot < SAMPLER && left > 0; slot++) {
+            if (ItemStack.isSameItemSameComponents(slots.stack(slot), stack)) {
+                left -= slots.extract(slot, left, false);
+            }
+        }
     }
 
     /**
