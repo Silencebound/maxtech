@@ -241,6 +241,22 @@ class MenuDefinitionTest {
     }
 
     @Test
+    void valueConditionFromAnotherDefinitionIsReported() {
+        AtomicReference<IntValue> foreign = new AtomicReference<>();
+        Menus.define("test", "condition_owner", Hub.class, m -> {
+            IntValue sampler = m.intValue(hub -> 1);
+            foreign.set(sampler);
+            m.layout(Layout.value(sampler, "test.samples_left", 80));
+        });
+        MenuDefinition<Hub> other = Menus.define("test", "condition_user", Hub.class, m -> {
+            IntValue samples = m.intValue(hub -> 3);
+            m.layout(Layout.value(samples, "test.samples_left", 80, foreign.get()));
+        });
+        assertEquals(1, other.problems().size(), other.problems().toString());
+        assertTrue(other.problems().getFirst().startsWith("Layout uses a handle from another"));
+    }
+
+    @Test
     void groupsSharingSlotsAreReported() {
         MenuDefinition<Hub> definition = Menus.define("test", "shared", Hub.class, m -> {
             MenuItems<Hub> items = m.items(Hub::slots, SHAPE);
