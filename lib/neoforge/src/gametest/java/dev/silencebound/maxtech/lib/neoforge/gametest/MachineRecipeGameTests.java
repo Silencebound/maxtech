@@ -17,9 +17,11 @@ import dev.silencebound.maxtech.lib.api.recipe.MachineRecipeType;
 import dev.silencebound.maxtech.lib.api.resource.FluidKey;
 import dev.silencebound.maxtech.lib.api.resource.KindKey;
 import dev.silencebound.maxtech.lib.api.resource.ResourceKinds;
+import dev.silencebound.maxtech.lib.api.resource.UnknownResource;
 import dev.silencebound.maxtech.lib.platform.Platform;
 import dev.silencebound.maxtech.lib.platform.RegistryHelper;
 import io.netty.buffer.Unpooled;
+import io.netty.handler.codec.DecoderException;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -45,6 +47,7 @@ import net.minecraft.world.item.ItemStackTemplate;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.item.crafting.Recipe;
+import net.minecraft.world.item.crafting.RecipeHolder;
 import net.minecraft.world.level.material.Fluids;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -54,8 +57,8 @@ import net.neoforged.neoforge.event.RegisterGameTestsEvent;
 
 /**
  * Lib's machine recipes with registries, which the JUnit tests of {@code lib.api.recipe} cannot build: codecs, shape
- * and unknown-id refusals, matching of real items and fluids, and the demo recipe in the GameTest resources loading and
- * being found. The test machine type is registered here, so it exists in dev runs only.
+ * and unknown-id refusals, matching of real items and fluids, and a tank-only recipe in the GameTest resources being
+ * found. The test machine type is registered here, so it exists in dev runs only.
  */
 @EventBusSubscriber(modid = MaxtechLib.MOD_ID)
 public final class MachineRecipeGameTests {
@@ -66,6 +69,9 @@ public final class MachineRecipeGameTests {
     private static final String ROUND_TRIP = "machine_recipes_round_trip";
     private static final String REFUSED = "machine_recipes_refused";
     private static final String MATCHING = "machine_recipes_matching";
+    private static final String TANK_ONLY = "machine_recipes_tank_only";
+    /** A recipe in {@code src/gametest/resources} that takes only water and makes only lava. */
+    static final Identifier TANK_ONLY_RECIPE = MaxtechLib.id("test_machine/tank_only");
     private static final RegistryHelper.Registrar<Consumer<GameTestHelper>> FUNCTIONS = Platform.get().registry()
             .registrar(MaxtechLib.MOD_ID, Registries.TEST_FUNCTION);
 
@@ -73,6 +79,7 @@ public final class MachineRecipeGameTests {
         FUNCTIONS.register(ROUND_TRIP, () -> MachineRecipeGameTests::roundTrip);
         FUNCTIONS.register(REFUSED, () -> MachineRecipeGameTests::refused);
         FUNCTIONS.register(MATCHING, () -> MachineRecipeGameTests::matching);
+        FUNCTIONS.register(TANK_ONLY, () -> MachineRecipeGameTests::tankOnly);
     }
 
     private MachineRecipeGameTests() {
@@ -81,7 +88,7 @@ public final class MachineRecipeGameTests {
     @SubscribeEvent
     static void register(RegisterGameTestsEvent event) {
         Holder<TestEnvironmentDefinition<?>> environment = event.registerEnvironment(MaxtechLib.id("machine_recipes"));
-        for (String name : List.of(ROUND_TRIP, REFUSED, MATCHING)) {
+        for (String name : List.of(ROUND_TRIP, REFUSED, MATCHING, TANK_ONLY)) {
             Identifier id = MaxtechLib.id(name);
             event.registerTest(id, new FunctionGameTestInstance(ResourceKey.create(Registries.TEST_FUNCTION, id),
                     new TestData<>(environment, LibGameTests.EMPTY_STRUCTURE, 20, 0, true)));
@@ -138,6 +145,32 @@ public final class MachineRecipeGameTests {
         MachineRecipe streamed = TEST_MACHINE.streamCodec().decode(buffer);
         helper.assertValueEqual(buffer.readableBytes(), 0, "bytes left");
         helper.assertValueEqual(encode(level, streamed), saved, "streamed");
+
+        // A duration of 0 from the network is a bad packet: no mode, four empty lists, energy 0, duration 0.
+        RegistryFriendlyByteBuf bad = new RegistryFriendlyByteBuf(Unpooled.buffer(), level.registryAccess());
+        bad.writeBoolean(false);
+        for (int i = 0; i < 6; i++) {
+            bad.writeVarInt(0);
+        }
+        boolean refused = false;
+        try {
+            TEST_MACHINE.streamCodec().decode(bad);
+        } catch (DecoderException expected) {
+            refused = true;
+        }
+        helper.assertTrue(refused, "duration 0 from the network fails as a bad packet");
+
+        // A tag input of a kind the client lacks arrives as one that matches nothing.
+        RegistryFriendlyByteBuf gas = new RegistryFriendlyByteBuf(Unpooled.buffer(), level.registryAccess());
+        Identifier.STREAM_CODEC.encode(gas, Identifier.fromNamespaceAndPath("nomod", "gas"));
+        gas.writeBoolean(true);
+        Identifier.STREAM_CODEC.encode(gas, Identifier.fromNamespaceAndPath("c", "water"));
+        gas.writeVarLong(500);
+        KindInput unknown = KindInput.STREAM_CODEC.decode(gas);
+        helper.assertTrue(unknown.kind() == UnknownResource.KIND, "unknown kind on the client");
+        helper.assertFalse(unknown.test(new KindKey<>(ResourceKinds.FLUID, FluidKey.of(Fluids.WATER))),
+                "unknown kind matches no water");
+        helper.assertValueEqual(unknown.amount(), 500L, "amount kept");
         helper.succeed();
     }
 
@@ -157,6 +190,8 @@ public final class MachineRecipeGameTests {
     private static void refused(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
         helper.assertTrue(parse(level, VALID).isSuccess(), "valid recipe: " + parse(level, VALID));
+        helper.assertValueEqual(((MachineRecipe) parse(level, VALID).getOrThrow()).energyPerTick(), 0,
+                "energy_per_tick defaults to 0");
         Map<String, String[]> broken = Map.ofEntries(
                 Map.entry("three inputs", new String[]{"\"count\": 2}]",
                         "\"count\": 2}, {\"ingredient\": \"minecraft:stone\"}, {\"ingredient\": \"minecraft:dirt\"}]"}),
@@ -254,6 +289,32 @@ public final class MachineRecipeGameTests {
         helper.succeed();
     }
 
+    /**
+     * A recipe with only tank inputs is found for a machine whose item slots are all empty: vanilla's lookup skips an
+     * input whose {@code isEmpty} is true, so the tanks must count.
+     */
+    private static void tankOnly(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        TestInput input = tankOnlyInput();
+        helper.assertFalse(input.isEmpty(), "tanks count");
+        Optional<RecipeHolder<MachineRecipe>> found = level.recipeAccess().getRecipeFor(TEST_MACHINE.recipeType(),
+                input, level);
+        helper.assertTrue(found.isPresent() && found.get().id().identifier().equals(TANK_ONLY_RECIPE),
+                "tank-only recipe found: " + found);
+        helper.assertValueEqual(input.plan().drained(0), 500L, "water drained");
+        input.amounts[0] = 0;
+        helper.assertTrue(input.isEmpty(), "empty without items or fluid");
+        helper.succeed();
+    }
+
+    /** Empty item slots and 500 mB of water in coarse mode: what the tank-only recipe takes. */
+    static TestInput tankOnlyInput() {
+        TestInput input = new TestInput("coarse", ItemStack.EMPTY, ItemStack.EMPTY, ItemStack.EMPTY);
+        input.tanks[0] = Optional.of(new KindKey<>(ResourceKinds.FLUID, FluidKey.of(Fluids.WATER)));
+        input.amounts[0] = 500;
+        return input;
+    }
+
     /** Every input of the demo recipe: 2 iron, a diamond catalyst, 1000 mB of {@code fluid} and 100 mB holy water. */
     private static TestInput full(KindKey<?> fluid) {
         TestInput input = new TestInput("fine", new ItemStack(Items.IRON_INGOT, 2), ItemStack.EMPTY,
@@ -266,7 +327,7 @@ public final class MachineRecipeGameTests {
     }
 
     /** Two input slots, one catalyst slot and two input tanks, set directly by the tests. */
-    private static final class TestInput implements MachineRecipeInput {
+    static final class TestInput implements MachineRecipeInput {
         final ItemStack[] slots;
         @SuppressWarnings("unchecked") // an array of one generic type
         final Optional<KindKey<?>>[] tanks = new Optional[]{Optional.empty(), Optional.empty()};

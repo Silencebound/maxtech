@@ -6,6 +6,7 @@ import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import dev.silencebound.maxtech.lib.api.registry.Registrars;
 import dev.silencebound.maxtech.lib.api.registry.RegistryEntry;
+import io.netty.handler.codec.DecoderException;
 import java.util.List;
 import java.util.Optional;
 import net.minecraft.core.registries.Registries;
@@ -56,7 +57,8 @@ public final class MachineRecipeType {
                         (mode, inputs, tankInputs, outputs, tankOutputs, energy, duration) -> new MachineRecipe(this,
                                 mode, inputs, tankInputs, outputs, tankOutputs, energy, duration)))
                 .validate(this::validate);
-        this.streamCodec = StreamCodec.composite(ByteBufCodecs.optional(ByteBufCodecs.STRING_UTF8), MachineRecipe::mode,
+        StreamCodec<RegistryFriendlyByteBuf, MachineRecipe> fields = StreamCodec.composite(
+                ByteBufCodecs.optional(ByteBufCodecs.STRING_UTF8), MachineRecipe::mode,
                 ItemInput.STREAM_CODEC.apply(ByteBufCodecs.list()), MachineRecipe::inputs,
                 KindInput.STREAM_CODEC.apply(ByteBufCodecs.list()), MachineRecipe::tankInputs,
                 ItemOutput.STREAM_CODEC.apply(ByteBufCodecs.list()), MachineRecipe::outputs,
@@ -64,6 +66,14 @@ public final class MachineRecipeType {
                 MachineRecipe::energyPerTick, ByteBufCodecs.VAR_INT, MachineRecipe::duration,
                 (mode, inputs, tankInputs, outputs, tankOutputs, energy, duration) -> new MachineRecipe(this, mode,
                         inputs, tankInputs, outputs, tankOutputs, energy, duration));
+        this.streamCodec = StreamCodec.of(fields, buffer -> {
+            try {
+                return fields.decode(buffer);
+            } catch (IllegalArgumentException e) {
+                // A value the constructors refuse (count, chance, amount, duration) is a bad packet, not a crash.
+                throw new DecoderException("Bad " + id + " recipe: " + e.getMessage(), e);
+            }
+        });
         this.type = Registrars.create(modId, Registries.RECIPE_TYPE).register(name, () -> RecipeType.simple(id));
         this.serializer = Registrars.create(modId, Registries.RECIPE_SERIALIZER).register(name,
                 () -> new RecipeSerializer<>(codec, streamCodec));
@@ -97,7 +107,9 @@ public final class MachineRecipeType {
         return codec;
     }
 
-    /** The network form, for syncing recipes to clients. */
+    /**
+     * The network form, for syncing recipes to clients; a value out of bounds fails with a {@code DecoderException}.
+     */
     public StreamCodec<RegistryFriendlyByteBuf, MachineRecipe> streamCodec() {
         return streamCodec;
     }

@@ -29,7 +29,7 @@ class RecipePlannerTest {
         }
 
         @Override
-        public int count(int input) {
+        public int itemCount(int input) {
             return counts[input];
         }
 
@@ -44,7 +44,7 @@ class RecipePlannerTest {
         }
 
         @Override
-        public long amount(int input) {
+        public long tankAmount(int input) {
             return amounts[input];
         }
     }
@@ -183,6 +183,94 @@ class RecipePlannerTest {
                 new MachineRecipePlan(0, 1)));
         assertTrue(RecipePlanner.plan(twice, new Have("", new int[0], 0, "x", new long[]{2000}, true),
                 new MachineRecipePlan(0, 1)));
+    }
+
+    /** Input slots (or tanks, with {@code tanks}) of the given sizes and an explicit input x column accept matrix. */
+    private static final class Matrix implements RecipePlanner.Have {
+        private final long[] sizes;
+        private final boolean[][] accepts;
+        private final boolean tanks;
+
+        Matrix(boolean tanks, long[] sizes, boolean[]... accepts) {
+            this.sizes = sizes;
+            this.accepts = accepts;
+            this.tanks = tanks;
+        }
+
+        @Override
+        public int inputSlots() {
+            return tanks ? 0 : sizes.length;
+        }
+
+        @Override
+        public int catalystSlots() {
+            return 0;
+        }
+
+        @Override
+        public int count(int slot) {
+            return (int) sizes[slot];
+        }
+
+        @Override
+        public boolean accepts(int input, int slot) {
+            return accepts[input][slot];
+        }
+
+        @Override
+        public int tanks() {
+            return tanks ? sizes.length : 0;
+        }
+
+        @Override
+        public long amount(int tank) {
+            return sizes[tank];
+        }
+
+        @Override
+        public boolean tankAccepts(int input, int tank) {
+            return accepts[input][tank];
+        }
+    }
+
+    @Test
+    void aTagInputLeavesTheOnlyItemAnExactInputTakes() {
+        // #c:ingots x1 (iron or gold) and minecraft:iron_ingot x1 over slots [iron, gold]: a first-come choice gives
+        // the iron to the tag input and fails; the plan moves the tag input to the gold.
+        Needs needs = items(1, 1);
+        Matrix slots = new Matrix(false, new long[]{1, 1}, new boolean[]{true, true}, new boolean[]{true, false});
+        MachineRecipePlan plan = new MachineRecipePlan(2, 0);
+        assertTrue(RecipePlanner.plan(needs, slots, plan));
+        assertEquals(1, plan.items(0));
+        assertEquals(1, plan.items(1));
+    }
+
+    @Test
+    void aTagTankInputLeavesTheOnlyTankAnExactInputDrains() {
+        // c:water 1000 mB and holy water 100 mB over tanks [100 mB holy water, 1000 mB plain water].
+        Needs needs = new Needs(new int[0], new boolean[0], new long[]{1000, 100});
+        Matrix tanks = new Matrix(true, new long[]{100, 1000}, new boolean[]{true, true}, new boolean[]{true, false});
+        MachineRecipePlan plan = new MachineRecipePlan(0, 2);
+        assertTrue(RecipePlanner.plan(needs, tanks, plan));
+        assertEquals(100, plan.drained(0));
+        assertEquals(1000, plan.drained(1));
+        // One mB less of plain water and no plan exists.
+        assertFalse(RecipePlanner.plan(needs,
+                new Matrix(true, new long[]{100, 999}, new boolean[]{true, true}, new boolean[]{true, false}), plan));
+    }
+
+    @Test
+    void longerChainsOfMovedInputsAreFound() {
+        // Input a accepts slots 0-2, b slots 0-1, c slot 0 only: first come, a takes slot 0 and b slot 1, so c needs
+        // both moved along.
+        Needs needs = items(1, 1, 1);
+        Matrix slots = new Matrix(false, new long[]{1, 1, 1}, new boolean[]{true, true, true},
+                new boolean[]{true, true, false}, new boolean[]{true, false, false});
+        MachineRecipePlan plan = new MachineRecipePlan(3, 0);
+        assertTrue(RecipePlanner.plan(needs, slots, plan));
+        assertEquals(1, plan.items(0));
+        assertEquals(1, plan.items(1));
+        assertEquals(1, plan.items(2));
     }
 
     @Test

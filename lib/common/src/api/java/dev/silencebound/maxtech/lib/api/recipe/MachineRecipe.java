@@ -2,6 +2,7 @@ package dev.silencebound.maxtech.lib.api.recipe;
 
 import dev.silencebound.maxtech.lib.api.resource.KindKey;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.PlacementInfo;
@@ -11,6 +12,7 @@ import net.minecraft.world.item.crafting.RecipeSerializer;
 import net.minecraft.world.item.crafting.RecipeType;
 import net.minecraft.world.level.Level;
 import org.jetbrains.annotations.ApiStatus;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A recipe of a machine whose type comes from {@link MachineRecipeType#define}. Every such type has this JSON form:
@@ -74,7 +76,8 @@ public record MachineRecipe(MachineRecipeType type, Optional<String> mode, List<
         if (mode.isPresent() ? !mode.get().equals(input.mode()) : !input.mode().isEmpty()) {
             return false;
         }
-        return RecipePlanner.plan(new Needs(this), new Have(this, input), input.plan());
+        MachineRecipePlan plan = input.plan();
+        return plan.views.plan(this, input, plan);
     }
 
     /** The first item output, or empty; machines use {@link #outputs} and {@link #tankOutputs} instead. */
@@ -119,68 +122,92 @@ public record MachineRecipe(MachineRecipeType type, Optional<String> mode, List<
         return type.bookCategory();
     }
 
-    private record Needs(MachineRecipe recipe) implements RecipePlanner.Needs {
+    /**
+     * The planner's views of one recipe and one input, bound for a single match and kept in the machine's plan, so a
+     * match allocates nothing.
+     */
+    static final class Views implements RecipePlanner.Needs, RecipePlanner.Have {
+        private @Nullable MachineRecipe recipe;
+        private @Nullable MachineRecipeInput input;
+
+        boolean plan(MachineRecipe bound, MachineRecipeInput on, MachineRecipePlan plan) {
+            recipe = bound;
+            input = on;
+            try {
+                return RecipePlanner.plan(this, this, plan);
+            } finally {
+                recipe = null;
+                input = null;
+            }
+        }
+
+        private MachineRecipe recipe() {
+            return Objects.requireNonNull(recipe, "not planning");
+        }
+
+        private MachineRecipeInput input() {
+            return Objects.requireNonNull(input, "not planning");
+        }
+
         @Override
         public int itemInputs() {
-            return recipe.inputs.size();
+            return recipe().inputs.size();
         }
 
         @Override
-        public int count(int input) {
-            return recipe.inputs.get(input).count();
+        public int itemCount(int index) {
+            return recipe().inputs.get(index).count();
         }
 
         @Override
-        public boolean consumed(int input) {
-            return recipe.inputs.get(input).consumed();
+        public boolean consumed(int index) {
+            return recipe().inputs.get(index).consumed();
         }
 
         @Override
         public int tankInputs() {
-            return recipe.tankInputs.size();
+            return recipe().tankInputs.size();
         }
 
         @Override
-        public long amount(int input) {
-            return recipe.tankInputs.get(input).amount();
+        public long tankAmount(int index) {
+            return recipe().tankInputs.get(index).amount();
         }
-    }
 
-    private record Have(MachineRecipe recipe, MachineRecipeInput input) implements RecipePlanner.Have {
         @Override
         public int inputSlots() {
-            return input.inputSlots();
+            return input().inputSlots();
         }
 
         @Override
         public int catalystSlots() {
-            return input.catalystSlots();
+            return input().catalystSlots();
         }
 
         @Override
         public int count(int slot) {
-            return input.getItem(slot).getCount();
+            return input().getItem(slot).getCount();
         }
 
         @Override
         public boolean accepts(int index, int slot) {
-            return recipe.inputs.get(index).test(input.getItem(slot));
+            return recipe().inputs.get(index).test(input().getItem(slot));
         }
 
         @Override
         public int tanks() {
-            return input.inputTanks();
+            return input().inputTanks();
         }
 
         @Override
         public long amount(int tank) {
-            return input.tankAmount(tank);
+            return input().tankAmount(tank);
         }
 
         @Override
         public boolean tankAccepts(int index, int tank) {
-            Optional<KindKey<?>> resource = input.tankResource(tank);
-            return resource.isPresent() && recipe.tankInputs.get(index).test(resource.get());
+            Optional<KindKey<?>> resource = input().tankResource(tank);
+            return resource.isPresent() && recipe().tankInputs.get(index).test(resource.get());
         }
     }
 }
