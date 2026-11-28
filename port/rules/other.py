@@ -358,6 +358,8 @@ RULES = [
     Regex(r"BuiltInRegistries\.REGISTRY\.getValue\(", "BuiltInRegistries.REGISTRY.get(",
           files=(API + "conduit/ConduitTypes.java",)),
     Regex(r"holder\.id\(\)\.location\(\)", "holder.id()", files=(LIB + "content/ContentIndex.java",)),
+    # RecipeHolder.id() is a ResourceKey in 26.1, the ResourceLocation itself in 1.21.1
+    Regex(r"\.id\(\)\.location\(\)", ".id()", files=(LIB + "machine/LibMachineProcess.java",)),
     Regex(r"registry\.get\(id\)", "registry.getHolder(id)", files=(LIB + "content/ContentIndex.java",)),
     edit(("return new BlockEntityType<>(ConduitBlockEntity::new, conduits);",
           "return BlockEntityType.Builder.of(ConduitBlockEntity::new, conduits.toArray(new Block[0])).build(null);"),
