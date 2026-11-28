@@ -7,10 +7,12 @@ import dev.silencebound.maxtech.lib.api.conduit.ConduitHost;
 import dev.silencebound.maxtech.lib.api.conduit.Conduits;
 import dev.silencebound.maxtech.lib.api.energy.EnergyNetwork;
 import dev.silencebound.maxtech.lib.api.energy.EnergyNetworks;
+import dev.silencebound.maxtech.lib.api.inventory.FluidTank;
 import dev.silencebound.maxtech.lib.api.network.NetworkManager;
 import dev.silencebound.maxtech.lib.api.network.NetworkGraph;
 import dev.silencebound.maxtech.lib.api.network.Network;
 import dev.silencebound.maxtech.lib.api.network.RouteTree;
+import dev.silencebound.maxtech.lib.api.resource.FluidKey;
 import it.unimi.dsi.fastutil.longs.Long2ByteOpenHashMap;
 import it.unimi.dsi.fastutil.longs.LongArrayList;
 import it.unimi.dsi.fastutil.longs.LongIterator;
@@ -20,15 +22,10 @@ import java.util.Optional;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.material.Fluid;
-// PLATFORM-LEAK: NeoForge's transfer api moves nutrient and output into the hub (root CLAUDE.md: transfers).
-import net.neoforged.neoforge.transfer.ResourceHandlerUtil;
-// PLATFORM-LEAK: see above.
-import net.neoforged.neoforge.transfer.fluid.FluidStacksResourceHandler;
-// PLATFORM-LEAK: see above.
+// PLATFORM-LEAK: NeoForge's transfer api moves nutrient into the hub (root CLAUDE.md: transfers).
 import net.neoforged.neoforge.transfer.fluid.FluidResource;
-// PLATFORM-LEAK: see above.
-import net.neoforged.neoforge.transfer.item.ItemResource;
 // PLATFORM-LEAK: see above.
 import net.neoforged.neoforge.transfer.transaction.TransactionContext;
 import org.jspecify.annotations.Nullable;
@@ -135,19 +132,20 @@ public final class LabNetwork {
         if (current == null || fluid.isEmpty() || amount <= 0) {
             return 0;
         }
-        return current.storage().tank().insert(fluid, amount, transaction);
+        return current.storage().fluidHandler().insert(fluid, amount, transaction);
     }
 
     /**
-     * Puts up to {@code amount} of {@code item} into the hub's output buffer in {@code transaction}, stacking onto what
-     * is there first, and returns what fit; 0 without a hub. Where the lab's output (specimen drops) goes.
+     * Puts up to {@code stack.getCount()} of {@code stack} into the hub's output buffer, stacking onto what is there
+     * first, and returns what fit (would fit, when simulating); 0 without a hub. Where the lab's output (specimen
+     * drops) goes. The machine's own access: never inside a transfer transaction.
      */
-    public int insertOutput(ItemResource item, int amount, TransactionContext transaction) {
+    public int insertOutput(ItemStack stack, boolean simulate) {
         LabHubBlockEntity current = hub().orElse(null);
-        if (current == null || item.isEmpty() || amount <= 0) {
+        if (current == null || stack.isEmpty()) {
             return 0;
         }
-        return ResourceHandlerUtil.insertStacking(current.storage().output(), item, amount, transaction);
+        return current.storage().insertOutput(stack, simulate);
     }
 
     /** Asks for a fresh look at the tubes' neighbours on the next network tick. */
@@ -348,11 +346,12 @@ public final class LabNetwork {
         Fluid fluid = null;
         int fill = 0;
         if (current != null && !current.isRemoved()) {
-            FluidStacksResourceHandler tank = current.storage().tank();
-            long amount = tank.getAmountAsLong(0);
-            if (amount > 0) {
-                fluid = tank.getResource(0).getFluid();
-                long capacity = tank.getCapacityAsLong(0, tank.getResource(0));
+            FluidTank tank = current.storage().tank();
+            long amount = tank.amount();
+            FluidKey key = tank.resource().orElse(null);
+            if (amount > 0 && key != null) {
+                fluid = key.fluid();
+                long capacity = tank.capacity();
                 fill = TubeFill.step(amount, capacity, Objects.equals(fluid, shownFluid) ? shownFill : 0);
             }
         }

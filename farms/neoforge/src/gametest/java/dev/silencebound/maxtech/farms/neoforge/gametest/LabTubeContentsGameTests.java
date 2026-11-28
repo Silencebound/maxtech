@@ -129,7 +129,7 @@ public final class LabTubeContentsGameTests {
         tubes(helper, 2, 4);
         helper.startSequence().thenWaitUntil(() -> assertAll(helper, water(), 1)).thenExecute(() -> {
             try (Transaction transaction = Transaction.openRoot()) {
-                hub.storage().tank().extract(water(), capacity, transaction);
+                hub.storage().fluidHandler().extract(water(), capacity, transaction);
                 transaction.commit();
             }
             assertEmpty(helper);
@@ -294,14 +294,14 @@ public final class LabTubeContentsGameTests {
 
     private static void fill(LabHubBlockEntity hub, FluidResource fluid, int amount) {
         try (Transaction transaction = Transaction.openRoot()) {
-            hub.storage().tank().insert(fluid, amount, transaction);
+            hub.storage().fluidHandler().insert(fluid, amount, transaction);
             transaction.commit();
         }
     }
 
     private static void drain(LabHubBlockEntity hub, int amount) {
         try (Transaction transaction = Transaction.openRoot()) {
-            hub.storage().tank().extract(hub.storage().tank().getResource(0), amount, transaction);
+            hub.storage().fluidHandler().extract(hub.storage().fluidHandler().getResource(0), amount, transaction);
             transaction.commit();
         }
     }
