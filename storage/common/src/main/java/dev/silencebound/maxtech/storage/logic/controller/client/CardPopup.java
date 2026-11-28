@@ -39,7 +39,7 @@ final class CardPopup {
     private static final int PAD = 3;
     private static final int ICON = 18;
     private static final int RESULTS = 12;
-    private static final int FILL = 0xF025292D;
+    private static final int FILL = 0xF01C2023;
     private static final int HOVER = 0x24FFFFFF;
 
     /** What the popup's picks do; the screen implements it. */
