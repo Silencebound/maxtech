@@ -108,6 +108,16 @@ public final class NetworkManager {
         return graph;
     }
 
+    /**
+     * The level's graph of {@code type} if a node of that type was ever added here, without making one, null if none;
+     * for diagnostics such as Lib's profiler.
+     */
+    @ApiStatus.Internal
+    public @Nullable NetworkGraph existingGraph(NetworkType type) {
+        int index = type.index();
+        return index < graphs.length ? graphs[index] : null;
+    }
+
     private void tick() {
         UnloadedChunkMode mode = unloadedChunkMode.get();
         boolean allowAnchors = NetworkManager.allowAnchors.getAsBoolean();
