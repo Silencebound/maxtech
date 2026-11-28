@@ -1,0 +1,7 @@
+[12:00:01] [Server thread/INFO] [PerfBudget/]: perf-result perf_transfer_idle 130000 200000 PASS
+[12:00:02] [Server thread/WARN] [PerfBudget/]: perf_energy_pass_500: measured 1.2 ms against a 1.0 ms budget, measuring again
+[12:00:02] [Server thread/INFO] [PerfBudget/]: perf-result perf_energy_pass_500 800000 1000000 PASS_ON_RETRY
+[12:00:03] [Server thread/INFO] [PerfBudget/]: perf-result perf_resource_keys_intern 40000 100000 PASS
+[12:00:04] [Server thread/INFO] [PerfBudget/]: perf-result perf_scheduler_idle_tasks 10000 50000 PASS
+[12:00:05] [Server thread/INFO] [PerfBudget/]: perf-result perf_new_test 5000 9000 PASS
+[12:00:06] [Server thread/INFO] [GameTestServer/]: All 42 required tests passed :)

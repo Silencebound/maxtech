@@ -1,0 +1,5 @@
+{"commit": "e2edfc3000000000000000000000000000000000", "results": {
+ "perf_transfer_idle": {"budget_ns": 200000, "measured_ns": 100000, "outcome": "PASS"},
+ "perf_energy_pass_500": {"budget_ns": 1000000, "measured_ns": 790000, "outcome": "PASS"},
+ "perf_resource_keys_intern": {"budget_ns": 100000, "measured_ns": 60000, "outcome": "PASS"},
+ "perf_scheduler_idle_tasks": {"budget_ns": 50000, "measured_ns": 11000, "outcome": "PASS"}}}

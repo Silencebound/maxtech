@@ -68,4 +68,8 @@ Read the failed step with `gh run view <run> --log-failed`. A "Gradle build daem
 - **Other PR:** `./gradlew build` always; GameTests and datagen only for the flagged mods. No server smoke.
 - **Push to main:** conflict markers and `./gradlew build` (compile and unit tests); skipped build for docs-only commits. No GameTests, datagen or server smoke.
 - **Perf budgets only warn in CI** (GitHub-hosted runners, since 2026-11-25): a "Perf budget over" annotation means run those `perf_*` GameTests locally before merging, where the budget fails.
+- **Perf trends** (2026-11-28): a same-repo PR that ran GameTests gets one "Perf trends" comment (updated on every
+  push) listing `perf_*` tests over 20% slower or faster than main's last nightly, and tests without a baseline. The
+  separate `perf trends` job never blocks a merge; a listed slowdown in the PR's area is checked on a quiet machine
+  like a budget warning (perf skill).
 - **Nightly (01:00 UTC) on main:** everything, including every GameTest suite, datagen and the dedicated-server smoke. A failure opens or comments on the "Nightly CI failed" issue. A broken GameTest, generated file or server start from a merged PR shows up there, not on main's push check.

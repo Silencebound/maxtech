@@ -78,6 +78,16 @@ finish)` and keep `tick()` free of allocation, since it runs inside the measured
   GC were the same (2026-11-26). Compare with the full suite (`perf-run.sh -n 3`) or with `-Pgametest.repeat=30` and the
   median of the copies, and alternate old and new runs so machine drift falls on both.
 
+## Perf trends in CI (2026-11-28)
+
+- Every CI run that runs GameTests collects PerfBudget's `perf-result <test> <measured_ns> <budget_ns> <outcome>` lines
+  into a JSON artifact (`.github/scripts/perf-trends.py extract`). Nightly and manual runs on main store it as
+  `perf-results-main` (30 days), the baseline; pushes to main run no GameTests and store none.
+- On a same-repo PR the `perf trends` job compares with the newest `perf-results-main` and keeps one PR comment up to
+  date: tests over 20% slower, over 20% faster, and tests without a baseline. It never fails the build. A slowdown there
+  is a hint, like a "Perf budget over" warning: confirm it on a quiet machine before acting. Fork PRs get no comment.
+- Changing the script: `bash .github/scripts/test/test-perf-trends.sh` runs it against the sample log there.
+
 ## Finding where time goes
 
 - **Benches:** `*BenchGameTests` (`LogicCostBenchGameTests`, `PortOpBenchGameTests`) time single operations and only
