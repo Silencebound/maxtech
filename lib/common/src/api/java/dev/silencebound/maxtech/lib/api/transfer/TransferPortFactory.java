@@ -89,10 +89,10 @@ public final class TransferPortFactory {
      *
      * @param endpoint
      *            the standalone buffer endpoint
-     * @param onMoved
+     * @param onChange
      *            runs after the port changed its stored energy
      */
     @ApiStatus.Internal
-    public record EnergyBuffer(EnergyEndpoint endpoint, Runnable onMoved) {
+    public record EnergyBuffer(EnergyEndpoint endpoint, Runnable onChange) {
     }
 }

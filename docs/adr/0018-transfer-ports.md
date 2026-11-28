@@ -30,10 +30,10 @@ Option 3, in the common api `lib.api.transfer` and the NeoForge-side api `lib.ne
 until Farms ships.
 
 - `TransferPorts.builder()` takes buffers (`items(ItemSlots, modes)`, `tank(ResourceTank<K>, modes)` with
-  `fluids(FluidTank, modes)`, `energy(EnergyEndpoint, modes, onMoved)`), a rate cap per kind and a settings listener. A port
-  can drive several buffers of one kind, each taking part in `PUSH`, `PULL` or both (owner): an input tank it pulls
-  into and an output tank it pushes from, an input and an output slot group. Per face and kind the face's mode picks
-  the buffers (`PULL` fills those allowing `PULL`, `PUSH` empties those allowing `PUSH`), first-fit in the order
+  `fluids(FluidTank, modes)`, `energy(EnergyEndpoint, modes, onChange)`), a rate cap per kind and a settings listener.
+  A port can drive several buffers of one kind, each taking part in `PUSH`, `PULL` or both (owner): an input tank it
+  pulls into and an output tank it pushes from, an input and an output slot group. Per face and kind the face's mode
+  picks the buffers (`PULL` fills those allowing `PULL`, `PUSH` empties those allowing `PUSH`), first-fit in the order
   they were added. A face of a kind may take `OFF` and the modes of the kind's buffers. Buffer roles are code and not
   saved; settings stay per face and kind (`Builder.defaults` gives the settings a new port and data without settings
   start with; a port always saves its settings, so changed defaults never reconfigure existing ports). A
@@ -69,7 +69,7 @@ until Farms ships.
   buffer (an `EnergyEndpoint` with the `BUFFER` role outside any network, the only energy `energy()` accepts) moves
   through the port, with FE capability lookups on its neighbours and the remainder carried to the next operation
   (saved with the port). FE handlers always take part in transactions; the port journals the endpoint's level itself,
-  and tells the owner through `onMoved`, since an endpoint has no change listener of its own.
+  and tells the owner through `onChange`, since an endpoint has no change listener of its own.
 - Which faces start active is the owner's choice: Farms' hub starts with every output face off (owner).
 - Limits per operation and the shortest interval come from config: `transfer.itemsPerOp`, `fluidPerOp`,
   `energyPerOp`, `minIntervalTicks`, `filterSize`, in both presets.

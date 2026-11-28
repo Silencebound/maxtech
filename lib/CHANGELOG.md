@@ -50,11 +50,12 @@ Api changes are marked **Api**.
   `fluids(FluidTank, modes)` no longer throw, at up to `transfer.fluidPerOp` per operation; a handler without
   transactions is touched last and only what it really moved counts. A port's block must expose the kind's
   capability on its pulling faces for neighbouring ports to push into it.
-- **Api** Transfer ports move energy: `energy(EnergyEndpoint, modes, onMoved)` (a standalone buffer endpoint) no
+- **Api** Transfer ports move energy: `energy(EnergyEndpoint, modes, onChange)` (a standalone buffer endpoint) no
   longer throws and pushes FE into and pulls FE from the FE handlers beside it at the configured FE rate, up to
   `transfer.energyPerOp` MU per operation. The fraction of one MU a conversion leaves is kept for the next operation
-  and saved with the port, so nothing is lost or made. `energy` gained the `onMoved` listener (mark the block entity
-  changed there), since the port changes the endpoint's stored energy directly.
+  and saved with the port; less than 1 MU is dropped when the FE rate changes or the port is removed. `energy`
+  gained the `onChange` listener (mark the block entity changed there), since the port changes the endpoint's
+  stored energy directly.
 - **Api** `TransferPorts.builder()` takes no `TaskGroup`: a port runs in Lib's transfer group of the level it starts
   in, or in the owner's group given by `Builder.tasks(level -> group)`.
 - **Api** Declared toolkit menus (`lib.api.menu`, experimental, ADR-0016): `Menus.define` builds a `MenuDefinition`

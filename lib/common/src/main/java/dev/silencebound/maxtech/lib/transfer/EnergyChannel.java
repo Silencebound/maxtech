@@ -13,6 +13,7 @@ import dev.silencebound.maxtech.lib.config.ServerConfig;
 import dev.silencebound.maxtech.lib.energy.FeLookups;
 import dev.silencebound.maxtech.lib.platform.CachedBlockLookup;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+import java.util.Optional;
 import java.util.Set;
 import java.util.function.BooleanSupplier;
 import net.minecraft.core.BlockPos;
@@ -54,12 +55,13 @@ final class EnergyChannel extends PortChannel {
     private static final long EMPTY = -1;
     /** {@link #push}/{@link #pull}: something to move, but the other side refused it. */
     private static final long REFUSED = -2;
-    private static final String HELD = "energy_remainder";
-    private static final String HELD_FE = "energy_remainder_fe";
-    private static final String HELD_MU = "energy_remainder_mu";
+    private static final String REMAINDER = "energy_remainder";
+    private static final String HELD = "held";
+    private static final String HELD_FE = "fe";
+    private static final String HELD_MU = "mu";
 
     private final EnergyEndpoint[] endpoints;
-    private final Runnable[] onMoved;
+    private final Runnable[] onChange;
     private final boolean[] pushes;
     private final boolean[] pulls;
     private final EnergyRemainder remainder = new EnergyRemainder();
@@ -69,11 +71,11 @@ final class EnergyChannel extends PortChannel {
     private final @Nullable Face[] faces = new Face[6];
     private boolean filterAllows = true;
 
-    EnergyChannel(EnergyEndpoint[] endpoints, Runnable[] onMoved, boolean[] pushes, boolean[] pulls,
+    EnergyChannel(EnergyEndpoint[] endpoints, Runnable[] onChange, boolean[] pushes, boolean[] pulls,
             Set<PortFaceMode> allowedModes, long ownerCap) {
         super(ResourceKinds.ENERGY, allowedModes, ownerCap);
         this.endpoints = endpoints.clone();
-        this.onMoved = onMoved.clone();
+        this.onChange = onChange.clone();
         this.pushes = pushes;
         this.pulls = pulls;
     }
@@ -120,22 +122,25 @@ final class EnergyChannel extends PortChannel {
         return ServerConfig.TRANSFER_ENERGY_PER_OP.getAsLong();
     }
 
-    /** Saves the remainder with the rate it was counted at; nothing while there is none. */
+    /** Saves the remainder with the rate it was counted at, in its own compound; nothing while there is none. */
     @Override
     void save(ValueOutput output) {
         long held = remainder.held();
         if (held > 0) {
-            output.putLong(HELD, held);
-            output.putInt(HELD_FE, remainder.rate().fe());
-            output.putInt(HELD_MU, remainder.rate().mu());
+            ValueOutput child = output.child(REMAINDER);
+            child.putLong(HELD, held);
+            child.putInt(HELD_FE, remainder.rate().fe());
+            child.putInt(HELD_MU, remainder.rate().mu());
         }
     }
 
+    /** Loads what {@link #save} wrote; missing or corrupt data (a rate below 1, units out of range) is no remainder. */
     @Override
     void load(ValueInput input) {
-        long held = input.getLongOr(HELD, 0L);
-        int fe = input.getIntOr(HELD_FE, 1);
-        int mu = input.getIntOr(HELD_MU, 1);
+        Optional<ValueInput> child = input.child(REMAINDER);
+        long held = child.map(c -> c.getLongOr(HELD, 0L)).orElse(0L);
+        int fe = child.map(c -> c.getIntOr(HELD_FE, 0)).orElse(0);
+        int mu = child.map(c -> c.getIntOr(HELD_MU, 0)).orElse(0);
         if (held > 0 && fe >= 1 && mu >= 1) {
             remainder.use(new FeRate(fe, mu));
             remainder.restore(held);
@@ -405,12 +410,12 @@ final class EnergyChannel extends PortChannel {
             boolean told = false;
             for (int b = 0; b < endpoints.length; b++) {
                 if (endpoints[b].stored() != originalState[b + 1]) {
-                    onMoved[b].run();
+                    onChange[b].run();
                     told = true;
                 }
             }
             if (!told && remainder.held() != originalState[0]) {
-                onMoved[0].run();
+                onChange[0].run();
             }
         }
     }

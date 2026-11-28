@@ -68,7 +68,7 @@ public final class LibTransferPorts implements TransferPortFactory.Factory {
                         + ".energy, not " + buffers.get(i).buffer().getClass().getName());
             }
             endpoints[i] = energy.endpoint();
-            listeners[i] = energy.onMoved();
+            listeners[i] = energy.onChange();
         }
         return new EnergyChannel(endpoints, listeners, pushes(buffers), pulls(buffers), allowed(buffers), ownerCap);
     }

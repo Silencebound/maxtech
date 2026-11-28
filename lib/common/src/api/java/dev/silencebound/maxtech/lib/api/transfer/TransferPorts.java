@@ -111,14 +111,20 @@ public final class TransferPorts {
          * <p>
          * The port moves FE with the FE handlers beside it, converted at the configured FE rate, up to
          * {@code transfer.energyPerOp} MU per operation (at least 1 FE). The fraction of one MU a conversion leaves is
-         * kept by the port for the next operation and saved with it ({@link TransferPort#save}). The port changes the
-         * endpoint's stored energy directly, so {@code onMoved} runs after each operation that changed it (or the
-         * port's remainder): mark the block entity changed there, so the energy is saved.
+         * kept by the port for the next operation and saved with it ({@link TransferPort#save}). The port ignores the
+         * endpoint's {@code maxInput} and {@code maxOutput}; the owner caps the port through {@link #rate}.
+         * <p>
+         * The port changes the endpoint's stored energy directly, so {@code onChange} runs after the root commit of
+         * each operation that changed it (or the port's remainder), never inside a transaction: mark the block entity
+         * changed there, so the energy is saved. It must not move energy itself. The port skips the endpoint while it
+         * is in an energy network; when it leaves its network, the owner must call {@link TransferPort#bufferChanged()}
+         * so the port wakes and moves it again.
          */
-        public Builder energy(EnergyEndpoint endpoint, Set<PortFaceMode> modes, Runnable onMoved) {
+        public Builder energy(EnergyEndpoint endpoint, Set<PortFaceMode> modes, Runnable onChange) {
             checkStandalone(endpoint);
             return buffer(ResourceKinds.ENERGY,
-                    new TransferPortFactory.EnergyBuffer(endpoint, Objects.requireNonNull(onMoved, "onMoved")), modes);
+                    new TransferPortFactory.EnergyBuffer(endpoint, Objects.requireNonNull(onChange, "onChange")),
+                    modes);
         }
 
         /**

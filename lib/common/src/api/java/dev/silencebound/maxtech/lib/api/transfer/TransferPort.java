@@ -93,12 +93,16 @@ public interface TransferPort {
     /** What the port last did with {@code kind}; {@link PortStatus#OFF} for a kind it does not move. */
     PortStatus status(ResourceKind<?> kind);
 
-    /** Saves the settings into the owner's block entity data, the builder's defaults included. */
+    /**
+     * Saves the settings into the owner's block entity data, the builder's defaults included, and the energy remainder
+     * (the part of one MU an energy port holds between operations), if any.
+     */
     void save(ValueOutput output);
 
     /**
-     * Loads settings saved by {@link #save}; data without settings loads as the builder's
-     * {@link TransferPorts.Builder#defaults} ({@link PortSettings#EMPTY} unless the owner set some).
+     * Loads the settings and energy remainder saved by {@link #save}; data without settings loads as the builder's
+     * {@link TransferPorts.Builder#defaults} ({@link PortSettings#EMPTY} unless the owner set some), data without a
+     * remainder (or a corrupt one) as none.
      */
     void load(ValueInput input);
 }

@@ -7,9 +7,11 @@ import static dev.silencebound.maxtech.lib.api.transfer.PortFaceMode.PUSH;
 import dev.silencebound.maxtech.lib.MaxtechLib;
 import dev.silencebound.maxtech.lib.api.energy.EnergyNetwork;
 import dev.silencebound.maxtech.lib.api.energy.EnergyNetworks;
+import dev.silencebound.maxtech.lib.api.resource.EnergyKey;
 import dev.silencebound.maxtech.lib.api.resource.ResourceKinds;
 import dev.silencebound.maxtech.lib.api.schedule.TaskGroup;
 import dev.silencebound.maxtech.lib.api.transfer.PortFaceMode;
+import dev.silencebound.maxtech.lib.api.transfer.PortFilter;
 import dev.silencebound.maxtech.lib.api.transfer.PortSettings;
 import dev.silencebound.maxtech.lib.api.transfer.PortStatus;
 import dev.silencebound.maxtech.lib.config.ServerConfig;
@@ -18,7 +20,9 @@ import dev.silencebound.maxtech.lib.neoforge.gametest.TestEnergy.StoreEntity;
 import dev.silencebound.maxtech.lib.platform.Platform;
 import dev.silencebound.maxtech.lib.platform.RegistryHelper;
 import dev.silencebound.maxtech.lib.schedule.LevelTasks;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.function.Consumer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -59,9 +63,14 @@ public final class TransferPortEnergyGameTests {
             new Test("transfer_port_energy_full_target_sleeps", 1600, false),
             new Test("transfer_port_energy_between_ports", 100, false),
             new Test("transfer_port_energy_networked", 100, false),
-            new Test("transfer_port_energy_target_unload", 400, true));
+            new Test("transfer_port_energy_target_unload", 400, true),
+            new Test("transfer_port_energy_filter_own_push", 100, false),
+            new Test("transfer_port_energy_filter_puller", 100, false),
+            new Test("transfer_port_energy_per_op_cap", 200, false));
     private static final List<Test> UNEVEN = List.of(new Test("transfer_port_energy_uneven_push", 400, false),
-            new Test("transfer_port_energy_uneven_pull", 400, false));
+            new Test("transfer_port_energy_uneven_pull", 400, false),
+            new Test("transfer_port_energy_uneven_pull_little_room", 200, false));
+    private static final List<Test> FLOOR = List.of(new Test("transfer_port_energy_per_op_floor", 200, false));
 
     static {
         EnergyConfigEnvironment.init();
@@ -73,6 +82,12 @@ public final class TransferPortEnergyGameTests {
         FUNCTIONS.register("transfer_port_energy_target_unload", () -> TransferPortEnergyGameTests::targetUnload);
         FUNCTIONS.register("transfer_port_energy_uneven_push", () -> TransferPortEnergyGameTests::unevenPush);
         FUNCTIONS.register("transfer_port_energy_uneven_pull", () -> TransferPortEnergyGameTests::unevenPull);
+        FUNCTIONS.register("transfer_port_energy_filter_own_push", () -> TransferPortEnergyGameTests::filterOwnPush);
+        FUNCTIONS.register("transfer_port_energy_filter_puller", () -> TransferPortEnergyGameTests::filterPuller);
+        FUNCTIONS.register("transfer_port_energy_per_op_cap", () -> TransferPortEnergyGameTests::perOpCap);
+        FUNCTIONS.register("transfer_port_energy_uneven_pull_little_room",
+                () -> TransferPortEnergyGameTests::unevenPullLittleRoom);
+        FUNCTIONS.register("transfer_port_energy_per_op_floor", () -> TransferPortEnergyGameTests::perOpFloor);
     }
 
     private record Test(String name, int maxTicks, boolean far) {
@@ -88,8 +103,12 @@ public final class TransferPortEnergyGameTests {
         Holder<TestEnvironmentDefinition<?>> uneven = event.registerEnvironment(
                 MaxtechLib.id("transfer_port_energy_rate_3_7"),
                 new EnergyConfigEnvironment("energy.feRateFe;energy.feRateMu", "3;7"));
+        Holder<TestEnvironmentDefinition<?>> floor = event.registerEnvironment(
+                MaxtechLib.id("transfer_port_energy_rate_3_7_per_op_1"),
+                new EnergyConfigEnvironment("energy.feRateFe;energy.feRateMu;transfer.energyPerOp", "3;7;1"));
         register(event, PLAIN, plain);
         register(event, UNEVEN, uneven);
+        register(event, FLOOR, floor);
     }
 
     private static void register(RegisterGameTestsEvent event, List<Test> tests,
@@ -105,6 +124,11 @@ public final class TransferPortEnergyGameTests {
 
     private static PortSettings faces(Direction face, PortFaceMode mode) {
         return PortSettings.EMPTY.withMode(ResourceKinds.ENERGY, face, mode);
+    }
+
+    private static PortSettings denyEnergy(PortSettings settings) {
+        return settings.withFilter(ResourceKinds.ENERGY, Optional
+                .of(PortFilter.of(ResourceKinds.ENERGY, PortFilter.Mode.DENY, List.of(EnergyKey.INSTANCE), List.of())));
     }
 
     private static PortEntity port(GameTestHelper helper, BlockPos pos) {
@@ -126,7 +150,7 @@ public final class TransferPortEnergyGameTests {
         helper.succeedWhen(() -> {
             helper.assertValueEqual(store.handler.getAmountAsLong(), 3500L, "FE in the store");
             helper.assertValueEqual(port.output.stored(), 0L, "MU left");
-            helper.assertTrue(port.moved > 0, "the owner never heard of a move");
+            helper.assertValueEqual(port.moved, 4, "change callbacks, one per operation of 1,000 MU at most");
             helper.assertValueEqual(port.port.status(ResourceKinds.ENERGY), PortStatus.IDLE, "status once empty");
         });
     }
@@ -170,6 +194,8 @@ public final class TransferPortEnergyGameTests {
             helper.assertValueEqual(blocked.port.status(ResourceKinds.ENERGY), PortStatus.BLOCKED, "blocked status");
             helper.assertValueEqual(blocked.output.stored(), 1000L, "MU left beside a full store");
             helper.assertValueEqual(full.handler.getAmountAsLong(), 1000L, "full store");
+            helper.assertValueEqual(blocked.moved, 0, "change callbacks of a blocked port");
+            helper.assertValueEqual(empty.moved, 0, "change callbacks of a port with nothing to push");
         }).thenExecuteAfter(window, () -> {
             long blockedRuns = blockedGroup.runs() - runs[0];
             long allowed = window / (maxBackoff - maxBackoff / 8) + 1L;
@@ -300,7 +326,108 @@ public final class TransferPortEnergyGameTests {
         copy.port.load(TagValueInput.create(ProblemReporter.DISCARDING, level.registryAccess(), saved));
         TagValueOutput again = TagValueOutput.createWithContext(ProblemReporter.DISCARDING, level.registryAccess());
         copy.port.save(again);
-        return again.buildResult().getLongOr("energy_remainder", 0L);
+        return again.buildResult().getCompoundOrEmpty("energy_remainder").getLongOr("held", 0L);
+    }
+
+    /** A port whose own energy filter denies pushes nothing and tells the owner nothing. */
+    private static void filterOwnPush(GameTestHelper helper) {
+        PortEntity port = port(helper, PORT);
+        StoreEntity store = store(helper, PORT.east(), 100_000, 0);
+        port.output.setStored(1000);
+        port.port.setSettings(denyEnergy(faces(Direction.EAST, PUSH)));
+        helper.startSequence().thenExecuteAfter(40, () -> {
+            helper.assertValueEqual(store.handler.getAmountAsLong(), 0L, "FE pushed past a deny filter");
+            helper.assertValueEqual(port.output.stored(), 1000L, "MU left");
+            helper.assertValueEqual(port.moved, 0, "change callbacks");
+        }).thenSucceed();
+    }
+
+    /** A pulling port whose energy filter denies takes nothing, and the port pushing into it is blocked. */
+    private static void filterPuller(GameTestHelper helper) {
+        PortEntity pusher = port(helper, PORT);
+        PortEntity puller = port(helper, PORT.east());
+        pusher.output.setStored(1000);
+        pusher.port.setSettings(faces(Direction.EAST, PUSH));
+        puller.port.setSettings(denyEnergy(faces(Direction.WEST, PULL)));
+        helper.startSequence().thenExecuteAfter(40, () -> {
+            helper.assertValueEqual(puller.input.stored(), 0L, "MU pulled past a deny filter");
+            helper.assertValueEqual(puller.plain.getAmountAsLong(), 0L, "FE at the puller's plain handler");
+            helper.assertValueEqual(pusher.output.stored(), 1000L, "MU left in the pusher");
+            helper.assertValueEqual(pusher.port.status(ResourceKinds.ENERGY), PortStatus.BLOCKED, "pusher status");
+        }).thenSucceed();
+    }
+
+    /**
+     * Each operation moves {@code transfer.energyPerOp} (1,000 MU, 1,000 FE at 1:1) at most: 3,500 MU go out as 1,000,
+     * 1,000, 1,000 and 500 FE, one operation at a time (operations are at least {@code minIntervalTicks} apart).
+     */
+    private static void perOpCap(GameTestHelper helper) {
+        PortEntity port = port(helper, PORT);
+        StoreEntity store = store(helper, PORT.east(), 100_000, 0);
+        port.output.setStored(3500);
+        port.port.setSettings(faces(Direction.EAST, PUSH));
+        List<Long> steps = stepsOf(helper, store);
+        helper.succeedWhen(() -> {
+            helper.assertValueEqual(store.handler.getAmountAsLong(), 3500L, "FE in the store");
+            helper.assertValueEqual(steps, List.of(1000L, 1000L, 1000L, 500L), "FE per operation");
+        });
+    }
+
+    /**
+     * At 3 FE = 7 MU and {@code transfer.energyPerOp} 1 MU (3/7 FE, rounded down to nothing), each operation still
+     * moves 1 FE, as Lib's FE handlers do: 7 MU go out as 1 FE three times (3, 2 and 2 MU), with nothing left over.
+     */
+    private static void perOpFloor(GameTestHelper helper) {
+        PortEntity port = port(helper, PORT);
+        StoreEntity store = store(helper, PORT.east(), 100_000, 0);
+        port.output.setStored(7);
+        port.port.setSettings(faces(Direction.EAST, PUSH));
+        List<Long> steps = stepsOf(helper, store);
+        helper.succeedWhen(() -> {
+            helper.assertValueEqual(store.handler.getAmountAsLong(), 3L, "FE in the store");
+            helper.assertValueEqual(port.output.stored(), 0L, "MU left");
+            helper.assertValueEqual(steps, List.of(1L, 1L, 1L), "FE per operation");
+            helper.assertValueEqual(port.moved, 3, "change callbacks");
+            helper.assertValueEqual(remainderAfterLoad(helper, port), 0L, "remainder");
+        });
+    }
+
+    /** Records how much {@code store} gained on each tick it gained anything. */
+    private static List<Long> stepsOf(GameTestHelper helper, StoreEntity store) {
+        List<Long> steps = new ArrayList<>();
+        long[] last = {store.handler.getAmountAsLong()};
+        helper.onEachTick(() -> {
+            long now = store.handler.getAmountAsLong();
+            if (now != last[0]) {
+                steps.add(now - last[0]);
+                last[0] = now;
+            }
+        });
+        return steps;
+    }
+
+    /**
+     * At 3 FE = 7 MU, pulling into a buffer with only 10 MU of room: the FE handler's move tries the pulling side in
+     * nested transactions that roll back, and the remainder rolls back with them, so the exact total holds on every
+     * tick; 4 FE (28 units) arrive as 9 MU and 1 unit of remainder, and the buffer then takes no more.
+     */
+    private static void unevenPullLittleRoom(GameTestHelper helper) {
+        PortEntity port = port(helper, PORT);
+        StoreEntity store = store(helper, PORT.west(), 100_000, 4000);
+        port.input.setStored(9990);
+        port.port.setSettings(faces(Direction.WEST, PULL));
+        long total = 9990L * 3 + 4000L * 7;
+        helper.onEachTick(() -> {
+            long units = port.stored() * 3 + store.handler.getAmountAsLong() * 7;
+            helper.assertTrue(units <= total && units > total - 3,
+                    units + " units in the port and the store, started with " + total);
+        });
+        helper.startSequence().thenWaitUntil(() -> helper.assertValueEqual(port.input.stored(), 9999L, "MU pulled"))
+                .thenExecuteAfter(40, () -> {
+                    helper.assertValueEqual(port.input.stored(), 9999L, "MU once the buffer is as full as it gets");
+                    helper.assertValueEqual(store.handler.getAmountAsLong(), 3996L, "FE left in the store");
+                    helper.assertValueEqual(remainderAfterLoad(helper, port), 1L, "remainder");
+                }).thenSucceed();
     }
 
     /**
