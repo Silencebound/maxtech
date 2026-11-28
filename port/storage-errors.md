@@ -1,8 +1,8 @@
 # Error map: Storage on 1.21.1 (measurement)
 
-State of 2026-11-28, branch `port/1.21.1` with Lib compiling (#93) and main merged in (#94). One converter run over Storage
-(`port/tools/errormap.sh --mod storage --symbols`) to size the Storage port before any Storage work is planned
-(owner decision 2026-11-28). Nothing in Storage is fixed yet; Lib's rules, shims and overrides are untouched.
+State of 2026-11-28, branch `port/1.21.1` with Lib compiling (#93) and main merged in (#94). One converter run over
+Storage (`port/tools/errormap.sh --mod storage --symbols`) to size the Storage port before any Storage work is
+planned (owner decision 2026-11-28). Nothing in Storage is fixed yet; Lib's rules, shims and overrides are untouched.
 
 ## How it was measured
 
