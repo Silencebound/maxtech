@@ -24,13 +24,19 @@ python3 -I port/convert.py --check         # exit 1 on warnings (stale overrides
 (cd port && ./gradlew compileJava --continue)          # normal 1.21.1 build of the generated tree
 (cd port && ./gradlew :lib:neoforge:runGameTestServer) # GameTests, once Lib compiles
 (cd port && ./gradlew :lib:neoforge:runClient)         # dev client
-port/tools/errormap.sh                     # regenerate, then ONE javac over all source sets; summary on stdout
+port/tools/errormap.sh                     # regenerate, then one javac per work package; summary on stdout
+port/tools/errormap.sh --single            # ... or ONE javac over everything (faster, can hide errors)
 port/tools/errormap.sh --symbols           # ... plus the most common missing symbols per area
 ```
 
 Gradle's `compileJava` stops at the first failing source set (common's api), so while errors remain use the error map:
-it compiles all seven source sets (common api/main/test, neoforge api/main/gametest/test) in one javac run and groups
-the errors by area, work package and file (`port/tools/errormap.py`). `port/errors.md` is its output plus the plan.
+it compiles all seven source sets (common api/main/test, neoforge api/main/gametest/test) and groups the errors by area,
+work package and file (`port/tools/errormap.py`). By default it runs javac once per package on that package's files only
+(the rest via `-sourcepath`) and counts only errors in those files, so a package's errors are not masked by another's
+broken files (one javac over everything reported 75 errors for saving, about 480 compiled alone). The cost: five javac
+runs, and an error in a file another package owns shows for its owner only. `--single` is the one-run view. The script
+runs in Git Bash on Windows too (`python3` or `python`, `;` classpath separator, English javac messages).
+`port/errors.md` is its output plus the plan.
 
 ## Layout
 
@@ -80,6 +86,17 @@ generated from main compiles against them unchanged and the packages can work in
 keeps NeoForge's LGPL-2.1-only headers plus a modification notice; `NOTICE-transfer.md` travels in the jar's META-INF.
 Re-vendoring (`python3 -I port/tools/vendor_transfer.py <neoforge-26.1.2.x-sources.jar>`) overwrites the hand edits
 made for 1.21.1, so diff before committing one.
+
+## Differences from 26.1
+
+Where the 1.21.1 build intentionally differs from main:
+
+- `ConduitItemModels.shell` takes an `ItemModelProvider`.
+- `MenuClient` and `GuideWebExport` are removed.
+- `MachineRecipeType.bookCategory` is dropped.
+- `CraftingGridMenus` uses the non-untrusted item codec.
+- GameTest environment kinds `clock_time`, `game_rules` and `timelines` are dropped.
+- The GameTest server has no `--tests` filter: `neoforge.enabledGameTestNamespaces` selects the whole mod's tests.
 
 ## Versions
 

@@ -100,8 +100,9 @@ neoForge {
         }
         register("gameTestServer") {
             type = "gameTestServer"
-            programArguments.addAll(providers.gradleProperty("gametest").map { listOf("--tests", it) }
-                .orElse(emptyList()))
+            // 1.21.1's GameTest server has no `--tests` filter (that is 26.1's); it runs every test of the enabled
+            // namespaces (NeoForge's GameTestHooks), here this mod's. -Pgametest is ignored.
+            systemProperty("neoforge.enabledGameTestNamespaces", modId)
         }
         configureEach {
             gameDirectory = rootProject.file("run/$name")
