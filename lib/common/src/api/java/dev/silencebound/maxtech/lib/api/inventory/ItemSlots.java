@@ -22,10 +22,10 @@ import org.jspecify.annotations.Nullable;
  * The methods here are the machine's own access: they ignore roles (a machine puts results into its output slots), but
  * {@link #insert} honours filters and limits. Each change is its own committed step, so they must not be called while a
  * NeoForge transfer transaction is open on the thread (an {@link IllegalStateException}); a machine step that must
- * commit or roll back as a whole uses {@link MachineAccess#items} instead. Players and automation go through Lib's
- * menus and {@code lib.neoforge.api.inventory.Handlers}, which follow the roles and take part in transactions. Server
- * thread only, like the block entity that owns the slots; a client menu builds its own empty copy from the same
- * builder.
+ * commit or roll back as a whole uses {@code lib.neoforge.api.inventory.Handlers.machineItems} instead. Players and
+ * automation go through Lib's menus and {@code lib.neoforge.api.inventory.Handlers}, which follow the roles and take
+ * part in transactions. Server thread only, like the block entity that owns the slots; a client menu builds its own
+ * empty copy from the same builder.
  * <p>
  * Filters get a stack of one, which they must not change or keep; they should depend on the item and its components
  * only, since the slots reuse the stack for the same item.

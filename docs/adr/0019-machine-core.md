@@ -25,13 +25,17 @@ and every mod must be able to add machines, recipes and upgrade cards without ch
 ## Decision
 
 Option 3 for the core; the other areas follow it. All of it goes in the common api `lib.api.machine`, experimental
-until Farms ships, and everything lands in Lib 0.15.0 (owner, 2026-11-28; no release first).
+until Farms ships, except the machine's transactional inventory access, which names NeoForge transfer types and so
+sits in `lib.neoforge.api.inventory` beside `Handlers` (amended 2026-11-28, PR #62); everything lands in Lib 0.15.0
+(owner, 2026-11-28; no release first).
 
 **Machine core**
 - `MachineProcess<R>` is composed into a machine's block entity; there is no base block entity. It runs one
   `ScheduledTask`, sleeps when idle, and wakes on an input, output, energy or redstone change.
-- `MachineAccess` gives role-ignoring transactional views of `ItemSlots` and `ResourceTank`, with an `insertAll` that
-  runs in a nested transaction, so a recipe takes all its inputs and outputs or none.
+- `Handlers.machineItems` and `Handlers.machineTank` (`lib.neoforge.api.inventory`) give role-ignoring transactional
+  views of `ItemSlots` and `ResourceTank`, with `insertAll`/`extractAll` that run in a nested transaction, so a recipe
+  takes all its inputs and outputs or none. The moves themselves live in an internal common class
+  (`lib.inventory.MachineMoves`), so the common `MachineProcess` uses them without its api naming `TransactionContext`.
 - `MachineStatus` implements `MenuStatus`; `MachineMenus.standard` builds the usual menu from a process.
 - Scope for 0.15.0 (owner): items, tanks, modes and chance outputs. Parallel runs come later, as an upgrade.
 
@@ -80,6 +84,6 @@ until Farms ships, and everything lands in Lib 0.15.0 (owner, 2026-11-28; no rel
 - Two machine implementations exist until Storage migrates, Storage's own and Lib's. Storage's must not grow new
   features in that time.
 - The api stays experimental, so Farms can still change it before it is frozen.
-- Order, each its own PR: `MachineAccess`; menu actions and redstone; recipes; `MachineProcess`; process tests and
+- Order, each its own PR: machine inventory access; menu actions and redstone; recipes; `MachineProcess`; process tests and
   perf; `MachineMenus`; viewer plugins; upgrades; working-state look; the multiblock validator once a structure is
   named.

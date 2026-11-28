@@ -3,7 +3,6 @@ package dev.silencebound.maxtech.lib.neoforge.gametest;
 import dev.silencebound.maxtech.lib.MaxtechLib;
 import dev.silencebound.maxtech.lib.api.inventory.FluidTank;
 import dev.silencebound.maxtech.lib.api.inventory.ItemSlots;
-import dev.silencebound.maxtech.lib.api.inventory.MachineAccess;
 import dev.silencebound.maxtech.lib.api.resource.FluidKey;
 import dev.silencebound.maxtech.lib.neoforge.api.inventory.Handlers;
 import dev.silencebound.maxtech.lib.platform.Platform;
@@ -39,9 +38,10 @@ import net.neoforged.neoforge.transfer.item.ItemResource;
 import net.neoforged.neoforge.transfer.transaction.Transaction;
 
 /**
- * A machine's own transactional access ({@link MachineAccess}): one step drains inputs and fills outputs in one root
- * transaction, all or nothing, past the slots' roles but within their filters and limits, never touching what Lib keeps
- * for a removed mod, reporting changes only on commit and saving exactly what was committed.
+ * A machine's own transactional access ({@link Handlers#machineItems}, {@link Handlers#machineTank}): one step drains
+ * inputs and fills outputs in one root transaction, all or nothing, past the slots' roles but within their filters and
+ * limits, never touching what Lib keeps for a removed mod, reporting changes only on commit and saving exactly what was
+ * committed.
  */
 @EventBusSubscriber(modid = MaxtechLib.MOD_ID)
 public final class MachineAccessGameTests {
@@ -99,8 +99,9 @@ public final class MachineAccessGameTests {
     /**
      * A step drains coal and water, then finds too little output room: it does not commit, and every slot and the tank
      * are as before, nothing reported. A short output inside a root that commits anyway rolls back only the output.
-     * With room the step commits whole.
+     * With room the step commits whole. The views are the same instance on each call.
      */
+    @SuppressWarnings("ReferenceEquality")
     private static void stepRollsBack(GameTestHelper helper) {
         Counter counter = new Counter();
         ItemSlots slots = MACHINE.build(slot -> counter.slots[slot]++);
@@ -112,17 +113,17 @@ public final class MachineAccessGameTests {
         tank.set(FluidKey.of(Fluids.WATER), 1000);
         Arrays.fill(counter.slots, 0);
         counter.tank = 0;
-        ResourceHandler<ItemResource> items = MachineAccess.items(slots);
-        MachineAccess.Tank<FluidKey> water = MachineAccess.tank(tank);
-        helper.assertTrue(items.equals(MachineAccess.items(slots)), "a new item handler on each call");
-        helper.assertTrue(water.equals(MachineAccess.tank(tank)), "a new tank view on each call");
+        ResourceHandler<ItemResource> items = Handlers.machineItems(slots);
+        Handlers.MachineTank<FluidKey> water = Handlers.machineTank(tank);
+        helper.assertTrue(items == Handlers.machineItems(slots), "a new item handler on each call");
+        helper.assertTrue(water == Handlers.machineTank(tank), "a new tank view on each call");
         List<ItemStack> coal = List.of(new ItemStack(Items.COAL, 4));
         List<ItemStack> tenIron = List.of(new ItemStack(Items.IRON_INGOT, 10));
 
         try (Transaction step = Transaction.openRoot()) {
-            helper.assertTrue(MachineAccess.extractAll(items, 0, 2, coal, step), "coal drained");
+            helper.assertTrue(Handlers.extractAll(items, 0, 2, coal, step), "coal drained");
             helper.assertTrue(water.extractExactly(FluidKey.of(Fluids.WATER), 500, step), "water drained");
-            helper.assertFalse(MachineAccess.insertAll(items, 2, 5, tenIron, step), "10 iron fit into 4 of room");
+            helper.assertFalse(Handlers.insertAll(items, 2, 5, tenIron, step), "10 iron fit into 4 of room");
         }
         assertStack(helper, slots, 0, new ItemStack(Items.COAL, 8), "coal after the rollback");
         assertStack(helper, slots, 2, new ItemStack(Items.IRON_INGOT, 60), "iron after the rollback");
@@ -130,8 +131,8 @@ public final class MachineAccessGameTests {
         helper.assertValueEqual(counter.total(), 0, "changes reported for a rollback");
 
         try (Transaction step = Transaction.openRoot()) {
-            helper.assertTrue(MachineAccess.extractAll(items, 0, 2, coal, step), "coal drained");
-            helper.assertFalse(MachineAccess.insertAll(items, 2, 5, tenIron, step), "10 iron fit");
+            helper.assertTrue(Handlers.extractAll(items, 0, 2, coal, step), "coal drained");
+            helper.assertFalse(Handlers.insertAll(items, 2, 5, tenIron, step), "10 iron fit");
             assertStack(helper, slots, 2, new ItemStack(Items.IRON_INGOT, 60), "short insert left iron in");
             step.commit();
         }
@@ -139,9 +140,9 @@ public final class MachineAccessGameTests {
         helper.assertValueEqual(counter.slots[2], 0, "output reported after its nested rollback");
 
         try (Transaction step = Transaction.openRoot()) {
-            helper.assertTrue(MachineAccess.extractAll(items, 0, 2, coal, step), "coal drained");
+            helper.assertTrue(Handlers.extractAll(items, 0, 2, coal, step), "coal drained");
             helper.assertTrue(water.extractExactly(FluidKey.of(Fluids.WATER), 500, step), "water drained");
-            helper.assertTrue(MachineAccess.insertAll(items, 2, 5, List.of(new ItemStack(Items.IRON_INGOT, 4)), step),
+            helper.assertTrue(Handlers.insertAll(items, 2, 5, List.of(new ItemStack(Items.IRON_INGOT, 4)), step),
                     "4 iron into 4 of room");
             step.commit();
         }
@@ -160,23 +161,23 @@ public final class MachineAccessGameTests {
         });
         slots.set(2, new ItemStack(Items.IRON_INGOT, 54));
         slots.set(3, new ItemStack(Items.GOLD_INGOT, 64));
-        ResourceHandler<ItemResource> items = MachineAccess.items(slots);
+        ResourceHandler<ItemResource> items = Handlers.machineItems(slots);
         try (Transaction tx = Transaction.openRoot()) {
-            helper.assertFalse(MachineAccess.insertAll(items, 2, 5, List.of(new ItemStack(Items.IRON_INGOT, 19)), tx),
+            helper.assertFalse(Handlers.insertAll(items, 2, 5, List.of(new ItemStack(Items.IRON_INGOT, 19)), tx),
                     "19 iron into 18 of room");
             assertStack(helper, slots, 2, new ItemStack(Items.IRON_INGOT, 54), "part of the iron went in");
             helper.assertTrue(slots.stack(4).isEmpty(), "part of the iron went into the empty output");
             helper.assertFalse(
-                    MachineAccess.insertAll(items, 2, 5,
+                    Handlers.insertAll(items, 2, 5,
                             List.of(new ItemStack(Items.IRON_INGOT, 18), new ItemStack(Items.DIAMOND)), tx),
                     "a diamond after 18 iron");
             assertStack(helper, slots, 2, new ItemStack(Items.IRON_INGOT, 54), "the iron before the diamond stayed");
             helper.assertFalse(
-                    MachineAccess.extractAll(items, 2, 5,
+                    Handlers.extractAll(items, 2, 5,
                             List.of(new ItemStack(Items.GOLD_INGOT, 64), new ItemStack(Items.IRON_INGOT, 55)), tx),
                     "55 iron out of 54");
             assertStack(helper, slots, 3, new ItemStack(Items.GOLD_INGOT, 64), "the gold before the iron was taken");
-            helper.assertTrue(MachineAccess.insertAll(items, 2, 5, List.of(new ItemStack(Items.IRON_INGOT, 18)), tx),
+            helper.assertTrue(Handlers.insertAll(items, 2, 5, List.of(new ItemStack(Items.IRON_INGOT, 18)), tx),
                     "18 iron into 18 of room");
             assertStack(helper, slots, 2, new ItemStack(Items.IRON_INGOT, 64), "iron stacked first");
             assertStack(helper, slots, 4, new ItemStack(Items.IRON_INGOT, 8), "then into the empty output");
@@ -192,30 +193,29 @@ public final class MachineAccessGameTests {
     private static void filtersAndLimits(GameTestHelper helper) {
         ItemSlots slots = MACHINE.build(slot -> {
         });
-        ResourceHandler<ItemResource> items = MachineAccess.items(slots);
+        ResourceHandler<ItemResource> items = Handlers.machineItems(slots);
         ItemStack named = new ItemStack(Items.STICK, 3);
         named.set(DataComponents.CUSTOM_NAME, Component.literal("Kept"));
         try (Transaction tx = Transaction.openRoot()) {
             helper.assertValueEqual(Handlers.items(slots).insert(2, ItemResource.of(Items.IRON_INGOT), 1, tx), 0,
                     "automation wrote an output");
-            helper.assertFalse(MachineAccess.insertAll(items, 0, 1, List.of(new ItemStack(Items.DIRT)), tx),
+            helper.assertFalse(Handlers.insertAll(items, 0, 1, List.of(new ItemStack(Items.DIRT)), tx),
                     "coal input took dirt");
-            helper.assertFalse(MachineAccess.insertAll(items, 0, 1, List.of(new ItemStack(Items.COAL, 17)), tx),
+            helper.assertFalse(Handlers.insertAll(items, 0, 1, List.of(new ItemStack(Items.COAL, 17)), tx),
                     "17 coal into a slot of 16");
-            helper.assertTrue(MachineAccess.insertAll(items, 0, 1, List.of(new ItemStack(Items.COAL, 16)), tx),
-                    "16 coal");
-            helper.assertFalse(MachineAccess.insertAll(items, 4, 5, List.of(new ItemStack(Items.IRON_INGOT, 9)), tx),
+            helper.assertTrue(Handlers.insertAll(items, 0, 1, List.of(new ItemStack(Items.COAL, 16)), tx), "16 coal");
+            helper.assertFalse(Handlers.insertAll(items, 4, 5, List.of(new ItemStack(Items.IRON_INGOT, 9)), tx),
                     "9 iron into an output of 8");
-            helper.assertFalse(MachineAccess.insertAll(items, 1, 2, List.of(new ItemStack(Items.ENDER_PEARL, 17)), tx),
+            helper.assertFalse(Handlers.insertAll(items, 1, 2, List.of(new ItemStack(Items.ENDER_PEARL, 17)), tx),
                     "17 ender pearls in one slot");
-            helper.assertTrue(MachineAccess.insertAll(items, 1, 2, List.of(new ItemStack(Items.ENDER_PEARL, 16)), tx),
+            helper.assertTrue(Handlers.insertAll(items, 1, 2, List.of(new ItemStack(Items.ENDER_PEARL, 16)), tx),
                     "16 ender pearls");
-            helper.assertTrue(MachineAccess.insertAll(items, 2, 3, List.of(named), tx), "named sticks");
-            helper.assertFalse(MachineAccess.insertAll(items, 2, 3, List.of(new ItemStack(Items.STICK)), tx),
+            helper.assertTrue(Handlers.insertAll(items, 2, 3, List.of(named), tx), "named sticks");
+            helper.assertFalse(Handlers.insertAll(items, 2, 3, List.of(new ItemStack(Items.STICK)), tx),
                     "a plain stick stacked onto named ones");
-            helper.assertFalse(MachineAccess.extractAll(items, 2, 3, List.of(new ItemStack(Items.STICK)), tx),
+            helper.assertFalse(Handlers.extractAll(items, 2, 3, List.of(new ItemStack(Items.STICK)), tx),
                     "a plain stick drained from named ones");
-            helper.assertTrue(MachineAccess.insertAll(items, 5, 6, List.of(new ItemStack(Items.DIAMOND)), tx),
+            helper.assertTrue(Handlers.insertAll(items, 5, 6, List.of(new ItemStack(Items.DIAMOND)), tx),
                     "the machine's display slot");
             tx.commit();
         }
@@ -224,15 +224,15 @@ public final class MachineAccessGameTests {
         assertStack(helper, slots, 2, named, "named sticks");
         assertThrows(helper, () -> {
             try (Transaction tx = Transaction.openRoot()) {
-                MachineAccess.insertAll(items, 4, 7, List.of(), tx);
+                Handlers.insertAll(items, 4, 7, List.of(), tx);
             }
         }, "a range past the slots");
         helper.succeed();
     }
 
     /**
-     * An output slot holding an item that no longer loads is skipped and saved back unchanged; overflow stays as it
-     * was; an unknown tank takes and gives nothing.
+     * An output slot holding an item that no longer loads is skipped and saved back unchanged; the handler exposes only
+     * the slots, not overflow, which stays as it was; an unknown tank takes and gives nothing.
      */
     private static void unknownUntouched(GameTestHelper helper) {
         ItemSlots original = MACHINE.build(slot -> {
@@ -250,15 +250,15 @@ public final class MachineAccessGameTests {
         });
         slots.load(input(helper, saved));
         helper.assertTrue(slots.unknown(2), "slot 2 not unknown");
-        ResourceHandler<ItemResource> items = MachineAccess.items(slots);
+        ResourceHandler<ItemResource> items = Handlers.machineItems(slots);
         try (Transaction tx = Transaction.openRoot()) {
-            helper.assertFalse(MachineAccess.insertAll(items, 2, 3, List.of(new ItemStack(Items.IRON_INGOT)), tx),
+            helper.assertFalse(Handlers.insertAll(items, 2, 3, List.of(new ItemStack(Items.IRON_INGOT)), tx),
                     "unknown slot took iron");
-            helper.assertFalse(MachineAccess.insertAll(items, 2, 5, List.of(new ItemStack(Items.IRON_INGOT, 9)), tx),
+            helper.assertFalse(Handlers.insertAll(items, 2, 5, List.of(new ItemStack(Items.IRON_INGOT, 9)), tx),
                     "9 iron with the unknown slot counted as room");
-            helper.assertTrue(MachineAccess.insertAll(items, 2, 5, List.of(new ItemStack(Items.IRON_INGOT, 8)), tx),
+            helper.assertTrue(Handlers.insertAll(items, 2, 5, List.of(new ItemStack(Items.IRON_INGOT, 8)), tx),
                     "8 iron into the free output");
-            helper.assertFalse(MachineAccess.extractAll(items, 2, 3, List.of(new ItemStack(Items.IRON_INGOT)), tx),
+            helper.assertFalse(Handlers.extractAll(items, 2, 3, List.of(new ItemStack(Items.IRON_INGOT)), tx),
                     "drained the unknown slot");
             tx.commit();
         }
@@ -271,14 +271,13 @@ public final class MachineAccessGameTests {
         });
         small.load(input(helper, save(helper, original::save)));
         helper.assertValueEqual(small.overflow().size(), 2, "overflow before");
-        ResourceHandler<ItemResource> smallItems = MachineAccess.items(small);
+        ResourceHandler<ItemResource> smallItems = Handlers.machineItems(small);
+        helper.assertValueEqual(smallItems.size(), 2, "handler slots (overflow exposed)");
         try (Transaction tx = Transaction.openRoot()) {
             helper.assertTrue(
-                    MachineAccess.insertAll(smallItems, 0, 2,
+                    Handlers.insertAll(smallItems, 0, 2,
                             List.of(new ItemStack(Items.DIRT, 64), new ItemStack(Items.STONE, 64)), tx),
                     "fill both slots");
-            helper.assertFalse(MachineAccess.extractAll(smallItems, 0, 2, List.of(new ItemStack(Items.DIAMOND)), tx),
-                    "drained the overflow diamond");
             tx.commit();
         }
         helper.assertValueEqual(small.overflow().size(), 2, "overflow after");
@@ -296,7 +295,7 @@ public final class MachineAccessGameTests {
         FluidTank unknown = FluidTank.create(4000, () -> {
         });
         unknown.load(input(helper, tankSave));
-        MachineAccess.Tank<FluidKey> view = MachineAccess.tank(unknown);
+        Handlers.MachineTank<FluidKey> view = Handlers.machineTank(unknown);
         try (Transaction tx = Transaction.openRoot()) {
             helper.assertValueEqual(view.insert(FluidKey.of(Fluids.WATER), 100, tx), 0L, "unknown tank took water");
             helper.assertFalse(view.extractExactly(FluidKey.of(Fluids.WATER), 1, tx), "unknown tank gave water");
@@ -307,18 +306,18 @@ public final class MachineAccessGameTests {
     }
 
     /**
-     * A committed inner transaction under a rolled-back root reports nothing; a committed root reports once per changed
+     * A committed inner transaction under a rolled-back root reports nothing; a committed root reports once per touched
      * slot and once for the tank, after the commit only.
      */
     private static void listenersOnCommit(GameTestHelper helper) {
         Counter counter = new Counter();
         ItemSlots slots = MACHINE.build(slot -> counter.slots[slot]++);
         FluidTank tank = FluidTank.create(4000, () -> counter.tank++);
-        ResourceHandler<ItemResource> items = MachineAccess.items(slots);
-        MachineAccess.Tank<FluidKey> lava = MachineAccess.tank(tank);
+        ResourceHandler<ItemResource> items = Handlers.machineItems(slots);
+        Handlers.MachineTank<FluidKey> lava = Handlers.machineTank(tank);
         try (Transaction root = Transaction.openRoot()) {
             try (Transaction inner = Transaction.open(root)) {
-                helper.assertTrue(MachineAccess.insertAll(items, 2, 5, List.of(new ItemStack(Items.IRON_INGOT)), inner),
+                helper.assertTrue(Handlers.insertAll(items, 2, 5, List.of(new ItemStack(Items.IRON_INGOT)), inner),
                         "iron");
                 helper.assertTrue(lava.insertExactly(FluidKey.of(Fluids.LAVA), 1000, inner), "lava");
                 inner.commit();
@@ -327,10 +326,10 @@ public final class MachineAccessGameTests {
         helper.assertValueEqual(counter.total(), 0, "changes reported for a rolled-back root");
         try (Transaction root = Transaction.openRoot()) {
             helper.assertTrue(
-                    MachineAccess.insertAll(items, 0, 5,
+                    Handlers.insertAll(items, 0, 5,
                             List.of(new ItemStack(Items.COAL, 3), new ItemStack(Items.IRON_INGOT, 70)), root),
                     "coal, iron");
-            helper.assertTrue(MachineAccess.insertAll(items, 0, 1, List.of(new ItemStack(Items.COAL, 2)), root),
+            helper.assertTrue(Handlers.insertAll(items, 0, 1, List.of(new ItemStack(Items.COAL, 2)), root),
                     "more coal");
             helper.assertTrue(lava.insertExactly(FluidKey.of(Fluids.LAVA), 1000, root), "lava");
             helper.assertValueEqual(counter.total(), 0, "reported before the commit");
@@ -357,20 +356,23 @@ public final class MachineAccessGameTests {
         tank.set(FluidKey.of(Fluids.WATER), 3000);
         CompoundTag before = save(helper, slots::save);
         CompoundTag tankBefore = save(helper, tank::save);
-        ResourceHandler<ItemResource> items = MachineAccess.items(slots);
+        ResourceHandler<ItemResource> items = Handlers.machineItems(slots);
         try (Transaction step = Transaction.openRoot()) {
-            MachineAccess.extractAll(items, 0, 2, List.of(new ItemStack(Items.COAL, 10)), step);
-            MachineAccess.tank(tank).extractExactly(FluidKey.of(Fluids.WATER), 3000, step);
-            MachineAccess.insertAll(items, 2, 5, List.of(new ItemStack(Items.DIAMOND, 5)), step);
+            helper.assertTrue(Handlers.extractAll(items, 0, 2, List.of(new ItemStack(Items.COAL, 10)), step),
+                    "coal in the rolled-back step");
+            helper.assertTrue(Handlers.machineTank(tank).extractExactly(FluidKey.of(Fluids.WATER), 3000, step),
+                    "water in the rolled-back step");
+            helper.assertTrue(Handlers.insertAll(items, 2, 5, List.of(new ItemStack(Items.DIAMOND, 5)), step),
+                    "diamonds in the rolled-back step");
         }
         helper.assertValueEqual(save(helper, slots::save), before, "save after a rolled-back step");
         helper.assertValueEqual(save(helper, tank::save), tankBefore, "tank save after a rolled-back step");
 
         try (Transaction step = Transaction.openRoot()) {
-            helper.assertTrue(MachineAccess.extractAll(items, 0, 2, List.of(new ItemStack(Items.COAL, 4)), step),
-                    "coal");
-            helper.assertTrue(MachineAccess.tank(tank).extractExactly(FluidKey.of(Fluids.WATER), 1000, step), "water");
-            helper.assertTrue(MachineAccess.insertAll(items, 2, 5, List.of(new ItemStack(Items.DIAMOND, 70)), step),
+            helper.assertTrue(Handlers.extractAll(items, 0, 2, List.of(new ItemStack(Items.COAL, 4)), step), "coal");
+            helper.assertTrue(Handlers.machineTank(tank).extractExactly(FluidKey.of(Fluids.WATER), 1000, step),
+                    "water");
+            helper.assertTrue(Handlers.insertAll(items, 2, 5, List.of(new ItemStack(Items.DIAMOND, 70)), step),
                     "diamonds");
             step.commit();
         }

@@ -3,8 +3,11 @@ package dev.silencebound.maxtech.lib.transfer;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import dev.silencebound.maxtech.lib.platform.KindStorage;
+// PLATFORM-LEAK: the moves under test run in NeoForge transfer transactions (ADR-0002).
 import net.neoforged.neoforge.transfer.transaction.SnapshotJournal;
+// PLATFORM-LEAK: see above.
 import net.neoforged.neoforge.transfer.transaction.Transaction;
+// PLATFORM-LEAK: see above.
 import net.neoforged.neoforge.transfer.transaction.TransactionContext;
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
