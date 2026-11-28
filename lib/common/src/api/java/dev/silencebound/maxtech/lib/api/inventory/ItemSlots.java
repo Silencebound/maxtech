@@ -147,9 +147,20 @@ public interface ItemSlots {
             Arrays.fill(limits, Item.ABSOLUTE_MAX_STACK_SIZE);
         }
 
+        private Builder(Builder from) {
+            roles = from.roles.clone();
+            filters = from.filters.clone();
+            limits = from.limits.clone();
+        }
+
         /** The number of slots the shape has. */
         public int size() {
             return roles.length;
+        }
+
+        /** A builder of the same shape that later changes to this one do not reach. */
+        public Builder copy() {
+            return new Builder(this);
         }
 
         /** Slots {@code from} (inclusive) to {@code to} (exclusive) are inputs taking any item. */

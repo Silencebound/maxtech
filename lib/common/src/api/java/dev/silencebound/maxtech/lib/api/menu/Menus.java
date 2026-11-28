@@ -1,6 +1,7 @@
 package dev.silencebound.maxtech.lib.api.menu;
 
 import dev.silencebound.maxtech.lib.api.registry.Registrar;
+import java.util.Objects;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import net.minecraft.server.level.ServerPlayer;
@@ -13,7 +14,8 @@ import org.jetbrains.annotations.ApiStatus;
  * {@code maxtech_lib} dependency with {@code ordering = "AFTER"}).
  */
 public final class Menus {
-    private static volatile Backend backend = new Backend() {
+    /** Until Lib sets its own: not strict, and registering or opening throws. */
+    private static final Backend NONE = new Backend() {
         @Override
         public boolean strict() {
             return false;
@@ -34,6 +36,7 @@ public final class Menus {
         public void problems(MenuDefinition<?> definition) {
         }
     };
+    private static volatile Backend backend = NONE;
 
     private Menus() {
     }
@@ -52,15 +55,24 @@ public final class Menus {
         return backend;
     }
 
-    static void checked(MenuDefinition<?> definition) {
+    /**
+     * Throws or reports {@code definition}'s problems through Lib's backend; returns false when Lib has not set it yet
+     * (a definition built before Lib's construction), so that {@link MenuDefinition#register} checks again.
+     */
+    static boolean checked(MenuDefinition<?> definition) {
+        Backend backend = Menus.backend;
+        if (Objects.equals(backend, NONE)) {
+            return false;
+        }
         if (definition.problems().isEmpty()) {
-            return;
+            return true;
         }
         if (backend.strict()) {
             throw new IllegalStateException("Menu " + definition.modId() + ":" + definition.name() + " layout: "
                     + String.join("; ", definition.problems()));
         }
         backend.problems(definition);
+        return true;
     }
 
     /** Sets Lib's backend; Lib calls it once during init. Unit tests may set a fake. */

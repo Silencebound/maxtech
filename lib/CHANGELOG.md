@@ -36,10 +36,13 @@ Api changes are marked **Api**.
 
 ### Added
 - **Api** Declared toolkit menus (`lib.api.menu`, experimental, ADR-0016): `Menus.define` builds a `MenuDefinition`
-  from a host's slot groups, fluid tanks, energy, progress and other values, a shift-click order, an `AccentTheme`
-  and a `Layout` of rows and columns in GUI pixels; `register` adds its menu type, `open` opens it for a player. The
-  layout is checked when defined (panel and title tab fit 320x240, nothing overlaps, every slot group placed once;
-  dev runs throw), and text never moves slots. `ItemSlots.Builder.size()` is new.
+  from a host's slot groups, tanks of any kind (fluid tanks take bucket clicks; unknown contents show as "Unknown"
+  with their amount), energy, progress and other values, a shift-click order, an `AccentTheme` and a `Layout` of rows
+  and columns in GUI pixels, with `Layout.value` for a live number in a text; `register` adds its menu type, `open`
+  opens it for a player. The layout is checked when defined, or when registered for a definition built before Lib
+  (panel and title tab fit 320x240, every slot group placed once and sharing no slot, status lines over `MenuStatus`
+  enums; dev runs throw), gaps are never negative, and text never moves slots. `ItemSlots.Builder.size()` and
+  `copy()` are new.
 - **Api** Inventories (`lib.api.inventory`, experimental, ADR-0016): `ItemSlots` with per-slot roles (input, output,
   display), filters and limits, and `ResourceTank`/`FluidTank`, both journaled so transfers through their handlers
   roll back with the transaction; `lib.neoforge.api.inventory.Handlers` gives the NeoForge handlers for capabilities.
