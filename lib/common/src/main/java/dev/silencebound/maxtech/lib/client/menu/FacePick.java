@@ -21,13 +21,18 @@ final class FacePick {
     private FacePick() {
     }
 
-    /** The yaw that shows a block facing {@code facing} (north without one) front on, turned a little to its side. */
+    /**
+     * The yaw that shows a block facing {@code facing} (north without one) front on, turned a little to its side; for a
+     * block facing up or down, with north at the top of the view.
+     */
     static float startYaw(Direction facing) {
         float front = switch (facing) {
-            case SOUTH, UP, DOWN -> 0.0F;
+            case SOUTH, UP -> 0.0F;
             case EAST -> -90.0F;
             case WEST -> 90.0F;
-            case NORTH -> 180.0F;
+            // Seen from below, a half turn keeps north at the top of the view and puts east on the left, as the
+            // block's relative names have it (top towards north, left as seen from the front).
+            case NORTH, DOWN -> 180.0F;
         };
         return front + YAW_OFFSET;
     }
@@ -78,6 +83,22 @@ final class FacePick {
             case 1 -> positive ? Direction.UP : Direction.DOWN;
             default -> positive ? Direction.SOUTH : Direction.NORTH;
         };
+    }
+
+    /**
+     * Where the outward normal of {@code face} points on screen under the angles: x right, y down (z, towards the
+     * viewer, is left out).
+     */
+    static double[] screen(float yaw, float pitch, Direction face) {
+        double x = face.getStepX();
+        double y = face.getStepY();
+        double z = face.getStepZ();
+        double w = Math.toRadians(yaw);
+        double x1 = x * Math.cos(w) + z * Math.sin(w);
+        double z1 = -x * Math.sin(w) + z * Math.cos(w);
+        double p = Math.toRadians(pitch);
+        double y2 = y * Math.cos(p) - z1 * Math.sin(p);
+        return new double[]{x1, -y2};
     }
 
     /** A view-space vector in block space: the inverse of yaw about y, then pitch about x. */
