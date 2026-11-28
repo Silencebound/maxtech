@@ -75,6 +75,22 @@ same reviewer.
 - Squash-merge with the PR title as subject. Approvals are comments starting `Verdict: Approve` (GitHub refuses
   self-approval on the shared account).
 
+### Shared lists
+
+Parallel PRs used to collide in files every feature appends to. Keep each feature's entries in its own file:
+
+- **Add lang keys in your feature's lang class, not in the provider.** Lib's lines live in one `LangSection` class per
+  feature in `lib/neoforge/.../datagen/lang/` (`FacadeLang`, `EnergyInfoLang`, ...); a new feature adds its own class
+  and one `all.add(...)` line at the end of `LibLangSections` (the file merges with `merge=union`).
+  The provider sorts keys and fails on a duplicate, so a bad union merge fails datagen instead of shipping. Storage
+  keeps the same split by hand (`Showcase.translations()`, `Ae2Lang`, `StorageRecipeViews`): add a method beside your
+  feature and one call in `StorageLanguageProvider`. Farms' provider is still one flat list; split it the same way when
+  it grows.
+- Lib's api inventory has one page per package in `docs/api/lib/`; `docs/api/lib-1.0.md` only links them. Not
+  `merge=union`: PRs edit existing rows, and a union merge keeps both the old and the new row without a conflict.
+- Lists whose order matters or that sit in shared Java code (`MaxtechLib.init`, the NeoForge entrypoints, import
+  blocks) stay as they are; their conflicts are a line or two and real ordering questions.
+
 ## Changing ids or saved formats from the 0.9 beta on
 
 Owner decision 2026-10-19 (#316): worlds from the 0.9 beta load in 1.0, so these rules apply from the beta release on,
