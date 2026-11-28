@@ -91,7 +91,7 @@ final class ItemChannel extends PortChannel {
         tested = null;
     }
 
-    /** Forgets the filter's cached answer; the next test asks the filter again. */
+    @Override
     void forgetFilterAnswers() {
         tested = null;
     }

@@ -33,8 +33,14 @@ import org.jetbrains.annotations.ApiStatus;
  * also expose the kind's capability on that face, which shows it is still there. For a block that is not a Lib port the
  * neighbour's capability is used.</li>
  * <li>A move between two handlers that both lack transactions is refused; with one such side, Lib touches it last
- * (simulate it, move on the transactional side, carry out the foreign side, keep only what it took).</li>
+ * (simulate it, move on the transactional side, carry out the foreign side, keep only what it took). A port's own
+ * buffers always take part in transactions.</li>
  * </ul>
+ * <p>
+ * Host rule: the owner's block must expose the capability of each kind it moves (items, fluids, a compat kind's) on
+ * every face that can pull, and should expose it on all faces. A neighbouring port pushes into this port's pulling
+ * buffers only while that capability is there, since it shows the block still exists; without it, nothing arrives. What
+ * the capability itself offers is the owner's choice (the port never uses it).
  * <p>
  * Server thread only, like the buffers.
  */
@@ -53,7 +59,11 @@ public interface TransferPort {
     /** The owner's block got a neighbour update: the port re-reads its neighbours and wakes. */
     void neighbourChanged();
 
-    /** A buffer changed outside the port's own moves (the machine produced or used something): the port wakes. */
+    /**
+     * A buffer changed outside the port's own moves (the machine produced or used something): the port wakes. Cheap (no
+     * lookups or allocation) and safe to call from a buffer's change listener, even during the port's own moves, which
+     * it ignores.
+     */
     void bufferChanged();
 
     /** The kinds this port moves, each once, in the order the builder first added a buffer of it. */

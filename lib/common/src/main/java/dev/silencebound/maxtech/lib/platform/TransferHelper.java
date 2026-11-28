@@ -1,5 +1,8 @@
 package dev.silencebound.maxtech.lib.platform;
 
+import dev.silencebound.maxtech.lib.api.resource.ResourceKind;
+import java.util.Optional;
+
 // Wrapping NeoForge's transfer types would duplicate their resource and transaction model on hot paths.
 // PLATFORM-LEAK: transfer types are used directly in common (ADR-0002).
 import net.neoforged.neoforge.transfer.ResourceHandler;
@@ -19,4 +22,11 @@ public interface TransferHelper {
 
     /** Fluid handlers exposed by blocks (tanks, machines, other mods' storage). */
     BlockLookup<ResourceHandler<FluidResource>> fluids();
+
+    /**
+     * Storage of {@code kind} beside blocks, for transfer ports: on NeoForge through the kind's registered
+     * {@code KindBridge}; empty for a kind without one (energy, or a kind nothing bridges). Meant for when a port is
+     * built, not per operation.
+     */
+    <K> Optional<KindLookup<K>> kind(ResourceKind<K> kind);
 }

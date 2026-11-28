@@ -28,11 +28,15 @@ import org.jspecify.annotations.Nullable;
  *         .items(outputSlots, PUSH_ONLY).onSettingsChanged(this::setChanged).build();
  * }</pre>
  *
- * A port runs in Lib's transfer group of the level it starts in, shared by the level's ports and kept within the
- * configured per-owner budgets; an owner with a budget of its own passes its group with {@link Builder#tasks}.
- *
- * This Lib version moves items only: {@link Builder#build()} throws {@link UnsupportedOperationException} for a port
- * with a buffer of another kind (fluids, energy and other tanks follow, ADR-0018).
+ * A port runs in Lib's transfer group of the level it starts in. All ports of a level without a group of their own
+ * share that one group, and with it one owner's budget ({@code scheduler.ownerBudgetMicros} and
+ * {@code scheduler.ownerOpsPerTick}, as one Storage network has): operations past it wait for the next tick, so many
+ * ports in a level slow down rather than cost more tick time. An owner with a budget of its own passes its group with
+ * {@link Builder#tasks}.
+ * <p>
+ * Ports move items and tanks of any kind with a {@code KindBridge} (fluids built in, at {@code transfer.fluidPerOp} per
+ * operation, which other tank kinds use too). {@link Builder#build()} throws {@link UnsupportedOperationException} for
+ * a port with an energy buffer until a later Lib version (ADR-0018).
  */
 @ApiStatus.Experimental
 public final class TransferPorts {
@@ -148,9 +152,10 @@ public final class TransferPorts {
         /**
          * Checks the builder and makes the port: throws {@link IllegalStateException} without a buffer, or when
          * {@code rate} names a kind without one, {@link IllegalArgumentException} for an energy buffer that joined an
-         * energy network since it was added or item slots not made by {@code ItemSlots.builder}, and
-         * {@link UnsupportedOperationException} for a buffer of a kind this Lib version does not move yet (anything but
-         * {@link #items}).
+         * energy network since it was added, item slots not made by {@code ItemSlots.builder}, a tank not made by
+         * {@link ResourceTank#create} or {@link FluidTank#create}, or a tank of a kind without a registered
+         * {@code KindBridge}, and {@link UnsupportedOperationException} for an energy buffer, which this Lib version
+         * does not move yet.
          */
         public TransferPort build() {
             if (buffers.isEmpty()) {

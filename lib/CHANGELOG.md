@@ -43,6 +43,10 @@ Api changes are marked **Api**.
 - Transfer ports move items: `TransferPorts.Builder.build()` makes a port over `ItemSlots` buffers that pushes into
   and pulls from the blocks beside it, sleeping until something changes; ports with fluid, energy or other tank
   buffers still throw `UnsupportedOperationException`. A port always saves its settings, defaults included.
+- **Api** Transfer ports move fluids and tanks of any kind with a `KindBridge`: `tank(ResourceTank, modes)` and
+  `fluids(FluidTank, modes)` no longer throw, at up to `transfer.fluidPerOp` per operation; a handler without
+  transactions is touched last and only what it really moved counts. Only energy buffers still throw. A port's block
+  must expose the kind's capability on its pulling faces for neighbouring ports to push into it.
 - **Api** `TransferPorts.builder()` takes no `TaskGroup`: a port runs in Lib's transfer group of the level it starts
   in, or in the owner's group given by `Builder.tasks(level -> group)`.
 - **Api** Declared toolkit menus (`lib.api.menu`, experimental, ADR-0016): `Menus.define` builds a `MenuDefinition`
