@@ -15,10 +15,12 @@ import org.jetbrains.annotations.ApiStatus;
  * face and per resource kind (ADR-0018); made by {@link TransferPorts#builder} and implemented by Lib only. A block
  * entity owns one port, starts it when it loads and stops it when it unloads or is removed.
  * <p>
- * The port never ticks: one scheduled task in the owner's {@code TaskGroup} runs an operation when a buffer or
- * neighbour changed, at most every {@code transfer.minIntervalTicks}, and backs off while idle. Each operation is one
- * root transfer transaction against the real handlers and counts only what moved, so nothing is duped or lost. Rules
- * every port keeps:
+ * The port never ticks: one scheduled task, in Lib's transfer group of the level or the owner's group
+ * ({@link TransferPorts.Builder#tasks}), runs an operation when a buffer or neighbour changed, at most every
+ * {@code transfer.minIntervalTicks}, and backs off while idle. Like Storage's devices it runs while started, whatever
+ * the ticking status of its own chunk (a border chunk included); it moves only through faces whose neighbour is at full
+ * status. Each operation is one root transfer transaction against the real handlers and counts only what moved, so
+ * nothing is duped or lost. Rules every port keeps:
  * <ul>
  * <li>A face pushes or pulls, never both ({@link PortFaceMode}).</li>
  * <li>Between two active faces of Lib ports only a pushing face facing a pulling face moves, and the pusher does it
@@ -26,9 +28,10 @@ import org.jetbrains.annotations.ApiStatus;
  * off face counts as a plain block.</li>
  * <li>Buffer roles hold between ports too. A port pushing into a neighbouring Lib port's pulling face inserts into that
  * port's buffers that take part in {@code PULL}, never into its push-only buffers, which the plain capability would
- * offer. Lib finds the neighbour through an internal registry of started ports by level and position; it is not api,
- * and a port that is not started is not in it. For a block that is not a Lib port the neighbour's capability is
- * used.</li>
+ * offer, and only what both ports' filters allow. Lib finds the neighbour through an internal registry of started ports
+ * by level and position; it is not api, and a port that is not started is not in it. A neighbouring port's block must
+ * also expose the kind's capability on that face, which shows it is still there. For a block that is not a Lib port the
+ * neighbour's capability is used.</li>
  * <li>A move between two handlers that both lack transactions is refused; with one such side, Lib touches it last
  * (simulate it, move on the transactional side, carry out the foreign side, keep only what it took).</li>
  * </ul>
@@ -38,7 +41,10 @@ import org.jetbrains.annotations.ApiStatus;
 @ApiStatus.Experimental
 @ApiStatus.NonExtendable
 public interface TransferPort {
-    /** Starts the port at {@code pos}: it reads its neighbours and runs when there is work. Again does nothing. */
+    /**
+     * Starts the port at {@code pos} in its task group ({@link TransferPorts.Builder#tasks}, Lib's transfer group
+     * without): it reads its neighbours and runs when there is work. Again does nothing.
+     */
     void start(ServerLevel level, BlockPos pos);
 
     /** Stops the port and drops its neighbour caches; {@link #start} brings it back. Stopped, it does nothing. */
@@ -77,7 +83,7 @@ public interface TransferPort {
     /** What the port last did with {@code kind}; {@link PortStatus#OFF} for a kind it does not move. */
     PortStatus status(ResourceKind<?> kind);
 
-    /** Saves the settings into the owner's block entity data. */
+    /** Saves the settings into the owner's block entity data, the builder's defaults included. */
     void save(ValueOutput output);
 
     /**

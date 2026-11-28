@@ -256,6 +256,11 @@ Since ADR-0002 only the NeoForge version is in the catalog; bumping it is a one-
   from its own invalidation listener, so a replaced owner needs a new cache, and the listener should only flag work
   for the owner's next tick. The level holds listeners as `WeakReference`s: a cache or listener the owner doesn't keep
   in a field stops firing after a GC.
+  Caches are invalidated only by a real `ChunkEvent.Load`/`Unload` (`CapabilityHooks.invalidateCapsOnChunkLoad`), not
+  by ticket level changes: a neighbour chunk that drops below full status but stays in memory, and later comes back,
+  invalidates nothing, and a cache queried meanwhile keeps the `null` it got while `!level.isLoaded(pos)`. Lib's
+  transfer ports check `isLoaded` before each use of a face and make a new cache once it is back
+  (`transfer_port_target_unload`).
 - **Moves between handlers** (`ResourceHandlerUtil.moveInternal`, same sources): a handler may accept or yield only
   the exact amount it simulated, even when it behaves, so `extract(inserted)` can return less than `inserted`. Do the
   insert and the extract in one transaction and commit only when the two amounts match; amounts are ints, so cast a

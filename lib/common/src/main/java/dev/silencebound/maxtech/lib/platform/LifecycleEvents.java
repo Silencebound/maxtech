@@ -20,6 +20,9 @@ public interface LifecycleEvents {
      */
     void onServerLevelUnloaded(Consumer<ServerLevel> action);
 
+    /** Runs on the server thread after the server's tags were bound anew: at start and after {@code /reload}. */
+    void onServerTagsReloaded(Runnable action);
+
     /** Runs at the end of every server tick, after every level ticked; main-thread commits of background jobs. */
     void onServerTickEnd(Consumer<MinecraftServer> action);
 
