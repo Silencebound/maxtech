@@ -1,0 +1,23 @@
+{
+  "type": "maxtech_lib:test_process",
+  "mode": "a",
+  "inputs": [
+    {
+      "ingredient": "minecraft:sand"
+    }
+  ],
+  "outputs": [
+    {
+      "item": {
+        "id": "minecraft:glass"
+      }
+    },
+    {
+      "item": {
+        "id": "minecraft:diamond"
+      },
+      "chance": 1
+    }
+  ],
+  "duration": 2
+}

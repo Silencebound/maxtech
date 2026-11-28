@@ -1,0 +1,21 @@
+{
+  "type": "maxtech_lib:test_process",
+  "mode": "b",
+  "tank_inputs": [
+    {
+      "kind": "maxtech_lib:fluid",
+      "tag": "c:water",
+      "amount": 100
+    }
+  ],
+  "tank_outputs": [
+    {
+      "resource": {
+        "kind": "maxtech_lib:fluid",
+        "id": "minecraft:lava"
+      },
+      "amount": 100
+    }
+  ],
+  "duration": 4
+}
