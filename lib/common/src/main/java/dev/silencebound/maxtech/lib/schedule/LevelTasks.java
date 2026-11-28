@@ -58,6 +58,11 @@ public final class LevelTasks {
         }
     }
 
+    /** Whether tick timing is on; see {@link #setProfiling}. */
+    public static boolean isProfiling() {
+        return profiling;
+    }
+
     /**
      * Nanoseconds the latest profiled tick of {@code level}'s task scheduler took; -1 while profiling is off and until
      * it has timed a tick.

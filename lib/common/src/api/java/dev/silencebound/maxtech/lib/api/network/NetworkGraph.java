@@ -81,6 +81,12 @@ public final class NetworkGraph implements RouteTree.Links {
         profilingEpoch++;
     }
 
+    /** Whether tick timing is on; see {@link #setProfiling}. */
+    @ApiStatus.Internal
+    public static boolean isProfiling() {
+        return profiling;
+    }
+
     /** Nanoseconds the latest profiled {@link #tick} took; -1 while profiling is off and until it has timed one. */
     public long lastTickNanos() {
         return lastTickEpoch == profilingEpoch ? lastTickNanos : -1;

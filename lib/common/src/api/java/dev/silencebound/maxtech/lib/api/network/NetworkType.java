@@ -1,6 +1,7 @@
 package dev.silencebound.maxtech.lib.api.network;
 
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+import java.util.List;
 import java.util.Optional;
 import java.util.function.Function;
 import net.minecraft.resources.Identifier;
@@ -62,6 +63,12 @@ public final class NetworkType {
             }
         }
         return Optional.empty();
+    }
+
+    /** Every registered type in registration order, as a copy; for diagnostics such as Lib's profiler. */
+    @ApiStatus.Internal
+    public static synchronized List<NetworkType> types() {
+        return List.copyOf(TYPES);
     }
 
     /** The id the type was registered under. */

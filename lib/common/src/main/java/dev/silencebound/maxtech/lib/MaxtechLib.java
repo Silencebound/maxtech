@@ -26,6 +26,7 @@ import dev.silencebound.maxtech.lib.network.NetworkBootstrap;
 import dev.silencebound.maxtech.lib.platform.Platform;
 import dev.silencebound.maxtech.lib.registry.ModContent;
 import dev.silencebound.maxtech.lib.resource.LibKindTags;
+import dev.silencebound.maxtech.lib.profile.LibProfiler;
 import dev.silencebound.maxtech.lib.schedule.LevelTasks;
 import dev.silencebound.maxtech.lib.transfer.LibTransferPorts;
 import dev.silencebound.maxtech.lib.transfer.PortRegistry;
@@ -70,6 +71,7 @@ public final class MaxtechLib {
         NetworkBootstrap.bootstrap();
         ConduitAttachments.bootstrap();
         LevelTasks.bootstrap();
+        LibProfiler.bootstrap();
         PortRegistry.bootstrap();
         LevelEnergy.bootstrap();
         WorkerPool.bootstrap();
