@@ -107,4 +107,30 @@ class LegacyItemHandlerTest {
         ResourceHandler<ItemResource> lib = new ItemStacksResourceHandler(1);
         assertSame(lib, LegacyBridge.fromLegacy(LegacyBridge.toLegacy(lib), null, null));
     }
+
+    @Test
+    void directMovesStackFirstSpanSlotsAndWaitForPendingLedgerMoves() {
+        assumeTrue(GameBootstrap.available(), "needs the game bootstrapped (FML unit tests)");
+        var inventory = new ItemStackHandler(3);
+        inventory.setStackInSlot(1, new ItemStack(Items.STONE, 60));
+        inventory.setStackInSlot(2, new ItemStack(Items.STONE, 5));
+        var handler = new LegacyItemHandler(inventory);
+        var stone = ItemResource.of(Items.STONE);
+        assertEquals(true, handler.direct());
+        assertEquals(10, handler.simulateInsertNow(stone, 10));
+        assertEquals(10, handler.insertNow(stone, 10));
+        // Onto the stacks first (4 into slot 1, 6 into slot 2), the empty slot 0 untouched.
+        assertEquals(0, inventory.getStackInSlot(0).getCount());
+        assertEquals(64, inventory.getStackInSlot(1).getCount());
+        assertEquals(11, inventory.getStackInSlot(2).getCount());
+        assertEquals(75, handler.simulateExtractNow(stone, 100));
+        assertEquals(70, handler.extractNow(stone, 70));
+        assertEquals(5, inventory.getStackInSlot(2).getCount());
+        try (var tx = Transaction.openRoot()) {
+            assertEquals(5, handler.insert(0, stone, 5, tx));
+            assertEquals(0, handler.insertNow(stone, 5));
+            assertEquals(0, handler.extractNow(stone, 5));
+        }
+        assertEquals(5, inventory.getStackInSlot(2).getCount());
+    }
 }
