@@ -33,6 +33,9 @@ Api changes are marked **Api**.
   and a `Layout` of rows and columns in GUI pixels; `register` adds its menu type, `open` opens it for a player. The
   layout is checked when defined (panel and title tab fit 320x240, nothing overlaps, every slot group placed once;
   dev runs throw), and text never moves slots. `ItemSlots.Builder.size()` is new.
+- Lib binds a screen to every declared toolkit menu: the Accent panel in the definition's theme, slot frames, tank,
+  energy and progress bars with their tooltips, fitted labels and status lines, and bucket clicks on tanks. Addons
+  write no client code for it. **Api** `AccentToast.theme` draws a toast's title and news strip in a mod's theme.
 - **Api** Inventories (`lib.api.inventory`, experimental, ADR-0016): `ItemSlots` with per-slot roles (input, output,
   display), filters and limits, and `ResourceTank`/`FluidTank`, both journaled so transfers through their handlers
   roll back with the transaction; `lib.neoforge.api.inventory.Handlers` gives the NeoForge handlers for capabilities.

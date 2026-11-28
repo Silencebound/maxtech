@@ -5,8 +5,10 @@ import dev.silencebound.maxtech.lib.api.client.gui.TextScale;
 import dev.silencebound.maxtech.lib.api.client.resource.ResourceLooks;
 import dev.silencebound.maxtech.lib.api.resource.ResourceKinds;
 import dev.silencebound.maxtech.lib.client.conduit.ConduitLooks;
+import dev.silencebound.maxtech.lib.client.menu.ToolkitScreen;
 import dev.silencebound.maxtech.lib.config.ClientConfig;
 import dev.silencebound.maxtech.lib.conduit.ContentsPacking;
+import dev.silencebound.maxtech.lib.menu.LibMenus;
 import java.util.List;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.fml.ModContainer;
@@ -27,5 +29,7 @@ public final class MaxtechLibClient {
         TextScale.setOptionSource(ClientConfig::textScale);
         ResourceLooks.register(ResourceKinds.FLUID, new NeoForgeFluidLook());
         ContentsPacking.install(ConduitLooks::pack);
+        // Before any addon's construction, where toolkit menus register.
+        LibMenus.bindScreensWith(ToolkitScreen::bind);
     }
 }
