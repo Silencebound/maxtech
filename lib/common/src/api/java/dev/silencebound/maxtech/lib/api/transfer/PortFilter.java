@@ -6,19 +6,17 @@ import com.mojang.serialization.DataResult;
 import com.mojang.serialization.DynamicOps;
 import com.mojang.serialization.ListBuilder;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
+import dev.silencebound.maxtech.lib.api.resource.KindTags;
 import dev.silencebound.maxtech.lib.api.resource.ResourceKind;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import net.minecraft.nbt.NbtOps;
 import net.minecraft.nbt.Tag;
 import net.minecraft.resources.Identifier;
 import org.jetbrains.annotations.ApiStatus;
-import org.jspecify.annotations.Nullable;
 
 /**
  * Which resources of one kind a {@link TransferPort} moves (ADR-0018): an allow or deny list of keys and tags. A port
@@ -41,8 +39,6 @@ import org.jspecify.annotations.Nullable;
  */
 @ApiStatus.Experimental
 public final class PortFilter<K> {
-    private static final Map<ResourceKind<?>, Function<Identifier, ? extends Predicate<?>>> TAGS = new ConcurrentHashMap<>();
-
     private final ResourceKind<K> kind;
     private final Mode mode;
     private final List<K> keys;
@@ -56,11 +52,9 @@ public final class PortFilter<K> {
         this.keys = List.copyOf(keys);
         this.unknownKeys = List.copyOf(unknownKeys);
         this.tags = List.copyOf(tags);
-        @Nullable
-        Function<Identifier, Predicate<K>> support = tagSupport(kind);
         List<Predicate<K>> tests = new ArrayList<>(this.tags.size());
         for (Identifier tag : this.tags) {
-            tests.add(support == null ? key -> false : support.apply(tag));
+            tests.add(KindTags.test(kind, tag).orElse(key -> false));
         }
         this.tagTests = List.copyOf(tests);
     }
@@ -73,17 +67,11 @@ public final class PortFilter<K> {
     /**
      * Gives {@code kind} tags in filters: {@code resolver} turns a tag id into a test of keys, called once per tag when
      * a filter is made. Lib registers item and fluid tags; a compat module registers its kind's during mod
-     * construction. Throws {@link IllegalArgumentException} if {@code kind} already has one. Any thread.
+     * construction. The same as {@link KindTags#register}, which recipe inputs share. Throws
+     * {@link IllegalArgumentException} if {@code kind} already has one. Any thread.
      */
     public static <K> void registerTags(ResourceKind<K> kind, Function<Identifier, ? extends Predicate<K>> resolver) {
-        if (TAGS.putIfAbsent(kind, resolver) != null) {
-            throw new IllegalArgumentException(kind + " already has tag support");
-        }
-    }
-
-    @SuppressWarnings("unchecked") // registerTags pairs each kind with a resolver of its own key type
-    private static <K> @Nullable Function<Identifier, Predicate<K>> tagSupport(ResourceKind<K> kind) {
-        return (Function<Identifier, Predicate<K>>) TAGS.get(kind);
+        KindTags.register(kind, resolver);
     }
 
     /** Whether the port may move {@code key}: listed or in a listed tag for an allow list, neither for a deny list. */

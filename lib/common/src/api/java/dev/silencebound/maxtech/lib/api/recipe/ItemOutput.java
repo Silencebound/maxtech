@@ -6,6 +6,7 @@ import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.util.ExtraCodecs;
+import net.minecraft.util.RandomSource;
 import net.minecraft.world.item.ItemStackTemplate;
 
 /**
@@ -33,13 +34,19 @@ public record ItemOutput(ItemStackTemplate item, int chance) {
 
     /** Throws {@link IllegalArgumentException} if {@code chance} is outside 1..{@value #ALWAYS}. */
     public ItemOutput {
-        if (chance < 1 || chance > ALWAYS) {
-            throw new IllegalArgumentException("Output chance must be in 1.." + ALWAYS + ", was " + chance);
-        }
+        Chances.check(chance);
     }
 
     /** Whether this output is always produced. */
     public boolean guaranteed() {
         return chance == ALWAYS;
+    }
+
+    /**
+     * Rolls this output for a finished run: how many of the template's copies come out, each copy rolled on its own, so
+     * 0 to the template's count; always the full count for a guaranteed output.
+     */
+    public int roll(RandomSource random) {
+        return Chances.copies(item.count(), chance, random);
     }
 }

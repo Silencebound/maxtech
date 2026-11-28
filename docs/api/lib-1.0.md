@@ -93,9 +93,14 @@ Labels: **stable** = frozen at 1.0, a breaking change needs a Lib major bump. **
 | `NetworkLogic`, `NodeConnectivity` | A type's transport semantics (topology events and a tick per active network) and how it sees the world. | experimental |
 | `Network`, `NetworkGraph` | One connected set of nodes (a read-only view) and one level's graph of a type; the graph's constructor, `tick` and `setProfiling` are Lib's (`@ApiStatus.Internal`). | experimental |
 | `RouteTree` | Widest-path routes to a root over one component, built when the component is rebuilt. | experimental |
-| **`lib.api.recipe`** | Item inputs and outputs shared by machine recipes, the recipe viewer layout and KubeJS. | stable |
+| **`lib.api.recipe`** | Machine recipe types and recipes; item inputs and outputs shared with the recipe viewer layout and KubeJS. | stable |
 | `ItemInput` | Ingredient, count, consumed or catalyst; codecs. | stable |
-| `ItemOutput` | Output stack and chance in hundredths of a percent; codecs. | stable |
+| `ItemOutput` | Output stack and chance in hundredths of a percent; codecs; `roll` rolls each copy on its own. | stable |
+| `MachineRecipeType` | `define(modId, name, shape)` registers a machine's `RecipeType`, serializer (one JSON codec, one stream codec) and recipe book category through the mod's registrars; the codec refuses recipes that do not fit the shape (ADR-0019, Lib 0.15.0). | experimental |
+| `MachineRecipeShape` | Input, catalyst and output slots, input and output tanks, and mode ids of a machine; `check` says why a recipe does not fit. | experimental |
+| `MachineRecipe` | Item inputs, tank inputs of any kind, item outputs with chance, tank outputs, `energy_per_tick`, `duration`, optional `mode`; `matches` fills a `MachineRecipePlan`. Unknown items, fluids or kinds fail decoding, so the game logs and skips the recipe. | experimental |
+| `KindInput`, `KindOutput` | A tank input by exact resource (components included) or by kind and tag, and a tank output by exact resource; amounts in the kind's unit. | experimental |
+| `MachineRecipeInput`, `MachineRecipePlan` | A machine's live view of its input and catalyst slots, input tanks and mode; where a matched run takes each input from. | experimental |
 | **`lib.api.registry`** | Registering a mod's game objects through Lib, for Farms (FM1). | experimental |
 | `Registrars` | Entry point: `create(modId, registry)`. | experimental |
 | `Registrar`, `RegistryEntry` | A deferred registrar and its entries (`id`, `key`, `holder`, `get`). Lib's `lib.platform` types extend them. | experimental |
@@ -106,6 +111,7 @@ Labels: **stable** = frozen at 1.0, a breaking change needs a Lib major bump. **
 | `ResourceKind`, `ResourceKinds` | A kind of resource (id, codecs, draw base, amount unit) and the registry of kinds, filled during mod construction and frozen at Lib's common setup; `register` with a `MapCodec` saves the key's fields next to `kind`, with a `Codec` under `value`; built-in `ITEM`, `FLUID`, `ENERGY`; lookup by id or session index (ADR-0017, Lib 0.15.0). `freeze` is Lib's (`@ApiStatus.Internal`). | experimental |
 | `KindKey` | A key of any kind with its kind; save codec on `kind`, `CLIENTBOUND_STREAM_CODEC` that lets a client skip kinds it lacks, and `SERVERBOUND_STREAM_CODEC` for keys clients send, which refuses unknown resources. | experimental |
 | `UnknownResource` | A saved resource of a kind no loaded mod registers, kept and saved back unchanged. | experimental |
+| `KindTags` | How a kind's tag id becomes a test of its keys, registered per kind during mod construction (Lib's for items and fluids); port filters and recipe tank inputs share it, `PortFilter.registerTags` delegates to it. | experimental |
 | `AmountUnit`, `EnergyKey` | How a kind's amounts are counted and shown (items, mB, MU); the one key of energy. | experimental |
 | **`lib.api.schedule`** | Budgeted per-level work queues: groups with time and operation budgets, priorities, wake-on-event and backoff. Moved from `lib.schedule` for Farms (FM1). | experimental |
 | `TaskSchedulers` | An addon's entry point: `newGroup(level)` with Lib's configured budgets. | experimental |
