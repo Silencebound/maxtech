@@ -219,16 +219,19 @@ CONDUIT_RULES = [
 ]
 
 # --- Datagen --------------------------------------------------------------------------------------------------------
-# 1.21.1's item tag provider takes the block tag lookup and an ExistingFileHelper (nullable); Lib reads no block tags.
+# 1.21.1's item tag provider takes the block tag lookup and an ExistingFileHelper; Lib reads no block tags. A null
+# helper makes every required reference "missing" (TagsProvider.missing), so pass a disabled one: 26.1 checks none.
 _NO_BLOCK_TAGS = "CompletableFuture.completedFuture(net.minecraft.data.tags.TagsProvider.TagLookup.empty())"
+_NO_FILE_CHECKS = ("new net.neoforged.neoforge.common.data.ExistingFileHelper(java.util.List.of(), java.util.Set.of(), "
+                   "false, null, null)")
 DATAGEN_RULES = [
     ImportMove("net.neoforged.neoforge.common.data.ItemTagsProvider", "net.minecraft.data.tags.ItemTagsProvider",
                files=(NEO + "datagen/LibItemTagsProvider.java", NEO + "datagen/ContentItemTagsProvider.java")),
     edit(("super(output, registries, MaxtechLib.MOD_ID);",
-          f"super(output, registries, {_NO_BLOCK_TAGS}, MaxtechLib.MOD_ID, null);"),
+          f"super(output, registries, {_NO_BLOCK_TAGS}, MaxtechLib.MOD_ID, {_NO_FILE_CHECKS});"),
          files=(NEO + "datagen/LibItemTagsProvider.java",), name="LibItemTagsProvider"),
     edit(("super(output, registries, content.modId());",
-          f"super(output, registries, {_NO_BLOCK_TAGS}, content.modId(), null);"),
+          f"super(output, registries, {_NO_BLOCK_TAGS}, content.modId(), {_NO_FILE_CHECKS});"),
          files=(NEO + "datagen/ContentItemTagsProvider.java",), name="ContentItemTagsProvider"),
     # The recipe provider is the DataProvider itself (no Runner around it).
     Regex(r"RecipeProvider\.Runner", "RecipeProvider", files=(NEO + "datagen/ContentIndexProvider.java",)),
@@ -303,8 +306,9 @@ NEOFORGE_RULES = [
          files=(NEO + "ContentEnabledCondition.java",), name="ContentEnabledCondition.hideDisabled"),
     Regex(r"\.requires\(Commands\.hasPermission\(Commands\.LEVEL_GAMEMASTERS\)\)",
           ".requires(source -> source.hasPermission(Commands.LEVEL_GAMEMASTERS))", files=(NEO + "LibCommands.java",)),
-    # 1.21.1's block and fluid tag providers take an ExistingFileHelper (nullable: no existence checks).
-    edit(("super(output, registries, content.modId());", "super(output, registries, content.modId(), null);"),
+    # 1.21.1's block and fluid tag providers take an ExistingFileHelper (disabled, as for item tags above).
+    edit(("super(output, registries, content.modId());",
+          f"super(output, registries, content.modId(), {_NO_FILE_CHECKS});"),
          files=(NEO + "datagen/ContentBlockTagsProvider.java", NEO + "datagen/ContentFluidTagsProvider.java"),
          name="Content tag providers"),
 ]
@@ -349,6 +353,9 @@ RULES = [
     # --- misc: types 1.21.1 lacks ------------------------------------------------------------------------------------
     *[ImportMove("net.minecraft.world.item.ItemStackTemplate", f"{SHIM}.ItemStackTemplate", files=(f,))
       for f in TEMPLATE_USERS],
+    # 1.21.1's ingredient stream codec sends a tag as its items; Lib's own sends tags as tags, as 26.1 does
+    Regex(r"Ingredient\.CONTENTS_STREAM_CODEC", f"{SHIM}.IngredientStreamCodec.INSTANCE",
+          files=(API + "recipe/ItemInput.java", LIB + "facade/FacadeRecipe.java")),
     Regex(r"ExtraCodecs\.STRING_RGB_COLOR", f"{SHIM}.RgbCodecs.STRING_RGB_COLOR",
           files=(API + "conduit/ConduitLook.java",)),
     # --- properties ----------------------------------------------------------------------------------------------------

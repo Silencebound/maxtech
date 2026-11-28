@@ -27,6 +27,7 @@ python3 -I port/convert.py --check         # exit 1 on warnings (stale overrides
 (cd port && ./gradlew :lib:neoforge:jar)               # the jar, with the transfer api nested (NOTICE-transfer.md)
 (cd port && ./gradlew :lib:neoforge:checkTransferJar)  # fails when Lib's jar and the nested one share a package
 (cd port && ./gradlew :lib:neoforge:runClient)         # dev client
+(cd port && ./gradlew :lib:neoforge:runData)           # 1.21.1 datagen into port/generated (see "Resources")
 port/tools/errormap.sh                     # regenerate, then one javac per work package; summary on stdout
 port/tools/errormap.sh --single            # ... or ONE javac over everything (faster, can hide errors)
 port/tools/errormap.sh --symbols           # ... plus the most common missing symbols per area
@@ -59,6 +60,8 @@ runs in Git Bash on Windows too (`python3` or `python`, `;` classpath separator,
 | `rules/framework.py` | rule types: `Rename`, `ImportMove`, `Regex`, `Transform`; Java text is split into code, comments and literals so renames never touch strings |
 | `rules/core.py` | rules every file needs (naming, package moves, contract moves to shims, `_` for Java 21); applied first |
 | `rules/<package>.py` | one module per work package (`transfer`, `rendering`, `gui`, `saving`, `other`); applied in name order after core |
+| `rules/resources.py` | rules for main's hand-written JSON (README, "Resources"); not a work package |
+| `generated/lib/common/resources` | the port's `runData` output, committed (README, "Resources") |
 | `shim/lib/**` | Lib-owned adapters under `dev.silencebound.maxtech.lib.shim`, laid out like `lib/` (e.g. `shim/lib/common/src/api/java/...`) |
 | `shim/.../shim/transfer/**` | NeoForge 26.1.2's transfer api, vendored and relocated (`NOTICE-transfer.md`, `tools/vendor_transfer.py`) |
 | `override/lib/**` | whole-file replacements, same paths as `lib/` |
@@ -106,6 +109,21 @@ tests load it from the source sets as part of Lib, so only the built jar has the
 Re-vendoring (`python3 -I port/tools/vendor_transfer.py <neoforge-26.1.2.x-sources.jar>`) overwrites the hand edits
 made for 1.21.1, so diff before committing one.
 
+## Resources
+
+Lib's datagen output comes from the port's own data run, so 1.21.1's providers write 1.21.1's formats:
+
+```
+python3 -I port/convert.py && rm -rf port/generated && (cd port && ./gradlew :lib:neoforge:runData)
+```
+
+It writes `port/generated/lib/common/resources` (committed; its `.cache` is ignored), which replaces main's 26.1
+`lib/common/src/generated` in lib-common's resources. Rerun it when main's datagen or content changes. The JSON main
+writes by hand (the GameTest data and item models) goes through `rules/resources.py`: ingredient strings become
+`{"tag"}`/`{"item"}` objects, `custom_name` becomes text JSON in a string, glass item models get the translucent
+render type (1.21.1 takes a block item's render type from the block's layer; children inherit it from the parent).
+1.21.1 already uses the singular data folders (`recipe`, `loot_table`, `tags/item`), so no folder is renamed.
+
 ## Differences from 26.1
 
 Where the 1.21.1 build intentionally differs from main:
@@ -120,6 +138,13 @@ Where the 1.21.1 build intentionally differs from main:
 - `neoforge.mods.toml` names the 1.21.1 lines of GuideME, Jade and FTB Teams (`rules/other.py`).
 - Recipe providers keep 1.21.1's final name `Recipes`, so one data run holds one recipe provider.
 - Common's tests in plain JUnit cannot bootstrap the game on NeoForge 21.1; tests that need it run in neoforge's FML test task.
+- Recipe ingredients travel to clients through `shim.misc.IngredientStreamCodec`, which sends tags as tags (as 26.1
+  does); 1.21.1's own codec sends a tag's items.
+- GameTest mock server players come from `GameTestHelpers.makeMockServerPlayerInLevel`, which allows Jade's login
+  ping on the mock connection: Jade sends it to every player without checking the channel, and NeoForge 21.1 throws
+  for a payload the connection never negotiated.
+- `transfer_bridge_chest` checks that a chest's moves happen at once and runs foreign-last moves on the real chest
+  (`LegacyChestMoves`) instead of 26.1's rollback checks: 1.21.1 chests have no transactions.
 - The GameTest server has no `--tests` filter: `-Pgametest=<namespace>` (default `maxtech_lib`) sets `neoforge.enabledGameTestNamespaces`; a `:pattern` suffix is ignored, so a whole namespace runs.
 
 ## Versions

@@ -1,0 +1,16 @@
+{
+  "neoforge:conditions": [
+    {
+      "type": "neoforge:tag_empty",
+      "tag": "c:plates/iron"
+    }
+  ],
+  "type": "maxtech_lib:facade",
+  "binder": {
+    "tag": "c:ingots/iron"
+  },
+  "result": {
+    "count": 4,
+    "id": "maxtech_lib:facade"
+  }
+}
