@@ -16,7 +16,6 @@ import dev.silencebound.maxtech.lib.neoforge.api.transfer.KindBridges;
 import dev.silencebound.maxtech.lib.neoforge.api.transfer.KindHandler;
 import dev.silencebound.maxtech.lib.platform.Platform;
 import dev.silencebound.maxtech.lib.platform.RegistryHelper;
-import dev.silencebound.maxtech.lib.schedule.LevelTasks;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -188,8 +187,7 @@ public final class TransferPortGameTests {
     /** The builder takes a standalone energy buffer, and refuses it once it joined an energy network. */
     private static void energyBuffer(GameTestHelper helper) {
         EnergyEndpoint buffer = EnergyEndpoint.buffer(1000, 10, 10, EnergyPriority.DEFAULT);
-        TransferPorts.Builder builder = TransferPorts.builder(LevelTasks.newGroup(helper.getLevel())).energy(buffer,
-                Set.of(PortFaceMode.PUSH));
+        TransferPorts.Builder builder = TransferPorts.builder().energy(buffer, Set.of(PortFaceMode.PUSH));
         EnergyNetworks.of(helper.getLevel()).createNetwork().add(buffer);
         boolean refused = false;
         try {

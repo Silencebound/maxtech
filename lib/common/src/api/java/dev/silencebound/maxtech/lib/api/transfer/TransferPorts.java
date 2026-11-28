@@ -15,15 +15,21 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.function.Function;
+import net.minecraft.server.level.ServerLevel;
 import org.jetbrains.annotations.ApiStatus;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Makes {@link TransferPort}s (ADR-0018):
  *
  * <pre>{@code
- * port = TransferPorts.builder(network.tasks()).fluids(inputTank, PULL_ONLY).fluids(outputTank, PUSH_ONLY)
+ * port = TransferPorts.builder().fluids(inputTank, PULL_ONLY).fluids(outputTank, PUSH_ONLY)
  *         .items(outputSlots, PUSH_ONLY).onSettingsChanged(this::setChanged).build();
  * }</pre>
+ *
+ * A port runs in Lib's transfer group of the level it starts in, shared by the level's ports and kept within the
+ * configured per-owner budgets; an owner with a budget of its own passes its group with {@link Builder#tasks}.
  *
  * This Lib version moves items only: {@link Builder#build()} throws {@link UnsupportedOperationException} for a port
  * with a buffer of another kind (fluids, energy and other tanks follow, ADR-0018).
@@ -33,9 +39,11 @@ public final class TransferPorts {
     private TransferPorts() {
     }
 
-    /** A builder for a port whose operations run in {@code tasks}, the owner's task group. */
-    public static Builder builder(TaskGroup tasks) {
-        return new Builder(tasks);
+    /**
+     * A builder for a port whose operations run in Lib's transfer group unless {@link Builder#tasks} says otherwise.
+     */
+    public static Builder builder() {
+        return new Builder();
     }
 
     /**
@@ -49,15 +57,26 @@ public final class TransferPorts {
      * it. Not thread-safe; use on one thread, then build.
      */
     public static final class Builder {
-        private final TaskGroup tasks;
+        private @Nullable Function<ServerLevel, TaskGroup> tasks;
         private final List<Buffer> buffers = new ArrayList<>();
         private final Map<ResourceKind<?>, Long> rates = new LinkedHashMap<>();
         private PortSettings defaults = PortSettings.EMPTY;
         private Runnable onSettingsChanged = () -> {
         };
 
-        private Builder(TaskGroup tasks) {
-            this.tasks = Objects.requireNonNull(tasks, "tasks");
+        private Builder() {
+        }
+
+        /**
+         * Runs the port's operations in the group {@code groups} gives for the level, asked on every
+         * {@link TransferPort#start}, instead of Lib's transfer group: for an owner whose devices share a budget of its
+         * own (a network's group, say). The port never joins a closed group: when the group closes while the port is
+         * started, the next event asks {@code groups} again, and while it gives a closed group the port runs in Lib's
+         * transfer group.
+         */
+        public Builder tasks(Function<ServerLevel, TaskGroup> groups) {
+            this.tasks = Objects.requireNonNull(groups, "groups");
+            return this;
         }
 
         /**
@@ -112,8 +131,8 @@ public final class TransferPorts {
         /**
          * The settings a new port starts with, and that {@link TransferPort#load} falls back to for data saved without
          * settings (instead of {@link PortSettings#EMPTY}), so an owner can start with some faces on (ADR-0018). The
-         * port puts them back within the allowed modes of its buffers, like loaded settings. Not saved by itself: only
-         * settings a player changed are.
+         * port puts them back within the allowed modes of its buffers, like loaded settings. A port always saves its
+         * settings, so changing the defaults later never reconfigures ports that already exist.
          */
         public Builder defaults(PortSettings settings) {
             this.defaults = Objects.requireNonNull(settings, "settings");
@@ -128,9 +147,10 @@ public final class TransferPorts {
 
         /**
          * Checks the builder and makes the port: throws {@link IllegalStateException} without a buffer, or when
-         * {@code rate} names a kind without one, and {@link IllegalArgumentException} for an energy buffer that joined
-         * an energy network since it was added, and {@link UnsupportedOperationException} for a buffer of a kind this
-         * Lib version does not move yet (anything but {@link #items}).
+         * {@code rate} names a kind without one, {@link IllegalArgumentException} for an energy buffer that joined an
+         * energy network since it was added or item slots not made by {@code ItemSlots.builder}, and
+         * {@link UnsupportedOperationException} for a buffer of a kind this Lib version does not move yet (anything but
+         * {@link #items}).
          */
         public TransferPort build() {
             if (buffers.isEmpty()) {

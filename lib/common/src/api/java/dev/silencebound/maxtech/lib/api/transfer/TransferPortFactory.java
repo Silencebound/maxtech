@@ -5,6 +5,8 @@ import dev.silencebound.maxtech.lib.api.schedule.TaskGroup;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Function;
+import net.minecraft.server.level.ServerLevel;
 import org.jetbrains.annotations.ApiStatus;
 import org.jspecify.annotations.Nullable;
 
@@ -47,7 +49,7 @@ public final class TransferPortFactory {
      * A checked builder's contents.
      *
      * @param tasks
-     *            the owner's task group
+     *            where the port gets its group on start; null for Lib's transfer group
      * @param buffers
      *            the buffers in the order they were added
      * @param rates
@@ -58,8 +60,8 @@ public final class TransferPortFactory {
      *            the settings listener
      */
     @ApiStatus.Internal
-    public record Spec(TaskGroup tasks, List<Buffer> buffers, Map<ResourceKind<?>, Long> rates, PortSettings defaults,
-            Runnable onSettingsChanged) {
+    public record Spec(@Nullable Function<ServerLevel, TaskGroup> tasks, List<Buffer> buffers,
+            Map<ResourceKind<?>, Long> rates, PortSettings defaults, Runnable onSettingsChanged) {
         /** Copies the lists, which the builder keeps changing. */
         public Spec {
             buffers = List.copyOf(buffers);

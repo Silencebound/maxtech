@@ -91,6 +91,11 @@ final class ItemChannel extends PortChannel {
         tested = null;
     }
 
+    /** Forgets the filter's cached answer; the next test asks the filter again. */
+    void forgetFilterAnswers() {
+        tested = null;
+    }
+
     @Override
     long configPerOp() {
         return ServerConfig.TRANSFER_ITEMS_PER_OP.getAsInt();
@@ -114,9 +119,10 @@ final class ItemChannel extends PortChannel {
             }
             if (!port.neighbourLoaded(i)) {
                 // Below full status the chunk may stay in memory, and a chunk coming back from there to full status
-                // invalidates no capability cache, so the port polls and makes a new cache once it is back.
+                // invalidates no capability cache, so the port makes a new cache once it is back. It polls for that
+                // only while the face has work; without, a buffer change wakes it.
                 face.stale = true;
-                poll = true;
+                poll |= mode == PortFaceMode.PUSH ? pushWork() : pullRoom();
                 continue;
             }
             if (face.stale) {
@@ -132,15 +138,17 @@ final class ItemChannel extends PortChannel {
             if (!mode.movesAgainst(facing)) {
                 continue;
             }
+            // The capability shows the neighbour is really there: a port left in the registry by a block that is gone
+            // without stopping it gets nothing.
+            ResourceHandler<ItemResource> handler = face.lookup.find();
+            if (handler == null) {
+                continue;
+            }
             int result;
             if (facing == PortFaceMode.PULL && other != null) {
                 // A port's pulling face: into its pulling buffers, never its plain capability (ADR-0018).
                 result = push(null, other, amount);
             } else {
-                ResourceHandler<ItemResource> handler = face.lookup.find();
-                if (handler == null) {
-                    continue;
-                }
                 result = mode == PortFaceMode.PUSH ? push(handler, null, amount) : pull(handler, amount);
             }
             if (result > 0) {
@@ -225,6 +233,22 @@ final class ItemChannel extends PortChannel {
             return null;
         }
         return resource;
+    }
+
+    /** Whether a pushing buffer holds anything this port's filter lets out. */
+    private boolean pushWork() {
+        for (int b = 0; b < buffers.length; b++) {
+            if (!pushes[b]) {
+                continue;
+            }
+            RoleView view = buffers[b];
+            for (int slot = 0; slot < view.size(); slot++) {
+                if (pushable(view, slot, null) != null) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     /** Moves up to {@code amount} from {@code source} into the pulling buffers; returns what moved or a code. */

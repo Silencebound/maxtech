@@ -36,8 +36,10 @@ Api changes are marked **Api**.
 
 ### Added
 - Transfer ports move items: `TransferPorts.Builder.build()` makes a port over `ItemSlots` buffers that pushes into
-  and pulls from the blocks beside it on its owner's task group, sleeping until something changes; ports with fluid,
-  energy or other tank buffers still throw `UnsupportedOperationException`.
+  and pulls from the blocks beside it, sleeping until something changes; ports with fluid, energy or other tank
+  buffers still throw `UnsupportedOperationException`. A port always saves its settings, defaults included.
+- **Api** `TransferPorts.builder()` takes no `TaskGroup`: a port runs in Lib's transfer group of the level it starts
+  in, or in the owner's group given by `Builder.tasks(level -> group)`.
 - **Api** Declared toolkit menus (`lib.api.menu`, experimental, ADR-0016): `Menus.define` builds a `MenuDefinition`
   from a host's slot groups, fluid tanks, energy, progress and other values, a shift-click order, an `AccentTheme`
   and a `Layout` of rows and columns in GUI pixels; `register` adds its menu type, `open` opens it for a player. The
