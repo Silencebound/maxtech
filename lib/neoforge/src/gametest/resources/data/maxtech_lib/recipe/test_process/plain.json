@@ -1,0 +1,23 @@
+{
+  "type": "maxtech_lib:test_process",
+  "mode": "a",
+  "inputs": [
+    {
+      "ingredient": "minecraft:cobblestone",
+      "count": 2
+    }
+  ],
+  "outputs": [
+    {
+      "item": {
+        "id": "minecraft:gravel"
+      }
+    },
+    {
+      "item": {
+        "id": "minecraft:flint"
+      }
+    }
+  ],
+  "duration": 10
+}
