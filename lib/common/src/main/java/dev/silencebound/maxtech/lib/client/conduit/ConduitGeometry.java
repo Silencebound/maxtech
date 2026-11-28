@@ -13,6 +13,7 @@ import dev.silencebound.maxtech.lib.api.conduit.model.ConduitTexture;
 import java.util.ArrayList;
 import java.util.List;
 import net.minecraft.core.Direction;
+import net.minecraft.resources.Identifier;
 import net.minecraft.util.ARGB;
 import net.minecraft.world.item.DyeColor;
 import net.minecraft.world.phys.AABB;
@@ -193,6 +194,7 @@ public final class ConduitGeometry {
 
     private static void shellBody(List<ConduitQuad> out, ConduitLook.Shell look, float thickness, int arms, int rings,
             int borderArgb) {
+        int start = out.size();
         AABB core = ConduitShapes.core(thickness);
         Direction.Axis straight = straightAxis(arms);
         double bar = ConduitFrameGeometry.barWidth(look, thickness);
@@ -234,9 +236,28 @@ public final class ConduitGeometry {
         if (look.frameBars()) {
             // Bars half the tube wide or more leave no window: drop the glass that has shrunk to nothing.
             out.removeIf(quad -> !ConduitFrameGeometry.hasArea(quad.box(), quad.facing().getAxis()));
-            ConduitFrameGeometry.addFrame(out, look, thickness, arms, rings, borderArgb);
-            return;
         }
+        int borders = out.size();
+        List<AABB> frame = List.of();
+        if (look.frameBars()) {
+            frame = ConduitFrameGeometry.addFrame(out, look, thickness, arms, rings, borderArgb);
+        } else {
+            borderLines(out, look, core, thickness, arms, rings, borderArgb);
+        }
+        if (look.barTexture().isPresent()) {
+            for (int i = borders; i < out.size(); i++) {
+                out.set(i, textured(out.get(i), look.barTexture().get()));
+            }
+        }
+        if (look.tierStripe().isPresent() && !frame.isEmpty()) {
+            ConduitFrameGeometry.addTierStripes(out, List.copyOf(out.subList(start, borders)), frame,
+                    0xFF000000 | look.tierStripe().get(), STRIP_OFFSET);
+        }
+    }
+
+    @SuppressWarnings("TooManyParameters") // the body key's parts, unpacked; kept primitive
+    private static void borderLines(List<ConduitQuad> out, ConduitLook.Shell look, AABB core, float thickness, int arms,
+            int rings, int borderArgb) {
         ConduitSilhouette.Outline outline = ConduitSilhouette.of(thickness, arms, rings, look.rim());
         List<ConduitSilhouette.Line> lines = outline.lines();
         double half = ConduitShapes.width(thickness) / 2;
@@ -302,6 +323,29 @@ public final class ConduitGeometry {
             }
         }
         return oneSided;
+    }
+
+    /**
+     * {@code flat}, a border quad, drawn with {@code texture} instead, projected like the glass and turned so that the
+     * sprite's rows (its u axis) run along the longer side of the face. A square face (within {@link #EPSILON}) has no
+     * longer side: its rows run along the first of X, Y, Z that is not the face's own axis.
+     */
+    static ConduitQuad textured(ConduitQuad flat, Identifier texture) {
+        AABB box = flat.box();
+        Direction face = flat.facing();
+        Direction.Axis along = face.getAxis() == Direction.Axis.X ? Direction.Axis.Y : Direction.Axis.X;
+        for (Direction.Axis axis : Direction.Axis.values()) {
+            // strictly longer only: on a tie the earlier axis in X, Y, Z order stays
+            if (axis != face.getAxis() && box.max(axis) - box.min(axis) > box.max(along) - box.min(along) + EPSILON) {
+                along = axis;
+            }
+        }
+        // along is never the face's axis, so flowTurns is present; one more quarter turn than the flow's puts the
+        // sprite's u (not its v) along it, as for the glass
+        int turns = (ConduitUvs.flowTurns(face, Direction.fromAxisAndDirection(along, Direction.AxisDirection.POSITIVE))
+                .orElseThrow() + 1) % 4;
+        return new ConduitQuad(box, face, ConduitTexture.FLAT, flat.argb(), flat.culled(), flat.layer(), texture,
+                ConduitUvs.projected(box, face, turns), flat.lightEmission());
     }
 
     /**
