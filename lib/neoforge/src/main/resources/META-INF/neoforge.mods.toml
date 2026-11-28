@@ -31,6 +31,16 @@ versionRange = "${minecraft_version_range}"
 ordering = "NONE"
 side = "BOTH"
 
+# GuideME draws every MaxTech mod's guide. Bundled in Lib's jar (jar-in-jar), so a player needs no separate download; a
+# newer GuideME from another mod replaces the bundled one. BOTH: guide books and GuideME's recipe sync run on the server
+# too.
+[[dependencies.maxtech_lib]]
+modId = "guideme"
+type = "required"
+versionRange = "[26.1.15-beta,26.2-)"
+ordering = "NONE"
+side = "BOTH"
+
 # Block overlay; Lib's plugin lives in compat.jade and loads only through Jade's @WailaPlugin scan. BOTH, not CLIENT:
 # its server data providers run on the server.
 [[dependencies.maxtech_lib]]

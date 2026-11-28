@@ -16,6 +16,7 @@ import dev.silencebound.maxtech.lib.info.ConduitInfo;
 import dev.silencebound.maxtech.lib.info.EnergyInfo;
 import dev.silencebound.maxtech.lib.info.ScannerItem;
 import dev.silencebound.maxtech.lib.neoforge.client.ConfigScreens;
+import dev.silencebound.maxtech.lib.neoforge.guide.GuideConfigText;
 import dev.silencebound.maxtech.lib.neoforge.compat.jade.BlockInfoLines;
 import dev.silencebound.maxtech.lib.neoforge.platform.ConfigTranslations;
 import dev.silencebound.maxtech.lib.viewer.RecipeViewText;
@@ -118,6 +119,11 @@ final class LibLanguageProvider extends LanguageProvider {
         add(ConfigScreens.DEFAULT_KEY, "Default: %s");
         add(ConfigScreens.WORLD_RESTART_KEY, "Applies after the world is reloaded");
         add(ConfigScreens.GAME_RESTART_KEY, "Applies after the game is restarted");
+        // A guide page's <Config> tag (any mod's guide).
+        add(GuideConfigText.DEFAULT_KEY, "Default: %s");
+        add(GuideConfigText.CHANGED_KEY, "Changed by this server");
+        add(GuideConfigText.ON_KEY, "on");
+        add(GuideConfigText.OFF_KEY, "off");
     }
 
     private void addRecipeViewerTranslations() {

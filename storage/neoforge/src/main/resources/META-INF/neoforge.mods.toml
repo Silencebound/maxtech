@@ -38,15 +38,6 @@ versionRange = "${minecraft_version_range}"
 ordering = "NONE"
 side = "BOTH"
 
-# GuideME draws Storage's guide. Bundled in Storage's jar (jar-in-jar), so a player needs no separate download; a newer
-# GuideME from another mod replaces the bundled one. BOTH: the manual and GuideME's recipe sync run on the server too.
-[[dependencies.maxtech_storage]]
-modId = "guideme"
-type = "required"
-versionRange = "[26.1.15-beta,26.2-)"
-ordering = "NONE"
-side = "BOTH"
-
 # Machine recipe schemas and the logic script events and node types. compat.kubejs is loaded only by KubeJS, through
 # kubejs.plugins.txt.
 [[dependencies.maxtech_storage]]

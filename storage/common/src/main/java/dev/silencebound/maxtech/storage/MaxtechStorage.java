@@ -5,7 +5,6 @@ import dev.silencebound.maxtech.storage.config.StorageClientConfig;
 import dev.silencebound.maxtech.storage.config.StorageCommonConfig;
 import dev.silencebound.maxtech.storage.config.StorageModules;
 import dev.silencebound.maxtech.storage.config.StorageServerConfig;
-import dev.silencebound.maxtech.storage.guide.GuideConfigText;
 import dev.silencebound.maxtech.storage.guide.StorageGuideData;
 import dev.silencebound.maxtech.storage.registry.ModContent;
 import net.minecraft.resources.Identifier;
@@ -27,9 +26,8 @@ public final class MaxtechStorage {
         StorageCommonConfig.register();
         StorageClientConfig.register();
         ModContent.init();
-        GuideConfigText.register();
         StorageModules.init();
-        // The guide pages are GuideME's (MGM); its <Config> values come from the server config registered here.
+        // The guide pages are GuideME's (drawn through Lib); their <Config> values come from the server config here.
         StorageGuideData.register();
     }
 }

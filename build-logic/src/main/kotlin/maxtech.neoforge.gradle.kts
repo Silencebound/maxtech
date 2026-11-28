@@ -158,8 +158,107 @@ if (modGroupName != "lib") {
         } else {
             compileOnly(project(":lib:neoforge"))
         }
+        // GuideME is Lib's required dependency, bundled in Lib's jar; in dev runs it is a plain jar on the classpath.
+        runtimeOnly(libs.findLibrary("guideme").get())
     }
 }
+
+// ---- Guides (lib.neoforge.api.guide.Guides) ------------------------------------------------------------------------
+// A mod with pages under assets/<modid>/guides/<modid>/guide gets guide hot reload in runClient and the guide website
+// (docs/milestones/MGM/web-export.md); release tags publish Storage's through .github/workflows/guide-site.yml:
+//   ./gradlew :<mod>:neoforge:runExportGuide        a client starts, GuideME exports the guide, the game quits
+//   ./gradlew :<mod>:neoforge:createGuideWebsite    GuideME's generator turns the export into a static site
+//   ./gradlew :<mod>:neoforge:serveGuideWebsite     serves the site on http://localhost:8000 until stopped
+// The export needs a client with an OpenGL context (it renders item icons and scenes). GuideME 26.1.15-beta has no
+// title, logo or favicon arguments and calls every guide "Applied Energistics 2", so the site uses our copy of its page
+// template (build-logic/guide-web/templates/layout.html) with the mod's name and its logo from docs/branding.
+val guidePages = common.file("src/main/resources/assets/$modId/guides/$modId/guide")
+if (guidePages.isDirectory) {
+    val guideId = "$modId:guide"
+    val guideExportDir = layout.buildDirectory.dir("exportedGuide")
+    val guideWebsiteDir = layout.buildDirectory.dir("guideWebsite")
+    // Hot reload for writing pages: in the dev client GuideME reads the pages from the source folder and reloads a page
+    // as soon as its file is saved.
+    neoForge.runs.named("client") {
+        systemProperty("guideme.$modId.guide.sources", guidePages.absolutePath)
+    }
+    // GuideME writes icons and scene pictures as WebP through FFmpeg (bytedeco), which it does not ship. MDG 2.0.147 has
+    // no per-run classpath, so FFmpeg (this machine's natives only) joins the runtime classpath only when the export
+    // runs; never the jar or other runs. The version is the one GuideME 26.1.15-beta builds against.
+    if (gradle.startParameter.taskNames.any { it.contains("ExportGuide") }) {
+        val osName = System.getProperty("os.name").lowercase()
+        val arch = if (System.getProperty("os.arch") in setOf("aarch64", "arm64")) "arm64" else "x86_64"
+        val platform = when {
+            osName.contains("win") -> "windows-$arch"
+            osName.contains("mac") -> "macosx-$arch"
+            else -> "linux-$arch"
+        }
+        dependencies {
+            runtimeOnly("org.bytedeco:ffmpeg:6.0-1.5.9")
+            runtimeOnly("org.bytedeco:ffmpeg:6.0-1.5.9:$platform")
+            runtimeOnly("org.bytedeco:javacpp:1.5.9:$platform")
+        }
+    }
+    neoForge.runs.register("exportGuide") {
+        client()
+        systemProperty("guideme.exportOnStartupAndExit", guideId)
+        systemProperty("guideme.exportDestination.$modId.guide", guideExportDir.get().asFile.absolutePath)
+        systemProperty("guideme.exportModVersion.$modId.guide", project.version.toString())
+    }
+    tasks.matching { it.name == "runExportGuide" }.configureEach {
+        outputs.dir(guideExportDir)
+        // The export is the game's output: always run it, never restore it from a cache.
+        outputs.upToDateWhen { false }
+        val dir = guideExportDir.get().asFile
+        doFirst { dir.deleteRecursively() }
+    }
+    // The generator's --web-assets: our page template with the mod's name, plus the logo and favicon.
+    // Local copies, so the filter captures plain strings instead of the script (configuration cache).
+    val modName = "MaxTech " + modGroupName.replaceFirstChar { it.uppercase() }
+    val guideModId = modId
+    val guideWebAssets = tasks.register<Sync>("guideWebAssets") {
+        into(layout.buildDirectory.dir("guideWebAssets"))
+        from(rootProject.file("build-logic/guide-web")) {
+            filter { line: String -> line.replace("@MOD_NAME@", modName).replace("@MOD_ID@", guideModId) }
+        }
+        from(rootProject.file("docs/branding/${guideModId}_icon_256.png")) {
+            into("assets")
+            rename { "${guideModId}_logo.png" }
+        }
+    }
+    val createGuideWebsite = tasks.register<JavaExec>("createGuideWebsite") {
+        group = "guide"
+        description = "Builds the static guide website from the last runExportGuide."
+        dependsOn(guideWebAssets)
+        inputs.dir(guideExportDir)
+        inputs.files(guideWebAssets)
+        outputs.dir(guideWebsiteDir)
+        classpath = sourceSets.main.get().runtimeClasspath
+        // A package-private class with a public main, which the launcher accepts. GuideME's docs name
+        // guideme.web.WebSiteGenerator (with --title, --logo, --clean, ...), which 26.1.15-beta does not have yet.
+        mainClass = "guideme.internal.web.StaticSiteGenerator"
+        val output = guideWebsiteDir.get().asFile
+        doFirst { output.deleteRecursively() } // no --clean in 26.1.15-beta
+        args(
+            "--data", guideExportDir.get().asFile.absolutePath,
+            "--output", output.absolutePath,
+            "--web-assets", layout.buildDirectory.dir("guideWebAssets").get().asFile.absolutePath,
+        )
+    }
+    // GuideME 26.1.15-beta has no preview server (its docs' WebSiteServer came later); the JDK's jwebserver serves the
+    // folder instead.
+    tasks.register<Exec>("serveGuideWebsite") {
+        group = "guide"
+        description = "Serves the guide website on http://localhost:8000 until stopped."
+        mustRunAfter(createGuideWebsite)
+        val javaHome = the<JavaToolchainService>().launcherFor(the<JavaPluginExtension>().toolchain)
+            .map { it.metadata.installationPath }
+        val windows = System.getProperty("os.name").lowercase().contains("win")
+        executable = javaHome.get().file(if (windows) "bin/jwebserver.exe" else "bin/jwebserver").asFile.absolutePath
+        args("-d", guideWebsiteDir.get().asFile.absolutePath, "-p", "8000")
+    }
+}
+// ---- end guides ----------------------------------------------------------------------------------------------------
 maxtech.loadMod(project.parent!!.path)
 neoForge.mods.named(modId) {
     sourceSet(gametest)
