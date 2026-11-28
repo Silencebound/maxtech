@@ -43,8 +43,9 @@ until Farms ships.
   up to `transfer.filterSize` entries from the screen. Tags go through tag support registered per kind.
 - Between two Lib ports facing each other only a `PUSH` face facing a `PULL` face moves, and the pushing port does
   it; the `PULL` face skips the pusher (owner, `PortFaceMode.movesAgainst`). Two `PUSH` faces or two `PULL` faces
-  move nothing between them, so two ports never move a resource back and forth. Blocks that are not Lib ports are
-  pushed into and pulled from as usual.
+  move nothing between them, so two ports never move a resource back and forth. A neighbour port's `OFF` face counts
+  as a block that is not a port (whether it exposes its buffers is that block's choice): such blocks are pushed into
+  and pulled from as usual.
 - A move between two handlers without transactions is refused (owner, ADR-0017); with one such side Lib touches it
   last: simulate it, move on the transactional side in a nested transaction, carry out the foreign side, keep only
   what it took.

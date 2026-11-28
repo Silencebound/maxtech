@@ -37,13 +37,13 @@ class PortFaceModeTest {
     }
 
     @Test
-    void betweenTwoPortsOnlyThePusherFacingAPullerMoves() {
+    void onlyThePusherMovesBetweenActiveFacesAndOffIsAPlainBlock() {
         PortFaceMode[] modes = {OFF, PUSH, PULL};
         boolean[][] moves = {
                 // facing: OFF, PUSH, PULL
-                {false, false, false}, // OFF
-                {false, false, true}, // PUSH: only into a pulling face
-                {false, false, false}, // PULL: never from a pushing face; the pusher moves
+                {false, false, false}, // OFF never moves
+                {true, false, true}, // PUSH: into an off face as a plain block, into a pulling face, not into a pusher
+                {true, false, false}, // PULL: from an off face; never from a pushing face (the pusher moves)
         };
         for (int mine = 0; mine < modes.length; mine++) {
             for (int facing = 0; facing < modes.length; facing++) {

@@ -37,13 +37,14 @@ public enum PortFaceMode {
 
     /**
      * Whether a face in this mode moves anything when the block on its side is another Lib port whose facing face
-     * ({@code face.getOpposite()}) has {@code facing} for the same kind. Between two ports only a {@code PUSH} face
-     * facing a {@code PULL} face moves, and the pushing port does it (owner): the {@code PULL} face skips the pushing
-     * face, two {@code PUSH} faces or two {@code PULL} faces move nothing between them, and nothing moves through an
-     * {@code OFF} face. Against a block that is not a Lib port every {@code PUSH} or {@code PULL} face moves as usual.
+     * ({@code face.getOpposite()}) has {@code facing} for the same kind. Only two active faces are restricted (owner):
+     * a {@code PUSH} face facing a {@code PULL} face moves and the pushing port does it, so the {@code PULL} face skips
+     * the pusher; two {@code PUSH} faces or two {@code PULL} faces move nothing between them. A neighbour's {@code OFF}
+     * face counts as a block that is not a port (whether it exposes its buffers is that block's choice), so a
+     * {@code PUSH} or {@code PULL} face acts on it as usual. An {@code OFF} face never moves.
      */
     public boolean movesAgainst(PortFaceMode facing) {
-        return this == PUSH && facing == PULL;
+        return this != OFF && (facing == OFF || (this == PUSH && facing == PULL));
     }
 
     /**
