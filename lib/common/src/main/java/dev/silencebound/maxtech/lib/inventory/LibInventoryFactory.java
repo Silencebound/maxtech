@@ -3,6 +3,7 @@ package dev.silencebound.maxtech.lib.inventory;
 import dev.silencebound.maxtech.lib.api.inventory.FluidTank;
 import dev.silencebound.maxtech.lib.api.inventory.InventoryFactory;
 import dev.silencebound.maxtech.lib.api.inventory.ItemSlots;
+import dev.silencebound.maxtech.lib.api.inventory.MachineAccess;
 import dev.silencebound.maxtech.lib.api.inventory.ResourceTank;
 import dev.silencebound.maxtech.lib.api.inventory.SlotRole;
 import dev.silencebound.maxtech.lib.api.resource.FluidKey;
@@ -11,6 +12,10 @@ import dev.silencebound.maxtech.lib.api.resource.ResourceKinds;
 import java.util.function.IntConsumer;
 import java.util.function.Predicate;
 import net.minecraft.world.item.ItemStack;
+// PLATFORM-LEAK: the machine's item handler is a NeoForge one (ADR-0002).
+import net.neoforged.neoforge.transfer.ResourceHandler;
+// PLATFORM-LEAK: see above.
+import net.neoforged.neoforge.transfer.item.ItemResource;
 import org.jspecify.annotations.Nullable;
 
 /** Lib's {@link InventoryFactory.Factory}, installed in {@code MaxtechLib.init}. */
@@ -34,5 +39,22 @@ public final class LibInventoryFactory implements InventoryFactory.Factory {
     @Override
     public FluidTank fluidTank(long capacity, Predicate<? super FluidKey> filter, Runnable onChange) {
         return new LibFluidTank(capacity, filter, onChange);
+    }
+
+    /** Lib's slots themselves: as a handler they are the machine's view, roles not applied. */
+    @Override
+    public ResourceHandler<ItemResource> machineItems(ItemSlots slots) {
+        if (!(slots instanceof LibItemSlots lib)) {
+            throw new IllegalArgumentException("Not Lib's slots: " + slots.getClass().getName());
+        }
+        return lib;
+    }
+
+    @Override
+    public <K> MachineAccess.Tank<K> machineTank(ResourceTank<K> tank) {
+        if (!(tank instanceof LibResourceTank<K> lib)) {
+            throw new IllegalArgumentException("Not Lib's tank: " + tank.getClass().getName());
+        }
+        return lib.machine();
     }
 }

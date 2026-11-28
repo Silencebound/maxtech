@@ -3,6 +3,7 @@ package dev.silencebound.maxtech.lib.inventory;
 import com.mojang.logging.LogUtils;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.Dynamic;
+import dev.silencebound.maxtech.lib.api.inventory.MachineAccess;
 import dev.silencebound.maxtech.lib.api.inventory.ResourceTank;
 import dev.silencebound.maxtech.lib.api.resource.ResourceKind;
 import java.util.Optional;
@@ -31,12 +32,19 @@ public class LibResourceTank<K> implements ResourceTank<K> {
 
     private final ResourceKind<K> kind;
     private final TankJournal<K> journal;
+    private final JournalTank<K> machine;
     private @Nullable Dynamic<?> unloaded;
     private long unloadedAmount;
 
     LibResourceTank(ResourceKind<K> kind, long capacity, Predicate<? super K> filter, Runnable onChange) {
         this.kind = kind;
         this.journal = new TankJournal<>(capacity, filter, onChange);
+        this.machine = new JournalTank<>(journal);
+    }
+
+    /** The machine's transactional view of this tank ({@link MachineAccess#tank}); the same instance every time. */
+    public final MachineAccess.Tank<K> machine() {
+        return machine;
     }
 
     @Override

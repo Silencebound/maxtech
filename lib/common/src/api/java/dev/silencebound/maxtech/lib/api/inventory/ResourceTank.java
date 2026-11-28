@@ -14,8 +14,9 @@ import org.jetbrains.annotations.ApiStatus;
  * no resource and amount 0, never one without the other.
  * <p>
  * As with {@link ItemSlots}, the methods here are the machine's own access, each its own committed step: not while a
- * NeoForge transfer transaction is open on the thread (an {@link IllegalStateException}). Automation and menus go
- * through handlers that take part in transactions. Server thread only.
+ * NeoForge transfer transaction is open on the thread (an {@link IllegalStateException}); inside one, a machine uses
+ * {@link MachineAccess#tank}. Automation and menus go through handlers that take part in transactions. Server thread
+ * only.
  * <p>
  * The change listener runs once per change, never for a simulation or a rolled-back transaction: at once for the
  * methods here, when the root transaction commits for changes made through a handler.
