@@ -26,9 +26,9 @@ import org.jetbrains.annotations.ApiStatus;
  * off face counts as a plain block.</li>
  * <li>Buffer roles hold between ports too. A port pushing into a neighbouring Lib port's pulling face inserts into that
  * port's buffers that take part in {@code PULL}, never into its push-only buffers, which the plain capability would
- * offer. Lib finds the neighbour through an internal registry of started ports by level and position; it is not api,
- * and a port that is not started is not in it. For a block that is not a Lib port the neighbour's capability is
- * used.</li>
+ * offer, and only what both ports' filters allow. Lib finds the neighbour through an internal registry of started ports
+ * by level and position; it is not api, and a port that is not started is not in it. For a block that is not a Lib port
+ * the neighbour's capability is used.</li>
  * <li>A move between two handlers that both lack transactions is refused; with one such side, Lib touches it last
  * (simulate it, move on the transactional side, carry out the foreign side, keep only what it took).</li>
  * </ul>

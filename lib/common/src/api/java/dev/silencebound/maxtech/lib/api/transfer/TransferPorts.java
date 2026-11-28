@@ -25,8 +25,8 @@ import org.jetbrains.annotations.ApiStatus;
  *         .items(outputSlots, PUSH_ONLY).onSettingsChanged(this::setChanged).build();
  * }</pre>
  *
- * Lib's port implementation is not in this version yet: {@link Builder#build()} checks the builder and then throws
- * {@link UnsupportedOperationException}.
+ * This Lib version moves items only: {@link Builder#build()} throws {@link UnsupportedOperationException} for a port
+ * with a buffer of another kind (fluids, energy and other tanks follow, ADR-0018).
  */
 @ApiStatus.Experimental
 public final class TransferPorts {
@@ -49,12 +49,10 @@ public final class TransferPorts {
      * it. Not thread-safe; use on one thread, then build.
      */
     public static final class Builder {
-        @SuppressWarnings("UnusedVariable") // read by Lib's port implementation, which is not in this version
         private final TaskGroup tasks;
         private final List<Buffer> buffers = new ArrayList<>();
         private final Map<ResourceKind<?>, Long> rates = new LinkedHashMap<>();
         private PortSettings defaults = PortSettings.EMPTY;
-        @SuppressWarnings("UnusedVariable") // see tasks
         private Runnable onSettingsChanged = () -> {
         };
 
@@ -131,8 +129,8 @@ public final class TransferPorts {
         /**
          * Checks the builder and makes the port: throws {@link IllegalStateException} without a buffer, or when
          * {@code rate} names a kind without one, and {@link IllegalArgumentException} for an energy buffer that joined
-         * an energy network since it was added. Lib's ports are not implemented in this version, so it then throws
-         * {@link UnsupportedOperationException}.
+         * an energy network since it was added, and {@link UnsupportedOperationException} for a buffer of a kind this
+         * Lib version does not move yet (anything but {@link #items}).
          */
         public TransferPort build() {
             if (buffers.isEmpty()) {
@@ -148,7 +146,12 @@ public final class TransferPorts {
                     checkStandalone(endpoint);
                 }
             }
-            throw new UnsupportedOperationException("Transfer ports are not implemented in this Lib version");
+            List<TransferPortFactory.Buffer> specs = new ArrayList<>(buffers.size());
+            for (Buffer buffer : buffers) {
+                specs.add(new TransferPortFactory.Buffer(buffer.kind, buffer.buffer, buffer.modes));
+            }
+            return TransferPortFactory.get()
+                    .create(new TransferPortFactory.Spec(tasks, specs, rates, defaults, onSettingsChanged));
         }
 
         /** The settings set with {@link #defaults}; {@link PortSettings#EMPTY} without. */

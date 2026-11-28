@@ -35,6 +35,9 @@ Api changes are marked **Api**.
   facade tint extension was registered with no blocks, which NeoForge refuses.
 
 ### Added
+- Transfer ports move items: `TransferPorts.Builder.build()` makes a port over `ItemSlots` buffers that pushes into
+  and pulls from the blocks beside it on its owner's task group, sleeping until something changes; ports with fluid,
+  energy or other tank buffers still throw `UnsupportedOperationException`.
 - **Api** Transfer port types (`lib.api.transfer` and `lib.neoforge.api.transfer`, experimental, ADR-0018): face
   modes (off, push, pull) packed per resource kind, allow and deny filters of keys and tags per port and kind, port
   settings saved by kind id (settings of a removed mod's kind are kept), the `TransferPort` handle and its builder

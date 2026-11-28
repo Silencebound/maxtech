@@ -6,6 +6,7 @@ import static dev.silencebound.maxtech.lib.api.transfer.PortFaceMode.PUSH;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import dev.silencebound.maxtech.lib.api.energy.EnergyEndpoint;
 import dev.silencebound.maxtech.lib.api.energy.EnergyPriority;
@@ -34,7 +35,9 @@ class TransferPortsTest {
         builder.tank(new StubTank<>(TestKinds.TEXT), Set.of(PUSH));
         assertEquals(EnumSet.allOf(PortFaceMode.class), builder.allowed(TestKinds.TEXT), "union of the buffers' modes");
         assertEquals(EnumSet.noneOf(PortFaceMode.class), builder.allowed(TestKinds.NUMBER));
-        assertThrows(UnsupportedOperationException.class, builder::build, "checks pass; ports are not in this version");
+        IllegalStateException noFactory = assertThrows(IllegalStateException.class, builder::build);
+        assertTrue(String.valueOf(noFactory.getMessage()).contains("not set up"),
+                "checks pass and reach the factory: " + noFactory);
     }
 
     @Test
