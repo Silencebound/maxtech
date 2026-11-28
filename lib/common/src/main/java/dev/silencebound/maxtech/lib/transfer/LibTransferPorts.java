@@ -21,9 +21,13 @@ public final class LibTransferPorts implements TransferPortFactory.Factory {
         List<TransferPortFactory.Buffer> itemBuffers = new ArrayList<>();
         EnumSet<PortFaceMode> allowed = EnumSet.of(PortFaceMode.OFF);
         for (TransferPortFactory.Buffer buffer : spec.buffers()) {
-            if (buffer.kind() != ResourceKinds.ITEM || !(buffer.buffer() instanceof LibItemSlots slots)) {
+            if (buffer.kind() != ResourceKinds.ITEM) {
                 throw new UnsupportedOperationException(
                         "This Lib version's transfer ports move items only, not " + buffer.kind().id());
+            }
+            if (!(buffer.buffer() instanceof LibItemSlots slots)) {
+                throw new IllegalArgumentException("A port's item buffer must be ItemSlots made by ItemSlots.builder(),"
+                        + " not " + buffer.buffer().getClass().getName());
             }
             views.add(slots.automation());
             itemBuffers.add(buffer);

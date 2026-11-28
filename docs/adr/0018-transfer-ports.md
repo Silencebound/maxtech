@@ -29,15 +29,20 @@ Ars Nouveau Source) must work without changing the port.
 Option 3, in the common api `lib.api.transfer` and the NeoForge-side api `lib.neoforge.api.transfer`, experimental
 until Farms ships.
 
-- `TransferPorts.builder(TaskGroup)` takes buffers (`items(ItemSlots, modes)`, `tank(ResourceTank<K>, modes)` with
+- `TransferPorts.builder()` takes buffers (`items(ItemSlots, modes)`, `tank(ResourceTank<K>, modes)` with
   `fluids(FluidTank, modes)`, `energy(EnergyEndpoint, modes)`), a rate cap per kind and a settings listener. A port
   can drive several buffers of one kind, each taking part in `PUSH`, `PULL` or both (owner): an input tank it pulls
   into and an output tank it pushes from, an input and an output slot group. Per face and kind the face's mode picks
   the buffers (`PULL` fills those allowing `PULL`, `PUSH` empties those allowing `PUSH`), first-fit in the order
   they were added. A face of a kind may take `OFF` and the modes of the kind's buffers. Buffer roles are code and not
   saved; settings stay per face and kind (`Builder.defaults` gives the settings a new port and data without settings
-  start with). A `TransferPort` runs one scheduled task in the owner's group, sleeps until a buffer or neighbour
-  changes, and is started and stopped by its block entity.
+  start with; a port always saves its settings, so changed defaults never reconfigure existing ports). A
+  `TransferPort` runs one scheduled task, sleeps until a buffer or neighbour changes, and is started and stopped by
+  its block entity. The task joins Lib's transfer group of the level on `start` (one per level, per-owner budgets),
+  so an owner needs no group of its own (amended in T2, before Farms F1: owners had to pass a group they did not
+  have at construction time); `Builder.tasks(level -> group)` puts it in the owner's group instead, asked again on
+  every start and, if that group closed, on the next event. Like Storage's devices, ports run whatever the ticking
+  status of their own chunk (border chunks included) and move only through faces whose neighbour is at full status.
 - A face pushes or pulls, never both: `PortFaceMode` is `OFF`, `PUSH` or `PULL` (owner). `PortFaces` packs six modes
   into two bits per face, per kind.
 - Filters are per port and per kind, not per face (owner): `PortFilter` is an allow or deny list of keys and tags,
@@ -50,7 +55,9 @@ until Farms ships.
 - Buffer roles hold between ports: a port pushing into a neighbouring Lib port's `PULL` face inserts into that port's
   buffers taking part in `PULL`, never into its push-only buffers, which the plain capability would offer. The pusher
   finds the neighbour through an internal registry of started ports by level and position (T2; not api); for a block
-  that is not a Lib port it uses the neighbour's capability.
+  that is not a Lib port it uses the neighbour's capability. The neighbour port's block must expose the capability on
+  that face too, so a registry entry left by a block that is gone gets nothing. A port whose settings change wakes the
+  started ports beside it, which may have slept because of it.
 - A move between two handlers without transactions is refused (owner, ADR-0017); with one such side Lib touches it
   last: simulate it, move on the transactional side in a nested transaction, carry out the foreign side, keep only
   what it took.

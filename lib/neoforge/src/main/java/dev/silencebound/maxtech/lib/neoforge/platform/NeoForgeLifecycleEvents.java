@@ -9,6 +9,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.neoforged.bus.api.EventPriority;
 import net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent;
 import net.neoforged.neoforge.common.NeoForge;
+import net.neoforged.neoforge.event.TagsUpdatedEvent;
 import net.neoforged.neoforge.event.level.BlockEvent;
 import net.neoforged.neoforge.event.level.ChunkEvent;
 import net.neoforged.neoforge.event.level.ChunkTicketLevelUpdatedEvent;
@@ -41,6 +42,11 @@ final class NeoForgeLifecycleEvents implements LifecycleEvents {
                 action.accept(level);
             }
         });
+    }
+
+    @Override
+    public void onServerTagsReloaded(Runnable action) {
+        NeoForge.EVENT_BUS.addListener(TagsUpdatedEvent.ServerDataLoad.class, event -> action.run());
     }
 
     @Override

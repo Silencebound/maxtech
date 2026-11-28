@@ -14,6 +14,7 @@ import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Function;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
@@ -22,19 +23,26 @@ import net.minecraft.world.level.storage.ValueOutput;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Lib's {@link TransferPort}: one {@link ScheduledTask} in the owner's group runs one operation per kind and then
- * sleeps until an event (a buffer, neighbour, capability or settings change, or {@link #start}). After a move it waits
- * {@code transfer.minIntervalTicks}; when a partner refused or held nothing it backs off ({@code IDLE}, capped by
- * {@code scheduler.maxBackoffTicks}), since a vertical or modded neighbour may change without telling it; with nothing
- * to do it waits for an event. Events during its own operation come from its own moves and are ignored. While started
- * it is in {@link PortRegistry}. Server thread only.
+ * Lib's {@link TransferPort}: one {@link ScheduledTask}, in Lib's transfer group of the level ({@link PortRegistry}) or
+ * the owner's group, runs one operation per kind and then sleeps until an event (a buffer, neighbour, capability or
+ * settings change, a neighbouring port's settings change, or {@link #start}). An event less than
+ * {@code transfer.minIntervalTicks} after the last operation, whatever it did, runs the port only once that interval is
+ * over, so events every tick cannot run a blocked port every tick. When a partner refused or held nothing it backs off
+ * ({@code IDLE}, capped by {@code scheduler.maxBackoffTicks}), since a vertical or modded neighbour may change without
+ * telling it; with nothing to do it waits for an event. Events during its own operation come from its own moves and are
+ * ignored. While started it is in {@link PortRegistry}. Like Storage's device scheduler, the port runs whatever the
+ * ticking status of its own chunk, a border chunk included; it only moves through faces whose neighbour is at full
+ * status. Server thread only.
  */
 public final class LibTransferPort implements TransferPort {
     private static final String SETTINGS = "port_settings";
-    /** {@link #lastMove} before any move; far enough below any game time that the difference cannot overflow. */
+    /**
+     * {@link #lastRun} and {@link #deferredUntil} before any run; far enough below any game time that the difference
+     * cannot overflow.
+     */
     private static final long NEVER = Long.MIN_VALUE / 2;
 
-    private final TaskGroup tasks;
+    private final @Nullable Function<ServerLevel, TaskGroup> groups;
     private final Task task = new Task();
     private final PortChannel[] channels;
     private final @Nullable ItemChannel items;
@@ -48,11 +56,18 @@ public final class LibTransferPort implements TransferPort {
     private BlockPos pos = BlockPos.ZERO;
     private long packedPos;
     private @Nullable Long2ObjectOpenHashMap<LibTransferPort> registry;
+    private @Nullable TaskGroup tasks;
     private boolean running;
-    private long lastMove = NEVER;
+    /** Game time of the last operation, whatever it did. */
+    private long lastRun = NEVER;
+    /** Until this game time a timer will run the task, so events need not queue it again. */
+    private long deferredUntil = NEVER;
+    /** An event came since the last run. */
+    private boolean woken;
 
-    LibTransferPort(TaskGroup tasks, @Nullable ItemChannel items, PortSettings defaults, Runnable onSettingsChanged) {
-        this.tasks = tasks;
+    LibTransferPort(@Nullable Function<ServerLevel, TaskGroup> groups, @Nullable ItemChannel items,
+            PortSettings defaults, Runnable onSettingsChanged) {
+        this.groups = groups;
         this.items = items;
         this.channels = items == null ? new PortChannel[0] : new PortChannel[]{items};
         ResourceKind<?>[] moved = new ResourceKind<?>[channels.length];
@@ -104,10 +119,47 @@ public final class LibTransferPort implements TransferPort {
         return current;
     }
 
-    /** Wakes the task for an event, unless it comes from the port's own operation or the port is stopped. */
+    /**
+     * Wakes the task for an event, unless it comes from the port's own operation or the port is stopped. Within the
+     * interval after an operation the timer already set runs it; a port whose group closed joins a group again.
+     */
     void wakeForEvent() {
-        if (level != null && !running) {
+        ServerLevel current = level;
+        if (current == null || running) {
+            return;
+        }
+        woken = true;
+        if (task.group() == null) {
+            join(current);
+        } else if (current.getGameTime() >= deferredUntil) {
             task.wake();
+        }
+    }
+
+    /** Wakes the started ports beside this one: they may have slept because of this port's settings. */
+    private void wakeNeighbours() {
+        for (int i = 0; i < 6; i++) {
+            LibTransferPort neighbour = neighbour(i);
+            if (neighbour != null) {
+                neighbour.wakeForEvent();
+            }
+        }
+    }
+
+    /** Adds the task to the group for {@code current}: the owner's, or Lib's while the owner's is closed. */
+    private void join(ServerLevel current) {
+        TaskGroup group = groups == null ? null : groups.apply(current);
+        if (group == null || group.isClosed()) {
+            group = PortRegistry.group(current);
+        }
+        tasks = group;
+        group.add(task);
+    }
+
+    /** Forgets the filters' cached answers (tags may have changed). */
+    void forgetFilterAnswers() {
+        if (items != null) {
+            items.forgetFilterAnswers();
         }
     }
 
@@ -129,8 +181,11 @@ public final class LibTransferPort implements TransferPort {
         for (PortChannel channel : channels) {
             channel.open(this, newLevel, pos, settings.faces(channel.kind));
         }
-        lastMove = NEVER;
-        tasks.add(task);
+        lastRun = NEVER;
+        deferredUntil = NEVER;
+        woken = false;
+        forgetFilterAnswers();
+        join(newLevel);
     }
 
     @Override
@@ -145,7 +200,11 @@ public final class LibTransferPort implements TransferPort {
         }
         registry = null;
         level = null;
-        tasks.remove(task);
+        TaskGroup group = tasks;
+        if (group != null) {
+            group.remove(task);
+        }
+        tasks = null;
         for (PortChannel channel : channels) {
             channel.close();
         }
@@ -201,12 +260,10 @@ public final class LibTransferPort implements TransferPort {
         return channel == null || level == null ? PortStatus.OFF : channel.status;
     }
 
-    /** Saves the settings unless they are the builder's defaults, which {@link #load} falls back to. */
+    /** Saves the settings, defaults included, so changed builder defaults never reconfigure an existing port. */
     @Override
     public void save(ValueOutput output) {
-        if (!settings.equals(defaults)) {
-            output.store(SETTINGS, PortSettings.CODEC, settings);
-        }
+        output.store(SETTINGS, PortSettings.CODEC, settings);
     }
 
     @Override
@@ -230,6 +287,9 @@ public final class LibTransferPort implements TransferPort {
             }
         }
         wakeForEvent();
+        if (current != null) {
+            wakeNeighbours();
+        }
         return true;
     }
 
@@ -254,8 +314,8 @@ public final class LibTransferPort implements TransferPort {
         return null;
     }
 
-    /** The task group's runs of this port's task are its operations; for tests. */
-    public TaskGroup tasks() {
+    /** The group the task is in while started, or null; for tests. */
+    public @Nullable TaskGroup tasks() {
         return tasks;
     }
 
@@ -275,10 +335,16 @@ public final class LibTransferPort implements TransferPort {
                 return WAIT;
             }
             int interval = Math.max(1, ServerConfig.TRANSFER_MIN_INTERVAL_TICKS.getAsInt());
-            long since = gameTime - lastMove;
-            if (since < interval) {
+            boolean event = woken;
+            woken = false;
+            long since = gameTime - lastRun;
+            if (since < interval && (event || gameTime < deferredUntil)) {
+                // Only events wait out the interval: a delay would reset a backoff timer's doubling.
+                deferredUntil = gameTime + interval - since;
                 return (int) (interval - since);
             }
+            lastRun = gameTime;
+            deferredUntil = NEVER;
             running = true;
             try {
                 boolean moved = false;
@@ -290,7 +356,7 @@ public final class LibTransferPort implements TransferPort {
                     poll |= result == PortChannel.POLL;
                 }
                 if (moved) {
-                    lastMove = gameTime;
+                    deferredUntil = gameTime + interval;
                     return interval;
                 }
                 return poll ? IDLE : WAIT;

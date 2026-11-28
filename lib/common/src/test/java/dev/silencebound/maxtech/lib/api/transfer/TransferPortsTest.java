@@ -14,7 +14,6 @@ import dev.silencebound.maxtech.lib.api.energy.EnergyScheduler;
 import dev.silencebound.maxtech.lib.api.inventory.ResourceTank;
 import dev.silencebound.maxtech.lib.api.resource.ResourceKind;
 import dev.silencebound.maxtech.lib.api.resource.TestKinds;
-import dev.silencebound.maxtech.lib.api.schedule.TaskScheduler;
 import java.util.EnumSet;
 import java.util.Optional;
 import java.util.Set;
@@ -25,7 +24,7 @@ import org.junit.jupiter.api.Test;
 
 class TransferPortsTest {
     private static TransferPorts.Builder builder() {
-        return TransferPorts.builder(new TaskScheduler(() -> 0L, () -> 1).newGroup(() -> 1L, () -> 1));
+        return TransferPorts.builder();
     }
 
     @Test

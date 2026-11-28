@@ -1,5 +1,6 @@
 package dev.silencebound.maxtech.lib.api.client.gui;
 
+import dev.silencebound.maxtech.lib.api.style.AccentTheme;
 import org.jetbrains.annotations.ApiStatus;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
@@ -37,7 +38,7 @@ public final class AccentToast {
 
     /** What the toast reports; sets its colour. */
     public enum Kind {
-        /** News: cyan. */
+        /** News: cyan, or the toast's theme's bright gauge colour ({@link AccentToast#theme}). */
         INFO(Accent.BAR_TOP),
         /** Something needs a look: amber. */
         WARN(Accent.AMBER),
@@ -50,17 +51,27 @@ public final class AccentToast {
             this.colour = colour;
         }
 
-        /** The colour of the strip on the toast's left edge (ARGB). */
+        /** The colour of the strip on the toast's left edge (ARGB) in Lib's theme. */
         public int colour() {
             return colour;
         }
     }
 
+    private AccentTheme theme = AccentTheme.LIB;
     private Component title = Component.empty();
     private Component detail = Component.empty();
     private Kind kind = Kind.INFO;
     private long shownAt;
     private int millis;
+
+    /**
+     * Draws in {@code theme}'s colours instead of Lib's cyan: the title in its text colour and an {@link Kind#INFO}
+     * strip in its bright gauge colour. Warnings and errors keep their amber and red, as on every MaxTech screen.
+     */
+    public AccentToast theme(AccentTheme value) {
+        theme = value;
+        return this;
+    }
 
     /** Shows {@code title} and {@code detail} (empty for one line) from {@code now} for {@code millis}. */
     public void show(Component title, Component detail, Kind kind, long now, int millis) {
@@ -127,12 +138,17 @@ public final class AccentToast {
         int x = right - width;
         int y = bottom - height;
         Accent.box(graphics, x, y, width, height);
-        graphics.fill(x + 1, y + 1, x + 1 + STRIP, bottom - 1, kind.colour());
+        graphics.fill(x + 1, y + 1, x + 1 + STRIP, bottom - 1, stripColour(kind, theme));
         int textY = y + PAD;
-        TextScale.text(graphics, font, title, x + TEXT_X, textY, Accent.TEXT, false);
+        TextScale.text(graphics, font, title, x + TEXT_X, textY, theme.text(), false);
         if (two) {
             TextScale.text(graphics, font, detail, x + TEXT_X, textY + lineHeight + 2, Accent.LABEL, false);
         }
+    }
+
+    /** The strip colour of {@code kind} in {@code theme}: the theme's bright gauge colour for news. */
+    public static int stripColour(Kind kind, AccentTheme theme) {
+        return kind == Kind.INFO ? theme.barTop() : kind.colour();
     }
 
     /**
