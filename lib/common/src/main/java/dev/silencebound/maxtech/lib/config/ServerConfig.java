@@ -47,6 +47,12 @@ public final class ServerConfig {
     public static final LongSupplier EXPORT_PER_EDGE;
     public static final LongSupplier EXPORT_PER_NETWORK;
     public static final IntSupplier EDGE_POLL_TICKS;
+    /** {@code transfer.*}: what one transfer port operation moves at most, how often, and filter size (ADR-0018). */
+    public static final IntSupplier TRANSFER_ITEMS_PER_OP;
+    public static final IntSupplier TRANSFER_FLUID_PER_OP;
+    public static final LongSupplier TRANSFER_ENERGY_PER_OP;
+    public static final IntSupplier TRANSFER_MIN_INTERVAL_TICKS;
+    public static final IntSupplier TRANSFER_FILTER_SIZE;
 
     private static volatile @Nullable ConfigFile file;
     private static volatile FeRate feRate = FeRate.ONE_TO_ONE;
@@ -120,6 +126,23 @@ public final class ServerConfig {
                 .comment("FE has no change signal: while no energy flows to or from another mod's block, its edge",
                         "looks at it again every this many ticks (and at once when the block is placed or removed).")
                 .defineInRange("edgePollTicks", CONFIG.intDefault("energy.edgePollTicks"), 1, 1200);
+        BUILDER.pop();
+
+        BUILDER.push("transfer");
+        TRANSFER_ITEMS_PER_OP = BUILDER.comment("Most items one operation of a transfer port moves through one face.")
+                .defineInRange("itemsPerOp", CONFIG.intDefault("transfer.itemsPerOp"), 1, 4096);
+        TRANSFER_FLUID_PER_OP = BUILDER
+                .comment("Most fluid (mB) one operation of a transfer port moves through one face.")
+                .defineInRange("fluidPerOp", CONFIG.intDefault("transfer.fluidPerOp"), 1, 1_000_000);
+        TRANSFER_ENERGY_PER_OP = BUILDER
+                .comment("Most energy (MU) one operation of a transfer port moves through one face.")
+                .defineInRange("energyPerOp", CONFIG.longDefault("transfer.energyPerOp"), 1L, 1L << 40);
+        TRANSFER_MIN_INTERVAL_TICKS = BUILDER
+                .comment("Fewest ticks between two operations of one transfer port; ports sleep longer while idle.")
+                .defineInRange("minIntervalTicks", CONFIG.intDefault("transfer.minIntervalTicks"), 1, 1200);
+        TRANSFER_FILTER_SIZE = BUILDER
+                .comment("Most entries (resources and tags) a player can put in one transfer port filter.")
+                .defineInRange("filterSize", CONFIG.intDefault("transfer.filterSize"), 1, 54);
         BUILDER.pop();
 
     }
@@ -217,10 +240,10 @@ public final class ServerConfig {
 
     /**
      * Where the built-in presets and this config's values disagree; see {@link LibPresetConfig#presetProblems()}. The
-     * {@code energy.*} keys must be in every preset.
+     * {@code energy.*} and {@code transfer.*} keys must be in every preset.
      */
     public static List<String> presetProblems() {
-        return CONFIG.presetProblems(path -> path.startsWith("energy."));
+        return CONFIG.presetProblems(path -> path.startsWith("energy.") || path.startsWith("transfer."));
     }
 
     /**

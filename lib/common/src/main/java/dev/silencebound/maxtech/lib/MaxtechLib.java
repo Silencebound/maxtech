@@ -25,6 +25,7 @@ import dev.silencebound.maxtech.lib.network.NetworkBootstrap;
 import dev.silencebound.maxtech.lib.platform.Platform;
 import dev.silencebound.maxtech.lib.registry.ModContent;
 import dev.silencebound.maxtech.lib.schedule.LevelTasks;
+import dev.silencebound.maxtech.lib.transfer.PortTags;
 import net.minecraft.core.Registry;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
@@ -54,6 +55,7 @@ public final class MaxtechLib {
         Conduits.setFactory(new LibConduits());
         ConduitParts.setFactory(new LibConduitParts());
         InventoryFactory.install(new LibInventoryFactory());
+        PortTags.register();
         ServerConfig.register();
         OwnerSecurity.setOpsBypassSource(() -> ServerConfig.loadedOr(ServerConfig.OPS_BYPASS_OWNERSHIP, true));
         EnergyNetworks.setFeRateSource(ServerConfig::feRate);
