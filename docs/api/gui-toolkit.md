@@ -103,3 +103,24 @@ Expose the same inventories to the world with `Handlers.items(slots)` and `Handl
 
 Lang: the title key, label and value keys, and each status constant's key are yours. Update values from a task in
 Lib's scheduler group of the level (`TaskSchedulers.newGroup`), never from a ticker; the screen follows by itself.
+
+## Testing menus
+
+`MenuTesting` (`lib.api.menu`, experimental, for GameTests only) opens a definition for a mock server player, which has
+no connection, and captures the values payloads that would go to it:
+
+```java
+ServerPlayer player = helper.makeMockServerPlayerInLevel();
+try (var session = MenuTesting.open(LabBlockEntity.MENU, player, lab)) {
+    lab.progress = 40;
+    session.tick();                                   // one server tick of the menu
+    session.clientValues().current(arrow);            // what a screen would read: the payloads applied to a client menu
+    session.serverValues().amount(tank);              // or what the server read last
+    session.pressTankButton(tank);                    // a bucket click on the gauge; true if fluid moved
+    session.shiftClick(input, 0);                     // slot 0 of a group; shiftClickPlayerSlot(i) for the player's
+    session.menu().setCarried(new ItemStack(Items.BUCKET));   // vanilla's menu for everything else
+}
+```
+
+Close the session when the test ends; remove the player yourself. `tick()` counts its own ticks, so two calls in one
+game tick send two payloads, also in a frozen level. Never use it in a running game.

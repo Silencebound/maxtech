@@ -2,6 +2,7 @@ package dev.silencebound.maxtech.lib.menu;
 
 import com.mojang.logging.LogUtils;
 import dev.silencebound.maxtech.lib.api.menu.MenuDefinition;
+import dev.silencebound.maxtech.lib.api.menu.MenuTesting;
 import dev.silencebound.maxtech.lib.api.menu.Menus;
 import dev.silencebound.maxtech.lib.api.registry.Registrar;
 import java.util.function.Consumer;
@@ -19,7 +20,7 @@ import org.slf4j.Logger;
  * definition says everything), opened with vanilla's open-screen packet, and the screen bound on clients through a
  * binder that Lib's client entrypoint sets before any addon is constructed.
  */
-public final class LibMenus implements Menus.Backend {
+public final class LibMenus implements Menus.Backend, MenuTesting.Support {
     private static final Logger LOGGER = LogUtils.getLogger();
     private static volatile @Nullable Consumer<MenuDefinition<?>> screens;
 
@@ -63,6 +64,11 @@ public final class LibMenus implements Menus.Backend {
         player.openMenu(new SimpleMenuProvider(
                 (containerId, inventory, opener) -> new DefinedMenu<>(definition, containerId, inventory, host),
                 Component.translatable(definition.titleKey())));
+    }
+
+    @Override
+    public <H> MenuTesting.Session<H> openTesting(MenuDefinition<H> definition, ServerPlayer player, H host) {
+        return new MenuTestSession<>(definition, player, host);
     }
 
     @Override

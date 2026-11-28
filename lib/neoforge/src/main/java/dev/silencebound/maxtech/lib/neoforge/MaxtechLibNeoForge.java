@@ -1,6 +1,7 @@
 package dev.silencebound.maxtech.lib.neoforge;
 
 import dev.silencebound.maxtech.lib.MaxtechLib;
+import dev.silencebound.maxtech.lib.api.menu.MenuTesting;
 import dev.silencebound.maxtech.lib.api.menu.Menus;
 import dev.silencebound.maxtech.lib.menu.LibMenus;
 import dev.silencebound.maxtech.lib.menu.MenuValuesPayload;
@@ -21,7 +22,9 @@ public final class MaxtechLibNeoForge {
         MaxtechLib.init();
         Handlers.install(new LibHandlerBridge());
         // Toolkit menu layouts throw on problems in dev runs only (MenuDefinition).
-        Menus.setBackend(new LibMenus(!FMLEnvironment.isProduction()));
+        LibMenus menus = new LibMenus(!FMLEnvironment.isProduction());
+        Menus.setBackend(menus);
+        MenuTesting.setSupport(menus);
         ResourceHandlerBridge.register();
         ContentEnabledCondition.init();
         Platform.get().network().registerToClient(MaxtechLib.MOD_ID, MenuValuesPayload.TYPE, MenuValuesPayload.CODEC,

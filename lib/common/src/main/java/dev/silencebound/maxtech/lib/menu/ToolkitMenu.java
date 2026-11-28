@@ -82,7 +82,8 @@ public abstract class ToolkitMenu<H> extends AbstractContainerMenu {
     /**
      * Sends the values payloads of menus built from now on to {@code sink} (null: the player's connection again). For
      * GameTests that open a menu through the api for a mock server player: vanilla broadcasts its values while opening
-     * it, before the test could set {@link #sendValuesTo}, and the mock connection refuses Lib's payloads.
+     * it, before the test could set {@link #sendValuesTo}, and the mock connection refuses Lib's payloads. Lib-internal
+     * test helper; addons use {@code MenuTesting}.
      */
     @VisibleForTesting
     public static void sendNewMenusValuesTo(@Nullable Consumer<MenuValuesPayload> sink) {
@@ -194,16 +195,28 @@ public abstract class ToolkitMenu<H> extends AbstractContainerMenu {
         return table;
     }
 
-    /** Sends values payloads to {@code sink} instead of the player's connection (GameTests: mock players have none). */
+    /**
+     * Sends values payloads to {@code sink} instead of the player's connection (GameTests: mock players have none).
+     * Lib-internal test helper; addons use {@code MenuTesting}.
+     */
     @VisibleForTesting
     public final void sendValuesTo(Consumer<MenuValuesPayload> sink) {
         this.sink = sink;
     }
 
-    /** Counts ticks with {@code ticks} instead of the server's tick count (GameTests: a frozen level). */
+    /**
+     * Counts ticks with {@code ticks} instead of the server's tick count (GameTests: a frozen level). Lib-internal test
+     * helper; addons use {@code MenuTesting}.
+     */
     @VisibleForTesting
     public final void countTicksWith(LongSupplier ticks) {
         this.ticks = ticks;
+        sentTick = Long.MIN_VALUE;
+    }
+
+    /** Menu index of the player's first main-inventory slot, or -1 when the menu has no player inventory. */
+    final int playerFirst() {
+        return playerFirst;
     }
 
     @Override
