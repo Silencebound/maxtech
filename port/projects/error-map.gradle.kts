@@ -23,6 +23,12 @@ tasks.register("errorMapInputs") {
             .filter { !(it.startsWith(portProjects) && it.parentFile.name == "libs") }
             .distinct()
         dir.resolve("classpath.txt").writeText(jars.joinToString("\n") + "\n")
+        // Class directories of the other port projects (Storage's view of the generated Lib, built by its
+        // errorMapInputs); only `errormap.sh --mod storage` reads them, Lib's map compiles Lib from source.
+        val classDirs = sets.flatMap { it.compileClasspath.files }
+            .filter { it.startsWith(portProjects) && !it.startsWith(projectDir) && !it.name.endsWith(".jar") }
+            .distinct()
+        dir.resolve("classdirs.txt").writeText(classDirs.joinToString("\n") + "\n")
         val java = sets.flatMap { it.java.srcDirs }.filter { it.isDirectory }
             .flatMap { d -> d.walkTopDown().filter { it.isFile && it.name.endsWith(".java") }.toList() }
         dir.resolve("sources.txt").writeText(java.joinToString("\n") { it.absolutePath } + "\n")

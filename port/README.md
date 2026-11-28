@@ -30,7 +30,12 @@ python3 -I port/convert.py --check         # exit 1 on warnings (stale overrides
 port/tools/errormap.sh                     # regenerate, then one javac per work package; summary on stdout
 port/tools/errormap.sh --single            # ... or ONE javac over everything (faster, can hide errors)
 port/tools/errormap.sh --symbols           # ... plus the most common missing symbols per area
+port/tools/errormap.sh --mod storage --symbols  # Storage against the generated Lib, per area (storage-errors.md)
 ```
+
+Storage is only measured so far (`storage-errors.md`): `convert.py --mod storage` adds `port/out/storage` (about two
+minutes instead of twenty seconds, so Lib's default stays `--mod lib`), and its Gradle projects join only with
+`-PwithStorage=true`, so Lib's `compileJava` and `test` stay green.
 
 `:lib:neoforge:test` runs inside FML (ModDevGradle's `unitTest`, tested mod `maxtech_lib`), so tests can use the
 game's registries; it also runs common's tests under `shim/transfer/bridge/legacy`, which skip themselves in common's
@@ -59,6 +64,8 @@ runs in Git Bash on Windows too (`python3` or `python`, `;` classpath separator,
 | `override/lib/**` | whole-file replacements, same paths as `lib/` |
 | `ownership.txt` | generated file -> work package (`errors.md`, "Ownership") |
 | `projects/lib-common`, `projects/lib-neoforge` | the Gradle projects; their sources are `out/lib/<piece>/src/<set>/java` |
+| `projects/storage-common`, `projects/storage-neoforge` | Storage's projects (error map only, `-PwithStorage=true`), against the generated Lib |
+| `rules/storage_shared.py` | Lib's package-wide rules and file-scoped shim moves, rescoped to Storage (`storage-errors.md`) |
 | `gradle/libs.versions.toml` | 1.21.1 dependency versions (main's catalog stays 26.1.2) |
 
 ## Overrides

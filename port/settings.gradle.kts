@@ -35,3 +35,12 @@ include(":lib:common", ":lib:neoforge")
 project(":lib").projectDir = file("projects")
 project(":lib:common").projectDir = file("projects/lib-common")
 project(":lib:neoforge").projectDir = file("projects/lib-neoforge")
+
+// Storage (port/storage-errors.md) is only measured so far: its projects join with -PwithStorage=true, after
+// `convert.py --mod storage`, so Lib's own commands (compileJava, test) stay green while Storage has errors.
+if (providers.gradleProperty("withStorage").map { it.trim().toBoolean() }.getOrElse(false)) {
+    include(":storage:common", ":storage:neoforge")
+    project(":storage").projectDir = file("projects/storage")
+    project(":storage:common").projectDir = file("projects/storage-common")
+    project(":storage:neoforge").projectDir = file("projects/storage-neoforge")
+}
