@@ -14,6 +14,7 @@ import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 import net.minecraft.core.Holder;
@@ -28,7 +29,6 @@ import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.util.ExtraCodecs;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.ItemStackTemplate;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.ItemLike;
 import dev.silencebound.maxtech.lib.shim.transfer.TransferPreconditions;
@@ -42,6 +42,10 @@ import org.slf4j.Logger;
  */
 public final class ItemResource implements DataComponentHolderResource<Item> {
     private static final Logger LOGGER = LogUtils.getLogger();
+    private static final ConcurrentHashMap<Item, Default> DEFAULTS = new ConcurrentHashMap<>();
+
+    /** A cached default resource and the item's default components it was built from. */
+    private record Default(DataComponentMap prototype, ItemResource resource) {}
     /**
      * The empty resource instance of a {@link ItemResource}
      */
@@ -54,7 +58,7 @@ public final class ItemResource implements DataComponentHolderResource<Item> {
     public static final Codec<ItemResource> CODEC = Codec.lazyInitialized(
             () -> RecordCodecBuilder.create(
                     i -> i.group(
-                            Item.CODEC.fieldOf("id").forGetter(ItemResource::typeHolder),
+                            ItemStack.ITEM_NON_AIR_CODEC.fieldOf("id").forGetter(ItemResource::typeHolder),
                             DataComponentPatch.CODEC.optionalFieldOf("components", DataComponentPatch.EMPTY).forGetter(ItemResource::getComponentsPatch))
                             .apply(i, ItemResource::of)));
 
@@ -86,25 +90,6 @@ public final class ItemResource implements DataComponentHolderResource<Item> {
         return new ItemResource(stack.copyWithCount(1));
     }
 
-    /**
-     * Creates an ItemResource using the default or copy of the passed in item stack. Note the count is lost.
-     *
-     * @param template stack to copy with a size of 1
-     * @return If null was given, an empty resource is returned.
-     *         If there were no patches on the stack's data components, the item's default resource will be returned, otherwise a new instance with the copied stack.
-     */
-    public static ItemResource of(@Nullable ItemStackTemplate template) {
-        if (template == null) {
-            return EMPTY;
-        }
-        if (template.components().isEmpty()) {
-            return of(template.item());
-        }
-
-        var stack = template.create();
-        stack.setCount(1);
-        return new ItemResource(stack);
-    }
 
     /**
      * <strong>Note:</strong> This cannot be called before your item is registered
@@ -115,7 +100,15 @@ public final class ItemResource implements DataComponentHolderResource<Item> {
     public static ItemResource of(ItemLike item) {
         Item value = item.asItem();
         if (value == Items.AIR) return EMPTY;
-        return value.computeDefaultResource(i -> new ItemResource(new ItemStack(i)));
+        // 1.21.1 has no Item#computeDefaultResource; the cache keeps 26.1's one shared default instance per item. It
+        // is rebuilt when the item's default components change (ModifyDefaultComponentsEvent runs after registration),
+        // so a resource made before that never stays stale.
+        Default cached = DEFAULTS.get(value);
+        if (cached == null || cached.prototype() != value.components()) {
+            cached = new Default(value.components(), new ItemResource(new ItemStack(value)));
+            DEFAULTS.put(value, cached);
+        }
+        return cached.resource();
     }
 
     /**
@@ -156,7 +149,8 @@ public final class ItemResource implements DataComponentHolderResource<Item> {
         }
 
         var stack = new ItemStack(holder, 1, patch);
-        var err = ItemStack.validateStrict(stack).error();
+        // 1.21.1's ItemStack.validateStrict is private; its component check is public (the count is always 1 here).
+        var err = ItemStack.validateComponents(stack.getComponents()).error();
 
         if (err.isPresent()) {
             LOGGER.warn("Can't create item resource '{}' with components {}, error: {}", holder.getRegisteredName(), patch, err.get().message());
@@ -190,7 +184,7 @@ public final class ItemResource implements DataComponentHolderResource<Item> {
 
     @Override
     public Holder<Item> typeHolder() {
-        return innerStack.typeHolder();
+        return innerStack.getItemHolder();
     }
 
     @Override
@@ -207,14 +201,6 @@ public final class ItemResource implements DataComponentHolderResource<Item> {
         return ItemStack.isSameItemSameComponents(stack, innerStack);
     }
 
-    /**
-     * {@return true if this resource matches the item and components of the passed template}
-     *
-     * @param template the item stack template to check
-     */
-    public boolean matches(@Nullable ItemStackTemplate template) {
-        return ItemStack.isSameItemSameComponents(innerStack, template);
-    }
 
     /**
      * {@return true if the item instance matches the backing instance value}
@@ -285,7 +271,7 @@ public final class ItemResource implements DataComponentHolderResource<Item> {
 
     @Override
     public DataComponentMap getComponents() {
-        return innerStack.immutableComponents();
+        return innerStack.getComponents();
     }
 
     @Override

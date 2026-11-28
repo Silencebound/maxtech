@@ -10,14 +10,19 @@
 package dev.silencebound.maxtech.lib.shim.transfer.item;
 
 import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.Deque;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.enchantment.EnchantmentEffectComponents;
 import net.minecraft.world.item.enchantment.EnchantmentHelper;
 import net.neoforged.neoforge.common.CommonHooks;
+import net.neoforged.neoforge.common.NeoForge;
+import net.neoforged.neoforge.event.entity.item.ItemTossEvent;
 import dev.silencebound.maxtech.lib.shim.transfer.CombinedResourceHandler;
 import dev.silencebound.maxtech.lib.shim.transfer.RangedResourceHandler;
 import dev.silencebound.maxtech.lib.shim.transfer.ResourceHandler;
@@ -59,11 +64,12 @@ public final class PlayerInventoryWrapper extends VanillaContainerWrapper {
     @Override
     void resize() {
         // We currently limit the player wrapper to main + armor + offhand. This can be changed later if needed.
-        size = Inventory.SLOT_BODY_ARMOR;
+        // 1.21.1's Inventory has the same layout (main 0-35, armor 36-39, offhand 40) but no body armor slot constant.
+        size = Inventory.SLOT_OFFHAND + 1;
         while (slotWrappers.size() < size) {
             int index = slotWrappers.size();
             if (Inventory.INVENTORY_SIZE <= index && index < Inventory.SLOT_OFFHAND) {
-                var equipmentSlot = Inventory.EQUIPMENT_SLOT_MAPPING.get(index);
+                var equipmentSlot = armorSlot(index - Inventory.INVENTORY_SIZE);
                 slotWrappers.add(new ArmorSlotWrapper(index, equipmentSlot));
             } else {
                 slotWrappers.add(new SlotWrapper(index));
@@ -92,10 +98,10 @@ public final class PlayerInventoryWrapper extends VanillaContainerWrapper {
      * Retrieves a wrapper for the slot corresponding to the current main hand.
      */
     public ResourceHandler<ItemResource> getMainHandSlot() {
-        if (Inventory.isHotbarSlot(inventory.getSelectedSlot())) {
-            return getSlot(inventory.getSelectedSlot());
+        if (Inventory.isHotbarSlot(inventory.selected)) {
+            return getSlot(inventory.selected);
         } else {
-            throw new RuntimeException("Unexpected player selected slot: " + inventory.getSelectedSlot());
+            throw new RuntimeException("Unexpected player selected slot: " + inventory.selected);
         }
     }
 
@@ -199,6 +205,41 @@ public final class PlayerInventoryWrapper extends VanillaContainerWrapper {
         return "PlayerInventoryWrapper{player=%s}".formatted(inventory.player);
     }
 
+    /** The humanoid armor slot with the given armor index (0 feet to 3 head), as 26.1's EQUIPMENT_SLOT_MAPPING. */
+    private static EquipmentSlot armorSlot(int armorIndex) {
+        for (EquipmentSlot slot : EquipmentSlot.values()) {
+            if (slot.getType() == EquipmentSlot.Type.HUMANOID_ARMOR && slot.getIndex() == armorIndex) {
+                return slot;
+            }
+        }
+        throw new IllegalArgumentException("No armor slot with index " + armorIndex);
+    }
+
+    /**
+     * 26.1's {@code CommonHooks.onPlayerTossEvent(player, stack, dropAround, includeName)}; 1.21.1's hook has no
+     * dropAround parameter, so the drop-around case repeats its body with {@code player.drop(stack, true, name)}.
+     */
+    private void toss(ItemStack stack, boolean dropAround, boolean includeThrowerName) {
+        Player player = inventory.player;
+        if (!dropAround) {
+            CommonHooks.onPlayerTossEvent(player, stack, includeThrowerName);
+            return;
+        }
+        player.captureDrops(new ArrayList<>());
+        ItemEntity entity = player.drop(stack, true, includeThrowerName);
+        player.captureDrops(null);
+        if (entity == null) {
+            return;
+        }
+        ItemTossEvent event = new ItemTossEvent(entity, player);
+        if (NeoForge.EVENT_BUS.post(event).isCanceled()) {
+            return;
+        }
+        if (!player.level().isClientSide()) {
+            player.level().addFreshEntity(event.getEntity());
+        }
+    }
+
     private class DroppedItems extends SnapshotJournal<Integer> {
         final Deque<DropInfo> entries = new ArrayDeque<>();
 
@@ -234,7 +275,7 @@ public final class PlayerInventoryWrapper extends VanillaContainerWrapper {
                 while (remainder > 0) {
                     int dropped = Math.min(maxStackSize, remainder);
                     // This takes care of firing ItemTossEvent + dropping the entity if the event is not canceled
-                    CommonHooks.onPlayerTossEvent(inventory.player, dropInfo.resource.toStack(dropped), dropInfo.dropAround, dropInfo.includeThrowerName);
+                    toss(dropInfo.resource.toStack(dropped), dropInfo.dropAround, dropInfo.includeThrowerName);
                     remainder -= dropped;
                 }
             }
@@ -262,7 +303,8 @@ public final class PlayerInventoryWrapper extends VanillaContainerWrapper {
 
         @Override
         protected int getCapacity(ItemResource resource) {
-            return slot.countLimit;
+            // EquipmentSlot.countLimit is private on 1.21.1; it is 1 for every humanoid armor slot.
+            return 1;
         }
 
         @Override
