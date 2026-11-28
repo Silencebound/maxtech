@@ -3,27 +3,35 @@ package dev.silencebound.maxtech.lib.shim.transfer.bridge.legacy;
 import com.mojang.logging.LogUtils;
 import dev.silencebound.maxtech.lib.shim.transfer.TransferPreconditions;
 import dev.silencebound.maxtech.lib.shim.transfer.energy.EnergyHandler;
-import dev.silencebound.maxtech.lib.shim.transfer.transaction.SnapshotJournal;
 import dev.silencebound.maxtech.lib.shim.transfer.transaction.TransactionContext;
 import net.neoforged.neoforge.energy.IEnergyStorage;
 import org.slf4j.Logger;
 
 /**
- * An {@link EnergyHandler} over a 1.21.1 {@link IEnergyStorage}, which has no transactions. Moves are simulated on the
- * real storage, combined per root transaction, and applied when it commits, so a rollback never touches the storage.
- * A storage whose simulation promises more than it then accepts would lose or create energy on commit; that is logged
- * as an error.
+ * An {@link EnergyHandler} over a 1.21.1 {@link IEnergyStorage}, which has no transactions. The transaction state
+ * lives in a {@link LegacyLedger} shared by all wrappers over the same storage object: both directions are simulated
+ * (combined) and applied on the root commit, so a rollback never touches the storage. If the storage changed between
+ * simulation and commit, the difference is logged.
  *
  * <p>Server or client thread only, like the wrapped storage.
  */
 public final class LegacyEnergyHandler implements EnergyHandler {
     private static final Logger LOGGER = LogUtils.getLogger();
+    static final LegacyLedger.Registry<Fe> LEDGERS = new LegacyLedger.Registry<>();
+    private static final int KEY = 0;
+
+    /** The one resource of an energy ledger. */
+    enum Fe {
+        FE
+    }
 
     private final IEnergyStorage storage;
-    private final Pending pending = new Pending();
+    private final LegacyLedger<Fe> ledger;
+    private final Real real = new Real();
 
     public LegacyEnergyHandler(IEnergyStorage storage) {
         this.storage = storage;
+        this.ledger = LEDGERS.of(storage);
     }
 
     /** {@return the wrapped 1.21.1 storage} */
@@ -33,7 +41,7 @@ public final class LegacyEnergyHandler implements EnergyHandler {
 
     @Override
     public long getAmountAsLong() {
-        return Math.max(0, (long) storage.getEnergyStored() + pending.delta);
+        return Math.max(0, (long) storage.getEnergyStored() + ledger.pendingDelta(KEY, Fe.FE));
     }
 
     @Override
@@ -44,45 +52,13 @@ public final class LegacyEnergyHandler implements EnergyHandler {
     @Override
     public int insert(int amount, TransactionContext transaction) {
         TransferPreconditions.checkNonNegative(amount);
-        if (amount == 0) {
-            return 0;
-        }
-        int delta = pending.delta;
-        int accepted;
-        if (delta >= 0) {
-            accepted = storage.receiveEnergy(LegacyMath.add(delta, amount), true) - delta;
-        } else {
-            int back = Math.min(amount, -delta);
-            int rest = amount - back;
-            accepted = back + (rest > 0 ? storage.receiveEnergy(rest, true) : 0);
-        }
-        if (accepted <= 0) {
-            return 0;
-        }
-        pending.set(delta + accepted, transaction);
-        return accepted;
+        return ledger.insert(real, KEY, KEY, Fe.FE, amount, transaction);
     }
 
     @Override
     public int extract(int amount, TransactionContext transaction) {
         TransferPreconditions.checkNonNegative(amount);
-        if (amount == 0) {
-            return 0;
-        }
-        int delta = pending.delta;
-        int accepted;
-        if (delta <= 0) {
-            accepted = storage.extractEnergy(LegacyMath.add(-delta, amount), true) + delta;
-        } else {
-            int back = Math.min(amount, delta);
-            int rest = amount - back;
-            accepted = back + (rest > 0 ? storage.extractEnergy(rest, true) : 0);
-        }
-        if (accepted <= 0) {
-            return 0;
-        }
-        pending.set(delta - accepted, transaction);
-        return accepted;
+        return ledger.extract(real, KEY, KEY, Fe.FE, amount, transaction);
     }
 
     @Override
@@ -90,42 +66,52 @@ public final class LegacyEnergyHandler implements EnergyHandler {
         return "LegacyEnergyHandler{" + storage + "}";
     }
 
-    /** The combined pending energy change of the current root transaction. */
-    private final class Pending extends SnapshotJournal<Integer> {
-        int delta;
-
-        void set(int newDelta, TransactionContext transaction) {
-            updateSnapshots(transaction);
-            delta = newDelta;
+    /** Real, non-transactional moves on the storage, called by the ledger. */
+    private final class Real implements LegacyTarget<Fe> {
+        @Override
+        public Object handler() {
+            return storage;
         }
 
         @Override
-        protected Integer createSnapshot() {
-            return delta;
+        public boolean extractsImmediately() {
+            // receiveEnergy cannot put energy back into extract-only storages (generators), so extraction is deferred.
+            return false;
         }
 
         @Override
-        protected void revertToSnapshot(Integer snapshot) {
-            delta = snapshot;
+        public int simulateExtract(int slot, Fe resource, int amount) {
+            return storage.extractEnergy(amount, true);
         }
 
         @Override
-        protected void onRootCommit(Integer originalState) {
-            int change = delta;
-            delta = 0;
-            if (change > 0) {
-                int received = storage.receiveEnergy(change, false);
-                if (received < change) {
-                    LOGGER.error("{} accepted {} FE in simulation but not on commit; {} FE lost", storage, change,
-                            change - received);
-                }
-            } else if (change < 0) {
-                int extracted = storage.extractEnergy(-change, false);
-                if (extracted < -change) {
-                    LOGGER.error("{} gave {} FE in simulation but not on commit; {} FE created", storage, -change,
-                            -change - extracted);
-                }
-            }
+        public int restore(int slot, Fe resource, int amount) {
+            return 0;
+        }
+
+        @Override
+        public int simulateInsert(int slot, Fe resource, int amount) {
+            return storage.receiveEnergy(amount, true);
+        }
+
+        @Override
+        public int insert(int slot, Fe resource, int amount) {
+            return storage.receiveEnergy(amount, false);
+        }
+
+        @Override
+        public int insertAnywhere(Fe resource, int amount) {
+            return 0;
+        }
+
+        @Override
+        public int extract(int slot, Fe resource, int amount) {
+            return storage.extractEnergy(amount, false);
+        }
+
+        @Override
+        public void overflow(Fe resource, int amount) {
+            LOGGER.error("{} FE could not go back into {}; lost", amount, storage);
         }
     }
 }

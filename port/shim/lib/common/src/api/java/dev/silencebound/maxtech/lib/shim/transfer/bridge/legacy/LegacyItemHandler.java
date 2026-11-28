@@ -4,38 +4,83 @@ import com.mojang.logging.LogUtils;
 import dev.silencebound.maxtech.lib.shim.transfer.ResourceHandler;
 import dev.silencebound.maxtech.lib.shim.transfer.TransferPreconditions;
 import dev.silencebound.maxtech.lib.shim.transfer.item.ItemResource;
-import dev.silencebound.maxtech.lib.shim.transfer.transaction.SnapshotJournal;
 import dev.silencebound.maxtech.lib.shim.transfer.transaction.TransactionContext;
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.VarHandle;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.world.WorldlyContainer;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Block;
 import net.neoforged.neoforge.items.IItemHandler;
-import net.neoforged.neoforge.items.ItemHandlerHelper;
+import net.neoforged.neoforge.items.IItemHandlerModifiable;
+import net.neoforged.neoforge.items.wrapper.InvWrapper;
+import net.neoforged.neoforge.items.wrapper.SidedInvWrapper;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 
 /**
- * A {@code ResourceHandler<ItemResource>} over a 1.21.1 {@link IItemHandler}, which has no transactions. Moves are
- * simulated on the real handler and applied when the root transaction commits, so a rollback never touches the
- * handler.
+ * A {@code ResourceHandler<ItemResource>} over a 1.21.1 {@link IItemHandler}, which has no transactions. The
+ * transaction state lives in a {@link LegacyLedger} shared by all wrappers over the same inventory: insertion is
+ * simulated (combined per slot) and applied on the root commit; extraction is real and restored with
+ * {@code setStackInSlot} on rollback for an {@link IItemHandlerModifiable}, else simulated and applied on commit too.
+ * Items the handler no longer accepts on commit go into its other slots, then drop at the block.
  *
- * <p>To keep the simulation exact, a transaction may change one slot of the handler: once a slot has a pending move,
- * moves on other slots return 0 until the root transaction ends, and a slot only accepts moves of the resource it
- * already has pending. Repeated moves on that slot are simulated as one combined move. A handler whose simulation
- * promises more than it then accepts would lose or duplicate items on commit; that is logged as an error.
+ * <p>Wrappers over one inventory share a ledger when the handler is the same object, or an {@link InvWrapper} or
+ * {@link SidedInvWrapper} over the same container (NeoForge's vanilla providers make a new one per query). Another
+ * mod's handler that is a new object per query over shared state gets one ledger per object; its inserts in one
+ * transaction can then count the same free space twice, which ends in items dropped at the block, never in lost or
+ * duplicated items.
  *
  * <p>Server or client thread only, like the wrapped handler.
  */
 public final class LegacyItemHandler implements ResourceHandler<ItemResource> {
     private static final Logger LOGGER = LogUtils.getLogger();
+    static final LegacyLedger.Registry<ItemResource> LEDGERS = new LegacyLedger.Registry<>();
+    private static final @Nullable VarHandle SIDED_INV = sidedField("inv", WorldlyContainer.class);
+    private static final @Nullable VarHandle SIDED_SIDE = sidedField("side", Direction.class);
 
     private final IItemHandler handler;
-    private final Pending pending = new Pending();
+    private final @Nullable Level level;
+    private final @Nullable BlockPos pos;
+    private final @Nullable WorldlyContainer sided;
+    private final @Nullable Direction side;
+    private final LegacyLedger<ItemResource> ledger;
+    private final Real real = new Real();
+
+    /** A wrapper whose overflow drops at {@code pos}; without a level the overflow is logged as lost. */
+    public LegacyItemHandler(IItemHandler handler, @Nullable Level level, @Nullable BlockPos pos) {
+        this.handler = handler;
+        this.level = level;
+        this.pos = pos == null ? null : pos.immutable();
+        Object inventory = handler;
+        WorldlyContainer sidedInv = null;
+        Direction sidedSide = null;
+        if (handler instanceof InvWrapper wrapper) {
+            inventory = wrapper.getInv();
+        } else if (handler instanceof SidedInvWrapper && SIDED_INV != null && SIDED_SIDE != null) {
+            sidedInv = (WorldlyContainer) SIDED_INV.get(handler);
+            sidedSide = (Direction) SIDED_SIDE.get(handler);
+            inventory = sidedInv;
+        }
+        this.sided = sidedInv;
+        this.side = sidedSide;
+        this.ledger = LEDGERS.of(inventory);
+    }
 
     public LegacyItemHandler(IItemHandler handler) {
-        this.handler = handler;
+        this(handler, null, null);
     }
 
     /** {@return the wrapped 1.21.1 handler} */
     public IItemHandler handler() {
         return handler;
+    }
+
+    /** The inventory's own slot behind {@code index}: the container slot for a sided wrapper, else the index. */
+    private int key(int index) {
+        return sided != null ? SidedInvWrapper.getSlot(sided, index, side) : index;
     }
 
     @Override
@@ -46,19 +91,22 @@ public final class LegacyItemHandler implements ResourceHandler<ItemResource> {
     @Override
     public ItemResource getResource(int index) {
         ItemStack stack = handler.getStackInSlot(index);
-        if (pending.delta != 0 && pending.slot == index) {
-            return stack.getCount() + pending.delta <= 0 ? ItemResource.EMPTY : pending.resource;
+        ItemResource pending = ledger.pendingResource(key(index));
+        if (pending == null || (!stack.isEmpty() && !pending.matches(stack))) {
+            return ItemResource.of(stack);
         }
-        return ItemResource.of(stack);
+        return getAmountAsLong(index) <= 0 ? ItemResource.EMPTY : pending;
     }
 
     @Override
     public long getAmountAsLong(int index) {
-        int count = handler.getStackInSlot(index).getCount();
-        if (pending.delta != 0 && pending.slot == index) {
-            return Math.max(0, count + pending.delta);
+        ItemStack stack = handler.getStackInSlot(index);
+        int key = key(index);
+        ItemResource pending = ledger.pendingResource(key);
+        if (pending == null || (!stack.isEmpty() && !pending.matches(stack))) {
+            return stack.getCount();
         }
-        return count;
+        return Math.max(0, (long) stack.getCount() + ledger.pendingDelta(key, pending));
     }
 
     @Override
@@ -76,62 +124,113 @@ public final class LegacyItemHandler implements ResourceHandler<ItemResource> {
     @Override
     public int insert(int index, ItemResource resource, int amount, TransactionContext transaction) {
         TransferPreconditions.checkNonEmptyNonNegative(resource, amount);
-        if (amount == 0 || !pending.allows(index, resource)) {
-            return 0;
-        }
-        int delta = pending.delta;
-        int accepted;
-        if (delta >= 0) {
-            int combined = LegacyMath.add(delta, amount);
-            accepted = simulateInsert(index, resource, combined) - delta;
-        } else {
-            // Putting back what this transaction took out always fits; anything beyond goes on top of the real stack.
-            int back = Math.min(amount, -delta);
-            int rest = amount - back;
-            accepted = back + (rest > 0 ? simulateInsert(index, resource, rest) : 0);
-        }
-        if (accepted <= 0) {
-            return 0;
-        }
-        pending.set(index, resource, delta + accepted, transaction);
-        return accepted;
+        return ledger.insert(real, index, key(index), resource, amount, transaction);
     }
 
     @Override
     public int extract(int index, ItemResource resource, int amount, TransactionContext transaction) {
         TransferPreconditions.checkNonEmptyNonNegative(resource, amount);
-        if (amount == 0 || !pending.allows(index, resource)) {
-            return 0;
-        }
-        int delta = pending.delta;
-        int accepted;
-        if (delta <= 0) {
-            int combined = LegacyMath.add(-delta, amount);
-            accepted = simulateExtract(index, resource, combined) + delta;
-        } else {
-            // Taking back what this transaction put in always works; anything beyond comes from the real stack.
-            int back = Math.min(amount, delta);
-            int rest = amount - back;
-            accepted = back + (rest > 0 ? simulateExtract(index, resource, rest) : 0);
-        }
-        if (accepted <= 0) {
-            return 0;
-        }
-        pending.set(index, resource, delta - accepted, transaction);
-        return accepted;
+        return ledger.extract(real, index, key(index), resource, amount, transaction);
     }
 
-    private int simulateInsert(int index, ItemResource resource, int amount) {
-        ItemStack remainder = handler.insertItem(index, resource.toStack(amount), true);
-        return amount - remainder.getCount();
-    }
+    /** Real, non-transactional moves on the handler, called by the ledger. */
+    private final class Real implements LegacyTarget<ItemResource> {
+        @Override
+        public Object handler() {
+            return handler;
+        }
 
-    private int simulateExtract(int index, ItemResource resource, int amount) {
-        if (!resource.matches(handler.getStackInSlot(index))) {
+        @Override
+        public boolean extractsImmediately() {
+            return handler instanceof IItemHandlerModifiable;
+        }
+
+        @Override
+        public int simulateExtract(int slot, ItemResource resource, int amount) {
+            if (!resource.matches(handler.getStackInSlot(slot))) {
+                return 0;
+            }
+            ItemStack extracted = handler.extractItem(slot, amount, true);
+            return resource.matches(extracted) ? extracted.getCount() : 0;
+        }
+
+        @Override
+        public int restore(int slot, ItemResource resource, int amount) {
+            // Only reached for IItemHandlerModifiable; setStackInSlot ignores insert rules, so output slots work.
+            ItemStack current = handler.getStackInSlot(slot);
+            if (current.isEmpty()) {
+                ((IItemHandlerModifiable) handler).setStackInSlot(slot, resource.toStack(amount));
+                return amount;
+            }
+            if (resource.matches(current)) {
+                ItemStack restored = current.copyWithCount(current.getCount() + amount);
+                ((IItemHandlerModifiable) handler).setStackInSlot(slot, restored);
+                return amount;
+            }
             return 0;
         }
-        ItemStack extracted = handler.extractItem(index, amount, true);
-        return resource.matches(extracted) ? extracted.getCount() : 0;
+
+        @Override
+        public int simulateInsert(int slot, ItemResource resource, int amount) {
+            ItemStack remainder = handler.insertItem(slot, resource.toStack(amount), true);
+            return amount - remainder.getCount();
+        }
+
+        @Override
+        public int insert(int slot, ItemResource resource, int amount) {
+            int left = amount;
+            while (left > 0) {
+                int chunk = Math.min(left, resource.getMaxStackSize());
+                ItemStack remainder = handler.insertItem(slot, resource.toStack(chunk), false);
+                int accepted = chunk - remainder.getCount();
+                left -= accepted;
+                if (accepted < chunk) {
+                    break;
+                }
+            }
+            return amount - left;
+        }
+
+        @Override
+        public int insertAnywhere(ItemResource resource, int amount) {
+            int inserted = 0;
+            for (int slot = 0, n = handler.getSlots(); slot < n && inserted < amount; slot++) {
+                inserted += insert(slot, resource, amount - inserted);
+            }
+            return inserted;
+        }
+
+        @Override
+        public int extract(int slot, ItemResource resource, int amount) {
+            int taken = 0;
+            while (taken < amount && resource.matches(handler.getStackInSlot(slot))) {
+                ItemStack simulated = handler.extractItem(slot, amount - taken, true);
+                if (simulated.isEmpty() || !resource.matches(simulated)) {
+                    break;
+                }
+                ItemStack extracted = handler.extractItem(slot, simulated.getCount(), false);
+                if (extracted.isEmpty()) {
+                    break;
+                }
+                taken += extracted.getCount();
+            }
+            return taken;
+        }
+
+        @Override
+        public void overflow(ItemResource resource, int amount) {
+            if (level == null || pos == null || level.isClientSide()) {
+                LOGGER.error("{} x {} could not go back into {} and there is no block to drop them at; lost", amount,
+                        resource, handler);
+                return;
+            }
+            int left = amount;
+            while (left > 0) {
+                int chunk = Math.min(left, resource.getMaxStackSize());
+                Block.popResource(level, pos, resource.toStack(chunk));
+                left -= chunk;
+            }
+        }
     }
 
     @Override
@@ -139,69 +238,13 @@ public final class LegacyItemHandler implements ResourceHandler<ItemResource> {
         return "LegacyItemHandler{" + handler + "}";
     }
 
-    private record State(int slot, ItemResource resource, int delta) {
-    }
-
-    /** The one pending slot change of the current root transaction. */
-    private final class Pending extends SnapshotJournal<State> {
-        int slot = -1;
-        ItemResource resource = ItemResource.EMPTY;
-        int delta;
-
-        boolean allows(int index, ItemResource candidate) {
-            return delta == 0 || (slot == index && resource.equals(candidate));
-        }
-
-        void set(int index, ItemResource newResource, int newDelta, TransactionContext transaction) {
-            updateSnapshots(transaction);
-            slot = index;
-            resource = newResource;
-            delta = newDelta;
-        }
-
-        @Override
-        protected State createSnapshot() {
-            return new State(slot, resource, delta);
-        }
-
-        @Override
-        protected void revertToSnapshot(State snapshot) {
-            slot = snapshot.slot();
-            resource = snapshot.resource();
-            delta = snapshot.delta();
-        }
-
-        @Override
-        protected void onRootCommit(State originalState) {
-            int index = slot;
-            ItemResource moved = resource;
-            int change = delta;
-            slot = -1;
-            resource = ItemResource.EMPTY;
-            delta = 0;
-            if (change > 0) {
-                ItemStack remainder = handler.insertItem(index, moved.toStack(change), false);
-                if (!remainder.isEmpty()) {
-                    remainder = ItemHandlerHelper.insertItemStacked(handler, remainder, false);
-                }
-                if (!remainder.isEmpty()) {
-                    LOGGER.error("{} accepted {} x {} in simulation but not on commit; {} lost", handler, change,
-                            moved, remainder.getCount());
-                }
-            } else if (change < 0) {
-                int left = -change;
-                while (left > 0 && moved.matches(handler.getStackInSlot(index))) {
-                    ItemStack extracted = handler.extractItem(index, left, false);
-                    if (extracted.isEmpty()) {
-                        break;
-                    }
-                    left -= extracted.getCount();
-                }
-                if (left > 0) {
-                    LOGGER.error("{} gave {} x {} in simulation but not on commit; {} duplicated", handler, -change,
-                            moved, left);
-                }
-            }
+    private static @Nullable VarHandle sidedField(String name, Class<?> type) {
+        try {
+            return MethodHandles.privateLookupIn(SidedInvWrapper.class, MethodHandles.lookup())
+                    .findVarHandle(SidedInvWrapper.class, name, type);
+        } catch (ReflectiveOperationException | RuntimeException e) {
+            LOGGER.warn("Cannot read SidedInvWrapper.{}; sided wrappers get their own transaction ledger", name, e);
+            return null;
         }
     }
 }

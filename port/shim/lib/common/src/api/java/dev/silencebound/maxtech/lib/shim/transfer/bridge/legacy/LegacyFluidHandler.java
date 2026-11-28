@@ -4,7 +4,6 @@ import com.mojang.logging.LogUtils;
 import dev.silencebound.maxtech.lib.shim.transfer.ResourceHandler;
 import dev.silencebound.maxtech.lib.shim.transfer.TransferPreconditions;
 import dev.silencebound.maxtech.lib.shim.transfer.fluid.FluidResource;
-import dev.silencebound.maxtech.lib.shim.transfer.transaction.SnapshotJournal;
 import dev.silencebound.maxtech.lib.shim.transfer.transaction.TransactionContext;
 import net.neoforged.neoforge.fluids.FluidStack;
 import net.neoforged.neoforge.fluids.capability.IFluidHandler;
@@ -12,26 +11,30 @@ import net.neoforged.neoforge.fluids.capability.IFluidHandler.FluidAction;
 import org.slf4j.Logger;
 
 /**
- * A {@code ResourceHandler<FluidResource>} over a 1.21.1 {@link IFluidHandler}, which has no transactions. Moves are
- * simulated on the real handler and applied when the root transaction commits, so a rollback never touches the
- * handler.
+ * A {@code ResourceHandler<FluidResource>} over a 1.21.1 {@link IFluidHandler}, which has no transactions. The
+ * transaction state lives in a {@link LegacyLedger} shared by all wrappers over the same handler object: fills and
+ * drains are simulated (combined) and applied on the root commit, so a rollback never touches the handler.
  *
- * <p>{@code fill} and {@code drain} do not take a tank, so the pending change is per fluid, not per tank: a
- * transaction may move one fluid, repeated moves are simulated as one combined move, and moves of another fluid
- * return 0 until the root transaction ends. An indexed move only checks that the tank holds that fluid or is empty;
- * the handler picks the tank itself. The pending amount shows on the tank of the first indexed move. A handler whose
- * simulation promises more than it then accepts would lose or duplicate fluid on commit; that is logged as an error.
+ * <p>{@code fill} does not take a tank, so the whole handler is one ledger slot: one fluid at a time may have a
+ * pending fill, and filling another fluid returns 0 until the root transaction ends (two fluids simulated separately
+ * could both count the same empty tank). An indexed move only checks that the tank holds that fluid or is empty; the
+ * handler picks the tank itself. If the handler changed between simulation and commit, fluid it no longer accepts is
+ * lost and fluid it no longer gives was handed on anyway; both are logged.
  *
  * <p>Server or client thread only, like the wrapped handler.
  */
 public final class LegacyFluidHandler implements ResourceHandler<FluidResource> {
     private static final Logger LOGGER = LogUtils.getLogger();
+    static final LegacyLedger.Registry<FluidResource> LEDGERS = new LegacyLedger.Registry<>();
+    private static final int KEY = 0;
 
     private final IFluidHandler handler;
-    private final Pending pending = new Pending();
+    private final LegacyLedger<FluidResource> ledger;
+    private final Real real = new Real();
 
     public LegacyFluidHandler(IFluidHandler handler) {
         this.handler = handler;
+        this.ledger = LEDGERS.of(handler);
     }
 
     /** {@return the wrapped 1.21.1 handler} */
@@ -47,19 +50,40 @@ public final class LegacyFluidHandler implements ResourceHandler<FluidResource> 
     @Override
     public FluidResource getResource(int index) {
         FluidStack stack = handler.getFluidInTank(index);
-        if (pending.delta != 0 && pending.tank == index) {
-            return stack.getAmount() + pending.delta <= 0 ? FluidResource.EMPTY : pending.resource;
+        if (index != pendingTank()) {
+            return FluidResource.of(stack);
         }
-        return FluidResource.of(stack);
+        FluidResource pending = ledger.pendingResource(KEY);
+        return pending == null || getAmountAsLong(index) <= 0 ? FluidResource.EMPTY : pending;
     }
 
     @Override
     public long getAmountAsLong(int index) {
         int amount = handler.getFluidInTank(index).getAmount();
-        if (pending.delta != 0 && pending.tank == index) {
-            return Math.max(0, amount + pending.delta);
+        if (index != pendingTank()) {
+            return amount;
         }
-        return amount;
+        FluidResource pending = ledger.pendingResource(KEY);
+        return pending == null ? amount : Math.max(0, (long) amount + ledger.pendingDelta(KEY, pending));
+    }
+
+    /** The tank that shows the pending fill: the first tank holding that fluid, else the first empty one; or -1. */
+    private int pendingTank() {
+        FluidResource pending = ledger.pendingResource(KEY);
+        if (pending == null) {
+            return -1;
+        }
+        int empty = -1;
+        for (int tank = 0, n = handler.getTanks(); tank < n; tank++) {
+            FluidStack stack = handler.getFluidInTank(tank);
+            if (pending.matches(stack)) {
+                return tank;
+            }
+            if (empty < 0 && stack.isEmpty()) {
+                empty = tank;
+            }
+        }
+        return empty;
     }
 
     @Override
@@ -79,79 +103,28 @@ public final class LegacyFluidHandler implements ResourceHandler<FluidResource> 
         if (!inTank.isEmpty() && !resource.matches(inTank)) {
             return 0;
         }
-        return fill(index, resource, amount, transaction);
+        return ledger.insert(real, KEY, KEY, resource, amount, transaction);
     }
 
     @Override
     public int insert(FluidResource resource, int amount, TransactionContext transaction) {
         TransferPreconditions.checkNonEmptyNonNegative(resource, amount);
-        return fill(-1, resource, amount, transaction);
+        return ledger.insert(real, KEY, KEY, resource, amount, transaction);
     }
 
     @Override
     public int extract(int index, FluidResource resource, int amount, TransactionContext transaction) {
         TransferPreconditions.checkNonEmptyNonNegative(resource, amount);
-        if (!resource.matches(handler.getFluidInTank(index)) && !(pending.tank == index && pending.delta > 0)) {
+        if (!resource.matches(handler.getFluidInTank(index)) && ledger.pendingInsert(KEY, resource) == 0) {
             return 0;
         }
-        return drain(index, resource, amount, transaction);
+        return ledger.extract(real, KEY, KEY, resource, amount, transaction);
     }
 
     @Override
     public int extract(FluidResource resource, int amount, TransactionContext transaction) {
         TransferPreconditions.checkNonEmptyNonNegative(resource, amount);
-        return drain(-1, resource, amount, transaction);
-    }
-
-    private int fill(int tank, FluidResource resource, int amount, TransactionContext transaction) {
-        if (amount == 0 || !pending.allows(resource)) {
-            return 0;
-        }
-        int delta = pending.delta;
-        int accepted;
-        if (delta >= 0) {
-            accepted = simulateFill(resource, LegacyMath.add(delta, amount)) - delta;
-        } else {
-            // Putting back what this transaction drained always fits; anything beyond goes on top of the real tanks.
-            int back = Math.min(amount, -delta);
-            int rest = amount - back;
-            accepted = back + (rest > 0 ? simulateFill(resource, rest) : 0);
-        }
-        if (accepted <= 0) {
-            return 0;
-        }
-        pending.set(tank, resource, delta + accepted, transaction);
-        return accepted;
-    }
-
-    private int drain(int tank, FluidResource resource, int amount, TransactionContext transaction) {
-        if (amount == 0 || !pending.allows(resource)) {
-            return 0;
-        }
-        int delta = pending.delta;
-        int accepted;
-        if (delta <= 0) {
-            accepted = simulateDrain(resource, LegacyMath.add(-delta, amount)) + delta;
-        } else {
-            // Taking back what this transaction filled always works; anything beyond comes from the real tanks.
-            int back = Math.min(amount, delta);
-            int rest = amount - back;
-            accepted = back + (rest > 0 ? simulateDrain(resource, rest) : 0);
-        }
-        if (accepted <= 0) {
-            return 0;
-        }
-        pending.set(tank, resource, delta - accepted, transaction);
-        return accepted;
-    }
-
-    private int simulateFill(FluidResource resource, int amount) {
-        return handler.fill(resource.toStack(amount), FluidAction.SIMULATE);
-    }
-
-    private int simulateDrain(FluidResource resource, int amount) {
-        FluidStack drained = handler.drain(resource.toStack(amount), FluidAction.SIMULATE);
-        return resource.matches(drained) ? drained.getAmount() : 0;
+        return ledger.extract(real, KEY, KEY, resource, amount, transaction);
     }
 
     @Override
@@ -159,61 +132,59 @@ public final class LegacyFluidHandler implements ResourceHandler<FluidResource> 
         return "LegacyFluidHandler{" + handler + "}";
     }
 
-    private record State(int tank, FluidResource resource, int delta) {
-    }
-
-    /** The one pending fluid change of the current root transaction. */
-    private final class Pending extends SnapshotJournal<State> {
-        int tank = -1;
-        FluidResource resource = FluidResource.EMPTY;
-        int delta;
-
-        boolean allows(FluidResource candidate) {
-            return delta == 0 || resource.equals(candidate);
+    /** Real, non-transactional moves on the handler, called by the ledger. */
+    private final class Real implements LegacyTarget<FluidResource> {
+        @Override
+        public Object handler() {
+            return handler;
         }
 
-        void set(int index, FluidResource newResource, int newDelta, TransactionContext transaction) {
-            updateSnapshots(transaction);
-            if (delta == 0 || tank < 0) {
-                tank = index;
+        @Override
+        public boolean extractsImmediately() {
+            // IFluidHandler cannot put fluid back past its own fill rules (output tanks), so draining is deferred.
+            return false;
+        }
+
+        @Override
+        public int simulateExtract(int slot, FluidResource resource, int amount) {
+            FluidStack drained = handler.drain(resource.toStack(amount), FluidAction.SIMULATE);
+            return resource.matches(drained) ? drained.getAmount() : 0;
+        }
+
+        @Override
+        public int restore(int slot, FluidResource resource, int amount) {
+            return 0;
+        }
+
+        @Override
+        public int simulateInsert(int slot, FluidResource resource, int amount) {
+            return handler.fill(resource.toStack(amount), FluidAction.SIMULATE);
+        }
+
+        @Override
+        public int insert(int slot, FluidResource resource, int amount) {
+            return handler.fill(resource.toStack(amount), FluidAction.EXECUTE);
+        }
+
+        @Override
+        public int insertAnywhere(FluidResource resource, int amount) {
+            // fill already tries every tank.
+            return 0;
+        }
+
+        @Override
+        public int extract(int slot, FluidResource resource, int amount) {
+            FluidStack simulated = handler.drain(resource.toStack(amount), FluidAction.SIMULATE);
+            if (simulated.isEmpty() || !resource.matches(simulated)) {
+                return 0;
             }
-            resource = newResource;
-            delta = newDelta;
+            FluidStack drained = handler.drain(resource.toStack(simulated.getAmount()), FluidAction.EXECUTE);
+            return resource.matches(drained) ? drained.getAmount() : 0;
         }
 
         @Override
-        protected State createSnapshot() {
-            return new State(tank, resource, delta);
-        }
-
-        @Override
-        protected void revertToSnapshot(State snapshot) {
-            tank = snapshot.tank();
-            resource = snapshot.resource();
-            delta = snapshot.delta();
-        }
-
-        @Override
-        protected void onRootCommit(State originalState) {
-            FluidResource moved = resource;
-            int change = delta;
-            tank = -1;
-            resource = FluidResource.EMPTY;
-            delta = 0;
-            if (change > 0) {
-                int filled = handler.fill(moved.toStack(change), FluidAction.EXECUTE);
-                if (filled < change) {
-                    LOGGER.error("{} accepted {} mB of {} in simulation but not on commit; {} mB lost", handler, change,
-                            moved, change - filled);
-                }
-            } else if (change < 0) {
-                FluidStack drained = handler.drain(moved.toStack(-change), FluidAction.EXECUTE);
-                int got = moved.matches(drained) ? drained.getAmount() : 0;
-                if (got < -change) {
-                    LOGGER.error("{} gave {} mB of {} in simulation but not on commit; {} mB duplicated", handler,
-                            -change, moved, -change - got);
-                }
-            }
+        public void overflow(FluidResource resource, int amount) {
+            LOGGER.error("{} mB of {} could not go back into {}; lost", amount, resource, handler);
         }
     }
 }

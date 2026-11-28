@@ -11,14 +11,19 @@ import dev.silencebound.maxtech.lib.shim.transfer.port.FluidResourceHandlerAdapt
 import dev.silencebound.maxtech.lib.shim.transfer.port.FluidResourceHandlerItemAdapter;
 import dev.silencebound.maxtech.lib.shim.transfer.port.ItemResourceHandlerAdapter;
 import java.util.function.Function;
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.item.Item;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.neoforged.bus.api.EventPriority;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.capabilities.BlockCapability;
+import net.neoforged.neoforge.capabilities.Capabilities.EnergyStorage;
+import net.neoforged.neoforge.capabilities.Capabilities.FluidHandler;
+import net.neoforged.neoforge.capabilities.Capabilities.ItemHandler;
 import net.neoforged.neoforge.capabilities.RegisterCapabilitiesEvent;
 import net.neoforged.neoforge.energy.IEnergyStorage;
 import net.neoforged.neoforge.fluids.capability.IFluidHandler;
@@ -46,17 +51,24 @@ public final class LegacyBridge {
     private LegacyBridge() {
     }
 
+    /** Wraps a 1.21.1 handler found at a block. */
+    @FunctionalInterface
+    interface FromLegacy<L, N> {
+        @Nullable N wrap(L handler, Level level, BlockPos pos);
+    }
+
     @SubscribeEvent(priority = EventPriority.LOWEST)
     static void register(RegisterCapabilitiesEvent event) {
-        BlockCapability<IItemHandler, @Nullable Direction> legacyItems = net.neoforged.neoforge.capabilities.Capabilities.ItemHandler.BLOCK;
-        BlockCapability<IFluidHandler, @Nullable Direction> legacyFluids = net.neoforged.neoforge.capabilities.Capabilities.FluidHandler.BLOCK;
-        BlockCapability<IEnergyStorage, @Nullable Direction> legacyEnergy = net.neoforged.neoforge.capabilities.Capabilities.EnergyStorage.BLOCK;
+        BlockCapability<IItemHandler, @Nullable Direction> legacyItems = ItemHandler.BLOCK;
+        BlockCapability<IFluidHandler, @Nullable Direction> legacyFluids = FluidHandler.BLOCK;
+        BlockCapability<IEnergyStorage, @Nullable Direction> legacyEnergy = EnergyStorage.BLOCK;
         for (Block block : BuiltInRegistries.BLOCK) {
-            bridge(event, block, Capabilities.Item.BLOCK, legacyItems, LegacyBridge::toLegacy, LegacyBridge::fromLegacy);
+            bridge(event, block, Capabilities.Item.BLOCK, legacyItems, LegacyBridge::toLegacy,
+                    LegacyBridge::fromLegacy);
             bridge(event, block, Capabilities.Fluid.BLOCK, legacyFluids, LegacyBridge::toLegacyFluids,
-                    LegacyBridge::fromLegacyFluids);
+                    (handler, level, pos) -> fromLegacyFluids(handler));
             bridge(event, block, Capabilities.Energy.BLOCK, legacyEnergy, LegacyBridge::toLegacyEnergy,
-                    LegacyBridge::fromLegacyEnergy);
+                    (storage, level, pos) -> fromLegacyEnergy(storage));
         }
         for (Item item : BuiltInRegistries.ITEM) {
             bridgeFluidItem(event, item);
@@ -65,7 +77,7 @@ public final class LegacyBridge {
 
     private static <N, L> void bridge(RegisterCapabilitiesEvent event, Block block,
             BlockCapability<N, @Nullable Direction> ours, BlockCapability<L, @Nullable Direction> legacy,
-            Function<N, @Nullable L> toLegacy, Function<L, @Nullable N> fromLegacy) {
+            Function<N, @Nullable L> toLegacy, FromLegacy<L, N> fromLegacy) {
         boolean hasOurs = event.isBlockRegistered(ours, block);
         boolean hasLegacy = event.isBlockRegistered(legacy, block);
         if (hasOurs) {
@@ -76,13 +88,13 @@ public final class LegacyBridge {
         } else if (hasLegacy) {
             event.registerBlock(ours, (level, pos, state, blockEntity, side) -> {
                 L handler = level.getCapability(legacy, pos, state, blockEntity, side);
-                return handler == null ? null : fromLegacy.apply(handler);
+                return handler == null ? null : fromLegacy.wrap(handler, level, pos);
             }, block);
         }
     }
 
     private static void bridgeFluidItem(RegisterCapabilitiesEvent event, Item item) {
-        var legacy = net.neoforged.neoforge.capabilities.Capabilities.FluidHandler.ITEM;
+        var legacy = FluidHandler.ITEM;
         if (event.isItemRegistered(Capabilities.Fluid.ITEM, item)) {
             event.registerItem(legacy, (stack, unused) -> {
                 ItemAccess access = ItemAccess.forStack(stack);
@@ -97,31 +109,32 @@ public final class LegacyBridge {
         }
     }
 
-    private static IItemHandler toLegacy(ResourceHandler<ItemResource> handler) {
+    static IItemHandler toLegacy(ResourceHandler<ItemResource> handler) {
         return handler instanceof LegacyItemHandler wrapper ? wrapper.handler()
                 : new ItemResourceHandlerAdapter(handler);
     }
 
-    private static ResourceHandler<ItemResource> fromLegacy(IItemHandler handler) {
+    static ResourceHandler<ItemResource> fromLegacy(IItemHandler handler, @Nullable Level level,
+            @Nullable BlockPos pos) {
         return handler instanceof ItemResourceHandlerAdapter adapter ? adapter.handler()
-                : new LegacyItemHandler(handler);
+                : new LegacyItemHandler(handler, level, pos);
     }
 
-    private static IFluidHandler toLegacyFluids(ResourceHandler<FluidResource> handler) {
+    static IFluidHandler toLegacyFluids(ResourceHandler<FluidResource> handler) {
         return handler instanceof LegacyFluidHandler wrapper ? wrapper.handler()
                 : new FluidResourceHandlerAdapter(handler);
     }
 
-    private static ResourceHandler<FluidResource> fromLegacyFluids(IFluidHandler handler) {
+    static ResourceHandler<FluidResource> fromLegacyFluids(IFluidHandler handler) {
         return handler instanceof FluidResourceHandlerAdapter adapter ? adapter.handler()
                 : new LegacyFluidHandler(handler);
     }
 
-    private static IEnergyStorage toLegacyEnergy(EnergyHandler handler) {
+    static IEnergyStorage toLegacyEnergy(EnergyHandler handler) {
         return handler instanceof LegacyEnergyHandler wrapper ? wrapper.storage() : new EnergyHandlerAdapter(handler);
     }
 
-    private static EnergyHandler fromLegacyEnergy(IEnergyStorage storage) {
+    static EnergyHandler fromLegacyEnergy(IEnergyStorage storage) {
         return storage instanceof EnergyHandlerAdapter adapter ? adapter.handler() : new LegacyEnergyHandler(storage);
     }
 }

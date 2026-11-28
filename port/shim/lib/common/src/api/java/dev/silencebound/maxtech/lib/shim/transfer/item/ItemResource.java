@@ -42,7 +42,10 @@ import org.slf4j.Logger;
  */
 public final class ItemResource implements DataComponentHolderResource<Item> {
     private static final Logger LOGGER = LogUtils.getLogger();
-    private static final ConcurrentHashMap<Item, ItemResource> DEFAULTS = new ConcurrentHashMap<>();
+    private static final ConcurrentHashMap<Item, Default> DEFAULTS = new ConcurrentHashMap<>();
+
+    /** A cached default resource and the item's default components it was built from. */
+    private record Default(DataComponentMap prototype, ItemResource resource) {}
     /**
      * The empty resource instance of a {@link ItemResource}
      */
@@ -97,8 +100,15 @@ public final class ItemResource implements DataComponentHolderResource<Item> {
     public static ItemResource of(ItemLike item) {
         Item value = item.asItem();
         if (value == Items.AIR) return EMPTY;
-        // 1.21.1 has no Item#computeDefaultResource; the cache keeps 26.1's one shared default instance per item.
-        return DEFAULTS.computeIfAbsent(value, i -> new ItemResource(new ItemStack(i)));
+        // 1.21.1 has no Item#computeDefaultResource; the cache keeps 26.1's one shared default instance per item. It
+        // is rebuilt when the item's default components change (ModifyDefaultComponentsEvent runs after registration),
+        // so a resource made before that never stays stale.
+        Default cached = DEFAULTS.get(value);
+        if (cached == null || cached.prototype() != value.components()) {
+            cached = new Default(value.components(), new ItemResource(new ItemStack(value)));
+            DEFAULTS.put(value, cached);
+        }
+        return cached.resource();
     }
 
     /**

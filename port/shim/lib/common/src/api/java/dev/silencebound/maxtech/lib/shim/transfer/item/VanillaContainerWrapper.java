@@ -17,6 +17,7 @@ import java.util.Objects;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.component.PatchedDataComponentMap;
 import net.minecraft.world.Container;
+import net.minecraft.world.SimpleContainer;
 import net.minecraft.world.WorldlyContainer;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.ItemStack;
@@ -61,6 +62,11 @@ public class VanillaContainerWrapper implements ResourceHandler<ItemResource> {
      * <p>If the container is a player {@link Inventory}, use {@link PlayerInventoryWrapper} instead which adds convenience methods for players.
      *
      * <p>If the container is a {@link WorldlyContainer}, use {@link WorldlyContainerWrapper} instead which checks the extra methods of worldy containers.
+     *
+     * <p>1.21.1 build: only a player {@link Inventory} and a {@link SimpleContainer} are changed without side effects
+     * inside a transaction. Any other container runs its own {@code setItem} side effects (setChanged, a furnace
+     * resetting its progress) on every change and every rollback, because 1.21.1 has no {@code insideTransaction}
+     * flag; Lib wraps only those two kinds.
      */
     public static ResourceHandler<ItemResource> of(Container container) {
         // Only expose a ResourceHandler in this method.
@@ -159,9 +165,14 @@ public class VanillaContainerWrapper implements ResourceHandler<ItemResource> {
 
         @Override
         protected void setStack(ItemStack item) {
-            // 1.21.1's Container has no insideTransaction flag, so the container's own setItem side effects run here
-            // (Lib only wraps player inventories and plain SimpleContainers this way).
-            container.setItem(index, item);
+            // 26.1 passes insideTransaction = true to skip side effects; 1.21.1's Container has no such flag. A
+            // SimpleContainer's setItem only adds setChanged (run on root commit anyway), so its list is set directly;
+            // Inventory#setItem has no side effects. Other containers run their setItem side effects (see of()).
+            if (container instanceof SimpleContainer simple) {
+                simple.getItems().set(index, item);
+            } else {
+                container.setItem(index, item);
+            }
         }
 
         @Override

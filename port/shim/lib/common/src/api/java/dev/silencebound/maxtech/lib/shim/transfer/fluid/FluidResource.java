@@ -88,6 +88,7 @@ public final class FluidResource implements DataComponentHolderResource<Fluid> {
     public static FluidResource of(Fluid fluid) {
         if (fluid == Fluids.EMPTY) return EMPTY;
         // 1.21.1 has no Fluid#computeDefaultResource; the cache keeps 26.1's one shared default instance per fluid.
+        // A 1.21.1 FluidStack's components start from DataComponentMap.EMPTY, so a cached default cannot go stale.
         return DEFAULTS.computeIfAbsent(fluid, f -> new FluidResource(new FluidStack(f, FluidType.BUCKET_VOLUME)));
     }
 
