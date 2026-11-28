@@ -1,10 +1,10 @@
 package dev.silencebound.maxtech.lib.neoforge.gametest;
 
 import dev.silencebound.maxtech.lib.MaxtechLib;
+import dev.silencebound.maxtech.lib.api.menu.MenuTesting;
 import dev.silencebound.maxtech.lib.api.registry.Registrar;
 import dev.silencebound.maxtech.lib.api.registry.Registrars;
 import dev.silencebound.maxtech.lib.api.resource.FluidKey;
-import dev.silencebound.maxtech.lib.menu.ToolkitMenu;
 import dev.silencebound.maxtech.lib.neoforge.gametest.ToolkitDemo.Handles;
 import dev.silencebound.maxtech.lib.neoforge.gametest.ToolkitDemo.MachineEntity;
 import java.util.List;
@@ -33,8 +33,8 @@ import net.neoforged.neoforge.event.RegisterGameTestsEvent;
 /**
  * The toolkit through its public api, on the demo machine ({@link ToolkitDemo}): the definition opens for a server
  * player, its values reach the menu, shift-clicks respect the filtered group, bucket clicks fill and drain the tank,
- * and the output only gives. Only the value view and the tank button ids come from Lib's internal menu class, because a
- * mock player has no connection to read them from.
+ * and the output only gives. Everything goes through {@link MenuTesting}, which an addon can use the same way: a mock
+ * player has no connection to read the values from.
  */
 @EventBusSubscriber(modid = MaxtechLib.MOD_ID)
 public final class ToolkitApiGameTests {
@@ -71,7 +71,8 @@ public final class ToolkitApiGameTests {
 
     /** What a test does with the open menu; the machine's task cannot run before it finishes (same tick). */
     private interface Body {
-        void run(GameTestHelper helper, ServerPlayer player, MachineEntity machine, ToolkitMenu<?> menu);
+        void run(GameTestHelper helper, ServerPlayer player, MachineEntity machine,
+                MenuTesting.Session<MachineEntity> session);
     }
 
     /** Places the machine, opens its definition for a mock server player and runs {@code body}. */
@@ -82,15 +83,9 @@ public final class ToolkitApiGameTests {
             throw helper.assertionException("No machine block entity");
         }
         ServerPlayer player = helper.makeMockServerPlayerInLevel();
-        try {
-            // Vanilla broadcasts the values while opening, and the mock connection refuses Lib's payloads.
-            ToolkitMenu.sendNewMenusValuesTo(payload -> {
-            });
-            ToolkitDemo.DEFINITION.open(player, machine);
-            helper.assertTrue(player.containerMenu instanceof ToolkitMenu<?>, "open menu " + player.containerMenu);
-            body.run(helper, player, machine, (ToolkitMenu<?>) player.containerMenu);
+        try (MenuTesting.Session<MachineEntity> session = MenuTesting.open(ToolkitDemo.DEFINITION, player, machine)) {
+            body.run(helper, player, machine, session);
         } finally {
-            ToolkitMenu.sendNewMenusValuesTo(null);
             helper.getLevel().getServer().getPlayerList().remove(player);
         }
         helper.succeed();
@@ -99,7 +94,8 @@ public final class ToolkitApiGameTests {
     /** The definition has no layout problems, and opens as the registered menu type over the machine's slots. */
     private static void opens(GameTestHelper helper) {
         helper.assertValueEqual(ToolkitDemo.DEFINITION.problems(), List.of(), "layout problems");
-        withOpenMenu(helper, (h, player, machine, menu) -> {
+        withOpenMenu(helper, (h, player, machine, session) -> {
+            AbstractContainerMenu menu = session.menu();
             h.assertValueEqual(menu.getType(), ToolkitDemo.DEFINITION.type().get(), "menu type");
             h.assertValueEqual(menu.slots.size(), MAIN + 36, "slots");
             machine.slots.set(ToolkitDemo.INPUT_SLOT, new ItemStack(Items.RAW_IRON, 3));
@@ -113,7 +109,7 @@ public final class ToolkitApiGameTests {
 
     /** What the machine holds reaches the menu's value view: bars, status, the live number. */
     private static void valuesSync(GameTestHelper helper) {
-        withOpenMenu(helper, (h, player, machine, menu) -> {
+        withOpenMenu(helper, (h, player, machine, session) -> {
             Handles handles = ToolkitDemo.handles();
             machine.progress = 40;
             machine.burn = 150;
@@ -121,8 +117,9 @@ public final class ToolkitApiGameTests {
             machine.tank.set(FluidKey.of(Fluids.WATER), 2500);
             machine.energy.setStored(6000);
             machine.slots.set(ToolkitDemo.INPUT_SLOT, new ItemStack(Items.RAW_COPPER));
-            menu.broadcastChanges();
-            var view = menu.values();
+            session.tick();
+            var view = session.clientValues();
+            h.assertValueEqual(session.serverValues().amount(handles.tank), 2500L, "tank on the server");
             h.assertValueEqual(view.current(handles.arrow), 40L, "arrow");
             h.assertValueEqual(view.total(handles.arrow), (long) ToolkitDemo.ARROW_TICKS, "arrow total");
             h.assertValueEqual(view.current(handles.flame), 150L, "flame");
@@ -132,20 +129,21 @@ public final class ToolkitApiGameTests {
             h.assertValueEqual(view.capacity(handles.energy), ToolkitDemo.ENERGY_CAPACITY, "energy capacity");
             h.assertValueEqual(view.get(handles.status), ToolkitDemo.Status.WORKING, "status");
             machine.burn = 0;
-            menu.broadcastChanges();
-            h.assertValueEqual(view.get(handles.status), ToolkitDemo.Status.NO_FUEL, "status without a flame");
+            session.tick();
+            h.assertValueEqual(session.clientValues().get(handles.status), ToolkitDemo.Status.NO_FUEL,
+                    "status without a flame");
         });
     }
 
     /** Shift-clicked ore and fuel go to their groups only; anything else, and the output, is left alone. */
     private static void shiftClick(GameTestHelper helper) {
-        withOpenMenu(helper, (h, player, machine, menu) -> {
+        withOpenMenu(helper, (h, player, machine, session) -> {
             player.getInventory().setItem(9, new ItemStack(Items.RAW_IRON, 10));
             player.getInventory().setItem(10, new ItemStack(Items.COAL, 5));
             player.getInventory().setItem(11, new ItemStack(Items.DIRT, 5));
-            menu.clicked(MAIN, 0, ContainerInput.QUICK_MOVE, player);
-            menu.clicked(MAIN + 1, 0, ContainerInput.QUICK_MOVE, player);
-            menu.clicked(MAIN + 2, 0, ContainerInput.QUICK_MOVE, player);
+            session.shiftClickPlayerSlot(0);
+            session.shiftClickPlayerSlot(1);
+            session.shiftClickPlayerSlot(2);
             h.assertValueEqual(machine.slots.stack(ToolkitDemo.INPUT_SLOT).getCount(), 10, "ore in the input");
             h.assertTrue(machine.slots.stack(ToolkitDemo.INPUT_SLOT).is(Items.RAW_IRON), "input holds iron");
             h.assertValueEqual(machine.slots.stack(ToolkitDemo.FUEL_SLOT).getCount(), 5, "coal in the fuel slot");
@@ -161,25 +159,27 @@ public final class ToolkitApiGameTests {
 
     /** The tank's button gives a carried bucket its water, and a carried water bucket empties into the tank. */
     private static void bucketClicks(GameTestHelper helper) {
-        withOpenMenu(helper, (h, player, machine, menu) -> {
-            int button = ToolkitMenu.TANK_BUTTONS;
+        withOpenMenu(helper, (h, player, machine, session) -> {
+            AbstractContainerMenu menu = session.menu();
+            var tank = ToolkitDemo.handles().tank;
             machine.tank.set(FluidKey.of(Fluids.WATER), 1500);
             menu.setCarried(new ItemStack(Items.BUCKET));
-            h.assertTrue(menu.clickMenuButton(player, button), "bucket filled");
+            h.assertTrue(session.pressTankButton(tank), "bucket filled");
             h.assertTrue(menu.getCarried().is(Items.WATER_BUCKET), "carried " + menu.getCarried());
             h.assertValueEqual(machine.tank.amount(), 500L, "tank after filling a bucket");
-            h.assertTrue(menu.clickMenuButton(player, button), "bucket emptied");
+            h.assertTrue(session.pressTankButton(tank), "bucket emptied");
             h.assertTrue(menu.getCarried().is(Items.BUCKET), "carried " + menu.getCarried());
             h.assertValueEqual(machine.tank.amount(), 1500L, "tank after draining a bucket");
             menu.setCarried(new ItemStack(Items.LAVA_BUCKET));
-            h.assertFalse(menu.clickMenuButton(player, button), "a lava bucket into a water tank");
+            h.assertFalse(session.pressTankButton(tank), "a lava bucket into a water tank");
             h.assertValueEqual(machine.tank.amount(), 1500L, "tank kept its water");
         });
     }
 
     /** Players take from the output but cannot put into it, by click or by drag. */
     private static void outputTakeOnly(GameTestHelper helper) {
-        withOpenMenu(helper, (h, player, machine, menu) -> {
+        withOpenMenu(helper, (h, player, machine, session) -> {
+            AbstractContainerMenu menu = session.menu();
             int output = ToolkitDemo.FIRST_OUTPUT;
             machine.slots.set(output, new ItemStack(Items.IRON_INGOT, 4));
             Slot slot = menu.getSlot(output);
@@ -197,7 +197,7 @@ public final class ToolkitApiGameTests {
 
     /** The demo loop: a burning flame turns ore into ingots once per arrow, and the bars sweep. */
     private static void machineRuns(GameTestHelper helper) {
-        withOpenMenu(helper, (h, player, machine, menu) -> {
+        withOpenMenu(helper, (h, player, machine, session) -> {
             machine.slots.set(ToolkitDemo.INPUT_SLOT, new ItemStack(Items.RAW_IRON, 2));
             machine.slots.set(ToolkitDemo.FUEL_SLOT, new ItemStack(Items.COAL, 1));
             for (int i = 0; i < ToolkitDemo.ARROW_TICKS / ToolkitDemo.STEP; i++) {

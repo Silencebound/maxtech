@@ -7,6 +7,7 @@ Api changes are marked **Api**.
 ## [Unreleased]
 
 ### Added
+- **Api** `MenuTesting` (`lib.api.menu`, experimental, GameTests only): opens a `MenuDefinition` for a mock server player with its values payloads captured, reads the server's and the client's `MenuValueView`, presses a tank's bucket button and shift-clicks slots, so addons can test their menus; `toolkit_api_*` GameTests use it. See `docs/api/gui-toolkit.md`.
 - Docs: `docs/api/gui-toolkit.md` shows how to build a screen with the toolkit; a dev-only demo machine (`/maxtech_lib_demo toolkit`, GameTest source set) and `toolkit_api_*` GameTests use it through the api.
 
 ### Changed
