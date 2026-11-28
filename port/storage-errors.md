@@ -1,6 +1,6 @@
 # Error map: Storage on 1.21.1 (measurement)
 
-State of 2026-11-28, branch `port/1.21.1` with Lib compiling (#93). One converter run over Storage
+State of 2026-11-28, branch `port/1.21.1` with Lib compiling (#93) and main merged in (#94). One converter run over Storage
 (`port/tools/errormap.sh --mod storage --symbols`) to size the Storage port before any Storage work is planned
 (owner decision 2026-11-28). Nothing in Storage is fixed yet; Lib's rules, shims and overrides are untouched.
 
@@ -19,18 +19,18 @@ State of 2026-11-28, branch `port/1.21.1` with Lib compiling (#93). One converte
 - Areas come from the path (`STORAGE_AREAS` in `tools/errormap.py`), and javac runs once per area over that area's
   files. **Masking caveat:** an area counts only its own files, and javac reports a missing type only where it is used.
   Fixing a shim or a signature can uncover new errors in method bodies, as it did in Lib (saving: 75 errors in one
-  run, about 480 compiled alone). Here the per-area total (2,892) and the single-run total (2,891) match, because Lib
-  arrives as compiled classes, so no area hides another yet.
+  run, about 480 compiled alone). Here the per-area and single-run totals match (2,892 and 2,891 before main's
+  last merge), because Lib arrives as compiled classes, so no area hides another yet.
 
 ## Totals
 
 | run | errors | files with errors |
 |---|---:|---:|
 | core rules only | 5,057 | 663 |
-| + Lib's package-wide rules and shim moves (this map) | **2,892** | **529** of 1,613 |
+| + Lib's package-wide rules and shim moves (this map) | **2,900** | **530** of 1,614 |
 | for comparison: Lib at phase 1 | 1,060 | 185 of about 700 |
 
-**1,084 of 1,613 Storage files compile** (67 %): 779 unchanged from main and 305 changed only by Lib's existing rules.
+**1,084 of 1,614 Storage files compile** (67 %): 779 unchanged from main and 305 changed only by Lib's existing rules.
 Core's contract moves already point Storage at Lib's shims (`ValueInput`/`ValueOutput`, `TagValue*`, `Capabilities`,
 the GameTest types, `GuiGraphicsExtractor` and the input events); Lib's package-wide rules (the `Extract*` widget
 bases, block entity IO, `Nbt`, `ProblemReporter`, the GameTest api) then remove another 43 % of what is left.
@@ -39,7 +39,7 @@ bases, block entity IO, `Nbt`, `ProblemReporter`, the GameTest api) then remove 
 
 | area (path) | errors | files with errors / files | clean, unchanged | clean, changed by rules |
 |---|---:|---:|---:|---:|
-| gametest | 532 | 112 / 210 | 2 | 96 |
+| gametest | 540 | 113 / 211 | 2 | 96 |
 | compat | 683 | 26 / 43 | 12 | 5 |
 | datagen | 294 | 22 / 30 | 6 | 2 |
 | unit tests | 7 | 3 / 144 | 130 | 11 |
@@ -117,7 +117,7 @@ Sizes are errors and files as measured; effort is a guess against Lib (1,060 err
    GameTests): about 160 path errors plus about 75 saving-type errors, in about 55 files. Small to medium. The risk
    is in behaviour, not in the count: cell contents, `KeptValue`/`KeptList`, `StorageSaveFormats` and the
    transfer-transaction paths must round-trip, so this package brings its GameTests along (dupes and losses).
-2. **Compile gate** (network, crafting, logic, tools, other, unit tests, GameTests without AE2/RS): about 1,140 errors in
+2. **Compile gate** (network, crafting, logic, tools, other, unit tests, GameTests without AE2/RS): about 1,150 errors in
    about 365 files, mostly the cross-cutting set above. The core candidates and four new shims should take a large
    part of that. Large in files touched, mechanical in kind; it can be split by area once the core rules land.
 3. **GUI and rendering** (gui, rendering, datagen models): about 775 errors in 84 files. Large: 26.1's block state
