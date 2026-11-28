@@ -9,14 +9,13 @@ import org.junit.jupiter.api.Test;
 
 class MenuTestSessionTest {
     @Test
-    void realPlayerIsRefusedInProduction() {
-        assertFalse(MenuTestSession.permitted(false, new LocalChannel()), "a real connection in production");
-        assertFalse(MenuTestSession.permitted(false, null), "no connection in production");
+    void realPlayerIsRefused() {
+        assertFalse(MenuTestSession.permitted(new LocalChannel()), "a real connection, dev client included");
+        assertFalse(MenuTestSession.permitted(null), "no connection");
     }
 
     @Test
-    void mockPlayerAndDevRunsAreAccepted() {
-        assertTrue(MenuTestSession.permitted(false, new EmbeddedChannel()), "a GameTest mock player");
-        assertTrue(MenuTestSession.permitted(true, new LocalChannel()), "any player in a dev run");
+    void mockPlayerIsAccepted() {
+        assertTrue(MenuTestSession.permitted(new EmbeddedChannel()), "a GameTest mock player");
     }
 }

@@ -28,8 +28,8 @@ public final class MenuTesting {
     /**
      * Opens {@code definition} over {@code host} for {@code player} like {@link MenuDefinition#open}, but sends the
      * menu's values payloads to the returned session instead of the player's connection. Close the session when the
-     * test is done; it does not remove the player. Throws {@link IllegalStateException} for a real player in a
-     * production run: only GameTest mock players (or any player in a dev run) are accepted.
+     * test is done; it does not remove the player. Throws {@link IllegalStateException} for any player but a GameTest
+     * mock player, in dev and production runs alike.
      */
     public static <H> Session<H> open(MenuDefinition<H> definition, ServerPlayer player, H host) {
         return support.openTesting(definition, player, host);

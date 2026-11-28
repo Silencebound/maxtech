@@ -68,7 +68,7 @@ public final class LibMenus implements Menus.Backend, MenuTesting.Support {
 
     @Override
     public <H> MenuTesting.Session<H> openTesting(MenuDefinition<H> definition, ServerPlayer player, H host) {
-        return new MenuTestSession<>(definition, player, host, strict);
+        return new MenuTestSession<>(definition, player, host);
     }
 
     @Override

@@ -34,8 +34,8 @@ final class MenuTestSession<H> implements MenuTesting.Session<H> {
      * real connection has) are accepted, so a real player's menu never gets the capture sink.
      */
     @SuppressWarnings("unchecked") // LibMenus opens a DefinedMenu of this definition
-    MenuTestSession(MenuDefinition<H> definition, ServerPlayer player, H host, boolean strict) {
-        if (!permitted(strict, player.connection == null ? null : player.connection.getConnection().channel())) {
+    MenuTestSession(MenuDefinition<H> definition, ServerPlayer player, H host) {
+        if (!permitted(player.connection == null ? null : player.connection.getConnection().channel())) {
             throw new IllegalStateException(
                     "MenuTesting is for GameTest mock players; " + player.getName().getString() + " is a real player");
         }
@@ -56,8 +56,8 @@ final class MenuTestSession<H> implements MenuTesting.Session<H> {
         client = new DefinedMenu<>(definition, server.containerId, player.getInventory(), null);
     }
 
-    static boolean permitted(boolean strict, @Nullable Channel channel) {
-        return strict || channel instanceof EmbeddedChannel;
+    static boolean permitted(@Nullable Channel channel) {
+        return channel instanceof EmbeddedChannel;
     }
 
     @Override
