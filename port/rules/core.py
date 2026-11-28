@@ -37,6 +37,8 @@ MOVES = [
     Regex(r"\.recipeAccess\(\)", ".getRecipeManager()"),
     # 1.21.1 has one GatherDataEvent for client and server data.
     Regex(r"GatherDataEvent\.Client\b", "GatherDataEvent"),
+    # FML 4 (1.21.1) exposes the production flag as a field.
+    Regex(r"FMLEnvironment\.isProduction\(\)", "FMLEnvironment.production"),
 ]
 
 # Contract moves: 26.1 types that 1.21.1 lacks point at a Lib shim of the same name and shape, which the named work
