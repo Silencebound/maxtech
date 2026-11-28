@@ -1,5 +1,7 @@
 package dev.silencebound.maxtech.lib.menu;
 
+import dev.silencebound.maxtech.lib.api.menu.CycleAction;
+import dev.silencebound.maxtech.lib.api.menu.MenuChoice;
 import dev.silencebound.maxtech.lib.api.menu.MenuDefinition;
 import dev.silencebound.maxtech.lib.api.menu.MenuSlots;
 import dev.silencebound.maxtech.lib.api.menu.MenuTesting;
@@ -95,6 +97,15 @@ final class MenuTestSession<H> implements MenuTesting.Session<H> {
         int button = server.tankButton(tank);
         if (button < 0) {
             throw new IllegalArgumentException("Tank takes no bucket clicks in " + definition.name());
+        }
+        return server.clickMenuButton(player, button);
+    }
+
+    @Override
+    public <E extends Enum<E> & MenuChoice> boolean pressCycleButton(CycleAction<E> action, E choice) {
+        int button = server.cycleButton(action, choice);
+        if (button < 0) {
+            throw new IllegalArgumentException("Cycle action of another definition than " + definition.name());
         }
         return server.clickMenuButton(player, button);
     }

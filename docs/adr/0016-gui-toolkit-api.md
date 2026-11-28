@@ -67,3 +67,19 @@ experimental until Farms ships.
   its kind's `ResourceLook` and amount unit, only the outlined well for a kind without a look, and "Unknown" for
   unknown contents. Fluid tank values keep their encoding; other tanks send an optional
   `KindKey.CLIENTBOUND_STREAM_CODEC` inside the same payload framing.
+
+## Amendment (2026-11-28): menu server actions (machine core PR 2, ADR-0019)
+
+- Until now a definition's screen only sent tank bucket clicks. A machine also needs the screen to change a setting on
+  the server (redstone mode now, side config next). `MenuDefinition.Builder.cycle(enumValue, setter)` declares such an
+  action over a synced `EnumValue` whose enum implements `MenuChoice` (a name key and a hint key), and
+  `Layout.cycleButton(action, key, width)` places an Accent button for it.
+- The click goes through vanilla's container button packet, like the tank clicks: no payload of our own, and vanilla
+  already drops clicks for another container, from spectators or on a menu that is no longer valid. Ids from
+  `ToolkitMenu.ACTION_BUTTONS` (2,000,000) carry the action's index times `CycleAction.MAX_CHOICES` (256) plus the
+  ordinal of the asked-for constant; the server ignores ids of no action and ordinals past the enum, and the setter
+  decides the rest.
+- The click names the choice, not "next", so a click the server sees twice sets the same choice twice instead of
+  skipping one. Left click (or Enter) asks for the constant after the one the client shows, right click for the one
+  before; the new value comes back with the next values payload.
+- `MenuTesting.Session.pressCycleButton` clicks one in GameTests.
