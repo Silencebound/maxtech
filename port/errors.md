@@ -1,23 +1,43 @@
 # Error map: Lib on 1.21.1
 
-State of 2026-11-28, branch `port/1.21.1` after the transfer, rendering, gui and saving ports and the first skeleton
-fix, with `port/tools/errormap.sh`. It runs one javac per work package over that package's own files (the rest comes
-from the sourcepath), so one package's errors never mask another's; `--single` is the old all-in-one run (the two
-differ only when a package's missing types stop javac before it attributes the bodies: the saving package once saw 75
-errors in the single run and about 480 compiled alone). Regenerate with `port/tools/errormap.sh > port/build/em.txt`;
-`port/build/errormap.log` holds every message.
-
-**25 errors in 14 files** (phase 1, before any package work: 1060 in 185 files; the spike: 1490 in 227). Both modes
-give the same count today. Still a lower bound once new shims make more types resolve. Error counts are not effort: the transfer
-bridge has few errors but the most design work.
+State of 2026-11-28, branch `port/1.21.1` after the five package ports and the compile gate (`port/1.21.1-compile`).
+**Lib compiles on 1.21.1**: 0 errors in every source set (common api/main/test, neoforge api/main/gametest/test),
+with `port/tools/errormap.sh` and with `(cd port && ./gradlew compileJava compileTestJava compileGametestJava)`
+(phase 1, before any package work: 1060 errors in 185 files; the spike: 1490 in 227). The error map stays the tool
+for main's next changes: it runs one javac per work package over that package's own files (the rest from the
+sourcepath), so one package's errors never mask another's; `--single` is the all-in-one run.
 
 | package | errors | files with errors | files owned (ownership.txt) |
 |---|---:|---:|---:|
 | transfer | 0 | 0 | 94 |
 | rendering | 0 | 0 | 29 |
-| gui | 5 | 1 | 51 |
+| gui | 0 | 0 | 51 |
 | saving + GameTest | 0 | 0 | 85 |
-| other | 20 | 13 | 446 |
+| other | 0 | 0 | 446 |
+
+## Tests (2026-11-28)
+
+- **Unit tests** (`./gradlew test`): all pass. Common, plain JUnit: 752 run, 0 failed, 12 skipped (legacy bridge
+  tests that need FML). Neoforge, inside FML: 89 run, 0 failed, 0 skipped (its 40 plus common's 49 legacy-bridge
+  tests, the 12 above among them).
+- **Jar**: `checkTransferJar` fails: `shim.transfer.bridge` is in both jars (the vendored `Capabilities` in the
+  nested one, Lib's `ForeignKinds`, added by the transfer package's foreign-last change, in Lib's). FML refuses a
+  package split over two modules, so the built jar cannot load until `ForeignKinds` moves to a Lib-only package
+  (for example `bridge.legacy`). Dev runs and tests are not affected (one mod there).
+- **GameTests** (`./gradlew :lib:neoforge:runGameTestServer`): 198 ran, 173 passed, 25 failed. By cause:
+  - *Jade and mock players* (20: `menu_action_*` 2, `menu_definition_opens`, `side_config_*` 7, `toolkit_api_*` 10):
+    `GameTestHelper.makeMockServerPlayerInLevel` runs `PlayerList.placeNewPlayer`, where Jade (runtimeOnly in dev
+    runs) sends `jade:server_ping_v1` to a connection that never negotiated it, and NeoForge throws. Fix in the
+    GameTest shim (a mock player that skips the login event) or keep Jade out of the GameTest run.
+  - *Resources in 26.1 formats* (4: `content_toggle_recipe_condition`, `facade_recipe_binder`,
+    `machine_recipes_refused`, `machine_recipes_demo_loads`): recipe JSON writes ingredients as strings
+    (`"#c:ingots/iron"`, `"minecraft:dead_bush"`); 1.21.1 wants `{"tag": ...}`/`{"item": ...}` objects. Affects
+    Lib's generated recipes and the GameTest data packs.
+  - *Behaviour* (1: `machine_recipes_round_trip`): 1.21.1's ingredient stream codec sends a tag ingredient as its
+    items, so the streamed recipe has `{"item": ...}` where the test expects `{"tag": ...}`.
+  - *Structures in 26.1 NBT*: none failed.
+- Not failing but in 26.1 formats: the pipe showcase's text displays (`Display entityNot a string`: 26.1 text
+  component NBT in the summoned entity data).
 
 ## Ownership: five disjoint work packages
 
@@ -81,49 +101,16 @@ A package that needs a further cross-cutting move (a 26.1 type used in other pac
    new contract move in core.py.
 3. **Hidden errors.** Each package should run `port/tools/errormap.sh` after its shims land; newly surfaced errors in
    a file go to that file's owner, not to whoever uncovered them.
-4. **Licence**: the vendored transfer api is LGPL-2.1-only inside the LGPL-3.0 Lib jar (port/NOTICE-transfer.md);
-   needs the owner's OK before any public 1.21.1 build, not before the work.
+4. **Licence**: the vendored transfer api is LGPL-2.1-only; it ships as its own nested jar in Lib's jar (owner
+   2026-11-28; port/NOTICE-transfer.md has the layout and why it uses Lib's `shim.saving` interfaces at runtime).
 5. **Resources** are copied unchanged (no rules on JSON yet): 26.1 item model definitions (`assets/*/items/*.json`),
    recipe and tag JSON formats may need rules or datagen on 1.21.1; that only shows at runtime, belongs to rendering
    (models) and other (recipes/tags), and is not in the counts above.
 
 ## Errors by package and file
 
-Generated by `port/tools/errormap.py` (per file: errors, then the areas inside it).
+Generated by `port/tools/errormap.py`.
 
 ```
-total 25 errors in 14 files (per package, own files only)
-
-by area:
-  other           14 errors    8 files
-  recipes          8 errors    4 files
-  permissions      1 errors    1 files
-  override         1 errors    1 files
-  naming           1 errors    1 files
-by package (file owner):
-  transfer         0 errors    0 files
-  rendering        0 errors    0 files
-  gui              5 errors    1 files
-  saving           0 errors    0 files
-  other           20 errors   13 files
-
-[transfer]
-[rendering]
-[gui]
-     5  neoforge/main: neoforge/client/LayoutCheckClient.java  (other 5)
-[saving]
-[other]
-     4  neoforge/main: neoforge/compat/kubejs/MachineRecipeComponents.java  (recipes 4)
-     3  neoforge/main: neoforge/datagen/ContentIndexProvider.java  (other 2, naming 1)
-     2  neoforge/main: neoforge/compat/kubejs/LibKubeJSPlugin.java  (recipes 2)
-     2  neoforge/main: neoforge/platform/NeoForgeLifecycleEvents.java  (other 2)
-     1  neoforge/main: neoforge/guide/LibGuides.java  (other 1)
-     1  neoforge/main: neoforge/MaxtechLibNeoForge.java  (other 1)
-     1  neoforge/main: neoforge/ContentEnabledCondition.java  (other 1)
-     1  neoforge/main: neoforge/LibCommands.java  (permissions 1)
-     1  neoforge/main: neoforge/client/AccentDemoCommand.java  (other 1)
-     1  neoforge/main: neoforge/datagen/LibRecipeProvider.java  (recipes 1)
-     1  neoforge/main: neoforge/datagen/ContentFluidTagsProvider.java  (other 1)
-     1  neoforge/main: neoforge/datagen/ContentBlockTagsProvider.java  (override 1)
-     1  neoforge/main: neoforge/datagen/ContentRecipeProvider.java  (recipes 1)
+total 0 errors in 0 files (per package, own files only)
 ```

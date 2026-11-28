@@ -11,7 +11,8 @@ import net.minecraft.data.recipes.RecipeProvider;
 
 /**
  * The crafting recipes a mod's blocks, items and machines declared with the content builder. On 1.21.1 the recipe
- * provider is the data provider itself, so {@link Runner} is the provider.
+ * provider is the data provider itself, so {@link Runner} is the provider. Its name is final there ("Recipes"), and a
+ * data run refuses two providers of one name: a mod's run holds one recipe provider.
  */
 final class ContentRecipeProvider {
     private ContentRecipeProvider() {
@@ -28,11 +29,6 @@ final class ContentRecipeProvider {
         @Override
         protected void buildRecipes(RecipeOutput output, HolderLookup.Provider registries) {
             ContentDatagen.recipes(content, registries.lookupOrThrow(Registries.ITEM), output);
-        }
-
-        @Override
-        public String getName() {
-            return "Content recipes - " + content.modId();
         }
     }
 }

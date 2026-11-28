@@ -1,4 +1,6 @@
 import java.util.Properties
+import java.util.zip.ZipFile
+import java.util.zip.ZipInputStream
 
 // Lib's NeoForge side on 1.21.1: the source sets of main's maxtech.neoforge (api, main, gametest, test), compiled from
 // the generated tree port/out/lib/neoforge, plus the dev runs and the `errorMap` task (port/README.md).
@@ -63,6 +65,8 @@ dependencies {
             prefer(libs.versions.guideme.get())
         }
     }
+    // The vendored transfer api's own LGPL-2.1 jar (lib-common's transferJar, port/NOTICE-transfer.md).
+    jarJar(project(common.path, "transferElements"))
     compileOnly(libs.kubejs)
     compileOnly(libs.rhino)
     compileOnly(libs.jade.neoforge)
@@ -110,6 +114,12 @@ neoForge {
             gameDirectory = rootProject.file("run/$name")
         }
     }
+
+    // JUnit inside FML (ModDevGradle's unit test support), so tests can bootstrap the game's registries.
+    unitTest {
+        enable()
+        testedMod = mods[modId]
+    }
 }
 
 evaluationDependsOn(common.path)
@@ -123,12 +133,54 @@ tasks.withType<Test>().configureEach {
     useJUnitPlatform()
 }
 
+// Common's tests that need the game's registries (the legacy transfer bridge's) skip themselves in common's plain JUnit
+// run and run here, inside FML. Common's test classes join this test source set's output, which ModDevGradle adds to
+// the tested mod, so FML loads them in the game layer next to the code they test. Common's test resources stay out:
+// their Platform service (the config outline) would replace NeoForge's in the mod.
+val commonTest = common.the<SourceSetContainer>()["test"]
+sourceSets.test {
+    output.dir(mapOf("builtBy" to common.tasks.named(commonTest.classesTaskName)), commonTest.java.destinationDirectory)
+}
+tasks.test {
+    testClassesDirs += commonTest.output.classesDirs
+    include("dev/silencebound/maxtech/lib/neoforge/**", "dev/silencebound/maxtech/lib/shim/transfer/bridge/legacy/**")
+}
+
 tasks.jar {
     from(common.the<SourceSetContainer>()["main"].output)
-    from(common.the<SourceSetContainer>()["api"].output)
+    // The vendored transfer api is common's transferJar, nested below; only Lib's legacy bridge stays here.
+    val transferRoot = "dev/silencebound/maxtech/lib/shim/transfer/"
+    from(common.the<SourceSetContainer>()["api"].output) {
+        exclude { !it.isDirectory && it.path.startsWith(transferRoot) && !it.path.startsWith("${transferRoot}bridge/legacy/") }
+    }
+    includeEmptyDirs = false
     from(apiSourceSet.output)
     from(rootProject.files("../LICENSE", "../COPYING", "../COPYING.LESSER", "NOTICE-transfer.md")) { into("META-INF") }
 }
+
+// FML loads Lib and the nested transfer jar into one module layer, which refuses a package that both jars hold.
+val checkTransferJar = tasks.register("checkTransferJar") {
+    group = "verification"
+    description = "Fails when Lib's jar and its nested transfer jar share a package."
+    val libJar = tasks.jar.flatMap { it.archiveFile }
+    inputs.file(libJar)
+    doLast {
+        val packages = { entries: Sequence<String> ->
+            entries.filter { it.endsWith(".class") }.map { it.substringBeforeLast('/') }.toSet()
+        }
+        ZipFile(libJar.get().asFile).use { lib ->
+            val nestedEntry = lib.entries().asSequence().single { it.name.contains("maxtech_lib-transfer") }
+            val nested = ZipInputStream(lib.getInputStream(nestedEntry)).use { zip ->
+                packages(generateSequence { zip.nextEntry }.map { it.name }.toList().asSequence())
+            }
+            val shared = packages(lib.entries().asSequence().map { it.name }) intersect nested
+            if (shared.isNotEmpty()) {
+                throw GradleException("Packages in both Lib's jar and the nested transfer jar: $shared")
+            }
+        }
+    }
+}
+tasks.check { dependsOn(checkTransferJar) }
 
 val versionProperties = mapOf(
     "mod_version" to version.toString(),

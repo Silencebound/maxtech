@@ -51,10 +51,5 @@ final class LibRecipeProvider {
             out.accept(MaxtechLib.id(path), new FacadeRecipe(Ingredient.of(binder),
                     new ItemStackTemplate(FacadeContent.FACADE.get(), PER_CRAFT)), null);
         }
-
-        @Override
-        public String getName() {
-            return "Lib recipes";
-        }
     }
 }
