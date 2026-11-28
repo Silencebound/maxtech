@@ -90,15 +90,66 @@ class LegacyEnergyHandlerTest {
     }
 
     @Test
-    void storageChangedBeforeCommitDoesNotThrow() {
+    void storageChangedBeforeCommitIsReported() {
         var storage = new EnergyStorage(100, 1000, 1000, 0);
         var handler = new LegacyEnergyHandler(storage);
+        int before = LegacyLedger.MISMATCHES.get();
         try (var tx = Transaction.openRoot()) {
             assertEquals(100, handler.insert(100, tx));
             storage.receiveEnergy(60, false);
             tx.commit();
         }
+        // 100 FE were taken from the other side, 40 fitted: 60 FE lost, and reported.
         assertEquals(100, storage.getEnergyStored());
+        assertEquals(before + 1, LegacyLedger.MISMATCHES.get());
+    }
+
+    @Test
+    void newStoragePerQueryOnOneBlockSharesTheLedger() {
+        var backing = new EnergyStorage(100, 1000, 1000, 50);
+        var block = new LegacyLedger.Location(new Object(), 42L);
+        int extracted = 0;
+        try (var tx = Transaction.openRoot()) {
+            // Two cables on one block; the provider returns a new view of the same storage for each query.
+            extracted += new LegacyEnergyHandler(new View(backing), block).extract(40, tx);
+            extracted += new LegacyEnergyHandler(new View(backing), block).extract(40, tx);
+            tx.commit();
+        }
+        assertEquals(50, extracted);
+        assertEquals(0, backing.getEnergyStored());
+    }
+
+    /** A new object per capability query over one real storage, as many 1.21.1 providers return. */
+    private record View(IEnergyStorage real) implements IEnergyStorage {
+        @Override
+        public int receiveEnergy(int toReceive, boolean simulate) {
+            return real.receiveEnergy(toReceive, simulate);
+        }
+
+        @Override
+        public int extractEnergy(int toExtract, boolean simulate) {
+            return real.extractEnergy(toExtract, simulate);
+        }
+
+        @Override
+        public int getEnergyStored() {
+            return real.getEnergyStored();
+        }
+
+        @Override
+        public int getMaxEnergyStored() {
+            return real.getMaxEnergyStored();
+        }
+
+        @Override
+        public boolean canExtract() {
+            return real.canExtract();
+        }
+
+        @Override
+        public boolean canReceive() {
+            return real.canReceive();
+        }
     }
 
     @Test
@@ -115,8 +166,8 @@ class LegacyEnergyHandlerTest {
     @Test
     void bridgingTwiceUnwraps() {
         IEnergyStorage storage = new EnergyStorage(100);
-        assertSame(storage, LegacyBridge.toLegacyEnergy(LegacyBridge.fromLegacyEnergy(storage)));
+        assertSame(storage, LegacyBridge.toLegacyEnergy(LegacyBridge.fromLegacyEnergy(storage, null, null)));
         EnergyHandler lib = new SimpleEnergyHandler(100);
-        assertSame(lib, LegacyBridge.fromLegacyEnergy(LegacyBridge.toLegacyEnergy(lib)));
+        assertSame(lib, LegacyBridge.fromLegacyEnergy(LegacyBridge.toLegacyEnergy(lib), null, null));
     }
 }

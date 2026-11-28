@@ -5,6 +5,8 @@ import dev.silencebound.maxtech.lib.shim.transfer.ResourceHandler;
 import dev.silencebound.maxtech.lib.shim.transfer.TransferPreconditions;
 import dev.silencebound.maxtech.lib.shim.transfer.fluid.FluidResource;
 import dev.silencebound.maxtech.lib.shim.transfer.transaction.TransactionContext;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.level.Level;
 import net.neoforged.neoforge.fluids.FluidStack;
 import net.neoforged.neoforge.fluids.capability.IFluidHandler;
 import net.neoforged.neoforge.fluids.capability.IFluidHandler.FluidAction;
@@ -12,7 +14,7 @@ import org.slf4j.Logger;
 
 /**
  * A {@code ResourceHandler<FluidResource>} over a 1.21.1 {@link IFluidHandler}, which has no transactions. The
- * transaction state lives in a {@link LegacyLedger} shared by all wrappers over the same handler object: fills and
+ * transaction state lives in a {@link LegacyLedger} shared by all wrappers on the same block: fills and
  * drains are simulated (combined) and applied on the root commit, so a rollback never touches the handler.
  *
  * <p>{@code fill} does not take a tank, so the whole handler is one ledger slot: one fluid at a time may have a
@@ -32,9 +34,22 @@ public final class LegacyFluidHandler implements ResourceHandler<FluidResource> 
     private final LegacyLedger<FluidResource> ledger;
     private final Real real = new Real();
 
+    /**
+     * A wrapper for a handler found at a block: every wrapper and query on that block (any side) shares one ledger,
+     * since 1.21.1 providers often return a new handler per query.
+     */
+    public LegacyFluidHandler(IFluidHandler handler, Level level, BlockPos pos) {
+        this(handler, new LegacyLedger.Location(level, pos.asLong()));
+    }
+
+    /** A wrapper for a handler with no block; it shares its ledger only with wrappers of the same object. */
     public LegacyFluidHandler(IFluidHandler handler) {
+        this(handler, handler);
+    }
+
+    LegacyFluidHandler(IFluidHandler handler, Object ledgerKey) {
         this.handler = handler;
-        this.ledger = LEDGERS.of(handler);
+        this.ledger = LEDGERS.of(ledgerKey);
     }
 
     /** {@return the wrapped 1.21.1 handler} */

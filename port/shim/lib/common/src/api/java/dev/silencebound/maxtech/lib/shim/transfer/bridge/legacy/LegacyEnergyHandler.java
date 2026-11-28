@@ -4,12 +4,14 @@ import com.mojang.logging.LogUtils;
 import dev.silencebound.maxtech.lib.shim.transfer.TransferPreconditions;
 import dev.silencebound.maxtech.lib.shim.transfer.energy.EnergyHandler;
 import dev.silencebound.maxtech.lib.shim.transfer.transaction.TransactionContext;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.level.Level;
 import net.neoforged.neoforge.energy.IEnergyStorage;
 import org.slf4j.Logger;
 
 /**
  * An {@link EnergyHandler} over a 1.21.1 {@link IEnergyStorage}, which has no transactions. The transaction state
- * lives in a {@link LegacyLedger} shared by all wrappers over the same storage object: both directions are simulated
+ * lives in a {@link LegacyLedger} shared by all wrappers on the same block: both directions are simulated
  * (combined) and applied on the root commit, so a rollback never touches the storage. If the storage changed between
  * simulation and commit, the difference is logged.
  *
@@ -29,9 +31,22 @@ public final class LegacyEnergyHandler implements EnergyHandler {
     private final LegacyLedger<Fe> ledger;
     private final Real real = new Real();
 
+    /**
+     * A wrapper for a storage found at a block: every wrapper and query on that block (any side) shares one ledger,
+     * since 1.21.1 providers often return a new storage per query.
+     */
+    public LegacyEnergyHandler(IEnergyStorage storage, Level level, BlockPos pos) {
+        this(storage, new LegacyLedger.Location(level, pos.asLong()));
+    }
+
+    /** A wrapper for a storage with no block; it shares its ledger only with wrappers of the same object. */
     public LegacyEnergyHandler(IEnergyStorage storage) {
+        this(storage, storage);
+    }
+
+    LegacyEnergyHandler(IEnergyStorage storage, Object ledgerKey) {
         this.storage = storage;
-        this.ledger = LEDGERS.of(storage);
+        this.ledger = LEDGERS.of(ledgerKey);
     }
 
     /** {@return the wrapped 1.21.1 storage} */

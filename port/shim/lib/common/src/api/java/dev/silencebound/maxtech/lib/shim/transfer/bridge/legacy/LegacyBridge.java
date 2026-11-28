@@ -66,9 +66,9 @@ public final class LegacyBridge {
             bridge(event, block, Capabilities.Item.BLOCK, legacyItems, LegacyBridge::toLegacy,
                     LegacyBridge::fromLegacy);
             bridge(event, block, Capabilities.Fluid.BLOCK, legacyFluids, LegacyBridge::toLegacyFluids,
-                    (handler, level, pos) -> fromLegacyFluids(handler));
+                    LegacyBridge::fromLegacyFluids);
             bridge(event, block, Capabilities.Energy.BLOCK, legacyEnergy, LegacyBridge::toLegacyEnergy,
-                    (storage, level, pos) -> fromLegacyEnergy(storage));
+                    LegacyBridge::fromLegacyEnergy);
         }
         for (Item item : BuiltInRegistries.ITEM) {
             bridgeFluidItem(event, item);
@@ -125,16 +125,24 @@ public final class LegacyBridge {
                 : new FluidResourceHandlerAdapter(handler);
     }
 
-    static ResourceHandler<FluidResource> fromLegacyFluids(IFluidHandler handler) {
-        return handler instanceof FluidResourceHandlerAdapter adapter ? adapter.handler()
-                : new LegacyFluidHandler(handler);
+    static ResourceHandler<FluidResource> fromLegacyFluids(IFluidHandler handler, @Nullable Level level,
+            @Nullable BlockPos pos) {
+        if (handler instanceof FluidResourceHandlerAdapter adapter) {
+            return adapter.handler();
+        }
+        return level == null || pos == null ? new LegacyFluidHandler(handler)
+                : new LegacyFluidHandler(handler, level, pos);
     }
 
     static IEnergyStorage toLegacyEnergy(EnergyHandler handler) {
         return handler instanceof LegacyEnergyHandler wrapper ? wrapper.storage() : new EnergyHandlerAdapter(handler);
     }
 
-    static EnergyHandler fromLegacyEnergy(IEnergyStorage storage) {
-        return storage instanceof EnergyHandlerAdapter adapter ? adapter.handler() : new LegacyEnergyHandler(storage);
+    static EnergyHandler fromLegacyEnergy(IEnergyStorage storage, @Nullable Level level, @Nullable BlockPos pos) {
+        if (storage instanceof EnergyHandlerAdapter adapter) {
+            return adapter.handler();
+        }
+        return level == null || pos == null ? new LegacyEnergyHandler(storage)
+                : new LegacyEnergyHandler(storage, level, pos);
     }
 }

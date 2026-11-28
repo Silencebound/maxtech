@@ -9,6 +9,9 @@ import java.lang.invoke.MethodHandles;
 import java.lang.invoke.VarHandle;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.world.CompoundContainer;
+import net.minecraft.world.Container;
+import net.minecraft.world.SimpleContainer;
 import net.minecraft.world.WorldlyContainer;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
@@ -27,50 +30,70 @@ import org.slf4j.Logger;
  * {@code setStackInSlot} on rollback for an {@link IItemHandlerModifiable}, else simulated and applied on commit too.
  * Items the handler no longer accepts on commit go into its other slots, then drop at the block.
  *
- * <p>Wrappers over one inventory share a ledger when the handler is the same object, or an {@link InvWrapper} or
- * {@link SidedInvWrapper} over the same container (NeoForge's vanilla providers make a new one per query). Another
- * mod's handler that is a new object per query over shared state gets one ledger per object; its inserts in one
- * transaction can then count the same free space twice, which ends in items dropped at the block, never in lost or
- * duplicated items.
+ * <p>Wrappers over one inventory share a ledger: an {@link InvWrapper} or {@link SidedInvWrapper} (NeoForge makes a
+ * new one per query) by its real container and container slot, a double chest's {@link CompoundContainer} by each
+ * half; any other handler by the block it was found at ({@link LegacyLedger.Location}), or by the handler object when
+ * there is no block.
  *
  * <p>Server or client thread only, like the wrapped handler.
  */
 public final class LegacyItemHandler implements ResourceHandler<ItemResource> {
     private static final Logger LOGGER = LogUtils.getLogger();
     static final LegacyLedger.Registry<ItemResource> LEDGERS = new LegacyLedger.Registry<>();
-    private static final @Nullable VarHandle SIDED_INV = sidedField("inv", WorldlyContainer.class);
-    private static final @Nullable VarHandle SIDED_SIDE = sidedField("side", Direction.class);
+    private static final @Nullable VarHandle SIDED_INV = field(SidedInvWrapper.class, "inv", WorldlyContainer.class);
+    private static final @Nullable VarHandle SIDED_SIDE = field(SidedInvWrapper.class, "side", Direction.class);
+    private static final @Nullable VarHandle FIRST_HALF = field(CompoundContainer.class, "container1", Container.class);
+    private static final @Nullable VarHandle SECOND_HALF = field(CompoundContainer.class, "container2", Container.class);
 
     private final IItemHandler handler;
     private final @Nullable Level level;
     private final @Nullable BlockPos pos;
     private final @Nullable WorldlyContainer sided;
     private final @Nullable Direction side;
+    /** The ledger, or the first half's for a double chest. */
     private final LegacyLedger<ItemResource> ledger;
+    /** The second half's ledger for a double chest, else null. */
+    private final @Nullable LegacyLedger<ItemResource> secondLedger;
+    private final int firstSize;
     private final Real real = new Real();
 
     /** A wrapper whose overflow drops at {@code pos}; without a level the overflow is logged as lost. */
     public LegacyItemHandler(IItemHandler handler, @Nullable Level level, @Nullable BlockPos pos) {
-        this.handler = handler;
-        this.level = level;
-        this.pos = pos == null ? null : pos.immutable();
-        Object inventory = handler;
-        WorldlyContainer sidedInv = null;
-        Direction sidedSide = null;
-        if (handler instanceof InvWrapper wrapper) {
-            inventory = wrapper.getInv();
-        } else if (handler instanceof SidedInvWrapper && SIDED_INV != null && SIDED_SIDE != null) {
-            sidedInv = (WorldlyContainer) SIDED_INV.get(handler);
-            sidedSide = (Direction) SIDED_SIDE.get(handler);
-            inventory = sidedInv;
-        }
-        this.sided = sidedInv;
-        this.side = sidedSide;
-        this.ledger = LEDGERS.of(inventory);
+        this(handler, level, pos, level == null || pos == null ? handler
+                : new LegacyLedger.Location(level, pos.asLong()));
     }
 
     public LegacyItemHandler(IItemHandler handler) {
         this(handler, null, null);
+    }
+
+    /** {@code ledgerKey}: what a handler that is not a NeoForge container wrapper shares its ledger by. */
+    LegacyItemHandler(IItemHandler handler, @Nullable Level level, @Nullable BlockPos pos, Object ledgerKey) {
+        this.handler = handler;
+        this.level = level;
+        this.pos = pos == null ? null : pos.immutable();
+        Container container = null;
+        WorldlyContainer sidedInv = null;
+        Direction sidedSide = null;
+        if (handler instanceof InvWrapper wrapper) {
+            container = wrapper.getInv();
+        } else if (handler instanceof SidedInvWrapper && SIDED_INV != null && SIDED_SIDE != null) {
+            sidedInv = (WorldlyContainer) SIDED_INV.get(handler);
+            sidedSide = (Direction) SIDED_SIDE.get(handler);
+            container = sidedInv;
+        }
+        this.sided = sidedInv;
+        this.side = sidedSide;
+        if (container instanceof CompoundContainer compound && FIRST_HALF != null && SECOND_HALF != null) {
+            Container first = (Container) FIRST_HALF.get(compound);
+            this.ledger = LEDGERS.of(first);
+            this.secondLedger = LEDGERS.of((Container) SECOND_HALF.get(compound));
+            this.firstSize = first.getContainerSize();
+        } else {
+            this.ledger = LEDGERS.of(container != null ? container : ledgerKey);
+            this.secondLedger = null;
+            this.firstSize = 0;
+        }
     }
 
     /** {@return the wrapped 1.21.1 handler} */
@@ -79,8 +102,18 @@ public final class LegacyItemHandler implements ResourceHandler<ItemResource> {
     }
 
     /** The inventory's own slot behind {@code index}: the container slot for a sided wrapper, else the index. */
-    private int key(int index) {
+    private int slotOf(int index) {
         return sided != null ? SidedInvWrapper.getSlot(sided, index, side) : index;
+    }
+
+    /** The ledger slot behind {@code index}: the slot within its half for a double chest. */
+    private int key(int index) {
+        int slot = slotOf(index);
+        return secondLedger != null && slot >= firstSize ? slot - firstSize : slot;
+    }
+
+    private LegacyLedger<ItemResource> ledger(int index) {
+        return secondLedger != null && slotOf(index) >= firstSize ? secondLedger : ledger;
     }
 
     @Override
@@ -91,7 +124,7 @@ public final class LegacyItemHandler implements ResourceHandler<ItemResource> {
     @Override
     public ItemResource getResource(int index) {
         ItemStack stack = handler.getStackInSlot(index);
-        ItemResource pending = ledger.pendingResource(key(index));
+        ItemResource pending = ledger(index).pendingResource(key(index));
         if (pending == null || (!stack.isEmpty() && !pending.matches(stack))) {
             return ItemResource.of(stack);
         }
@@ -102,6 +135,7 @@ public final class LegacyItemHandler implements ResourceHandler<ItemResource> {
     public long getAmountAsLong(int index) {
         ItemStack stack = handler.getStackInSlot(index);
         int key = key(index);
+        LegacyLedger<ItemResource> ledger = ledger(index);
         ItemResource pending = ledger.pendingResource(key);
         if (pending == null || (!stack.isEmpty() && !pending.matches(stack))) {
             return stack.getCount();
@@ -124,13 +158,13 @@ public final class LegacyItemHandler implements ResourceHandler<ItemResource> {
     @Override
     public int insert(int index, ItemResource resource, int amount, TransactionContext transaction) {
         TransferPreconditions.checkNonEmptyNonNegative(resource, amount);
-        return ledger.insert(real, index, key(index), resource, amount, transaction);
+        return ledger(index).insert(real, index, key(index), resource, amount, transaction);
     }
 
     @Override
     public int extract(int index, ItemResource resource, int amount, TransactionContext transaction) {
         TransferPreconditions.checkNonEmptyNonNegative(resource, amount);
-        return ledger.extract(real, index, key(index), resource, amount, transaction);
+        return ledger(index).extract(real, index, key(index), resource, amount, transaction);
     }
 
     /** Real, non-transactional moves on the handler, called by the ledger. */
@@ -158,16 +192,22 @@ public final class LegacyItemHandler implements ResourceHandler<ItemResource> {
         public int restore(int slot, ItemResource resource, int amount) {
             // Only reached for IItemHandlerModifiable; setStackInSlot ignores insert rules, so output slots work.
             ItemStack current = handler.getStackInSlot(slot);
-            if (current.isEmpty()) {
-                ((IItemHandlerModifiable) handler).setStackInSlot(slot, resource.toStack(amount));
-                return amount;
+            if (!current.isEmpty() && !resource.matches(current)) {
+                return 0;
             }
-            if (resource.matches(current)) {
-                ItemStack restored = current.copyWithCount(current.getCount() + amount);
-                ((IItemHandlerModifiable) handler).setStackInSlot(slot, restored);
-                return amount;
+            int limit = Math.min(handler.getSlotLimit(slot), resource.getMaxStackSize());
+            int restored = Math.min(amount, limit - current.getCount());
+            if (restored <= 0) {
+                return 0;
             }
-            return 0;
+            ItemStack stack = resource.toStack(current.getCount() + restored);
+            if (handler instanceof InvWrapper wrapper && wrapper.getInv() instanceof SimpleContainer simple) {
+                // A rollback is not a change: skip SimpleContainer's setChanged listeners where we can.
+                simple.getItems().set(slot, stack);
+            } else {
+                ((IItemHandlerModifiable) handler).setStackInSlot(slot, stack);
+            }
+            return restored;
         }
 
         @Override
@@ -238,12 +278,12 @@ public final class LegacyItemHandler implements ResourceHandler<ItemResource> {
         return "LegacyItemHandler{" + handler + "}";
     }
 
-    private static @Nullable VarHandle sidedField(String name, Class<?> type) {
+    private static @Nullable VarHandle field(Class<?> owner, String name, Class<?> type) {
         try {
-            return MethodHandles.privateLookupIn(SidedInvWrapper.class, MethodHandles.lookup())
-                    .findVarHandle(SidedInvWrapper.class, name, type);
+            return MethodHandles.privateLookupIn(owner, MethodHandles.lookup()).findVarHandle(owner, name, type);
         } catch (ReflectiveOperationException | RuntimeException e) {
-            LOGGER.warn("Cannot read SidedInvWrapper.{}; sided wrappers get their own transaction ledger", name, e);
+            LOGGER.warn("Cannot read {}.{}; those wrappers share a ledger only by block", owner.getSimpleName(), name,
+                    e);
             return null;
         }
     }

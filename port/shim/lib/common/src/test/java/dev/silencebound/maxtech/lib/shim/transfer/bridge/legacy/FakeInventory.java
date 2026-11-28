@@ -45,10 +45,21 @@ final class FakeInventory {
     }
 
     View view() {
-        return new View();
+        return new View(LIMIT);
+    }
+
+    /** A view whose side lets at most {@code sideLimit} into a slot, like a restricted face of a machine. */
+    View view(int sideLimit) {
+        return new View(sideLimit);
     }
 
     final class View implements LegacyTarget<String> {
+        private final int sideLimit;
+
+        View(int sideLimit) {
+            this.sideLimit = sideLimit;
+        }
+
         @Override
         public boolean extractsImmediately() {
             return extractsImmediately;
@@ -59,7 +70,7 @@ final class FakeInventory {
             if (refusesInsert[slot] || (count[slot] > 0 && !what.equals(resource[slot]))) {
                 return 0;
             }
-            return Math.min(amount, LIMIT - count[slot]);
+            return Math.max(0, Math.min(amount, Math.min(LIMIT, sideLimit) - count[slot]));
         }
 
         @Override

@@ -1,6 +1,8 @@
 package dev.silencebound.maxtech.lib.shim.transfer.bridge.legacy;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
+import static org.junit.jupiter.api.Assertions.assertSame;
 
 import dev.silencebound.maxtech.lib.shim.transfer.transaction.Transaction;
 import org.junit.jupiter.api.Test;
@@ -210,15 +212,56 @@ class LegacyLedgerTest {
     }
 
     @Test
-    void deferredExtractionThatComesUpShortOnCommitDoesNotThrow() {
+    void deferredExtractionThatComesUpShortOnCommitIsReported() {
         var inv = new FakeInventory(1).with(0, STONE, 40);
         inv.extractsImmediately = false;
         var ledger = registry.of(inv);
+        int before = LegacyLedger.MISMATCHES.get();
         try (var tx = Transaction.openRoot()) {
             assertEquals(40, extract(ledger, inv.view(), 0, STONE, 40, tx));
             inv.with(0, STONE, 15);
             tx.commit();
         }
+        // 40 were handed on, 15 could be taken: 25 duplicated, and reported.
         assertEquals(0, inv.count[0]);
+        assertEquals(before + 1, LegacyLedger.MISMATCHES.get());
+    }
+
+    @Test
+    void eachPartIsAppliedThroughTheSideThatCountedIt() {
+        var inv = new FakeInventory(1);
+        var narrowSide = inv.view(5);
+        var wideSide = inv.view();
+        var ledger = registry.of(inv);
+        try (var tx = Transaction.openRoot()) {
+            assertEquals(5, insert(ledger, narrowSide, 0, STONE, 20, tx));
+            assertEquals(20, insert(ledger, wideSide, 0, STONE, 20, tx));
+            tx.commit();
+        }
+        assertEquals(25, inv.count[0]);
+        assertEquals(0, inv.overflow);
+    }
+
+    @Test
+    void cancellingAnotherSidesPendingInsertLeavesNothingToApply() {
+        var inv = new FakeInventory(1);
+        inv.extractsImmediately = false;
+        var ledger = registry.of(inv);
+        try (var tx = Transaction.openRoot()) {
+            assertEquals(20, insert(ledger, inv.view(), 0, STONE, 20, tx));
+            assertEquals(20, extract(ledger, inv.view(), 0, STONE, 20, tx));
+            tx.commit();
+        }
+        assertEquals(0, inv.count[0]);
+        assertEquals(0, inv.realCalls);
+    }
+
+    @Test
+    void locationsWithTheSameLevelAndPositionShareALedger() {
+        Object level = new Object();
+        var a = registry.of(new LegacyLedger.Location(level, 7L));
+        assertSame(a, registry.of(new LegacyLedger.Location(level, 7L)));
+        assertNotSame(a, registry.of(new LegacyLedger.Location(level, 8L)));
+        assertNotSame(a, registry.of(new LegacyLedger.Location(new Object(), 7L)));
     }
 }

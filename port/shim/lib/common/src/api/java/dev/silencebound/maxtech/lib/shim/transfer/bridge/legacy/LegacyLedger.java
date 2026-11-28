@@ -9,27 +9,32 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 
 /**
  * The transaction state of one real 1.21.1 inventory, shared by every wrapper over it: two cables, two sides or two
  * capability caches on one block all get the same ledger ({@link Registry}), so they never count the same free space
- * or the same items twice.
+ * or the same items twice. A ledger is found by the real container behind NeoForge's vanilla wrappers, else by the
+ * block's {@link Location} (level and position, all sides together), else by the handler object.
  *
  * <ul>
- * <li><b>Insertion is simulated and deferred.</b> Moves into one inventory slot are combined and simulated as one
- * move against the real handler, and applied when the root transaction commits. Any number of slots may have pending
- * moves; one slot holds one resource at a time, so a second resource is refused there until the commit.
+ * <li><b>Insertion is simulated and deferred.</b> Moves into one inventory slot are combined (over every wrapper and
+ * side) and simulated as one move against the real handler, and applied when the root transaction commits, each part
+ * through the wrapper and side that counted it. Any number of slots may have pending moves; one slot holds one
+ * resource at a time, so a second resource is refused there until the commit.
  * <li><b>Extraction</b> is real and immediate where the handler can be put back exactly ({@link
  * LegacyTarget#extractsImmediately()}, item handlers with {@code setStackInSlot}): the amount is held by the ledger,
- * and a rollback restores it into its slot. Nothing is counted that was not physically taken, so it cannot duplicate.
- * Elsewhere (fluids, energy, other item handlers) extraction is simulated and deferred like insertion.
- * <li><b>On commit each slot is re-checked by applying it for real.</b> If the handler changed in between and no
+ * and a rollback restores it into its slot, up to the slot limit. Nothing is counted that was not physically taken, so
+ * it cannot duplicate. Elsewhere (fluids, energy, other item handlers) extraction is simulated and deferred like
+ * insertion. A real extraction and its restore run the handler's change callbacks (setChanged) also for transactions
+ * that end up aborted, such as dry runs.
+ * <li><b>On commit each part is re-checked by applying it for real.</b> If the handler changed in between and no
  * longer takes a counted insert, the rest goes into any other slot and then to {@link LegacyTarget#overflow} (items
- * drop at the block), so nothing is lost. If a deferred extraction gives less than counted, the difference was already
- * handed on and is logged; this is the one case that can duplicate, and only with a handler that changed between the
- * simulation and the commit of the same transaction.
+ * drop at the block; fluid and energy cannot and are lost). If a deferred extraction gives less than counted, the
+ * difference was already handed on and is duplicated. Both can only happen when the handler changes between the
+ * simulation and the commit of the same transaction, or when its simulation does not match its real move.
  * </ul>
  *
  * <p>Mismatches warn once per handler class, then log at debug level.
@@ -39,20 +44,40 @@ import org.slf4j.Logger;
 final class LegacyLedger<R> extends SnapshotJournal<LegacyLedger.State<R>> {
     private static final Logger LOGGER = LogUtils.getLogger();
     private static final Set<Class<?>> WARNED = ConcurrentHashMap.newKeySet();
+    /** Every commit or rollback mismatch so far; read by tests. */
+    static final AtomicInteger MISMATCHES = new AtomicInteger();
 
-    /**
-     * One ledger per real inventory object, weak on both sides: wrappers keep their ledger alive, and the ledger keeps
-     * its handlers alive only while it is.
-     */
-    static final class Registry<R> {
-        private final Map<Object, LegacyLedger<R>> ledgers = new MapMaker().weakKeys().weakValues().makeMap();
+    /** A block in a level: the ledger key of a capability found there. Compared by level identity and position. */
+    record Location(Object level, long pos) {
+        @Override
+        public boolean equals(Object other) {
+            return other instanceof Location that && that.level == level && that.pos == pos;
+        }
 
-        LegacyLedger<R> of(Object inventory) {
-            return ledgers.computeIfAbsent(inventory, unused -> new LegacyLedger<>());
+        @Override
+        public int hashCode() {
+            return System.identityHashCode(level) * 31 + Long.hashCode(pos);
         }
     }
 
-    /** A pending change of one inventory slot: positive inserts, negative (deferred) extracts. */
+    /**
+     * One ledger per real inventory: objects by identity with weak keys, {@link Location}s by value. Values are weak:
+     * wrappers keep their ledger alive, and an unused ledger goes away with its entry.
+     */
+    static final class Registry<R> {
+        private final Map<Object, LegacyLedger<R>> byObject = new MapMaker().weakKeys().weakValues().makeMap();
+        private final Map<Object, LegacyLedger<R>> byLocation = new MapMaker().weakValues().makeMap();
+
+        LegacyLedger<R> of(Object inventory) {
+            var map = inventory instanceof Location ? byLocation : byObject;
+            return map.computeIfAbsent(inventory, unused -> new LegacyLedger<>());
+        }
+    }
+
+    /**
+     * A pending change of one inventory slot counted through one wrapper: positive inserts, negative (deferred)
+     * extracts. All parts of one slot have the same resource and the same sign.
+     */
     record Pending<R>(int key, R resource, int delta, LegacyTarget<R> via, int viaSlot) {
     }
 
@@ -68,31 +93,39 @@ final class LegacyLedger<R> extends SnapshotJournal<LegacyLedger.State<R>> {
 
     /** {@return the pending insert into the inventory slot {@code key} if it is of that resource, else 0} */
     int pendingInsert(int key, R resource) {
-        Pending<R> entry = find(key);
-        return entry != null && entry.resource().equals(resource) ? Math.max(0, entry.delta()) : 0;
+        return Math.max(0, pendingDelta(key, resource));
     }
 
     /** {@return the pending change of the inventory slot {@code key} if it is of that resource, else 0} */
     int pendingDelta(int key, R resource) {
-        Pending<R> entry = find(key);
-        return entry != null && entry.resource().equals(resource) ? entry.delta() : 0;
+        long total = 0;
+        for (int i = 0, n = pending.size(); i < n; i++) {
+            Pending<R> entry = pending.get(i);
+            if (entry.key() == key) {
+                if (!entry.resource().equals(resource)) {
+                    return 0;
+                }
+                total += entry.delta();
+            }
+        }
+        return (int) Math.max(Integer.MIN_VALUE, Math.min(Integer.MAX_VALUE, total));
     }
 
     /** {@return the resource pending for the inventory slot {@code key}, or null} */
     @Nullable R pendingResource(int key) {
-        Pending<R> entry = find(key);
-        return entry == null ? null : entry.resource();
+        for (int i = 0, n = pending.size(); i < n; i++) {
+            if (pending.get(i).key() == key) {
+                return pending.get(i).resource();
+            }
+        }
+        return null;
     }
 
     int insert(LegacyTarget<R> via, int viaSlot, int key, R resource, int amount, TransactionContext transaction) {
-        if (amount <= 0) {
+        if (amount <= 0 || conflicts(key, resource)) {
             return 0;
         }
-        Pending<R> entry = find(key);
-        if (entry != null && !entry.resource().equals(resource)) {
-            return 0;
-        }
-        int delta = entry == null ? 0 : entry.delta();
+        int delta = pendingDelta(key, resource);
         int accepted;
         if (delta >= 0) {
             accepted = Math.min(amount, via.simulateInsert(viaSlot, resource, LegacyMath.add(delta, amount)) - delta);
@@ -106,7 +139,7 @@ final class LegacyLedger<R> extends SnapshotJournal<LegacyLedger.State<R>> {
             return 0;
         }
         updateSnapshots(transaction);
-        set(entry, key, resource, delta + accepted, via, viaSlot);
+        add(key, resource, accepted, via, viaSlot);
         return accepted;
     }
 
@@ -114,24 +147,19 @@ final class LegacyLedger<R> extends SnapshotJournal<LegacyLedger.State<R>> {
         if (amount <= 0) {
             return 0;
         }
-        Pending<R> entry = find(key);
-        if (entry != null && !entry.resource().equals(resource)) {
-            // The slot has a pending insert of something else; the real slot may still hold this resource.
-            if (!via.extractsImmediately()) {
-                return 0;
-            }
-            updateSnapshots(transaction);
-            return takeNow(via, viaSlot, resource, amount);
-        }
-        int delta = entry == null ? 0 : entry.delta();
         if (via.extractsImmediately()) {
             updateSnapshots(transaction);
-            int back = Math.min(amount, Math.max(0, delta));
+            // Take back pending inserts of this resource first (they never reached the real slot), then the rest.
+            int back = conflicts(key, resource) ? 0 : Math.min(amount, Math.max(0, pendingDelta(key, resource)));
             if (back > 0) {
-                set(entry, key, resource, delta - back, via, viaSlot);
+                add(key, resource, -back, via, viaSlot);
             }
             return back + takeNow(via, viaSlot, resource, amount - back);
         }
+        if (conflicts(key, resource)) {
+            return 0;
+        }
+        int delta = pendingDelta(key, resource);
         int accepted;
         if (delta <= 0) {
             accepted = Math.min(amount, via.simulateExtract(viaSlot, resource, LegacyMath.add(-delta, amount)) + delta);
@@ -145,7 +173,7 @@ final class LegacyLedger<R> extends SnapshotJournal<LegacyLedger.State<R>> {
             return 0;
         }
         updateSnapshots(transaction);
-        set(entry, key, resource, delta - accepted, via, viaSlot);
+        add(key, resource, -accepted, via, viaSlot);
         return accepted;
     }
 
@@ -206,6 +234,7 @@ final class LegacyLedger<R> extends SnapshotJournal<LegacyLedger.State<R>> {
     }
 
     private static void mismatch(LegacyTarget<?> via, String what) {
+        MISMATCHES.incrementAndGet();
         Object handler = via.handler();
         if (WARNED.add(handler.getClass())) {
             LOGGER.warn("{} ({}) {}. Its simulation does not match its real moves; further cases are logged at debug "
@@ -215,30 +244,42 @@ final class LegacyLedger<R> extends SnapshotJournal<LegacyLedger.State<R>> {
         }
     }
 
-    private @Nullable Pending<R> find(int key) {
-        for (int i = 0, n = pending.size(); i < n; i++) {
-            Pending<R> entry = pending.get(i);
-            if (entry.key() == key) {
-                return entry;
-            }
-        }
-        return null;
+    /** {@return whether the slot has pending parts of another resource} */
+    private boolean conflicts(int key, R resource) {
+        R current = pendingResource(key);
+        return current != null && !current.equals(resource);
     }
 
-    private void set(@Nullable Pending<R> old, int key, R resource, int delta, LegacyTarget<R> via, int viaSlot) {
-        int index = old == null ? -1 : pending.indexOf(old);
-        if (delta == 0) {
-            if (index >= 0) {
-                pending.remove(index);
+    /**
+     * Adds {@code delta} to the slot's pending change. It first cancels parts of the opposite sign (from any wrapper),
+     * so all parts of a slot keep one sign and their order on commit does not matter; the rest is this wrapper's part.
+     */
+    private void add(int key, R resource, int delta, LegacyTarget<R> via, int viaSlot) {
+        int remaining = delta;
+        for (int i = 0; i < pending.size() && remaining != 0; i++) {
+            Pending<R> entry = pending.get(i);
+            if (entry.key() != key || Integer.signum(entry.delta()) == Integer.signum(remaining)) {
+                continue;
             }
+            int cancel = Math.min(Math.abs(remaining), Math.abs(entry.delta())) * Integer.signum(remaining);
+            remaining -= cancel;
+            int left = entry.delta() + cancel;
+            if (left == 0) {
+                pending.remove(i--);
+            } else {
+                pending.set(i, new Pending<>(key, resource, left, entry.via(), entry.viaSlot()));
+            }
+        }
+        if (remaining == 0) {
             return;
         }
-        Pending<R> entry = old == null ? new Pending<>(key, resource, delta, via, viaSlot)
-                : new Pending<>(key, resource, delta, old.via(), old.viaSlot());
-        if (index >= 0) {
-            pending.set(index, entry);
-        } else {
-            pending.add(entry);
+        for (int i = 0, n = pending.size(); i < n; i++) {
+            Pending<R> entry = pending.get(i);
+            if (entry.key() == key && entry.via() == via && entry.viaSlot() == viaSlot) {
+                pending.set(i, new Pending<>(key, resource, entry.delta() + remaining, via, viaSlot));
+                return;
+            }
         }
+        pending.add(new Pending<>(key, resource, remaining, via, viaSlot));
     }
 }
