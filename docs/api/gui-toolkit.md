@@ -36,9 +36,15 @@ below, and the `toolkit_api_*` GameTests open it through the api only. In a dev 
 
 `Layout` nodes are plain data: `row`, `column` (with a gap or the default), `slots(group, columns, rows)`,
 `tank(value, width, height)`, `energy(value, height)`, `progress(value, ARROW | FLAME)`, `label(key, width)`,
-`value(intValue, key, width)` (the lang text gets the number as `%s`), `status(enumValue, width)` (the enum implements
+`value(intValue, key, width)` (the lang text gets the number as `%s`; experimental `value(intValue, key, width, shownWhenNonZero)`, see below), `status(enumValue, width)` (the enum implements
 `MenuStatus`: a lang key and a tone, which colours the dot), `spacer` and `playerInventory()`. Lib places everything,
 slots included, from the layout; text is fitted into its box and never moves anything.
+
+**Hiding a value line.** `Layout.value(value, key, width, shownWhenNonZero)` (experimental) shows the line only while
+another `IntValue` of the same definition (or the line's own) is not 0, e.g. a hub's "Sampler: N%" while a sampler is in.
+The condition is synced like any value. The box keeps its size and place while hidden, so nothing else moves and the
+server and clients still agree on the geometry; the screen draws and narrates nothing for a hidden line.
+`Layout.Value#shownIn(MenuValueView)` answers it for tests (`MenuTesting` sessions give the client's view).
 
 Rules the definition checks (`MenuDefinition.problems()`):
 

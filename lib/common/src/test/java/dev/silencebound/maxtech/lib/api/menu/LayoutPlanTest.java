@@ -1,6 +1,7 @@
 package dev.silencebound.maxtech.lib.api.menu;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -9,6 +10,7 @@ import dev.silencebound.maxtech.lib.api.client.gui.AccentEnergyBar;
 import dev.silencebound.maxtech.lib.api.client.gui.AccentProgress;
 import dev.silencebound.maxtech.lib.api.client.gui.TextScale;
 import dev.silencebound.maxtech.lib.api.inventory.ItemSlots;
+import java.lang.reflect.Proxy;
 import java.util.List;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -20,6 +22,7 @@ class LayoutPlanTest {
     private static final EnergyValue ENERGY = VALUES.energy(host -> 0, host -> 0);
     private static final ProgressValue BURN = VALUES.progress(host -> 0, host -> 0);
     private static final IntValue SAMPLES = VALUES.intValue(host -> 0);
+    private static final IntValue TOTAL = VALUES.intValue(host -> 0);
     private static final MenuItems<Object> ITEMS = new MenuItems<>(0, host -> {
         throw new UnsupportedOperationException();
     }, ItemSlots.builder(12));
@@ -51,6 +54,31 @@ class LayoutPlanTest {
             assertEquals(c.width() + 14, plan.panelWidth(), c.toString());
             assertEquals(c.height() + 14, plan.panelHeight(), c.toString());
         }
+    }
+
+    @Test
+    void hiddenValueKeepsItsSpace() {
+        Layout shown = Layout.row(Layout.value(SAMPLES, "a.count", 40), Layout.label("b", 30));
+        Layout conditional = Layout.row(Layout.value(SAMPLES, "a.count", 40, TOTAL), Layout.label("b", 30));
+        assertEquals(boxes(LayoutPlan.of(shown)), boxes(LayoutPlan.of(conditional)));
+        assertEquals(LayoutPlan.of(shown).panelWidth(), LayoutPlan.of(conditional).panelWidth());
+    }
+
+    @Test
+    void valueShownOnlyWhileConditionIsNonZero() {
+        MenuValueView zero = view(0);
+        MenuValueView one = view(1);
+        Layout.Value always = (Layout.Value) Layout.value(SAMPLES, "a.count", 40);
+        Layout.Value conditional = (Layout.Value) Layout.value(SAMPLES, "a.count", 40, TOTAL);
+        assertTrue(always.shownIn(zero));
+        assertFalse(conditional.shownIn(zero));
+        assertTrue(conditional.shownIn(one));
+    }
+
+    /** A view answering only int reads: {@code condition} for TOTAL, 5 for the rest. */
+    private static MenuValueView view(int condition) {
+        return (MenuValueView) Proxy.newProxyInstance(MenuValueView.class.getClassLoader(),
+                new Class<?>[]{MenuValueView.class}, (proxy, method, args) -> args[0] == TOTAL ? condition : 5);
     }
 
     @Test
