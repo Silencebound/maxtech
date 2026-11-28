@@ -70,12 +70,12 @@ public final class MachinePerfGameTests {
         MachineProcess[] processes = new MachineProcess[MACHINES];
         BlockPos pos = helper.absolutePos(BlockPos.ZERO);
         for (int i = 0; i < MACHINES; i++) {
-            ItemSlots slots = ItemSlots.builder(3).input(0, 1).output(1, 3).build(slot -> {
+            ItemSlots slots = ItemSlots.builder(4).input(0, 2).output(2, 4).build(slot -> {
             });
             if (i % 2 == 1) {
                 slots.set(0, new ItemStack(Items.DIRT));
             }
-            processes[i] = MachineProcess.builder(MachineProcessGameTests.TYPE).items(slots, 0, 1)
+            processes[i] = MachineProcess.builder(MachineProcessGameTests.TYPE).items(slots, 0, 2)
                     .inputTank(FluidTank.create(1000, () -> {
                     })).outputTank(FluidTank.create(1000, () -> {
                     })).tasks(level -> group).build();

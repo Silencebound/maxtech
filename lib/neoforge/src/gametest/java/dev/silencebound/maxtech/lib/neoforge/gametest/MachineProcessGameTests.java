@@ -8,6 +8,7 @@ import dev.silencebound.maxtech.lib.api.energy.EnergyNetworks;
 import dev.silencebound.maxtech.lib.api.energy.EnergyPriority;
 import dev.silencebound.maxtech.lib.api.inventory.FluidTank;
 import dev.silencebound.maxtech.lib.api.inventory.ItemSlots;
+import dev.silencebound.maxtech.lib.api.inventory.ResourceTank;
 import dev.silencebound.maxtech.lib.api.machine.MachineProcess;
 import dev.silencebound.maxtech.lib.api.machine.MachineStatus;
 import dev.silencebound.maxtech.lib.api.machine.RedstoneControl;
@@ -20,7 +21,18 @@ import dev.silencebound.maxtech.lib.api.registry.RegistryEntry;
 import dev.silencebound.maxtech.lib.api.resource.FluidKey;
 import dev.silencebound.maxtech.lib.api.schedule.TaskGroup;
 import dev.silencebound.maxtech.lib.api.schedule.TaskSchedulers;
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.stream.Stream;
+import net.minecraft.SharedConstants;
 import java.util.Set;
 import java.util.function.Consumer;
 import net.minecraft.core.BlockPos;
@@ -35,7 +47,9 @@ import net.minecraft.gametest.framework.TestEnvironmentDefinition;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.packs.repository.PackRepository;
 import net.minecraft.util.ProblemReporter;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -52,6 +66,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.AttachFace;
 import net.minecraft.world.level.material.Fluids;
 import net.minecraft.world.level.redstone.Orientation;
+import net.minecraft.world.level.storage.LevelResource;
 import net.minecraft.world.level.storage.TagValueInput;
 import net.minecraft.world.level.storage.TagValueOutput;
 import net.minecraft.world.level.storage.ValueInput;
@@ -62,21 +77,24 @@ import net.neoforged.neoforge.event.RegisterGameTestsEvent;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@link MachineProcess} end to end, through the api only, on a demo machine with one input slot, two output slots, a
- * water and a lava tank, an energy consumer, a redstone control and modes {@code a} and {@code b} (the
- * {@code test_process} recipes in {@code src/gametest/resources}): runs, sleeps and wakes, all-or-nothing outputs,
- * energy shortage, redstone modes, saves mid-run and a saved recipe that is gone.
+ * {@link MachineProcess} end to end, through the api only, on a demo machine with one input slot, one catalyst slot,
+ * two output slots, a water and a lava tank, an energy consumer, a redstone control and modes {@code a} and {@code b}
+ * (the {@code test_process} recipes in {@code src/gametest/resources}): runs, sleeps and wakes, all-or-nothing outputs,
+ * energy shortage and brownout, redstone modes, catalysts, saves mid-run, a saved recipe that is gone and a datapack
+ * reload.
  */
 @EventBusSubscriber(modid = MaxtechLib.MOD_ID)
 public final class MachineProcessGameTests {
-    /** One input, two outputs, one input and one output tank, modes a and b. */
+    /** One input, one catalyst, two outputs, one input and one output tank, modes a and b. */
     public static final MachineRecipeType TYPE = MachineRecipeType.define(MaxtechLib.MOD_ID, "test_process",
-            MachineRecipeShape.items(1, 2).withTanks(1, 1).withModes("a", "b"));
+            MachineRecipeShape.items(1, 2).withCatalysts(1).withTanks(1, 1).withModes("a", "b"));
 
     private static final String[] NAMES = {"machine_process_run", "machine_process_sleeps",
             "machine_process_output_full", "machine_process_all_or_nothing", "machine_process_energy",
             "machine_process_redstone", "machine_process_pulse", "machine_process_save", "machine_process_recipe_gone",
-            "machine_process_tanks"};
+            "machine_process_tanks", "machine_process_high_pause", "machine_process_pulse_drop",
+            "machine_process_catalyst", "machine_process_half_energy", "machine_process_output_tank_wakes",
+            "machine_process_input_taken"};
     private static final Registrar<Consumer<GameTestHelper>> FUNCTIONS = Registrars.create(MaxtechLib.MOD_ID,
             Registries.TEST_FUNCTION);
     private static final Registrar<Block> BLOCKS = Registrars.create(MaxtechLib.MOD_ID, Registries.BLOCK);
@@ -88,6 +106,9 @@ public final class MachineProcessGameTests {
     static final RegistryEntry<BlockEntityType<?>, BlockEntityType<MachineEntity>> ENTITY = ENTITIES
             .register("test_process_machine", () -> new BlockEntityType<>(MachineEntity::new, Set.of(BLOCK.get())));
 
+    /** Reloads the server's datapacks, so it runs in a batch of its own. */
+    private static final String RELOAD = "machine_process_reload";
+    private static final String PACK = "maxtech_lib_machine_reload";
     private static final Identifier STRUCTURE = MaxtechLib.id("empty_7x2x3");
     private static final BlockPos MACHINE = new BlockPos(1, 0, 1);
     private static final BlockPos LEVER = MACHINE.east();
@@ -105,6 +126,13 @@ public final class MachineProcessGameTests {
         FUNCTIONS.register(NAMES[7], () -> MachineProcessGameTests::save);
         FUNCTIONS.register(NAMES[8], () -> MachineProcessGameTests::recipeGone);
         FUNCTIONS.register(NAMES[9], () -> MachineProcessGameTests::tanks);
+        FUNCTIONS.register(NAMES[10], () -> MachineProcessGameTests::highPause);
+        FUNCTIONS.register(NAMES[11], () -> MachineProcessGameTests::pulseDrop);
+        FUNCTIONS.register(NAMES[12], () -> MachineProcessGameTests::catalyst);
+        FUNCTIONS.register(NAMES[13], () -> MachineProcessGameTests::halfEnergy);
+        FUNCTIONS.register(NAMES[14], () -> MachineProcessGameTests::outputTankWakes);
+        FUNCTIONS.register(NAMES[15], () -> MachineProcessGameTests::inputTaken);
+        FUNCTIONS.register(RELOAD, () -> MachineProcessGameTests::reload);
     }
 
     private MachineProcessGameTests() {
@@ -118,6 +146,9 @@ public final class MachineProcessGameTests {
             event.registerTest(id, new FunctionGameTestInstance(ResourceKey.create(Registries.TEST_FUNCTION, id),
                     new TestData<>(environment, STRUCTURE, 300, 0, true)));
         }
+        Identifier reload = MaxtechLib.id(RELOAD);
+        event.registerTest(reload, new FunctionGameTestInstance(ResourceKey.create(Registries.TEST_FUNCTION, reload),
+                new TestData<>(event.registerEnvironment(reload), STRUCTURE, 600, 0, true)));
     }
 
     private static MachineEntity place(GameTestHelper helper) {
@@ -165,10 +196,10 @@ public final class MachineProcessGameTests {
             helper.assertTrue(machine.process.progress() > 0 && machine.process.progress() < 10,
                     "progress " + machine.process.progress() + " mid-run");
             assertSlot(helper, machine, 0, Items.COBBLESTONE, 2);
-            assertSlot(helper, machine, 1, Items.GRAVEL, 0);
-        }).thenWaitUntil(() -> assertSlot(helper, machine, 1, Items.GRAVEL, 1)).thenExecute(() -> {
+            assertSlot(helper, machine, 2, Items.GRAVEL, 0);
+        }).thenWaitUntil(() -> assertSlot(helper, machine, 2, Items.GRAVEL, 1)).thenExecute(() -> {
             assertSlot(helper, machine, 0, Items.COBBLESTONE, 0);
-            assertSlot(helper, machine, 2, Items.FLINT, 1);
+            assertSlot(helper, machine, 3, Items.FLINT, 1);
         }).thenWaitUntil(() -> assertStatus(helper, machine, MachineStatus.IDLE))
                 .thenExecute(() -> helper.assertValueEqual(machine.process.progress(), 0L, "progress after the run"))
                 .thenSucceed();
@@ -187,7 +218,7 @@ public final class MachineProcessGameTests {
                 .thenExecute(() -> helper.assertValueEqual(machine.group().runs(), runs[0], "runs without a recipe"))
                 .thenExecute(() -> machine.slots.set(0, new ItemStack(Items.COBBLESTONE, 2)))
                 .thenWaitUntil(() -> assertStatus(helper, machine, MachineStatus.RUNNING))
-                .thenWaitUntil(() -> assertSlot(helper, machine, 1, Items.GRAVEL, 1)).thenSucceed();
+                .thenWaitUntil(() -> assertSlot(helper, machine, 2, Items.GRAVEL, 1)).thenSucceed();
     }
 
     /**
@@ -196,8 +227,8 @@ public final class MachineProcessGameTests {
      */
     private static void outputFull(GameTestHelper helper) {
         MachineEntity machine = place(helper);
-        machine.slots.set(1, new ItemStack(Items.GLASS, 63));
-        machine.slots.set(2, new ItemStack(Items.STONE, 64));
+        machine.slots.set(2, new ItemStack(Items.GLASS, 63));
+        machine.slots.set(3, new ItemStack(Items.STONE, 64));
         machine.slots.set(0, new ItemStack(Items.SAND));
         long[] runs = new long[1];
         helper.startSequence().thenWaitUntil(() -> assertAsleep(helper, machine, MachineStatus.OUTPUT_FULL))
@@ -205,9 +236,10 @@ public final class MachineProcessGameTests {
                     helper.assertValueEqual(machine.group().runs(), runs[0], "runs while full");
                     helper.assertValueEqual(machine.process.progress(), 0L, "progress while full");
                     assertSlot(helper, machine, 0, Items.SAND, 1);
-                    assertSlot(helper, machine, 1, Items.GLASS, 63);
-                    machine.slots.set(2, ItemStack.EMPTY);
-                }).thenWaitUntil(() -> assertSlot(helper, machine, 1, Items.GLASS, 64)).thenExecute(() -> {
+                    assertSlot(helper, machine, 2, Items.GLASS, 63);
+                    assertSlot(helper, machine, 3, Items.STONE, 64);
+                    machine.slots.set(3, ItemStack.EMPTY);
+                }).thenWaitUntil(() -> assertSlot(helper, machine, 2, Items.GLASS, 64)).thenExecute(() -> {
                     assertSlot(helper, machine, 0, Items.SAND, 0);
                 }).thenSucceed();
     }
@@ -222,20 +254,20 @@ public final class MachineProcessGameTests {
         long[] runs = new long[1];
         helper.startSequence().thenExecuteAfter(3, () -> {
             assertStatus(helper, machine, MachineStatus.RUNNING);
-            machine.slots.set(1, new ItemStack(Items.GRAVEL, 63));
-            machine.slots.set(2, new ItemStack(Items.STONE, 64));
+            machine.slots.set(2, new ItemStack(Items.GRAVEL, 63));
+            machine.slots.set(3, new ItemStack(Items.STONE, 64));
         }).thenWaitUntil(() -> assertAsleep(helper, machine, MachineStatus.OUTPUT_FULL)).thenExecute(() -> {
             assertSlot(helper, machine, 0, Items.COBBLESTONE, 2);
-            assertSlot(helper, machine, 1, Items.GRAVEL, 63);
-            assertSlot(helper, machine, 2, Items.STONE, 64);
+            assertSlot(helper, machine, 2, Items.GRAVEL, 63);
+            assertSlot(helper, machine, 3, Items.STONE, 64);
             helper.assertValueEqual(machine.process.progress(), 10L, "progress held at the end");
             runs[0] = machine.group().runs();
         }).thenIdle(QUIET).thenExecute(() -> {
             helper.assertValueEqual(machine.group().runs(), runs[0], "runs while held");
-            machine.slots.set(2, ItemStack.EMPTY);
-        }).thenWaitUntil(() -> assertSlot(helper, machine, 2, Items.FLINT, 1)).thenExecute(() -> {
+            machine.slots.set(3, ItemStack.EMPTY);
+        }).thenWaitUntil(() -> assertSlot(helper, machine, 3, Items.FLINT, 1)).thenExecute(() -> {
             assertSlot(helper, machine, 0, Items.COBBLESTONE, 0);
-            assertSlot(helper, machine, 1, Items.GRAVEL, 64);
+            assertSlot(helper, machine, 2, Items.GRAVEL, 64);
         }).thenSucceed();
     }
 
@@ -252,7 +284,7 @@ public final class MachineProcessGameTests {
         network.add(machine.energy);
         machine.slots.set(0, new ItemStack(Items.IRON_INGOT, 2));
         long[] paused = new long[1];
-        helper.startSequence().thenWaitUntil(() -> assertSlot(helper, machine, 1, Items.IRON_NUGGET, 9))
+        helper.startSequence().thenWaitUntil(() -> assertSlot(helper, machine, 2, Items.IRON_NUGGET, 9))
                 .thenWaitUntil(() -> {
                     assertStatus(helper, machine, MachineStatus.RUNNING);
                     helper.assertTrue(machine.process.progress() > 0, "second run has not started");
@@ -268,7 +300,7 @@ public final class MachineProcessGameTests {
                     helper.assertValueEqual(machine.energy.demand(), 10L, "demand without energy");
                     assertSlot(helper, machine, 0, Items.IRON_INGOT, 1);
                     producer.setSupply(100);
-                }).thenWaitUntil(() -> assertSlot(helper, machine, 1, Items.IRON_NUGGET, 18))
+                }).thenWaitUntil(() -> assertSlot(helper, machine, 2, Items.IRON_NUGGET, 18))
                 .thenWaitUntil(() -> assertStatus(helper, machine, MachineStatus.IDLE)).thenExecute(() -> {
                     helper.assertValueEqual(machine.energy.demand(), 0L, "demand while idle");
                     assertSlot(helper, machine, 0, Items.IRON_INGOT, 0);
@@ -285,15 +317,15 @@ public final class MachineProcessGameTests {
         helper.startSequence().thenWaitUntil(() -> assertStatus(helper, machine, MachineStatus.REDSTONE_OFF))
                 .thenIdle(15).thenExecute(() -> {
                     helper.assertValueEqual(machine.process.progress(), 0L, "progress while off");
-                    assertSlot(helper, machine, 1, Items.GRAVEL, 0);
+                    assertSlot(helper, machine, 2, Items.GRAVEL, 0);
                     helper.pullLever(LEVER);
-                }).thenWaitUntil(() -> assertSlot(helper, machine, 1, Items.GRAVEL, 1)).thenExecute(() -> {
+                }).thenWaitUntil(() -> assertSlot(helper, machine, 2, Items.GRAVEL, 1)).thenExecute(() -> {
                     machine.redstone.setMode(RedstoneMode.NEVER);
                     helper.assertTrue(machine.redstone.powered(), "lever off");
                 }).thenWaitUntil(() -> assertStatus(helper, machine, MachineStatus.REDSTONE_OFF)).thenIdle(15)
                 .thenExecute(() -> {
                     assertSlot(helper, machine, 0, Items.COBBLESTONE, 2);
-                    assertSlot(helper, machine, 1, Items.GRAVEL, 1);
+                    assertSlot(helper, machine, 2, Items.GRAVEL, 1);
                     helper.assertValueEqual(machine.process.progress(), 0L, "progress in never mode");
                 }).thenSucceed();
     }
@@ -306,18 +338,18 @@ public final class MachineProcessGameTests {
         machine.slots.set(0, new ItemStack(Items.COBBLESTONE, 6));
         helper.startSequence().thenWaitUntil(() -> assertStatus(helper, machine, MachineStatus.REDSTONE_OFF))
                 .thenIdle(15).thenExecute(() -> {
-                    assertSlot(helper, machine, 1, Items.GRAVEL, 0);
+                    assertSlot(helper, machine, 2, Items.GRAVEL, 0);
                     helper.pullLever(LEVER);
-                }).thenWaitUntil(() -> assertSlot(helper, machine, 1, Items.GRAVEL, 1)).thenIdle(25).thenExecute(() -> {
-                    assertSlot(helper, machine, 1, Items.GRAVEL, 1);
+                }).thenWaitUntil(() -> assertSlot(helper, machine, 2, Items.GRAVEL, 1)).thenIdle(25).thenExecute(() -> {
+                    assertSlot(helper, machine, 2, Items.GRAVEL, 1);
                     assertSlot(helper, machine, 0, Items.COBBLESTONE, 4);
                     assertStatus(helper, machine, MachineStatus.REDSTONE_OFF);
                     helper.pullLever(LEVER);
                 }).thenIdle(25).thenExecute(() -> {
-                    assertSlot(helper, machine, 1, Items.GRAVEL, 1);
+                    assertSlot(helper, machine, 2, Items.GRAVEL, 1);
                     helper.pullLever(LEVER);
-                }).thenWaitUntil(() -> assertSlot(helper, machine, 1, Items.GRAVEL, 2)).thenIdle(25).thenExecute(() -> {
-                    assertSlot(helper, machine, 1, Items.GRAVEL, 2);
+                }).thenWaitUntil(() -> assertSlot(helper, machine, 2, Items.GRAVEL, 2)).thenIdle(25).thenExecute(() -> {
+                    assertSlot(helper, machine, 2, Items.GRAVEL, 2);
                     assertSlot(helper, machine, 0, Items.COBBLESTONE, 2);
                 }).thenSucceed();
     }
@@ -329,6 +361,7 @@ public final class MachineProcessGameTests {
     private static void save(GameTestHelper helper) {
         MachineEntity first = place(helper);
         first.slots.set(0, new ItemStack(Items.COBBLESTONE, 2));
+        @Nullable
         MachineEntity[] loaded = new MachineEntity[1];
         long[] saved = new long[1];
         helper.startSequence().thenExecuteAfter(5, () -> {
@@ -346,13 +379,23 @@ public final class MachineProcessGameTests {
             assertSlot(helper, again, 0, Items.COBBLESTONE, 2);
             loaded[0] = again;
         }).thenExecuteAfter(1, () -> {
-            helper.assertTrue(loaded[0].process.progress() > saved[0], "the loaded run started over");
-        }).thenWaitUntil(() -> assertSlot(helper, loaded[0], 1, Items.GRAVEL, 1)).thenIdle(15).thenExecute(() -> {
-            assertSlot(helper, loaded[0], 0, Items.COBBLESTONE, 0);
-            assertSlot(helper, loaded[0], 1, Items.GRAVEL, 1);
-            assertSlot(helper, loaded[0], 2, Items.FLINT, 1);
-            assertSlot(helper, first, 1, Items.GRAVEL, 0);
-        }).thenSucceed();
+            helper.assertTrue(loaded(helper, loaded).process.progress() > saved[0], "the loaded run started over");
+        }).thenWaitUntil(() -> assertSlot(helper, loaded(helper, loaded), 2, Items.GRAVEL, 1)).thenIdle(15)
+                .thenExecute(() -> {
+                    assertSlot(helper, loaded(helper, loaded), 0, Items.COBBLESTONE, 0);
+                    assertSlot(helper, loaded(helper, loaded), 2, Items.GRAVEL, 1);
+                    assertSlot(helper, loaded(helper, loaded), 3, Items.FLINT, 1);
+                    assertSlot(helper, first, 2, Items.GRAVEL, 0);
+                }).thenSucceed();
+    }
+
+    /** The machine loaded in {@link #save}; fails the test, not the server, when an earlier step failed first. */
+    private static MachineEntity loaded(GameTestHelper helper, @Nullable MachineEntity[] loaded) {
+        MachineEntity machine = loaded[0];
+        if (machine == null) {
+            throw helper.assertionException("No machine loaded");
+        }
+        return machine;
     }
 
     /**
@@ -386,7 +429,7 @@ public final class MachineProcessGameTests {
         }).thenWaitUntil(() -> assertStatus(helper, machine, MachineStatus.NO_RECIPE)).thenExecute(() -> {
             helper.assertValueEqual(machine.process.progress(), 0L, "progress without a recipe");
             assertSlot(helper, machine, 0, Items.DIRT, 3);
-            assertSlot(helper, machine, 1, Items.GRAVEL, 0);
+            assertSlot(helper, machine, 2, Items.GRAVEL, 0);
         }).thenSucceed();
     }
 
@@ -404,6 +447,181 @@ public final class MachineProcessGameTests {
                     helper.assertTrue(machine.lava.resource().equals(Optional.of(FluidKey.of(Fluids.LAVA))),
                             "lava in the output tank");
                 }).thenWaitUntil(() -> assertStatus(helper, machine, MachineStatus.IDLE)).thenSucceed();
+    }
+
+    /** A high-mode run paused mid-way by the signal going off keeps its progress and finishes once it is back. */
+    private static void highPause(GameTestHelper helper) {
+        MachineEntity machine = place(helper);
+        placeLever(helper);
+        machine.redstone.setMode(RedstoneMode.HIGH);
+        machine.slots.set(0, new ItemStack(Items.COBBLESTONE, 2));
+        long[] paused = new long[1];
+        helper.startSequence().thenExecute(() -> helper.pullLever(LEVER))
+                .thenWaitUntil(() -> helper.assertTrue(machine.process.progress() >= 4, "run not under way"))
+                .thenExecute(() -> helper.pullLever(LEVER))
+                .thenWaitUntil(() -> assertAsleep(helper, machine, MachineStatus.REDSTONE_OFF))
+                .thenExecute(() -> paused[0] = machine.process.progress()).thenIdle(15).thenExecute(() -> {
+                    helper.assertTrue(paused[0] > 0 && paused[0] < 10, "progress " + paused[0] + " when paused");
+                    helper.assertValueEqual(machine.process.progress(), paused[0], "progress while paused");
+                    assertSlot(helper, machine, 0, Items.COBBLESTONE, 2);
+                    helper.pullLever(LEVER);
+                })
+                .thenExecuteAfter(1,
+                        () -> helper.assertTrue(machine.process.progress() > paused[0],
+                                "the run started over or did not go on"))
+                .thenWaitUntil(() -> assertSlot(helper, machine, 2, Items.GRAVEL, 1)).thenSucceed();
+    }
+
+    /** A pulse-mode run goes on to its end after the signal drops again. */
+    private static void pulseDrop(GameTestHelper helper) {
+        MachineEntity machine = place(helper);
+        placeLever(helper);
+        machine.redstone.setMode(RedstoneMode.PULSE);
+        machine.slots.set(0, new ItemStack(Items.COBBLESTONE, 4));
+        helper.startSequence().thenWaitUntil(() -> assertAsleep(helper, machine, MachineStatus.REDSTONE_OFF))
+                .thenExecute(() -> helper.pullLever(LEVER))
+                .thenWaitUntil(() -> assertStatus(helper, machine, MachineStatus.RUNNING))
+                .thenExecute(() -> helper.pullLever(LEVER)).thenExecuteAfter(3, () -> {
+                    helper.assertFalse(machine.redstone.powered(), "lever still on");
+                    assertStatus(helper, machine, MachineStatus.RUNNING);
+                }).thenWaitUntil(() -> assertSlot(helper, machine, 2, Items.GRAVEL, 1)).thenIdle(15).thenExecute(() -> {
+                    assertSlot(helper, machine, 0, Items.COBBLESTONE, 2);
+                    assertStatus(helper, machine, MachineStatus.REDSTONE_OFF);
+                }).thenSucceed();
+    }
+
+    /** A catalyst is needed for its recipe and never taken. */
+    private static void catalyst(GameTestHelper helper) {
+        MachineEntity machine = place(helper);
+        machine.slots.set(0, new ItemStack(Items.CLAY_BALL, 2));
+        helper.startSequence().thenWaitUntil(() -> assertAsleep(helper, machine, MachineStatus.NO_RECIPE))
+                .thenExecute(() -> machine.slots.set(1, new ItemStack(Items.DIAMOND)))
+                .thenWaitUntil(() -> assertSlot(helper, machine, 2, Items.BRICK, 2))
+                .thenWaitUntil(() -> assertAsleep(helper, machine, MachineStatus.NO_RECIPE)).thenExecute(() -> {
+                    assertSlot(helper, machine, 0, Items.CLAY_BALL, 0);
+                    assertSlot(helper, machine, 1, Items.DIAMOND, 1);
+                }).thenSucceed();
+    }
+
+    /** With half the energy it asks for, a run moves on at half speed. */
+    private static void halfEnergy(GameTestHelper helper) {
+        MachineEntity machine = place(helper);
+        EnergyNetwork network = EnergyNetworks.of(helper.getLevel()).createNetwork();
+        EnergyEndpoint producer = EnergyEndpoint.producer();
+        producer.setSupply(5);
+        network.add(producer);
+        network.add(machine.energy);
+        machine.slots.set(0, new ItemStack(Items.IRON_INGOT));
+        long[] start = new long[1];
+        helper.startSequence().thenWaitUntil(() -> helper.assertTrue(machine.process.progress() > 0, "no progress"))
+                .thenExecute(() -> start[0] = machine.process.progress()).thenExecuteAfter(4, () -> {
+                    helper.assertValueEqual(machine.process.progress() - start[0], 20L, "energy in 4 ticks at 5 MU");
+                    assertStatus(helper, machine, MachineStatus.RUNNING);
+                }).thenWaitUntil(() -> assertSlot(helper, machine, 2, Items.IRON_NUGGET, 9))
+                .thenExecute(network::dispose).thenSucceed();
+    }
+
+    /** Draining the output tank wakes a machine that slept because its tank output did not fit. */
+    private static void outputTankWakes(GameTestHelper helper) {
+        MachineEntity machine = place(helper);
+        machine.process.setMode("b");
+        machine.lava.set(FluidKey.of(Fluids.LAVA), 950);
+        machine.water.set(FluidKey.of(Fluids.WATER), 100);
+        helper.startSequence().thenWaitUntil(() -> assertAsleep(helper, machine, MachineStatus.OUTPUT_FULL))
+                .thenIdle(10).thenExecute(() -> {
+                    helper.assertValueEqual(machine.water.amount(), 100L, "water while full");
+                    machine.lava.extract(FluidKey.of(Fluids.LAVA), 500, false);
+                }).thenWaitUntil(() -> helper.assertValueEqual(machine.lava.amount(), 550L, "lava after the run"))
+                .thenExecute(() -> helper.assertValueEqual(machine.water.amount(), 0L, "water after the run"))
+                .thenSucceed();
+    }
+
+    /** Taking an input out mid-run resets the run and loses nothing; put back, the run starts from the beginning. */
+    private static void inputTaken(GameTestHelper helper) {
+        MachineEntity machine = place(helper);
+        machine.slots.set(0, new ItemStack(Items.COBBLESTONE, 2));
+        helper.startSequence()
+                .thenWaitUntil(() -> helper.assertTrue(machine.process.progress() >= 4, "run not under way"))
+                .thenExecute(() -> machine.slots.set(0, new ItemStack(Items.COBBLESTONE, 1)))
+                .thenWaitUntil(() -> assertAsleep(helper, machine, MachineStatus.NO_RECIPE)).thenExecute(() -> {
+                    helper.assertValueEqual(machine.process.progress(), 0L, "progress after taking an input");
+                    assertSlot(helper, machine, 0, Items.COBBLESTONE, 1);
+                    assertSlot(helper, machine, 2, Items.GRAVEL, 0);
+                    machine.slots.set(0, new ItemStack(Items.COBBLESTONE, 2));
+                })
+                .thenExecuteAfter(2,
+                        () -> helper.assertTrue(machine.process.progress() <= 2,
+                                "progress " + machine.process.progress() + " did not start over"))
+                .thenWaitUntil(() -> assertSlot(helper, machine, 2, Items.GRAVEL, 1)).thenSucceed();
+    }
+
+    /**
+     * A datapack reload wakes a machine asleep without a recipe: a world datapack adds a recipe for its input, and the
+     * machine runs it without any slot change; the pack goes again at the end.
+     */
+    private static void reload(GameTestHelper helper) {
+        MinecraftServer server = helper.getLevel().getServer();
+        Path pack = server.getWorldPath(LevelResource.DATAPACK_DIR).resolve(PACK);
+        PackRepository packs = server.getPackRepository();
+        String id = "file/" + PACK;
+        List<String> before = new ArrayList<>(packs.getSelectedIds());
+        before.remove(id);
+        List<CompletableFuture<Void>> reloads = new ArrayList<>();
+        MachineEntity machine = place(helper);
+        machine.slots.set(0, new ItemStack(Items.DIRT));
+        helper.startSequence().thenExecute(() -> {
+            // A run that failed half-way may have left the pack on: switch it off first.
+            delete(pack);
+            if (packs.getSelectedIds().contains(id)) {
+                packs.reload();
+                reloads.add(server.reloadResources(before));
+            } else {
+                reloads.add(CompletableFuture.completedFuture(null));
+            }
+        }).thenWaitUntil(() -> helper.assertTrue(reloads.get(0).isDone(), "clean-up reload running"))
+                .thenWaitUntil(() -> assertAsleep(helper, machine, MachineStatus.NO_RECIPE)).thenExecute(() -> {
+                    write(pack.resolve("pack.mcmeta"),
+                            "{\"pack\": {\"description\": \"machine reload test\", \"min_format\": "
+                                    + SharedConstants.DATA_PACK_FORMAT_MAJOR + ", \"max_format\": "
+                                    + SharedConstants.DATA_PACK_FORMAT_MAJOR + "}}");
+                    write(pack.resolve("data/maxtech_lib/recipe/test_process/reloaded.json"),
+                            "{\"type\": \"maxtech_lib:test_process\", \"mode\": \"a\", \"inputs\": [{\"ingredient\": "
+                                    + "\"minecraft:dirt\"}], \"outputs\": [{\"item\": {\"id\": "
+                                    + "\"minecraft:coarse_dirt\"}}], \"duration\": 2}");
+                    packs.reload();
+                    List<String> with = new ArrayList<>(before);
+                    with.add(id);
+                    reloads.add(server.reloadResources(with));
+                }).thenWaitUntil(() -> helper.assertTrue(reloads.size() > 1 && reloads.get(1).isDone(), "reload"))
+                .thenWaitUntil(() -> assertSlot(helper, machine, 2, Items.COARSE_DIRT, 1)).thenExecute(() -> {
+                    assertSlot(helper, machine, 0, Items.DIRT, 0);
+                    delete(pack);
+                    packs.reload();
+                    reloads.add(server.reloadResources(before));
+                }).thenWaitUntil(() -> helper.assertTrue(reloads.size() > 2 && reloads.get(2).isDone(), "reload"))
+                .thenSucceed();
+    }
+
+    private static void write(Path file, String text) {
+        try {
+            Files.createDirectories(file.getParent());
+            Files.writeString(file, text, StandardCharsets.UTF_8);
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+    }
+
+    private static void delete(Path folder) {
+        if (!Files.exists(folder)) {
+            return;
+        }
+        try (Stream<Path> files = Files.walk(folder)) {
+            for (Path file : files.sorted(Comparator.reverseOrder()).toList()) {
+                Files.delete(file);
+            }
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
     }
 
     /** Forwards neighbour updates to the redstone control and wakes the process. */
@@ -436,16 +654,16 @@ public final class MachineProcessGameTests {
     /** The demo machine: wires a process the way the api's class comment says, in a task group of its own. */
     static final class MachineEntity extends BlockEntity {
         final EnergyEndpoint energy = EnergyEndpoint.consumer(EnergyPriority.DEFAULT);
-        final ItemSlots slots = ItemSlots.builder(3).input(0, 1).output(1, 3).build(this::slotChanged);
-        final FluidTank water = FluidTank.create(1000, this::tankChanged);
-        final FluidTank lava = FluidTank.create(1000, this::tankChanged);
+        final ItemSlots slots = ItemSlots.builder(4).input(0, 2).output(2, 4).build(this::slotChanged);
+        final FluidTank water = FluidTank.create(1000, () -> tankChanged(this.water));
+        final FluidTank lava = FluidTank.create(1000, () -> tankChanged(this.lava));
         final RedstoneControl redstone = new RedstoneControl(this::setChanged, this::wake);
         final MachineProcess process;
         private @Nullable TaskGroup group;
 
         MachineEntity(BlockPos pos, BlockState state) {
             super(ENTITY.get(), pos, state);
-            process = MachineProcess.builder(TYPE).items(slots, 0, 1).inputTank(water).outputTank(lava).energy(energy)
+            process = MachineProcess.builder(TYPE).items(slots, 0, 2).inputTank(water).outputTank(lava).energy(energy)
                     .redstone(redstone).tasks(this::group).onChange(this::setChanged).build();
         }
 
@@ -473,9 +691,9 @@ public final class MachineProcessGameTests {
         }
 
         @SuppressWarnings("NullAway") // see slotChanged
-        private void tankChanged() {
+        private void tankChanged(ResourceTank<?> tank) {
             setChanged();
-            process.tankChanged();
+            process.tankChanged(tank);
         }
 
         @SuppressWarnings("NullAway") // see slotChanged
