@@ -46,8 +46,8 @@ class ConduitShellGeometryTest {
             "isolated, '', '', 6, 24, false", "cap, e, '', 9, 16, false", "straight, we, '', 4, 8, false",
             "straight y, du, '', 4, 8, false", "L, es, '', 12, 18, false", "T, wes, '', 15, 20, false",
             "crossing, nswe, '', 18, 32, false", "six-way, dunswe, '', 24, 48, false",
-            "ringed straight, we, e, 4, 12, false", "ringed cap, e, e, 9, 20, false", "caged L, es, '', 12, 32, true",
-            "caged T, wes, '', 15, 36, true", "caged crossing, nswe, '', 18, 40, true"})
+            "ringed straight, we, e, 4, 12, false", "ringed cap, e, e, 9, 20, false", "caged L, es, '', 12, 28, true",
+            "caged T, wes, '', 15, 28, true", "caged crossing, nswe, '', 18, 24, true"})
     void quadCounts(String name, String arms, String rings, int glass, int strips, boolean caged) {
         List<ConduitQuad> quads = ConduitGeometry.body(caged ? SHELL.withJunctionCage() : SHELL,
                 new ConduitBodyKey(TYPE, null, mask(arms), mask(rings)));
@@ -274,16 +274,101 @@ class ConduitShellGeometryTest {
         return false;
     }
 
-    /** Arm strips beside a caged core start where its frame ends, with no gap: the arm's edge is covered once. */
+    /**
+     * Arm strips beside a caged core start where its frame ends, with no gap: the arm's edge is covered once. An arm's
+     * side facing into the crease (the way another arm leaves) has no strip.
+     */
     @ParameterizedTest(name = "{0}")
     @CsvSource({
-            // name, arms, face, x, y, z: points on the arm just past the core, on its crease side and its outer side
-            "corner crease, es, u, 11.01, 0, 10.5", "corner outer, es, u, 11.01, 0, 5.5",
-            "corner arm side, es, s, 11.01, 10.5, 0", "T crease, wes, u, 4.99, 0, 10.5",
-            "3D corner crease under the up arm, esu, u, 11.01, 0, 10.5", "T core face, wes, u, 8, 0, 10.5"})
-    void junctionCageMeetsArmLines(String name, String arms, String face, double x, double y, double z) {
+            // name, arms, face, x, y, z, strips: points on the arm just past the core
+            "corner crease, es, u, 11.01, 0, 10.5, 1", "corner outer, es, u, 11.01, 0, 5.5, 1",
+            "corner side into the crease, es, s, 11.01, 10.5, 0, 0", "T crease, wes, u, 4.99, 0, 10.5, 1",
+            "T branch side into the crease, wen, e, 0, 5.5, 2, 0",
+            "3D corner under the up arm, esu, u, 11.01, 0, 10.5, 0", "T core face, wes, u, 8, 0, 10.5, 1"})
+    void junctionCageMeetsArmLines(String name, String arms, String face, double x, double y, double z, int expected) {
         List<ConduitQuad> quads = ConduitGeometry.body(CAGED, new ConduitBodyKey(TYPE, null, mask(arms), 0));
-        assertEquals(1, covering(quads, side(face.charAt(0)), new double[]{x, y, z}), name);
+        assertEquals(expected, covering(quads, side(face.charAt(0)), new double[]{x, y, z}), name);
+    }
+
+    /**
+     * No strip of a caged junction is ever seen through its glass: from 144 view directions all round, a ray from
+     * points on each strip that faces the camera to the camera crosses no glass face that faces the camera. Lines seen
+     * only through the neighbouring glass are what looked like floating bars in game.
+     */
+    @ParameterizedTest(name = "{0}")
+    @CsvSource({"corner, es", "corner up, eu", "T, wen", "T sideways, wes", "crossing, nswe", "3D corner, esu",
+            "T up, weu", "five-way, unswe", "six-way, dunswe"})
+    void junctionCageStripsAreNeverSeenThroughGlass(String name, String arms) {
+        List<ConduitQuad> quads = ConduitGeometry.body(CAGED, new ConduitBodyKey(TYPE, null, mask(arms), 0));
+        for (int elevation = -75; elevation <= 75; elevation += 30) {
+            for (int azimuth = 0; azimuth < 360; azimuth += 15) {
+                double e = Math.toRadians(elevation);
+                double a = Math.toRadians(azimuth);
+                double[] view = {Math.cos(e) * Math.cos(a), Math.sin(e), Math.cos(e) * Math.sin(a)};
+                for (ConduitQuad strip : quads) {
+                    if (isGlass(strip) || !facesView(strip, view)) {
+                        continue;
+                    }
+                    for (double[] point : samples(strip)) {
+                        for (ConduitQuad glass : quads) {
+                            assertFalse(isGlass(glass) && facesView(glass, view) && crosses(glass, point, view), name
+                                    + ": " + strip + " seen through " + glass + " from " + elevation + "/" + azimuth);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private static boolean facesView(ConduitQuad quad, double[] view) {
+        Direction facing = quad.facing();
+        return facing.getStepX() * view[0] + facing.getStepY() * view[1] + facing.getStepZ() * view[2] > 1.0E-9;
+    }
+
+    /** Points a quarter and three quarters across the quad on its plane. */
+    private static List<double[]> samples(ConduitQuad quad) {
+        Direction.Axis normal = quad.facing().getAxis();
+        double plane = quad.facing().getAxisDirection() == Direction.AxisDirection.POSITIVE
+                ? quad.box().max(normal)
+                : quad.box().min(normal);
+        List<double[]> points = new ArrayList<>();
+        for (double s : new double[]{0.25, 0.75}) {
+            for (double t : new double[]{0.25, 0.75}) {
+                double[] point = new double[3];
+                boolean first = true;
+                for (Direction.Axis axis : Direction.Axis.values()) {
+                    double min = quad.box().min(axis);
+                    double max = quad.box().max(axis);
+                    double at = axis == normal ? plane : min + (max - min) * (first ? s : t);
+                    if (axis != normal) {
+                        first = false;
+                    }
+                    point[axis == Direction.Axis.X ? 0 : axis == Direction.Axis.Y ? 1 : 2] = at;
+                }
+                points.add(point);
+            }
+        }
+        return points;
+    }
+
+    /** Whether the ray from {@code point} along {@code view} passes through the face {@code quad} draws. */
+    private static boolean crosses(ConduitQuad quad, double[] point, double[] view) {
+        Direction.Axis normal = quad.facing().getAxis();
+        double plane = quad.facing().getAxisDirection() == Direction.AxisDirection.POSITIVE
+                ? quad.box().max(normal)
+                : quad.box().min(normal);
+        double along = normal.choose(view[0], view[1], view[2]);
+        double t = (plane - normal.choose(point[0], point[1], point[2])) / along;
+        if (Math.abs(along) < 1.0E-9 || t <= 1.0E-6) {
+            return false;
+        }
+        for (Direction.Axis axis : Direction.Axis.values()) {
+            double at = axis.choose(point[0], point[1], point[2]) + t * axis.choose(view[0], view[1], view[2]);
+            if (axis != normal && (at <= quad.box().min(axis) || at >= quad.box().max(axis))) {
+                return false;
+            }
+        }
+        return true;
     }
 
     /** The strips of {@code quads} on {@code facing}'s plane of the core that cover {@code point}. */
