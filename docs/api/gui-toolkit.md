@@ -29,6 +29,12 @@ below, and the `toolkit_api_*` GameTests open it through the api only. In a dev 
   the next. Groups not named never receive shift-clicks; a stack no group takes moves between inventory and hotbar.
 - **Theme**: `m.theme(new AccentTheme(accent, accentDim, barTop, barBottom, text, heading))` (default
   `AccentTheme.LIB`, the Storage cyan). Title: `m.title(langKey)` (default `container.<modId>.<name>`).
+- **Settings the player changes**: `m.cycle(enumValue, (host, choice) -> host.setMode(choice))` declares a server
+  action over a synced enum whose constants implement `MenuChoice` (a lang key for the name; the hint key is the name's
+  key plus `.hint`). `Layout.cycleButton(action, key, width)` shows it: the current choice as the label, a left click
+  asks the server for the next one and a right click for the previous one, and the tooltip is `key` (with the choice
+  as `%s`) over the choice's hint. The server takes only constants of the enum, only while the menu is open, and calls
+  the setter on the server thread; the setter saves the host and wakes what the value controls.
 - **Open and close rules**: by default a block entity host keeps the menu open while the block stands and the player is
   in reach; `m.validWhile((host, player) -> ...)` replaces that.
 
@@ -38,8 +44,9 @@ below, and the `toolkit_api_*` GameTests open it through the api only. In a dev 
 `tank(value, width, height)`, `energy(value, height)`, `progress(value, ARROW | FLAME)`, `label(key, width)`,
 `value(intValue, key, width)` (the lang text gets the number as `%s`; experimental
 `value(intValue, key, width, shownWhenNonZero)`, see below), `status(enumValue, width)` (the enum implements
-`MenuStatus`: a lang key and a tone, which colours the dot), `spacer` and `playerInventory()`. Lib places everything,
-slots included, from the layout; text is fitted into its box and never moves anything.
+`MenuStatus`: a lang key and a tone, which colours the dot), `cycleButton(action, key, width)` (16 tall), `spacer` and
+`playerInventory()`. Lib places everything, slots included, from the layout; text is fitted into its box and never
+moves anything.
 
 **Hiding a value line.** `Layout.value(value, key, width, shownWhenNonZero)` (experimental) shows the line only while
 another `IntValue` of the same definition (or the line's own) is not 0, e.g. a hub's "Sampler: N%" while a sampler is in.
@@ -113,6 +120,25 @@ Expose the same inventories to the world with `Handlers.items(slots)` and `Handl
 Lang: the title key, label and value keys, and each status constant's key are yours. Update values from a task in
 Lib's scheduler group of the level (`TaskSchedulers.newGroup`), never from a ticker; the screen follows by itself.
 
+## Redstone control
+
+`RedstoneControl` (`lib.api.machine`, experimental) holds a machine's `RedstoneMode`: `ALWAYS` (default), `HIGH`, `LOW`,
+`PULSE` (one run per rising edge) or `NEVER`. Compose it into the block entity; nothing ticks:
+
+```java
+final RedstoneControl redstone = new RedstoneControl(this::setChanged, task::wake);
+// block:        neighborChanged(...) -> machine.redstone.neighbourChanged(level, pos)
+// block entity: onLoad -> redstone.start(level, worldPosition); save/load -> redstone.save(out.child("redstone"))
+// process:      if (redstone.allowsRun()) { redstone.consumePulse(); startRun(); }
+// menu:         CycleAction<RedstoneMode> mode = m.cycle(m.enumValue(RedstoneMode.class, h -> h.redstone.mode()),
+//                       (h, next) -> h.redstone.setMode(next));
+//               Layout.cycleButton(mode, RedstoneMode.BUTTON_KEY, 48)
+```
+
+Pulse mode keeps up to `RedstoneControl.MAX_PENDING` (8) waiting runs; a changed mode drops them. The mode, the last
+reading and the waiting pulses are saved, so a reload neither loses nor doubles an edge. Lib ships the English names
+and hints of the modes. The demo machine (`/maxtech_lib_demo toolkit`) has the button; its arrow runs by the mode.
+
 ## Testing menus
 
 `MenuTesting` (`lib.api.menu`, experimental, for GameTests only) opens a definition for a mock server player, which has
@@ -126,6 +152,7 @@ try (var session = MenuTesting.open(LabBlockEntity.MENU, player, lab)) {
     session.clientValues().current(arrow);            // what a screen would read: the payloads applied to a client menu
     session.serverValues().amount(tank);              // or what the server read last
     session.pressTankButton(tank);                    // a bucket click on the gauge; true if fluid moved
+    session.pressCycleButton(mode, RedstoneMode.HIGH); // a cycle button asking for HIGH; tick() before reading it back
     session.shiftClick(input, 0);                     // slot 0 of a group; shiftClickPlayerSlot(i) for the player's
     session.menu().setCarried(new ItemStack(Items.BUCKET));   // vanilla's menu for everything else
 }

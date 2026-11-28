@@ -6,6 +6,9 @@ import dev.silencebound.maxtech.lib.api.energy.EnergyEndpoint;
 import dev.silencebound.maxtech.lib.api.energy.EnergyPriority;
 import dev.silencebound.maxtech.lib.api.inventory.FluidTank;
 import dev.silencebound.maxtech.lib.api.inventory.ItemSlots;
+import dev.silencebound.maxtech.lib.api.machine.RedstoneControl;
+import dev.silencebound.maxtech.lib.api.machine.RedstoneMode;
+import dev.silencebound.maxtech.lib.api.menu.CycleAction;
 import dev.silencebound.maxtech.lib.api.menu.EnergyValue;
 import dev.silencebound.maxtech.lib.api.menu.EnumValue;
 import dev.silencebound.maxtech.lib.api.menu.IntValue;
@@ -47,6 +50,7 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.redstone.Orientation;
 import net.minecraft.world.level.material.Fluids;
 import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.level.storage.ValueOutput;
@@ -60,9 +64,10 @@ import org.jspecify.annotations.Nullable;
 /**
  * The toolkit demo machine (GameTest source set, so dev runs only, never the jar), built on Lib's public api alone: a
  * block with a filtered input, a fuel slot and a take-only 3x3 output over {@link ItemSlots}, a fluid tank with bucket
- * clicks, an MU buffer, an arrow and a flame, an enum status line, a live number and a mint {@link AccentTheme}. Right
- * click opens it; {@code /maxtech_lib_demo toolkit} places one ({@link ToolkitDemoCommand}). One task in a group of the
- * level moves the values every few ticks so the bars visibly run; nothing ticks.
+ * clicks, an MU buffer, an arrow and a flame, an enum status line, a live number, a redstone mode button over a
+ * {@link RedstoneControl} (the arrow runs by its mode) and a mint {@link AccentTheme}. Right click opens it;
+ * {@code /maxtech_lib_demo toolkit} places one ({@link ToolkitDemoCommand}). One task in a group of the level moves the
+ * values every few ticks so the bars visibly run; nothing ticks.
  */
 @EventBusSubscriber(modid = MaxtechLib.MOD_ID)
 public final class ToolkitDemo {
@@ -130,9 +135,12 @@ public final class ToolkitDemo {
         final ProgressValue flame;
         final EnumValue<Status> status;
         final IntValue cycles;
+        final EnumValue<RedstoneMode> mode;
+        final CycleAction<RedstoneMode> redstone;
 
         Handles(MenuSlots input, MenuSlots fuel, MenuSlots output, TankValue tank, EnergyValue energy,
-                ProgressValue arrow, ProgressValue flame, EnumValue<Status> status, IntValue cycles) {
+                ProgressValue arrow, ProgressValue flame, EnumValue<Status> status, IntValue cycles,
+                EnumValue<RedstoneMode> mode, CycleAction<RedstoneMode> redstone) {
             this.input = input;
             this.fuel = fuel;
             this.output = output;
@@ -142,6 +150,8 @@ public final class ToolkitDemo {
             this.flame = flame;
             this.status = status;
             this.cycles = cycles;
+            this.mode = mode;
+            this.redstone = redstone;
         }
     }
 
@@ -159,7 +169,9 @@ public final class ToolkitDemo {
                 EnumValue<Status> status = m.enumValue(Status.class, MachineEntity::status);
                 IntValue cycles = m.intValue(host -> host.cycles);
                 IntValue ran = m.intValue(host -> host.cycles > 0 ? 1 : 0);
-                handles = new Handles(input, fuel, output, tank, energy, arrow, flame, status, cycles);
+                EnumValue<RedstoneMode> mode = m.enumValue(RedstoneMode.class, host -> host.redstone.mode());
+                CycleAction<RedstoneMode> redstone = m.cycle(mode, (host, next) -> host.redstone.setMode(next));
+                handles = new Handles(input, fuel, output, tank, energy, arrow, flame, status, cycles, mode, redstone);
                 m.title("maxtech_lib_demo.toolkit.title");
                 m.theme(MINT);
                 m.shiftClick(input, fuel);
@@ -168,7 +180,7 @@ public final class ToolkitDemo {
                                 Layout.column(Layout.SMALL_GAP, Layout.slots(input, 1, 1), Layout.slots(fuel, 1, 1),
                                         Layout.progress(flame, Layout.ProgressShape.FLAME)),
                                 Layout.progress(arrow, Layout.ProgressShape.ARROW), Layout.slots(output, 3, 3),
-                                Layout.energy(energy, 54)),
+                                Layout.energy(energy, 54), Layout.cycleButton(redstone, RedstoneMode.BUTTON_KEY, 48)),
                         Layout.row(Layout.status(status, 90), Layout.value(cycles, "maxtech_lib_demo.cycles", 90, ran)),
                         Layout.playerInventory()));
             });
@@ -233,12 +245,21 @@ public final class ToolkitDemo {
             }
             return InteractionResult.SUCCESS;
         }
+
+        @Override
+        protected void neighborChanged(BlockState state, Level level, BlockPos pos, Block block,
+                @Nullable Orientation orientation, boolean movedByPiston) {
+            if (level instanceof ServerLevel && level.getBlockEntity(pos) instanceof MachineEntity machine) {
+                machine.redstone.neighbourChanged(level, pos);
+            }
+        }
     }
 
     /**
      * The machine: its values run on a loop for the demo. The arrow runs always; a finished arrow turns one input into
      * ingots in the output while the flame burns; the flame burns one fuel item for {@link #BURN_TICKS}; the tank and
-     * the MU buffer sweep up and down. Saved with the block.
+     * the MU buffer sweep up and down. The arrow starts a cycle only while the redstone mode allows a run (one cycle
+     * per pulse in pulse mode) and, outside pulse mode, pauses while it does not. Saved with the block.
      */
     static final class MachineEntity extends BlockEntity {
         final ItemSlots slots = SLOTS.build(slot -> setChanged());
@@ -250,6 +271,7 @@ public final class ToolkitDemo {
         private boolean tankFilling = true;
         private boolean energyCharging = true;
         private final Task task = new Task();
+        final RedstoneControl redstone = new RedstoneControl(this::setChanged, task::wake);
 
         MachineEntity(BlockPos pos, BlockState state) {
             super(ENTITY.get(), pos, state);
@@ -286,6 +308,7 @@ public final class ToolkitDemo {
         public void onLoad() {
             super.onLoad();
             if (level instanceof ServerLevel server) {
+                redstone.start(server, worldPosition);
                 group(server).add(task);
                 task.wake();
             }
@@ -316,6 +339,7 @@ public final class ToolkitDemo {
             out.putInt("progress", progress);
             out.putInt("burn", burn);
             out.putInt("cycles", cycles);
+            redstone.save(out.child("redstone"));
         }
 
         @Override
@@ -327,6 +351,7 @@ public final class ToolkitDemo {
             progress = in.getIntOr("progress", 0);
             burn = in.getIntOr("burn", 0);
             cycles = in.getIntOr("cycles", 0);
+            in.child("redstone").ifPresent(redstone::load);
         }
 
         /** One step of the demo loop; every {@link #STEP} ticks. */
@@ -335,7 +360,12 @@ public final class ToolkitDemo {
             if (burn == 0 && !slots.stack(INPUT_SLOT).isEmpty() && slots.extract(FUEL_SLOT, 1, false) > 0) {
                 burn = BURN_TICKS;
             }
-            progress += STEP;
+            if (progress == 0 ? redstone.allowsRun() : redstone.mode() == RedstoneMode.PULSE || redstone.allowsRun()) {
+                if (progress == 0) {
+                    redstone.consumePulse();
+                }
+                progress += STEP;
+            }
             if (progress >= ARROW_TICKS) {
                 progress = 0;
                 cycles++;

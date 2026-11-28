@@ -8,8 +8,8 @@ import org.jetbrains.annotations.ApiStatus;
  * Test hooks for menus built from a {@link MenuDefinition}, for GameTests only; never call them in a running game. A
  * mock server player (from {@code GameTestHelper#makeMockServerPlayerInLevel}) has no connection, so Lib's values
  * payload cannot reach it and nothing on the client could read the values anyway. {@link #open} opens the menu with the
- * payloads captured into the returned {@link Session}, which reads the values the way a screen would, presses tank
- * buttons and shift-clicks slots.
+ * payloads captured into the returned {@link Session}, which reads the values the way a screen would, presses tank and
+ * cycle buttons and shift-clicks slots.
  * <p>
  * Server thread (the GameTest thread). Not stable until Farms (FM1) settles the menu api.
  */
@@ -84,6 +84,14 @@ public final class MenuTesting {
          * takes no bucket clicks (not a fluid tank) or one of another definition.
          */
         boolean pressTankButton(TankValue tank);
+
+        /**
+         * Clicks a cycle button of {@code action} that asks for {@code choice}, as the screen does (it asks for the
+         * choice after or before the one it shows); returns whether the server took the click. The setter runs at once;
+         * call {@link #tick} before reading {@link #clientValues}. Throws {@link IllegalArgumentException} for an
+         * action of another definition.
+         */
+        <E extends Enum<E> & MenuChoice> boolean pressCycleButton(CycleAction<E> action, E choice);
 
         /**
          * Shift-clicks slot {@code index} (0 based) of {@code group}, as a player does on that slot of the machine

@@ -16,6 +16,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.BiConsumer;
 import java.util.function.BiPredicate;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -30,9 +31,9 @@ import org.jspecify.annotations.Nullable;
 
 /**
  * One kind of MaxTech menu and its screen, declared once with {@link Menus#define}: the host's slots, tanks, energy,
- * progress and other synced values, where shift-clicks go, the mod's {@link AccentTheme} and the {@link Layout} of the
- * panel. Lib builds the server and client menus and the screen from it; an addon writes no menu or screen class and no
- * client code.
+ * progress and other synced values, the buttons that ask the server to change a value ({@link Builder#cycle}), where
+ * shift-clicks go, the mod's {@link AccentTheme} and the {@link Layout} of the panel. Lib builds the server and client
+ * menus and the screen from it; an addon writes no menu or screen class and no client code.
  *
  * <pre>{@code
  * static final MenuDefinition<LabHub> HUB = Menus.define(MOD_ID, "lab_hub", LabHub.class, m -> {
@@ -81,6 +82,7 @@ public final class MenuDefinition<H> {
     private final List<MenuItems<H>> items;
     private final List<MenuSlots> slots;
     private final List<Tank<H, ?>> tanks;
+    private final List<Cycle<H, ?>> cycles;
     private final List<MenuSlots> shiftOrder;
     private final @Nullable BiPredicate<? super H, Player> validWhile;
     private final Layout layout;
@@ -100,6 +102,7 @@ public final class MenuDefinition<H> {
         this.items = List.copyOf(builder.items);
         this.slots = List.copyOf(builder.slots);
         this.tanks = List.copyOf(builder.tanks);
+        this.cycles = List.copyOf(builder.cycles);
         this.shiftOrder = List.copyOf(builder.shiftOrder);
         this.validWhile = builder.validWhile;
         this.layout = layout;
@@ -224,6 +227,12 @@ public final class MenuDefinition<H> {
         return tanks;
     }
 
+    /** The cycle actions, in declaration order (their button ids follow it). */
+    @ApiStatus.Internal
+    public List<Cycle<H, ?>> cycles() {
+        return cycles;
+    }
+
     /** Where shift-clicked player stacks go, in order. */
     @ApiStatus.Internal
     public List<MenuSlots> shiftOrder() {
@@ -255,6 +264,31 @@ public final class MenuDefinition<H> {
     }
 
     /**
+     * A declared cycle action: its handle and the setter it calls on the server.
+     *
+     * @param action
+     *            the handle
+     * @param setter
+     *            sets the host's value to a choice
+     */
+    @ApiStatus.Internal
+    public record Cycle<H, E extends Enum<E> & MenuChoice>(CycleAction<E> action,
+            BiConsumer<? super H, ? super E> setter) {
+        /**
+         * Hands the choice with {@code ordinal} to the setter; returns false and does nothing for an ordinal that is no
+         * constant of the enum. Server thread.
+         */
+        public boolean apply(H host, int ordinal) {
+            List<E> choices = action.choices();
+            if (ordinal < 0 || ordinal >= choices.size()) {
+                return false;
+            }
+            setter.accept(host, choices.get(ordinal));
+            return true;
+        }
+    }
+
+    /**
      * Collects a definition inside {@link Menus#define}; every method returns a handle for the layout (or nothing).
      * Usable only inside that call; not thread-safe.
      */
@@ -266,6 +300,7 @@ public final class MenuDefinition<H> {
         private final List<MenuItems<H>> items = new ArrayList<>();
         private final List<MenuSlots> slots = new ArrayList<>();
         private final List<Tank<H, ?>> tanks = new ArrayList<>();
+        private final List<Cycle<H, ?>> cycles = new ArrayList<>();
         private final List<MenuSlots> shiftOrder = new ArrayList<>();
         private final Set<Object> handles = Collections.newSetFromMap(new IdentityHashMap<>());
         private @Nullable String titleKey;
@@ -369,6 +404,29 @@ public final class MenuDefinition<H> {
         }
 
         /**
+         * A server action that sets {@code value} from the screen: a {@link Layout#cycleButton} over the returned
+         * handle steps through the enum's constants, and the server calls {@code setter} with the choice a player
+         * clicked to (see {@link CycleAction}). The setter runs on the server thread with a constant of the enum, never
+         * null; it may refuse a choice by leaving the host as it is, and the screen then keeps showing the host's
+         * value. It should save the host ({@code setChanged}) and wake whatever the value controls.
+         *
+         * @throws IllegalArgumentException
+         *             for a value of another definition, or an enum of more than {@link CycleAction#MAX_CHOICES}
+         *             constants
+         */
+        public <E extends Enum<E> & MenuChoice> CycleAction<E> cycle(EnumValue<E> value,
+                BiConsumer<? super H, ? super E> setter) {
+            checkOpen();
+            if (!handles.contains(value)) {
+                throw new IllegalArgumentException("Enum value from another menu definition");
+            }
+            CycleAction<E> handle = new CycleAction<>(cycles.size(), value);
+            cycles.add(new Cycle<>(handle, Objects.requireNonNull(setter, "setter")));
+            handles.add(handle);
+            return handle;
+        }
+
+        /**
          * Where shift-clicked player stacks go: these groups in this order, each filled before the next; a stack none
          * of them takes moves between the main inventory and the hotbar. Groups not named never receive shift-clicked
          * items. Replaces any earlier order.
@@ -462,6 +520,7 @@ public final class MenuDefinition<H> {
                         }
                         yield node.value();
                     }
+                    case Layout.CycleButton node -> node.action();
                     case Layout.PlayerInventory node -> {
                         inventories++;
                         yield null;

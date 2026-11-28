@@ -1,15 +1,18 @@
 package dev.silencebound.maxtech.lib.client.menu;
 
 import dev.silencebound.maxtech.lib.api.client.gui.Accent;
+import dev.silencebound.maxtech.lib.api.client.gui.AccentButton;
 import dev.silencebound.maxtech.lib.api.client.gui.AccentEnergyBar;
 import dev.silencebound.maxtech.lib.api.client.gui.AccentPanel;
 import dev.silencebound.maxtech.lib.api.client.gui.AccentProgress;
 import dev.silencebound.maxtech.lib.api.client.gui.AccentStatus;
 import dev.silencebound.maxtech.lib.api.client.gui.AccentTank;
 import dev.silencebound.maxtech.lib.api.client.gui.TextScale;
+import dev.silencebound.maxtech.lib.api.menu.CycleAction;
 import dev.silencebound.maxtech.lib.api.menu.EnumValue;
 import dev.silencebound.maxtech.lib.api.menu.Layout;
 import dev.silencebound.maxtech.lib.api.menu.LayoutPlan;
+import dev.silencebound.maxtech.lib.api.menu.MenuChoice;
 import dev.silencebound.maxtech.lib.api.menu.MenuDefinition;
 import dev.silencebound.maxtech.lib.api.menu.MenuStatus;
 import dev.silencebound.maxtech.lib.api.menu.MenuValueView;
@@ -26,9 +29,11 @@ import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.narration.NarratedElementType;
 import net.minecraft.client.gui.narration.NarrationElementOutput;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
+import net.minecraft.client.input.InputWithModifiers;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.CommonComponents;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.MenuType;
 import net.minecraft.world.inventory.Slot;
@@ -40,7 +45,8 @@ import org.jspecify.annotations.Nullable;
  * tooltips) or text (labels, values and status lines, fitted into their boxes with the whole text as a tooltip, and
  * narrated after the title). The panel's size and every box come from {@link MenuDefinition#plan()}, so nothing here
  * moves with the text size: text too large for its box at the client's text size is drawn smaller. A click on a fluid
- * tank sends its bucket click to the server. Lib binds it to each registered definition. Client only.
+ * tank sends its bucket click to the server; a cycle button asks the server for the next or previous choice. Lib binds
+ * it to each registered definition. Client only.
  */
 public final class ToolkitScreen<H> extends AbstractContainerScreen<DefinedMenu<H>> {
     /** Room between a status dot and its text. */
@@ -89,9 +95,71 @@ public final class ToolkitScreen<H> extends AbstractContainerScreen<DefinedMenu<
                         theme, () -> values.stored(energy.value()), () -> values.capacity(energy.value())));
                 case Layout.Progress progress -> addRenderableWidget(new AccentProgress(x, y, shape(progress.shape()),
                         theme, () -> values.current(progress.value()), () -> values.total(progress.value())));
+                case Layout.CycleButton button -> addRenderableWidget(cycleButton(button, x, y, box));
                 default -> {
                 }
             }
+        }
+    }
+
+    @SuppressWarnings({"unchecked", "rawtypes"}) // MenuDefinition.Builder.cycle builds actions over MenuChoice enums
+    private CycleButtonWidget cycleButton(Layout.CycleButton node, int x, int y, LayoutPlan.Box box) {
+        return new CycleButtonWidget(x, y, box.width(), box.height(), (CycleAction) node.action(), node.key());
+    }
+
+    /**
+     * A cycle button: the current choice as the label, a left click or Enter asks for the next one, a right click for
+     * the previous; the tooltip and the narration name what it sets.
+     */
+    @SuppressWarnings("EnumOrdinal") // names and tooltip keys index the choices, which are in ordinal order
+    private final class CycleButtonWidget<E extends Enum<E> & MenuChoice> extends AccentButton {
+        private final CycleAction<E> action;
+        private final String key;
+        private final Component[] names;
+
+        CycleButtonWidget(int x, int y, int width, int height, CycleAction<E> action, String key) {
+            super(x, y, width, height, Component.empty(), () -> {
+            });
+            this.action = action;
+            this.key = key;
+            List<E> choices = action.choices();
+            names = new Component[choices.size()];
+            for (int i = 0; i < names.length; i++) {
+                names[i] = Component.translatable(choices.get(i).translationKey());
+            }
+            label(() -> names[current().ordinal()]);
+            tooltip(() -> current().ordinal(), ordinal -> {
+                E choice = action.choices().get(ordinal);
+                return Component.empty().append(line(choice)).append(CommonComponents.NEW_LINE)
+                        .append(Component.translatable(choice.hintKey()));
+            });
+            onRightClick(() -> ask(action.previous(current())));
+            theme(theme);
+        }
+
+        private E current() {
+            return menu.values().get(action.value());
+        }
+
+        private MutableComponent line(E choice) {
+            return Component.translatable(key, names[choice.ordinal()]);
+        }
+
+        private void ask(E choice) {
+            int id = menu.cycleButton(action, choice);
+            if (id >= 0 && minecraft != null && minecraft.gameMode != null) {
+                minecraft.gameMode.handleInventoryButtonClick(menu.containerId, id);
+            }
+        }
+
+        @Override
+        public void onPress(InputWithModifiers input) {
+            ask(action.next(current()));
+        }
+
+        @Override
+        protected MutableComponent createNarrationMessage() {
+            return wrapDefaultNarrationMessage(line(current()));
         }
     }
 
