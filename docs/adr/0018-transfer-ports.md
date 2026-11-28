@@ -41,11 +41,10 @@ until Farms ships.
   into two bits per face, per kind.
 - Filters are per port and per kind, not per face (owner): `PortFilter` is an allow or deny list of keys and tags,
   up to `transfer.filterSize` entries from the screen. Tags go through tag support registered per kind.
-- A port never pulls from a neighbouring Lib port's pushing face, and one side does each move (owner,
-  `PortFaceMode.movesAgainst`): a `PULL` face facing a `PUSH` face skips it and the pushing port moves the resource;
-  a `PUSH` face facing a `PULL` face pushes. Two `PUSH` faces facing each other each push into the other port's
-  buffers as into any target, and two `PULL` faces each pull from the other's; a resource can then go back and forth
-  between two machines whose buffers allow it, which the player sets up.
+- Between two Lib ports facing each other only a `PUSH` face facing a `PULL` face moves, and the pushing port does
+  it; the `PULL` face skips the pusher (owner, `PortFaceMode.movesAgainst`). Two `PUSH` faces or two `PULL` faces
+  move nothing between them, so two ports never move a resource back and forth. Blocks that are not Lib ports are
+  pushed into and pulled from as usual.
 - A move between two handlers without transactions is refused (owner, ADR-0017); with one such side Lib touches it
   last: simulate it, move on the transactional side in a nested transaction, carry out the foreign side, keep only
   what it took.

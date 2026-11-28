@@ -21,8 +21,8 @@ import org.jetbrains.annotations.ApiStatus;
  * every port keeps:
  * <ul>
  * <li>A face pushes or pulls, never both ({@link PortFaceMode}).</li>
- * <li>A port never pulls from a neighbouring Lib port's pushing face; that port's push does the move
- * ({@link PortFaceMode#movesAgainst}). Two pushing or two pulling faces treat each other as plain neighbours.</li>
+ * <li>Between two Lib ports only a pushing face facing a pulling face moves, and the pusher does it
+ * ({@link PortFaceMode#movesAgainst}); two pushing or two pulling faces move nothing between them.</li>
  * <li>A move between two handlers that both lack transactions is refused; with one such side, Lib touches it last
  * (simulate it, move on the transactional side, carry out the foreign side, keep only what it took).</li>
  * </ul>

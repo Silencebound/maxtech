@@ -4,8 +4,6 @@ import static dev.silencebound.maxtech.lib.api.transfer.PortFaceMode.OFF;
 import static dev.silencebound.maxtech.lib.api.transfer.PortFaceMode.PULL;
 import static dev.silencebound.maxtech.lib.api.transfer.PortFaceMode.PUSH;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.EnumSet;
 import java.util.Optional;
@@ -39,15 +37,19 @@ class PortFaceModeTest {
     }
 
     @Test
-    void onlyOneSideOfAFacingPairMoves() {
-        assertFalse(PULL.movesAgainst(PUSH), "a pulling face never pulls from a pushing port face");
-        assertTrue(PUSH.movesAgainst(PULL), "the pushing face does the move");
-        assertTrue(PUSH.movesAgainst(PUSH), "two pushing faces push into each other");
-        assertTrue(PULL.movesAgainst(PULL), "two pulling faces pull from each other");
-        assertTrue(PUSH.movesAgainst(OFF));
-        assertTrue(PULL.movesAgainst(OFF));
-        for (PortFaceMode facing : PortFaceMode.values()) {
-            assertFalse(OFF.movesAgainst(facing), "an off face never moves");
+    void betweenTwoPortsOnlyThePusherFacingAPullerMoves() {
+        PortFaceMode[] modes = {OFF, PUSH, PULL};
+        boolean[][] moves = {
+                // facing: OFF, PUSH, PULL
+                {false, false, false}, // OFF
+                {false, false, true}, // PUSH: only into a pulling face
+                {false, false, false}, // PULL: never from a pushing face; the pusher moves
+        };
+        for (int mine = 0; mine < modes.length; mine++) {
+            for (int facing = 0; facing < modes.length; facing++) {
+                assertEquals(moves[mine][facing], modes[mine].movesAgainst(modes[facing]),
+                        modes[mine] + " facing " + modes[facing]);
+            }
         }
     }
 }
