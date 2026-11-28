@@ -3,6 +3,7 @@ package dev.silencebound.maxtech.farms.neoforge.gametest;
 import dev.silencebound.maxtech.farms.MaxtechFarms;
 import dev.silencebound.maxtech.farms.config.FarmsServerConfig;
 import dev.silencebound.maxtech.farms.hub.HubStorage;
+import dev.silencebound.maxtech.farms.hub.LabHubBlock;
 import dev.silencebound.maxtech.farms.hub.LabHubBlockEntity;
 import dev.silencebound.maxtech.farms.registry.FarmsContent;
 import dev.silencebound.maxtech.farms.sampler.SamplerItem;
@@ -544,7 +545,15 @@ public final class LabHubGameTests {
         LabHubBlockEntity hub = unknownHub(helper);
         helper.assertTrue(hub.storage().slots().unknown(HubStorage.SAMPLER), "sampler slot not unknown");
         ServerPlayer player = player(helper, GameType.SURVIVAL);
-        use(helper, player, sampler(5));
+        // The refused sampler falls through to the empty-hand use, which opens the screen.
+        int[] opened = new int[1];
+        LabHubBlock.openScreenWith((who, which) -> opened[0]++);
+        try {
+            use(helper, player, sampler(5));
+        } finally {
+            LabHubBlock.openScreenWith(null);
+        }
+        helper.assertValueEqual(opened[0], 1, "screens opened");
         helper.assertValueEqual(player.getMainHandItem().getCount(), 1, "the sampler left the hand");
         helper.assertTrue(hub.storage().slots().unknown(HubStorage.SAMPLER), "the unknown item is gone");
         helper.getLevel().getServer().getPlayerList().remove(player);

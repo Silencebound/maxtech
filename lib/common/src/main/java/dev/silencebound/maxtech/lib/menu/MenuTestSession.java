@@ -30,8 +30,9 @@ final class MenuTestSession<H> implements MenuTesting.Session<H> {
     private long ticks;
 
     /**
-     * {@code strict}: a dev run (not production). Outside one only GameTest mock players (an embedded channel, which no
-     * real connection has) are accepted, so a real player's menu never gets the capture sink.
+     * Opens {@code definition} over {@code host} for {@code player}. Only GameTest mock players (an embedded channel,
+     * which no real connection has) are accepted, in dev and production runs alike, so a real player's menu never gets
+     * the capture sink.
      */
     @SuppressWarnings("unchecked") // LibMenus opens a DefinedMenu of this definition
     MenuTestSession(MenuDefinition<H> definition, ServerPlayer player, H host) {

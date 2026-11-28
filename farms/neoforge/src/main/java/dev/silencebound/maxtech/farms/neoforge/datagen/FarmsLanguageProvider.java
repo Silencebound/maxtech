@@ -15,6 +15,15 @@ final class FarmsLanguageProvider extends LanguageProvider {
         add("block.maxtech_farms.fluid_port", "Lab Fluid Port");
         add("block.maxtech_farms.lab_hub", "Lab Hub");
         add("block.maxtech_farms.lab_tube", "Lab Tube");
+        add("container.maxtech_farms.lab_hub", "Lab Hub");
+        add("gui.maxtech_farms.lab_hub.inventory", "Inventory");
+        add("gui.maxtech_farms.lab_hub.output", "Output");
+        add("gui.maxtech_farms.lab_hub.sampler", "Sampler: %s%%");
+        add("gui.maxtech_farms.lab_hub.status.no_power", "No fuel or power");
+        add("gui.maxtech_farms.lab_hub.status.not_connected", "Not connected to lab tubes");
+        add("gui.maxtech_farms.lab_hub.status.refused", "Inactive: another hub runs this lab");
+        add("gui.maxtech_farms.lab_hub.status.running", "Running");
+        add("gui.maxtech_farms.lab_hub.status.tank_empty", "Nutrient tank empty");
         add("item.maxtech_farms.sampler", "Sampler");
         add("item.maxtech_farms.specimen", "Specimen");
         add("item.maxtech_farms.specimen.named", "%s Specimen");
@@ -39,14 +48,6 @@ final class FarmsLanguageProvider extends LanguageProvider {
         add("maxtech_farms.configuration.sampler.muPerSample.tooltip", "MU the sampler spends on one sample.");
         add("message.maxtech_farms.fluid_port.feeds", "Feeds the lab hub");
         add("message.maxtech_farms.fluid_port.no_hub", "No lab hub on these lab tubes");
-        add("message.maxtech_farms.lab_hub.empty", "Tank empty");
-        add("message.maxtech_farms.lab_hub.no_tubes", "no lab tubes");
-        add("message.maxtech_farms.lab_hub.refused",
-                "Inactive: another lab hub runs this lab network. This hub still burns fuel into its own MU store");
-        add("message.maxtech_farms.lab_hub.status", "%s: %s / %s mB, energy %s / %s MU");
-        add("message.maxtech_farms.lab_hub.status_sampler", "%s: %s / %s mB, energy %s / %s MU, sampler %s / %s MU");
-        add("message.maxtech_farms.lab_hub.status_line", "%s | %s");
-        add("message.maxtech_farms.lab_hub.tubes", "%s lab tubes, %s fluid ports");
         add("message.maxtech_farms.sampler.boss", "Bosses can't be sampled");
         add("message.maxtech_farms.sampler.no_charge", "The sampler needs charge");
         add("message.maxtech_farms.sampler.player", "Players can't be sampled");

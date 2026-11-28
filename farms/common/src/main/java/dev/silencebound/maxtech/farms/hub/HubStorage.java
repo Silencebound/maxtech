@@ -18,6 +18,7 @@ import net.minecraft.world.level.storage.ValueOutput;
 import net.neoforged.neoforge.transfer.ResourceHandler;
 // PLATFORM-LEAK: see above.
 import net.neoforged.neoforge.transfer.fluid.FluidResource;
+import org.jetbrains.annotations.VisibleForTesting;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -77,7 +78,8 @@ public final class HubStorage {
     private @Nullable ResourceHandler<FluidResource> fluidHandler;
     private @Nullable HubItemHandler itemHandler;
 
-    /** Storage for a hub in {@code level} (null while the block entity has none). */
+    /** Storage for a hub in {@code level} (null while the block entity has none); public for GameTests. */
+    @VisibleForTesting
     public HubStorage(Supplier<@Nullable Level> level, Listener listener) {
         slots = shape(stack -> {
             Level current = level.get();
@@ -189,6 +191,7 @@ public final class HubStorage {
      * {@link #takeFuel(Level)} running {@code afterExtract} between taking the fuel and inserting its remainder: a hook
      * for tests that change the output buffer right there.
      */
+    @VisibleForTesting
     public int takeFuel(Level current, Runnable afterExtract) {
         ItemStack stack = slots.stack(FUEL);
         int time = stack.isEmpty() ? 0 : burnTime(current.fuelValues(), stack);
@@ -200,7 +203,7 @@ public final class HubStorage {
         if (!left.isEmpty() && insertOutput(left, true) < left.getCount()) {
             return 0;
         }
-        ItemStack before = stack.copy();
+        ItemStack fuel = stack.copyWithCount(1);
         if (slots.extract(FUEL, 1, false) != 1) {
             return 0;
         }
@@ -209,11 +212,13 @@ public final class HubStorage {
             int inserted = insertOutput(left, false);
             if (inserted < left.getCount()) {
                 // The listener of the extraction changed the buffer in between: undo, so neither fuel nor remainder is
-                // lost
-                // or duplicated.
-                extractOutput(left, inserted);
-                slots.set(FUEL, before);
-                return 0;
+                // lost or duplicated. The fuel goes back onto what the slot holds now, which may have changed too.
+                if (slots.insert(FUEL, fuel, false) == 1) {
+                    extractOutput(left, inserted);
+                    return 0;
+                }
+                // The fuel slot filled up or changed item meanwhile too: the fuel burns after all and the part of its
+                // remainder that did not fit is lost. Only a test hook changes both inside this call.
             }
         }
         return time;
