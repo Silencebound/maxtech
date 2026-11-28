@@ -2,7 +2,10 @@ package dev.silencebound.maxtech.lib.api.menu;
 
 import dev.silencebound.maxtech.lib.api.resource.FluidKey;
 import dev.silencebound.maxtech.lib.api.resource.KindKey;
+import dev.silencebound.maxtech.lib.api.resource.ResourceKind;
+import dev.silencebound.maxtech.lib.api.resource.ResourceKinds;
 import java.util.Optional;
+import org.jspecify.annotations.Nullable;
 
 /**
  * The current values of one open menu. On the client: what the server sent last, or zero, the enum's first constant and
@@ -45,6 +48,14 @@ public interface MenuValueView {
      * UnknownResource}, which screens show as unknown rather than empty.
      */
     Optional<KindKey<?>> resource(TankValue value);
+
+    /**
+     * The kind the tank was declared with: {@code ResourceKinds.FLUID} for a fluid tank, the given kind for a typed
+     * tank, null for a {@code kindTank} of any kind. A screen takes the unit for an empty tank from it
+     * ({@code kind.unit()}, falling back to a unit of its own when null). Loads {@code ResourceKinds} for fluid tanks.
+     */
+    @Nullable
+    ResourceKind<?> kind(TankValue value);
 
     /** Amount in the resource's unit (mB for fluids). */
     long amount(TankValue value);

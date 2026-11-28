@@ -204,7 +204,8 @@ public final class MenuValues<H> {
          * resource that no longer loads) show as an {@link dev.silencebound.maxtech.lib.api.resource.UnknownResource
          * UnknownResource} of the tank's kind with the amount saved, not as empty. Sent like {@link #kindTank}; a fluid
          * tank also reads with {@link MenuValueView#fluid(TankValue)}. {@code tank} must not return null, and the
-         * tank's kind must be {@code kind}.
+         * tank's kind must be {@code kind}: checked when the menu first reads the tank (the declaration has no host to
+         * check against), as an {@link IllegalStateException}.
          */
         public <K> TankValue tank(ResourceKind<K> kind, Function<? super H, ? extends ResourceTank<K>> tank) {
             Objects.requireNonNull(kind, "kind");

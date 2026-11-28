@@ -53,6 +53,9 @@ public final class AccentTank extends AccentBar {
     /** The tick rows for {@link #ticksHeight}; recomputed only when the well's height changes. */
     private int[] ticks = new int[0];
     private int ticksHeight = -1;
+    /** The unknown key whose kind's unit {@link #unknownUnit} holds, so hovering looks the kind up once. */
+    private @Nullable KindKey<?> unknownFor;
+    private AmountUnit unknownUnit;
 
     /** A fluid tank showing {@code fluid}, {@code amount} and {@code capacity} in mB, read every frame. */
     public AccentTank(int x, int y, int width, int height, AccentTheme theme, Supplier<Optional<FluidKey>> fluid,
@@ -70,6 +73,7 @@ public final class AccentTank extends AccentBar {
         super(x, y, width, height, theme);
         this.resource = resource;
         this.emptyUnit = emptyUnit;
+        this.unknownUnit = emptyUnit;
         this.amount = amount;
         this.capacity = capacity;
     }
@@ -84,10 +88,18 @@ public final class AccentTank extends AccentBar {
         }
         KindKey<?> present = key.get();
         if (present.isUnknown()) {
-            return unknownTooltip(held, total,
-                    ResourceKinds.byId(present.kindId()).map(ResourceKind::unit).orElse(emptyUnit));
+            return unknownTooltip(held, total, unknownUnit(present));
         }
         return tooltip(name(present), held, total, present.kind().unit());
+    }
+
+    /** The unit of unknown contents' kind when it is loaded, else {@code emptyUnit}; looked up when the key changes. */
+    private AmountUnit unknownUnit(KindKey<?> key) {
+        if (!key.equals(unknownFor)) {
+            unknownFor = key;
+            unknownUnit = ResourceKinds.byId(key.kindId()).map(ResourceKind::unit).orElse(emptyUnit);
+        }
+        return unknownUnit;
     }
 
     /**

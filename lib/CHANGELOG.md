@@ -22,6 +22,8 @@ Api changes are marked **Api**.
   `MenuValueView.resource` reads any tank, `fluid` only fluid tanks. Unknown contents arrive as `UnknownResource` and
   the gauge shows them as "Unknown" with the saved amount. `AccentTank`'s new constructor takes kind keys and draws
   with the kind's `ResourceLook` (only the well for a kind without one); amounts show in the kind's unit.
+  `MenuValueView.kind(TankValue)` gives the declared kind (null for any kind) so a screen can pick the empty unit;
+  `ResourceTank.unknownAmount()` (default 0) lets the menu show the saved amount of any tank's unknown contents.
 - **Api** Conduit contents of any resource kind are drawn, with the kind's client look: `ResourceLook` and
   `ResourceLooks` (`lib.api.client.resource`, client only, experimental) give a kind its sprites, tint, name and
   light; `FluidLook` is now the fluid kind's look (registered by Lib, `FluidLook.install` is gone). Packed contents

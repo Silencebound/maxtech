@@ -13,7 +13,6 @@ import dev.silencebound.maxtech.lib.api.resource.KindKey;
 import dev.silencebound.maxtech.lib.api.resource.ResourceKind;
 import dev.silencebound.maxtech.lib.api.resource.ResourceKinds;
 import dev.silencebound.maxtech.lib.api.resource.UnknownResource;
-import dev.silencebound.maxtech.lib.inventory.LibResourceTank;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -79,6 +78,8 @@ final class MenuLayout<H> {
     final Function<Object, Optional<KindKey<?>>>[] toResource;
     /** Per object field: the sent content as a fluid, or null for a tank not declared as a fluid tank. */
     final @Nullable Function<Object, Optional<FluidKey>>[] toFluid;
+    /** Per object field: the kind the tank was declared with, null for a tank of any kind or a fluid tank. */
+    final @Nullable ResourceKind<?>[] declaredKinds;
 
     @SuppressWarnings("unchecked") // generic arrays of the declaration's own readers and codecs
     private MenuLayout(Collector<H> collector) {
@@ -95,6 +96,7 @@ final class MenuLayout<H> {
         objectInitials = collector.objectInitials.toArray();
         toResource = collector.toResource.toArray(new Function[0]);
         toFluid = collector.toFluid.toArray(new Function[0]);
+        declaredKinds = collector.declaredKinds.toArray(new ResourceKind<?>[0]);
     }
 
     /** The layout of {@code values}. */
@@ -157,6 +159,7 @@ final class MenuLayout<H> {
         private final List<Object> objectInitials = new ArrayList<>();
         private final List<Function<Object, Optional<KindKey<?>>>> toResource = new ArrayList<>();
         private final List<@Nullable Function<Object, Optional<FluidKey>>> toFluid = new ArrayList<>();
+        private final List<@Nullable ResourceKind<?>> declaredKinds = new ArrayList<>();
 
         Collector(@Nullable Replacement<H, ?> replacement,
                 StreamCodec<? super RegistryFriendlyByteBuf, Optional<KindKey<?>>> kindCodec) {
@@ -213,7 +216,7 @@ final class MenuLayout<H> {
             if (other != null && other.index() == handle.index()) {
                 addReplacement(other);
             } else {
-                addContent(fluidGetter, null, FluidKey.OPTIONAL_STREAM_CODEC, Optional.empty(),
+                addContent(null, fluidGetter, null, FluidKey.OPTIONAL_STREAM_CODEC, Optional.empty(),
                         fluid -> ((Optional<FluidKey>) fluid)
                                 .<KindKey<?>>map(key -> new KindKey<>(ResourceKinds.FLUID, key)),
                         fluid -> (Optional<FluidKey>) fluid);
@@ -240,6 +243,7 @@ final class MenuLayout<H> {
                 ResourceTank<K> held = tank.apply(host);
                 return held.unknown() ? UNKNOWN : held.resource();
             };
+            // The kind check needs a host, so it runs when the content is first built, not at declaration.
             Function<H, Optional<KindKey<?>>> content = host -> {
                 ResourceTank<K> held = tank.apply(host);
                 if (held.kind() != kind) {
@@ -252,7 +256,7 @@ final class MenuLayout<H> {
             addKindContent(kind, changeKey, content);
             longReaders.add(host -> {
                 ResourceTank<K> held = tank.apply(host);
-                return held.unknown() && held instanceof LibResourceTank<K> lib ? lib.unknownAmount() : held.amount();
+                return held.unknown() ? held.unknownAmount() : held.amount();
             });
             longReaders.add(host -> tank.apply(host).capacity());
         }
@@ -260,26 +264,29 @@ final class MenuLayout<H> {
         @SuppressWarnings("unchecked") // the codec's own values
         private void addKindContent(@Nullable ResourceKind<?> kind, Function<? super H, ?> changeKey,
                 @Nullable Function<? super H, ?> content) {
-            addContent(changeKey, content, kindCodec, Optional.empty(), resource -> (Optional<KindKey<?>>) resource,
+            addContent(kind, changeKey, content, kindCodec, Optional.empty(),
+                    resource -> (Optional<KindKey<?>>) resource,
                     kind != null && kind.id().equals(FLUID_ID)
                             ? resource -> ((Optional<KindKey<?>>) resource).flatMap(key -> key.as(ResourceKinds.FLUID))
                             : null);
         }
 
         private <O> void addReplacement(Replacement<H, O> other) {
-            addContent(other.content(), null, other.codec(), other.empty(), content -> Optional.empty(), null);
+            addContent(null, other.content(), null, other.codec(), other.empty(), content -> Optional.empty(), null);
         }
 
         @SuppressWarnings("unchecked") // the codec only ever sees values from its own reader
-        private <O> void addContent(Function<? super H, ?> changeKey, @Nullable Function<? super H, ?> content,
-                StreamCodec<? super RegistryFriendlyByteBuf, O> codec, O empty,
-                Function<Object, Optional<KindKey<?>>> resource, @Nullable Function<Object, Optional<FluidKey>> fluid) {
+        private <O> void addContent(@Nullable ResourceKind<?> kind, Function<? super H, ?> changeKey,
+                @Nullable Function<? super H, ?> content, StreamCodec<? super RegistryFriendlyByteBuf, O> codec,
+                O empty, Function<Object, Optional<KindKey<?>>> resource,
+                @Nullable Function<Object, Optional<FluidKey>> fluid) {
             objectReaders.add(changeKey);
             objectContents.add(content);
             objectCodecs.add((StreamCodec<? super RegistryFriendlyByteBuf, Object>) (StreamCodec<?, ?>) codec);
             objectInitials.add(empty);
             toResource.add(resource);
             toFluid.add(fluid);
+            declaredKinds.add(kind);
         }
     }
 

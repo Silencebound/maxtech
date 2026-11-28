@@ -12,6 +12,8 @@ import dev.silencebound.maxtech.lib.api.menu.TankValue;
 import dev.silencebound.maxtech.lib.menu.MenuLayout.Kind;
 import dev.silencebound.maxtech.lib.api.resource.FluidKey;
 import dev.silencebound.maxtech.lib.api.resource.KindKey;
+import dev.silencebound.maxtech.lib.api.resource.ResourceKind;
+import dev.silencebound.maxtech.lib.api.resource.ResourceKinds;
 import java.util.Arrays;
 import java.util.Objects;
 import java.util.Optional;
@@ -291,6 +293,16 @@ public final class MenuValueTable<H> implements MenuValueView {
     @Override
     public Optional<KindKey<?>> resource(TankValue value) {
         return resources[layout.firstObject[index(value, Kind.TANK)]];
+    }
+
+    @Override
+    public @Nullable ResourceKind<?> kind(TankValue value) {
+        int field = layout.firstObject[index(value, Kind.TANK)];
+        ResourceKind<?> declared = layout.declaredKinds[field];
+        if (declared == null && layout.toFluid[field] != null) {
+            return ResourceKinds.FLUID;
+        }
+        return declared;
     }
 
     /**

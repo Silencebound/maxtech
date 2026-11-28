@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import dev.silencebound.maxtech.lib.api.inventory.ResourceTank;
 import dev.silencebound.maxtech.lib.api.menu.EnergyValue;
 import dev.silencebound.maxtech.lib.api.menu.EnumValue;
 import dev.silencebound.maxtech.lib.api.menu.IntValue;
@@ -17,6 +18,8 @@ import dev.silencebound.maxtech.lib.api.resource.KindKey;
 import dev.silencebound.maxtech.lib.api.resource.ResourceKind;
 import dev.silencebound.maxtech.lib.api.resource.TestKindTable;
 import dev.silencebound.maxtech.lib.api.resource.UnknownResource;
+import net.minecraft.world.level.storage.ValueInput;
+import net.minecraft.world.level.storage.ValueOutput;
 import io.netty.buffer.Unpooled;
 import java.lang.management.ManagementFactory;
 import java.util.Optional;
@@ -308,6 +311,163 @@ class MenuValueTableTest {
         assertEquals(1L << ANY.index(), body.readVarLong(), "mask names only the kind tank");
         assertEquals(Optional.of(new KindKey<>(SPARK, 2)), client.resource(ANY));
         assertEquals(3, client.get(KIND_COUNT));
+    }
+
+    /** A {@link ResourceTank} of {@link #SPARK} with kept state, enough for a menu getter. */
+    static final class StubTank implements ResourceTank<Integer> {
+        Optional<Integer> resource = Optional.empty();
+        long amount;
+        boolean unknown;
+        long unknownAmount;
+
+        @Override
+        public ResourceKind<Integer> kind() {
+            return SPARK;
+        }
+
+        @Override
+        public Optional<Integer> resource() {
+            return resource;
+        }
+
+        @Override
+        public long amount() {
+            return amount;
+        }
+
+        @Override
+        public long capacity() {
+            return 64;
+        }
+
+        @Override
+        public boolean accepts(Integer key) {
+            return true;
+        }
+
+        @Override
+        public long insert(Integer key, long amount, boolean simulate) {
+            return 0;
+        }
+
+        @Override
+        public long extract(Integer key, long amount, boolean simulate) {
+            return 0;
+        }
+
+        @Override
+        public boolean unknown() {
+            return unknown;
+        }
+
+        @Override
+        public long unknownAmount() {
+            return unknownAmount;
+        }
+
+        @Override
+        public void discardUnknown() {
+        }
+
+        @Override
+        public void set(Integer key, long amount) {
+        }
+
+        @Override
+        public void clear() {
+        }
+
+        @Override
+        public void save(ValueOutput output) {
+        }
+
+        @Override
+        public void load(ValueInput input) {
+        }
+    }
+
+    static final class TankHost {
+        final StubTank tank = new StubTank();
+    }
+
+    private static final MenuValues.Builder<TankHost> TANK_BUILDER = MenuValues.builder();
+    private static final TankValue HELD = TANK_BUILDER.tank(SPARK, h -> h.tank);
+    private static final MenuValues<TankHost> TANK_VALUES = TANK_BUILDER.build();
+    private static final MenuLayout<TankHost> TANK_LAYOUT = MenuLayout.withKindCodec(TANK_VALUES,
+            ByteBufCodecs.optional(KINDS.clientbound()));
+
+    @Test
+    void declaredKindIsExposed() {
+        MenuValueTable<KindHost> table = new MenuValueTable<>(KIND_LAYOUT);
+        assertEquals(SPARK, table.kind(SPARKS));
+        assertEquals(null, table.kind(ANY), "a tank of any kind declares none");
+        assertEquals(SPARK, new MenuValueTable<>(TANK_LAYOUT).kind(HELD), "also over a ResourceTank");
+        assertThrows(IllegalArgumentException.class, () -> table.kind(TANK));
+    }
+
+    /** The server knows the kind and the client does not: the key arrives unknown and the next value still arrives. */
+    @Test
+    void kindMissingOnTheClientSkipsToTheNextValue() {
+        TestKindTable clientKinds = new TestKindTable();
+        MenuLayout<KindHost> clientLayout = MenuLayout.withKindCodec(KIND_VALUES,
+                ByteBufCodecs.optional(clientKinds.clientbound()));
+        KindHost host = new KindHost();
+        host.resource = Optional.of(new KindKey<>(SPARK, 42));
+        host.spark = Optional.of(7);
+        host.amount = 11;
+        host.count = 99;
+        MenuValueTable<KindHost> server = new MenuValueTable<>(KIND_LAYOUT);
+        MenuValueTable<KindHost> client = new MenuValueTable<>(clientLayout);
+        server.markAll();
+        syncKinds(server, host, client);
+        KindKey<?> any = client.resource(ANY).orElseThrow();
+        assertTrue(any.isUnknown());
+        assertEquals(SPARK.id(), any.kindId());
+        assertEquals(11, client.amount(ANY), "the amount after the skipped key");
+        assertTrue(client.resource(SPARKS).orElseThrow().isUnknown());
+        assertEquals(22, client.amount(SPARKS), "a value after two skipped keys");
+        assertEquals(64, client.capacity(SPARKS));
+        assertEquals(99, client.get(KIND_COUNT), "the value before them");
+    }
+
+    @Test
+    void resourceTankShowsUnknownContentsWithTheirSavedAmount() {
+        TankHost host = new TankHost();
+        host.tank.unknown = true;
+        host.tank.unknownAmount = 33;
+        MenuValueTable<TankHost> server = new MenuValueTable<>(TANK_LAYOUT);
+        MenuValueTable<TankHost> client = new MenuValueTable<>(TANK_LAYOUT);
+        server.markAll();
+        server.collect(host);
+        RegistryFriendlyByteBuf buf = buffer();
+        server.encode(buf);
+        client.apply(buf);
+        assertTrue(client.resource(HELD).orElseThrow().isUnknown());
+        assertEquals(SPARK.id(), client.resource(HELD).orElseThrow().kindId());
+        assertEquals(33, client.amount(HELD), "the saved amount, not the tank's 0");
+
+        host.tank.unknown = false;
+        host.tank.resource = Optional.of(5);
+        host.tank.amount = 8;
+        server.collect(host);
+        buf = buffer();
+        server.encode(buf);
+        client.apply(buf);
+        assertEquals(Optional.of(new KindKey<>(SPARK, 5)), client.resource(HELD));
+        assertEquals(8, client.amount(HELD));
+    }
+
+    /** The {@code ResourceTank} getter path too: nothing allocated per idle tick, unknown contents included. */
+    @Test
+    void idleResourceTankCollectAllocatesNothing() {
+        TankHost host = new TankHost();
+        host.tank.resource = Optional.of(3);
+        host.tank.amount = 10;
+        assertIdleAllocatesNothing(new MenuValueTable<>(TANK_LAYOUT), host);
+        TankHost unknown = new TankHost();
+        unknown.tank.unknown = true;
+        unknown.tank.unknownAmount = 4;
+        assertIdleAllocatesNothing(new MenuValueTable<>(TANK_LAYOUT), unknown);
     }
 
     @Test
