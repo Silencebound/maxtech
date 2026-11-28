@@ -17,7 +17,7 @@ import org.slf4j.Logger;
  *
  * <p>Server or client thread only, like the wrapped storage.
  */
-public final class LegacyEnergyHandler implements EnergyHandler {
+public final class LegacyEnergyHandler implements EnergyHandler, LegacyDirectEnergy {
     private static final Logger LOGGER = LogUtils.getLogger();
     static final LegacyLedger.Registry<Fe> LEDGERS = new LegacyLedger.Registry<>();
     private static final int KEY = 0;
@@ -74,6 +74,31 @@ public final class LegacyEnergyHandler implements EnergyHandler {
     public int extract(int amount, TransactionContext transaction) {
         TransferPreconditions.checkNonNegative(amount);
         return ledger.extract(real, KEY, KEY, Fe.FE, amount, transaction);
+    }
+
+    @Override
+    public int simulateInsertNow(int amount) {
+        return refuses(amount) ? 0 : LegacyMath.clamp(real.simulateInsert(KEY, Fe.FE, amount), amount);
+    }
+
+    @Override
+    public int simulateExtractNow(int amount) {
+        return refuses(amount) ? 0 : LegacyMath.clamp(real.simulateExtract(KEY, Fe.FE, amount), amount);
+    }
+
+    @Override
+    public int insertNow(int amount) {
+        return refuses(amount) ? 0 : LegacyMath.clamp(real.insert(KEY, Fe.FE, amount), amount);
+    }
+
+    @Override
+    public int extractNow(int amount) {
+        return refuses(amount) ? 0 : LegacyMath.clamp(real.extract(KEY, Fe.FE, amount), amount);
+    }
+
+    /** Direct moves wait while a ledger move on this storage is pending in the current transaction. */
+    private boolean refuses(int amount) {
+        return amount <= 0 || ledger.hasPending();
     }
 
     @Override

@@ -4,6 +4,7 @@ import com.google.common.collect.MapMaker;
 import com.mojang.logging.LogUtils;
 import dev.silencebound.maxtech.lib.shim.transfer.transaction.SnapshotJournal;
 import dev.silencebound.maxtech.lib.shim.transfer.transaction.TransactionContext;
+import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -37,6 +38,15 @@ import org.slf4j.Logger;
  * simulation and the commit of the same transaction, or when its simulation does not match its real move.
  * </ul>
  *
+ * <p>Inserts and deferred extracts through different wrappers are combined only with parts of the same sign; one
+ * side's deferred extract is never credited to another side's insert (or the reverse), since sides can reach
+ * different tanks.
+ *
+ * <p>Lib's own moves skip the ledger where they can: its ports ({@code KindMoves}, through {@code ForeignKinds}) and
+ * {@code EnergyHandlerUtil.move} at a root move through fluid, energy and non-modifiable item wrappers foreign side
+ * last ({@link LegacyDirect}), counting only what the handler really moved. The ledger remains for every other caller
+ * of the capability.
+ *
  * <p>Mismatches warn once per handler class, then log at debug level.
  *
  * @param <R> the resource type
@@ -47,16 +57,51 @@ final class LegacyLedger<R> extends SnapshotJournal<LegacyLedger.State<R>> {
     /** Every commit or rollback mismatch so far; read by tests. */
     static final AtomicInteger MISMATCHES = new AtomicInteger();
 
-    /** A block in a level: the ledger key of a capability found there. Compared by level identity and position. */
-    record Location(Object level, long pos) {
+    /**
+     * A block in a level: the ledger key of a capability found there. Compared by level identity and position; the
+     * level is held weakly, so a ledger key never keeps an unloaded level alive ({@link Registry#forget} drops its
+     * keys when the level unloads).
+     */
+    static final class Location {
+        private final WeakReference<Object> level;
+        private final int levelHash;
+        private final long pos;
+
+        Location(Object level, long pos) {
+            this.level = new WeakReference<>(level);
+            this.levelHash = System.identityHashCode(level);
+            this.pos = pos;
+        }
+
+        /** {@return whether this key is in {@code level}; false once the level is gone} */
+        boolean in(Object level) {
+            return this.level.get() == level;
+        }
+
+        boolean levelGone() {
+            return level.get() == null;
+        }
+
         @Override
         public boolean equals(Object other) {
-            return other instanceof Location that && that.level == level && that.pos == pos;
+            if (other == this) {
+                return true;
+            }
+            if (!(other instanceof Location that) || that.pos != pos || that.levelHash != levelHash) {
+                return false;
+            }
+            Object mine = level.get();
+            return mine != null && mine == that.level.get();
         }
 
         @Override
         public int hashCode() {
-            return System.identityHashCode(level) * 31 + Long.hashCode(pos);
+            return levelHash * 31 + Long.hashCode(pos);
+        }
+
+        @Override
+        public String toString() {
+            return "Location{" + level.get() + " @ " + pos + "}";
         }
     }
 
@@ -72,11 +117,23 @@ final class LegacyLedger<R> extends SnapshotJournal<LegacyLedger.State<R>> {
             var map = inventory instanceof Location ? byLocation : byObject;
             return map.computeIfAbsent(inventory, unused -> new LegacyLedger<>());
         }
+
+        /** Drops the keys of {@code level} (and of levels already collected); wrappers that hold a ledger keep it. */
+        void forget(Object level) {
+            byLocation.keySet().removeIf(key -> key instanceof Location at && (at.in(level) || at.levelGone()));
+        }
+
+        /** {@return the number of block keys; for tests} */
+        int locations() {
+            return byLocation.size();
+        }
     }
 
     /**
-     * A pending change of one inventory slot counted through one wrapper: positive inserts, negative (deferred)
-     * extracts. All parts of one slot have the same resource and the same sign.
+     * A pending change of one inventory slot counted through one wrapper and slot ({@code via}, {@code viaSlot}):
+     * positive inserts, negative (deferred) extracts. All parts of one slot have the same resource. Parts of different
+     * wrappers are kept apart and may have different signs: an insert through one side is never credited against an
+     * extract through another, since the sides can reach different tanks or have different rules.
      */
     record Pending<R>(int key, R resource, int delta, LegacyTarget<R> via, int viaSlot) {
     }
@@ -91,12 +148,20 @@ final class LegacyLedger<R> extends SnapshotJournal<LegacyLedger.State<R>> {
     private List<Pending<R>> pending = new ArrayList<>();
     private final List<Held<R>> held = new ArrayList<>();
 
-    /** {@return the pending insert into the inventory slot {@code key} if it is of that resource, else 0} */
+    /** {@return the pending inserts into the inventory slot {@code key} (all sides) if of that resource, else 0} */
     int pendingInsert(int key, R resource) {
-        return Math.max(0, pendingDelta(key, resource));
+        return sumOf(key, resource, 1);
     }
 
-    /** {@return the pending change of the inventory slot {@code key} if it is of that resource, else 0} */
+    /** {@return whether any slot has a pending change in the current transaction} */
+    boolean hasPending() {
+        return !pending.isEmpty();
+    }
+
+    /**
+     * {@return the net pending change of the inventory slot {@code key} over all sides if it is of that resource, else
+     * 0}; what the slot will show after the commit, for reading only
+     */
     int pendingDelta(int key, R resource) {
         long total = 0;
         for (int i = 0, n = pending.size(); i < n; i++) {
@@ -125,15 +190,16 @@ final class LegacyLedger<R> extends SnapshotJournal<LegacyLedger.State<R>> {
         if (amount <= 0 || conflicts(key, resource)) {
             return 0;
         }
-        int delta = pendingDelta(key, resource);
-        int accepted;
-        if (delta >= 0) {
-            accepted = Math.min(amount, via.simulateInsert(viaSlot, resource, LegacyMath.add(delta, amount)) - delta);
-        } else {
-            // Putting back a deferred extraction always fits; anything beyond goes on top of the real slot.
-            int back = Math.min(amount, -delta);
-            int rest = amount - back;
-            accepted = back + (rest > 0 ? Math.max(0, via.simulateInsert(viaSlot, resource, rest)) : 0);
+        // Putting back this side's own deferred extraction always fits; the rest is simulated on top of every side's
+        // pending inserts. Other sides' deferred extractions are not credited (they may drain another tank).
+        int own = partOf(key, via, viaSlot);
+        int back = own < 0 ? Math.min(amount, -own) : 0;
+        int rest = amount - back;
+        int accepted = back;
+        if (rest > 0) {
+            int inserts = sumOf(key, resource, 1);
+            accepted += Math.max(0, Math.min(rest,
+                    via.simulateInsert(viaSlot, resource, LegacyMath.add(inserts, rest)) - inserts));
         }
         if (accepted <= 0) {
             return 0;
@@ -149,8 +215,9 @@ final class LegacyLedger<R> extends SnapshotJournal<LegacyLedger.State<R>> {
         }
         if (via.extractsImmediately()) {
             updateSnapshots(transaction);
-            // Take back pending inserts of this resource first (they never reached the real slot), then the rest.
-            int back = conflicts(key, resource) ? 0 : Math.min(amount, Math.max(0, pendingDelta(key, resource)));
+            // Take back this side's pending inserts of this resource first (they never reached the real slot), then
+            // the rest.
+            int back = conflicts(key, resource) ? 0 : Math.min(amount, Math.max(0, partOf(key, via, viaSlot)));
             if (back > 0) {
                 add(key, resource, -back, via, viaSlot);
             }
@@ -159,15 +226,16 @@ final class LegacyLedger<R> extends SnapshotJournal<LegacyLedger.State<R>> {
         if (conflicts(key, resource)) {
             return 0;
         }
-        int delta = pendingDelta(key, resource);
-        int accepted;
-        if (delta <= 0) {
-            accepted = Math.min(amount, via.simulateExtract(viaSlot, resource, LegacyMath.add(-delta, amount)) + delta);
-        } else {
-            // Taking back a pending insert always works; anything beyond comes from the real slot.
-            int back = Math.min(amount, delta);
-            int rest = amount - back;
-            accepted = back + (rest > 0 ? Math.max(0, via.simulateExtract(viaSlot, resource, rest)) : 0);
+        // Taking back this side's own pending insert always works; the rest is simulated on top of every side's
+        // deferred extractions. Other sides' pending inserts are not credited (they may fill another tank).
+        int own = partOf(key, via, viaSlot);
+        int back = own > 0 ? Math.min(amount, own) : 0;
+        int rest = amount - back;
+        int accepted = back;
+        if (rest > 0) {
+            int extracts = sumOf(key, resource, -1);
+            accepted += Math.max(0, Math.min(rest,
+                    via.simulateExtract(viaSlot, resource, LegacyMath.add(extracts, rest)) - extracts));
         }
         if (accepted <= 0) {
             return 0;
@@ -250,36 +318,49 @@ final class LegacyLedger<R> extends SnapshotJournal<LegacyLedger.State<R>> {
         return current != null && !current.equals(resource);
     }
 
-    /**
-     * Adds {@code delta} to the slot's pending change. It first cancels parts of the opposite sign (from any wrapper),
-     * so all parts of a slot keep one sign and their order on commit does not matter; the rest is this wrapper's part.
-     */
-    private void add(int key, R resource, int delta, LegacyTarget<R> via, int viaSlot) {
-        int remaining = delta;
-        for (int i = 0; i < pending.size() && remaining != 0; i++) {
-            Pending<R> entry = pending.get(i);
-            if (entry.key() != key || Integer.signum(entry.delta()) == Integer.signum(remaining)) {
-                continue;
-            }
-            int cancel = Math.min(Math.abs(remaining), Math.abs(entry.delta())) * Integer.signum(remaining);
-            remaining -= cancel;
-            int left = entry.delta() + cancel;
-            if (left == 0) {
-                pending.remove(i--);
-            } else {
-                pending.set(i, new Pending<>(key, resource, left, entry.via(), entry.viaSlot()));
-            }
-        }
-        if (remaining == 0) {
-            return;
-        }
+    /** {@return this side's pending change of the slot {@code key}} */
+    private int partOf(int key, LegacyTarget<R> via, int viaSlot) {
         for (int i = 0, n = pending.size(); i < n; i++) {
             Pending<R> entry = pending.get(i);
             if (entry.key() == key && entry.via() == via && entry.viaSlot() == viaSlot) {
-                pending.set(i, new Pending<>(key, resource, entry.delta() + remaining, via, viaSlot));
+                return entry.delta();
+            }
+        }
+        return 0;
+    }
+
+    /** {@return the size of the slot's pending parts of sign {@code sign} (all sides) if of that resource, else 0} */
+    private int sumOf(int key, R resource, int sign) {
+        long total = 0;
+        for (int i = 0, n = pending.size(); i < n; i++) {
+            Pending<R> entry = pending.get(i);
+            if (entry.key() == key && Integer.signum(entry.delta()) == sign) {
+                if (!entry.resource().equals(resource)) {
+                    return 0;
+                }
+                total += Math.abs((long) entry.delta());
+            }
+        }
+        return (int) Math.min(Integer.MAX_VALUE, total);
+    }
+
+    /**
+     * Adds {@code delta} to this side's part of the slot's pending change; a part that reaches 0 is removed. Other
+     * sides' parts are left alone, so each part is applied through the side that counted it.
+     */
+    private void add(int key, R resource, int delta, LegacyTarget<R> via, int viaSlot) {
+        for (int i = 0, n = pending.size(); i < n; i++) {
+            Pending<R> entry = pending.get(i);
+            if (entry.key() == key && entry.via() == via && entry.viaSlot() == viaSlot) {
+                int sum = entry.delta() + delta;
+                if (sum == 0) {
+                    pending.remove(i);
+                } else {
+                    pending.set(i, new Pending<>(key, resource, sum, via, viaSlot));
+                }
                 return;
             }
         }
-        pending.add(new Pending<>(key, resource, remaining, via, viaSlot));
+        pending.add(new Pending<>(key, resource, delta, via, viaSlot));
     }
 }

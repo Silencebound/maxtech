@@ -1,10 +1,13 @@
 package dev.silencebound.maxtech.lib.shim.transfer.bridge.legacy;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 
 import dev.silencebound.maxtech.lib.shim.transfer.transaction.Transaction;
+import java.lang.ref.WeakReference;
 import org.junit.jupiter.api.Test;
 
 /** The shared transaction ledger of the 1.21.1 bridge, over a fake non-transactional inventory. */
@@ -243,17 +246,64 @@ class LegacyLedgerTest {
     }
 
     @Test
-    void cancellingAnotherSidesPendingInsertLeavesNothingToApply() {
+    void cancellingThisSidesPendingInsertLeavesNothingToApply() {
+        var inv = new FakeInventory(1);
+        inv.extractsImmediately = false;
+        var side = inv.view();
+        var ledger = registry.of(inv);
+        try (var tx = Transaction.openRoot()) {
+            assertEquals(20, insert(ledger, side, 0, STONE, 20, tx));
+            assertEquals(20, extract(ledger, side, 0, STONE, 20, tx));
+            tx.commit();
+        }
+        assertEquals(0, inv.count[0]);
+        assertEquals(0, inv.realCalls);
+    }
+
+    @Test
+    void anotherSidesPendingInsertIsNotCreditedToAnExtract() {
         var inv = new FakeInventory(1);
         inv.extractsImmediately = false;
         var ledger = registry.of(inv);
         try (var tx = Transaction.openRoot()) {
             assertEquals(20, insert(ledger, inv.view(), 0, STONE, 20, tx));
-            assertEquals(20, extract(ledger, inv.view(), 0, STONE, 20, tx));
+            // The other side may reach another tank: nothing is there to extract yet.
+            assertEquals(0, extract(ledger, inv.view(), 0, STONE, 20, tx));
             tx.commit();
         }
-        assertEquals(0, inv.count[0]);
-        assertEquals(0, inv.realCalls);
+        assertEquals(20, inv.count[0]);
+    }
+
+    @Test
+    void anotherSidesDeferredExtractIsNotCreditedToAnInsert() {
+        var inv = new FakeInventory(1).with(0, STONE, 64);
+        inv.extractsImmediately = false;
+        var outputSide = inv.view();
+        var closedSide = inv.view(0);
+        var ledger = registry.of(inv);
+        try (var tx = Transaction.openRoot()) {
+            assertEquals(30, extract(ledger, outputSide, 0, STONE, 30, tx));
+            // A side that takes nothing must not take "the put-back" of another side's extract.
+            assertEquals(0, insert(ledger, closedSide, 0, STONE, 30, tx));
+            tx.commit();
+        }
+        assertEquals(34, inv.count[0]);
+        assertEquals(0, inv.overflow);
+    }
+
+    @Test
+    void partsOfBothSignsFromTwoSidesAreAppliedThroughTheirSides() {
+        var inv = new FakeInventory(1).with(0, STONE, 40);
+        inv.extractsImmediately = false;
+        var ledger = registry.of(inv);
+        try (var tx = Transaction.openRoot()) {
+            assertEquals(30, extract(ledger, inv.view(), 0, STONE, 30, tx));
+            // Simulated without the other side's extract: 24 fit on top of the 40.
+            assertEquals(24, insert(ledger, inv.view(), 0, STONE, 30, tx));
+            tx.commit();
+        }
+        assertEquals(40 - 30 + 24, inv.count[0]);
+        assertEquals(0, inv.overflow);
     }
 
     @Test
@@ -263,5 +313,30 @@ class LegacyLedgerTest {
         assertSame(a, registry.of(new LegacyLedger.Location(level, 7L)));
         assertNotSame(a, registry.of(new LegacyLedger.Location(level, 8L)));
         assertNotSame(a, registry.of(new LegacyLedger.Location(new Object(), 7L)));
+    }
+
+    @Test
+    void aLedgerKeyDoesNotKeepItsLevelAlive() throws InterruptedException {
+        Object level = new Object();
+        var gone = new WeakReference<>(level);
+        var ledger = registry.of(new LegacyLedger.Location(level, 7L));
+        level = null;
+        for (int i = 0; i < 50 && gone.get() != null; i++) {
+            System.gc();
+            Thread.sleep(10);
+        }
+        assertNull(gone.get(), "the level is still reachable through the ledger registry");
+        assertNotNull(ledger);
+    }
+
+    @Test
+    void unloadingALevelDropsItsKeys() {
+        Object level = new Object();
+        Object other = new Object();
+        var held = registry.of(new LegacyLedger.Location(level, 7L));
+        registry.of(new LegacyLedger.Location(other, 7L));
+        registry.forget(level);
+        assertEquals(1, registry.locations());
+        assertNotSame(held, registry.of(new LegacyLedger.Location(level, 7L)));
     }
 }
