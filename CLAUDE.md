@@ -15,6 +15,7 @@ builds on Lib's public api only; its rules: `farms/CLAUDE.md`.
 ./gradlew :storage:neoforge:runGameTestServer -Pgametest='maxtech_storage:foo_*'   # only your tests while iterating
 ./gradlew :storage:neoforge:runData              # datagen (same for lib); commit the generated files
 ./gradlew :storage:neoforge:runClient            # dev client; /maxtech_storage showcase [<station> [here]|list|clear|reset-steps]
+./gradlew :lib:neoforge:runScreenshots -Pscene=pipes   # client shots without clicks, then Read the PNGs (client-check)
 ./gradlew spotlessApply                          # format before committing
 scripts/pr.sh merge <pr>                         # wait for green CI and squash-merge (run in the background)
 ```

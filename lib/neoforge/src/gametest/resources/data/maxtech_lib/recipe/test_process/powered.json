@@ -1,0 +1,19 @@
+{
+  "type": "maxtech_lib:test_process",
+  "mode": "a",
+  "inputs": [
+    {
+      "ingredient": "minecraft:iron_ingot"
+    }
+  ],
+  "outputs": [
+    {
+      "item": {
+        "id": "minecraft:iron_nugget",
+        "count": 9
+      }
+    }
+  ],
+  "energy_per_tick": 10,
+  "duration": 5
+}

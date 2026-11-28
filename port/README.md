@@ -105,6 +105,8 @@ Where the 1.21.1 build intentionally differs from main:
 
 - `ConduitItemModels.shell` takes an `ItemModelProvider`.
 - `MenuClient` and `GuideWebExport` are removed.
+- The client screenshot harness (main's `src/screenshots`, `runScreenshots`) is not ported; `LibScreenshotScenes` is
+  removed.
 - `MachineRecipeType.bookCategory` is dropped.
 - `CraftingGridMenus` uses the non-untrusted item codec.
 - GameTest environment kinds `clock_time`, `game_rules` and `timelines` are dropped.
