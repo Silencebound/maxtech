@@ -93,7 +93,7 @@ Labels: **stable** = frozen at 1.0, a breaking change needs a Lib major bump. **
 | `NetworkLogic`, `NodeConnectivity` | A type's transport semantics (topology events and a tick per active network) and how it sees the world. | experimental |
 | `Network`, `NetworkGraph` | One connected set of nodes (a read-only view) and one level's graph of a type; the graph's constructor, `tick` and `setProfiling` are Lib's (`@ApiStatus.Internal`). | experimental |
 | `RouteTree` | Widest-path routes to a root over one component, built when the component is rebuilt. | experimental |
-| **`lib.api.recipe`** | Machine recipe types and recipes; item inputs and outputs shared with the recipe viewer layout and KubeJS. | stable |
+| **`lib.api.recipe`** | Machine recipe types, recipes, lookup and datagen; item inputs and outputs shared with the recipe viewer layout and KubeJS. | stable |
 | `ItemInput` | Ingredient, count, consumed or catalyst; codecs. | stable |
 | `ItemOutput` | Output stack and chance in hundredths of a percent; codecs; `roll` rolls each copy on its own. | stable |
 | `MachineRecipeType` | `define(modId, name, shape)` registers a machine's `RecipeType`, serializer (one JSON codec, one stream codec) and recipe book category through the mod's registrars; the codec refuses recipes that do not fit the shape (ADR-0019, Lib 0.15.0). | experimental |
@@ -101,6 +101,8 @@ Labels: **stable** = frozen at 1.0, a breaking change needs a Lib major bump. **
 | `MachineRecipe` | Item inputs, tank inputs of any kind, item outputs with chance, tank outputs, `energy_per_tick`, `duration`, optional `mode`; `matches` fills a `MachineRecipePlan`. Unknown items, fluids or kinds fail decoding, so the game logs and skips the recipe. | experimental |
 | `KindInput`, `KindOutput` | A tank input by exact resource (components included) or by kind and tag, and a tank output by exact resource; amounts in the kind's unit. | experimental |
 | `MachineRecipeInput`, `MachineRecipePlan` | A machine's live view of its input and catalyst slots, input tanks and mode; where a matched run takes each input from. | experimental |
+| `MachineRecipeLookup` | One per machine: finds the matching recipe, checking the last one first without allocating; a datapack reload forgets it. | experimental |
+| `MachineRecipeBuilder` | Datagen: `c:` tag and item inputs, catalysts, fluid tag or exact tank inputs, outputs with chance, tank outputs; `build` checks the shape. | experimental |
 | **`lib.api.registry`** | Registering a mod's game objects through Lib, for Farms (FM1). | experimental |
 | `Registrars` | Entry point: `create(modId, registry)`. | experimental |
 | `Registrar`, `RegistryEntry` | A deferred registrar and its entries (`id`, `key`, `holder`, `get`). Lib's `lib.platform` types extend them. | experimental |
