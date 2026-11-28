@@ -17,7 +17,7 @@ import net.minecraft.world.inventory.Slot;
  * clears on the server; the wheel over a marked slot changes its count by one (16 with shift). Client only.
  */
 public final class BeltScreen extends AbstractContainerScreen<BeltMenu> {
-    private static final int GHOST_SHADE = 0xA015181B;
+    private static final int GHOST_SHADE = 0xA0101215;
 
     public BeltScreen(BeltMenu menu, Inventory inventory, Component title) {
         super(menu, inventory, title, BeltMenu.WIDTH, BeltMenu.HEIGHT);

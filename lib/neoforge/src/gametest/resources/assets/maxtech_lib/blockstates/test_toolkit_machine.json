@@ -1,1 +1,1 @@
-{"variants":{"":{"model":"maxtech_lib:block/test_toolkit_machine"}}}
+{"variants":{"facing=north":{"model":"maxtech_lib:block/test_toolkit_machine"},"facing=east":{"model":"maxtech_lib:block/test_toolkit_machine","y":90},"facing=south":{"model":"maxtech_lib:block/test_toolkit_machine","y":180},"facing=west":{"model":"maxtech_lib:block/test_toolkit_machine","y":270}}}

@@ -10,6 +10,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.mojang.serialization.JsonOps;
 import java.util.List;
+import java.util.Optional;
 import net.minecraft.resources.Identifier;
 import org.junit.jupiter.api.Test;
 
@@ -120,6 +121,53 @@ class ConduitLookTest {
                 {"look": "shell", "shell": "farms:block/lab_tube_glass", "border": 1.0, "frame_bars": true}
                 """), json);
         assertEquals(framed, ConduitLook.CODEC.codec().parse(JsonOps.INSTANCE, json).getOrThrow());
+    }
+
+    /** A bar texture is unset by default, kept by later withers, written only when set and read back. */
+    @Test
+    void shellBarTextureIsOptional() {
+        Identifier glass = Identifier.fromNamespaceAndPath("farms", "block/lab_tube_glass");
+        Identifier bar = Identifier.fromNamespaceAndPath("farms", "block/pipe_bar");
+        assertEquals(Optional.empty(), ConduitLook.shell(glass).withFrameBars().barTexture(), "unset by default");
+        assertEquals(Optional.empty(), new ConduitLook.Shell(glass, 0, 1, 1, 1, 1, true).barTexture(),
+                "old constructor");
+        ConduitLook.Shell textured = ConduitLook.shell(glass).withBarTexture(bar).withFrameBars().withBorder(2);
+        assertEquals(Optional.of(bar), textured.barTexture(), "kept by later withers");
+        assertEquals(Optional.empty(), textured.withoutBarTexture().barTexture(), "back to flat");
+        assertEquals(textured, textured.withoutBarTexture().withBarTexture(Optional.of(bar)));
+        JsonElement json = ConduitLook.CODEC.codec().encodeStart(JsonOps.INSTANCE, textured).getOrThrow();
+        assertEquals(JsonParser.parseString("""
+                {"look": "shell", "shell": "farms:block/lab_tube_glass", "border": 2.0, "frame_bars": true,
+                 "bar_texture": "farms:block/pipe_bar"}
+                """), json);
+        assertEquals(textured, ConduitLook.CODEC.codec().parse(JsonOps.INSTANCE, json).getOrThrow());
+        assertTrue(ConduitLook.CODEC.codec().parse(JsonOps.INSTANCE, JsonParser.parseString("""
+                {"look": "shell", "shell": "a:b", "bar_texture": "A B"}
+                """)).isError(), "a bad id is not read");
+    }
+
+    /** A tier stripe is unset by default, kept by later withers, written as #RRGGBB only when set and read back. */
+    @Test
+    void shellTierStripeIsOptional() {
+        Identifier glass = Identifier.fromNamespaceAndPath("farms", "block/lab_tube_glass");
+        ConduitLook.Shell framed = ConduitLook.shell(glass).withFrameBars();
+        assertEquals(Optional.empty(), framed.tierStripe(), "unset by default");
+        assertEquals(Optional.empty(), new ConduitLook.Shell(glass, 0, 1, 1, 1, 1, true, Optional.empty()).tierStripe(),
+                "old constructor");
+        assertFalse(ConduitLook.CODEC.codec().encodeStart(JsonOps.INSTANCE, framed).getOrThrow().getAsJsonObject()
+                .has("tier_stripe"), "left out when unset");
+        ConduitLook.Shell striped = framed.withTierStripe(0xFFD6DBE0).withBorder(1);
+        assertEquals(Optional.of(0xD6DBE0), striped.tierStripe(), "kept by later withers, alpha dropped");
+        assertEquals(framed.withBorder(1), striped.withTierStripe(Optional.empty()), "back to none");
+        JsonElement json = ConduitLook.CODEC.codec().encodeStart(JsonOps.INSTANCE, striped).getOrThrow();
+        assertEquals(JsonParser.parseString("""
+                {"look": "shell", "shell": "farms:block/lab_tube_glass", "border": 1.0, "frame_bars": true,
+                 "tier_stripe": "#d6dbe0"}
+                """), json);
+        assertEquals(striped, ConduitLook.CODEC.codec().parse(JsonOps.INSTANCE, json).getOrThrow());
+        assertTrue(ConduitLook.CODEC.codec().parse(JsonOps.INSTANCE, JsonParser.parseString("""
+                {"look": "shell", "shell": "a:b", "tier_stripe": "red"}
+                """)).isError(), "a bad colour is not read");
     }
 
     /** A shell without its sprite, or with a width out of range, is not read. */

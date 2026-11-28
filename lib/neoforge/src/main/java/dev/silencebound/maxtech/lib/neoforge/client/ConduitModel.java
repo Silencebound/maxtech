@@ -19,6 +19,7 @@ import dev.silencebound.maxtech.lib.facade.FacadeView;
 import dev.silencebound.maxtech.lib.neoforge.api.client.conduit.ConduitModelHook;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.block.BlockAndTintGetter;
 import net.minecraft.client.renderer.block.dispatch.BlockModelRotation;
@@ -383,7 +384,10 @@ public final class ConduitModel implements DynamicBlockStateModel {
                 }
                 case ConduitLook.Shell shell -> {
                     end = sprite(baker, shell.shell());
-                    named = Map.of(shell.shell(), end);
+                    Optional<Identifier> barTexture = shell.barTexture();
+                    named = barTexture.isEmpty() || barTexture.get().equals(shell.shell())
+                            ? Map.of(shell.shell(), end)
+                            : Map.of(shell.shell(), end, barTexture.get(), sprite(baker, barTexture.get()));
                 }
             }
             return new ConduitModel(look, new Sprites(flat, end, overlay, named));

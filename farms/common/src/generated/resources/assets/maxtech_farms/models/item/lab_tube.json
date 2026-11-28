@@ -1,6 +1,1746 @@
 {
-  "parent": "minecraft:item/generated",
+  "parent": "minecraft:block/block",
+  "display": {
+    "fixed": {
+      "scale": [
+        0.75,
+        0.75,
+        0.75
+      ]
+    },
+    "ground": {
+      "scale": [
+        0.4,
+        0.4,
+        0.4
+      ],
+      "translation": [
+        0,
+        3,
+        0
+      ]
+    },
+    "gui": {
+      "rotation": [
+        30,
+        225,
+        0
+      ],
+      "scale": [
+        0.9,
+        0.9,
+        0.9
+      ]
+    }
+  },
+  "elements": [
+    {
+      "faces": {
+        "down": {
+          "texture": "#glass"
+        }
+      },
+      "from": [
+        1,
+        5,
+        5
+      ],
+      "to": [
+        15,
+        12,
+        11
+      ]
+    },
+    {
+      "faces": {
+        "up": {
+          "texture": "#glass"
+        }
+      },
+      "from": [
+        1,
+        4,
+        5
+      ],
+      "to": [
+        15,
+        11,
+        11
+      ]
+    },
+    {
+      "faces": {
+        "north": {
+          "rotation": 180,
+          "texture": "#glass"
+        }
+      },
+      "from": [
+        1,
+        5,
+        5
+      ],
+      "to": [
+        15,
+        11,
+        12
+      ]
+    },
+    {
+      "faces": {
+        "south": {
+          "texture": "#glass"
+        }
+      },
+      "from": [
+        1,
+        5,
+        4
+      ],
+      "to": [
+        15,
+        11,
+        11
+      ]
+    },
+    {
+      "faces": {
+        "west": {
+          "texture": "#glass"
+        }
+      },
+      "from": [
+        1,
+        5,
+        5
+      ],
+      "to": [
+        8,
+        11,
+        11
+      ]
+    },
+    {
+      "faces": {
+        "down": {
+          "neoforge_data": {
+            "color": "ff2c3238"
+          },
+          "texture": "#flat"
+        }
+      },
+      "from": [
+        0,
+        4,
+        4
+      ],
+      "to": [
+        16,
+        5,
+        5
+      ]
+    },
+    {
+      "faces": {
+        "up": {
+          "neoforge_data": {
+            "color": "ff2c3238"
+          },
+          "texture": "#flat"
+        }
+      },
+      "from": [
+        0,
+        4,
+        4
+      ],
+      "to": [
+        16,
+        5,
+        5
+      ]
+    },
+    {
+      "faces": {
+        "north": {
+          "neoforge_data": {
+            "color": "ff2c3238"
+          },
+          "texture": "#flat"
+        }
+      },
+      "from": [
+        0,
+        4,
+        4
+      ],
+      "to": [
+        16,
+        5,
+        5
+      ]
+    },
+    {
+      "faces": {
+        "south": {
+          "neoforge_data": {
+            "color": "ff2c3238"
+          },
+          "texture": "#flat"
+        }
+      },
+      "from": [
+        0,
+        4,
+        4
+      ],
+      "to": [
+        16,
+        5,
+        5
+      ]
+    },
+    {
+      "faces": {
+        "west": {
+          "neoforge_data": {
+            "color": "ff2c3238"
+          },
+          "texture": "#flat"
+        }
+      },
+      "from": [
+        0,
+        4,
+        4
+      ],
+      "to": [
+        8,
+        5,
+        5
+      ]
+    },
+    {
+      "faces": {
+        "down": {
+          "neoforge_data": {
+            "color": "ff2c3238"
+          },
+          "texture": "#flat"
+        }
+      },
+      "from": [
+        0,
+        4,
+        11
+      ],
+      "to": [
+        16,
+        5,
+        12
+      ]
+    },
+    {
+      "faces": {
+        "up": {
+          "neoforge_data": {
+            "color": "ff2c3238"
+          },
+          "texture": "#flat"
+        }
+      },
+      "from": [
+        0,
+        4,
+        11
+      ],
+      "to": [
+        16,
+        5,
+        12
+      ]
+    },
+    {
+      "faces": {
+        "north": {
+          "neoforge_data": {
+            "color": "ff2c3238"
+          },
+          "texture": "#flat"
+        }
+      },
+      "from": [
+        0,
+        4,
+        11
+      ],
+      "to": [
+        16,
+        5,
+        12
+      ]
+    },
+    {
+      "faces": {
+        "south": {
+          "neoforge_data": {
+            "color": "ff2c3238"
+          },
+          "texture": "#flat"
+        }
+      },
+      "from": [
+        0,
+        4,
+        11
+      ],
+      "to": [
+        16,
+        5,
+        12
+      ]
+    },
+    {
+      "faces": {
+        "west": {
+          "neoforge_data": {
+            "color": "ff2c3238"
+          },
+          "texture": "#flat"
+        }
+      },
+      "from": [
+        0,
+        4,
+        11
+      ],
+      "to": [
+        8,
+        5,
+        12
+      ]
+    },
+    {
+      "faces": {
+        "down": {
+          "neoforge_data": {
+            "color": "ff2c3238"
+          },
+          "texture": "#flat"
+        }
+      },
+      "from": [
+        0,
+        11,
+        4
+      ],
+      "to": [
+        16,
+        12,
+        5
+      ]
+    },
+    {
+      "faces": {
+        "up": {
+          "neoforge_data": {
+            "color": "ff2c3238"
+          },
+          "texture": "#flat"
+        }
+      },
+      "from": [
+        0,
+        11,
+        4
+      ],
+      "to": [
+        16,
+        12,
+        5
+      ]
+    },
+    {
+      "faces": {
+        "north": {
+          "neoforge_data": {
+            "color": "ff2c3238"
+          },
+          "texture": "#flat"
+        }
+      },
+      "from": [
+        0,
+        11,
+        4
+      ],
+      "to": [
+        16,
+        12,
+        5
+      ]
+    },
+    {
+      "faces": {
+        "south": {
+          "neoforge_data": {
+            "color": "ff2c3238"
+          },
+          "texture": "#flat"
+        }
+      },
+      "from": [
+        0,
+        11,
+        4
+      ],
+      "to": [
+        16,
+        12,
+        5
+      ]
+    },
+    {
+      "faces": {
+        "west": {
+          "neoforge_data": {
+            "color": "ff2c3238"
+          },
+          "texture": "#flat"
+        }
+      },
+      "from": [
+        0,
+        11,
+        4
+      ],
+      "to": [
+        8,
+        12,
+        5
+      ]
+    },
+    {
+      "faces": {
+        "down": {
+          "neoforge_data": {
+            "color": "ff2c3238"
+          },
+          "texture": "#flat"
+        }
+      },
+      "from": [
+        0,
+        11,
+        11
+      ],
+      "to": [
+        16,
+        12,
+        12
+      ]
+    },
+    {
+      "faces": {
+        "up": {
+          "neoforge_data": {
+            "color": "ff2c3238"
+          },
+          "texture": "#flat"
+        }
+      },
+      "from": [
+        0,
+        11,
+        11
+      ],
+      "to": [
+        16,
+        12,
+        12
+      ]
+    },
+    {
+      "faces": {
+        "north": {
+          "neoforge_data": {
+            "color": "ff2c3238"
+          },
+          "texture": "#flat"
+        }
+      },
+      "from": [
+        0,
+        11,
+        11
+      ],
+      "to": [
+        16,
+        12,
+        12
+      ]
+    },
+    {
+      "faces": {
+        "south": {
+          "neoforge_data": {
+            "color": "ff2c3238"
+          },
+          "texture": "#flat"
+        }
+      },
+      "from": [
+        0,
+        11,
+        11
+      ],
+      "to": [
+        16,
+        12,
+        12
+      ]
+    },
+    {
+      "faces": {
+        "west": {
+          "neoforge_data": {
+            "color": "ff2c3238"
+          },
+          "texture": "#flat"
+        }
+      },
+      "from": [
+        0,
+        11,
+        11
+      ],
+      "to": [
+        8,
+        12,
+        12
+      ]
+    },
+    {
+      "faces": {
+        "north": {
+          "neoforge_data": {
+            "color": "ff2c3238"
+          },
+          "texture": "#flat"
+        }
+      },
+      "from": [
+        0,
+        5,
+        4
+      ],
+      "to": [
+        1,
+        11,
+        5
+      ]
+    },
+    {
+      "faces": {
+        "south": {
+          "neoforge_data": {
+            "color": "ff2c3238"
+          },
+          "texture": "#flat"
+        }
+      },
+      "from": [
+        0,
+        5,
+        4
+      ],
+      "to": [
+        1,
+        11,
+        5
+      ]
+    },
+    {
+      "faces": {
+        "west": {
+          "neoforge_data": {
+            "color": "ff2c3238"
+          },
+          "texture": "#flat"
+        }
+      },
+      "from": [
+        0,
+        5,
+        4
+      ],
+      "to": [
+        1,
+        11,
+        5
+      ]
+    },
+    {
+      "faces": {
+        "east": {
+          "neoforge_data": {
+            "color": "ff2c3238"
+          },
+          "texture": "#flat"
+        }
+      },
+      "from": [
+        0,
+        5,
+        4
+      ],
+      "to": [
+        1,
+        11,
+        5
+      ]
+    },
+    {
+      "faces": {
+        "north": {
+          "neoforge_data": {
+            "color": "ff2c3238"
+          },
+          "texture": "#flat"
+        }
+      },
+      "from": [
+        0,
+        5,
+        11
+      ],
+      "to": [
+        1,
+        11,
+        12
+      ]
+    },
+    {
+      "faces": {
+        "south": {
+          "neoforge_data": {
+            "color": "ff2c3238"
+          },
+          "texture": "#flat"
+        }
+      },
+      "from": [
+        0,
+        5,
+        11
+      ],
+      "to": [
+        1,
+        11,
+        12
+      ]
+    },
+    {
+      "faces": {
+        "west": {
+          "neoforge_data": {
+            "color": "ff2c3238"
+          },
+          "texture": "#flat"
+        }
+      },
+      "from": [
+        0,
+        5,
+        11
+      ],
+      "to": [
+        1,
+        11,
+        12
+      ]
+    },
+    {
+      "faces": {
+        "east": {
+          "neoforge_data": {
+            "color": "ff2c3238"
+          },
+          "texture": "#flat"
+        }
+      },
+      "from": [
+        0,
+        5,
+        11
+      ],
+      "to": [
+        1,
+        11,
+        12
+      ]
+    },
+    {
+      "faces": {
+        "down": {
+          "neoforge_data": {
+            "color": "ff2c3238"
+          },
+          "texture": "#flat"
+        }
+      },
+      "from": [
+        0,
+        4,
+        5
+      ],
+      "to": [
+        1,
+        5,
+        11
+      ]
+    },
+    {
+      "faces": {
+        "up": {
+          "neoforge_data": {
+            "color": "ff2c3238"
+          },
+          "texture": "#flat"
+        }
+      },
+      "from": [
+        0,
+        4,
+        5
+      ],
+      "to": [
+        1,
+        5,
+        11
+      ]
+    },
+    {
+      "faces": {
+        "west": {
+          "neoforge_data": {
+            "color": "ff2c3238"
+          },
+          "texture": "#flat"
+        }
+      },
+      "from": [
+        0,
+        4,
+        5
+      ],
+      "to": [
+        1,
+        5,
+        11
+      ]
+    },
+    {
+      "faces": {
+        "east": {
+          "neoforge_data": {
+            "color": "ff2c3238"
+          },
+          "texture": "#flat"
+        }
+      },
+      "from": [
+        0,
+        4,
+        5
+      ],
+      "to": [
+        1,
+        5,
+        11
+      ]
+    },
+    {
+      "faces": {
+        "down": {
+          "neoforge_data": {
+            "color": "ff2c3238"
+          },
+          "texture": "#flat"
+        }
+      },
+      "from": [
+        0,
+        11,
+        5
+      ],
+      "to": [
+        1,
+        12,
+        11
+      ]
+    },
+    {
+      "faces": {
+        "up": {
+          "neoforge_data": {
+            "color": "ff2c3238"
+          },
+          "texture": "#flat"
+        }
+      },
+      "from": [
+        0,
+        11,
+        5
+      ],
+      "to": [
+        1,
+        12,
+        11
+      ]
+    },
+    {
+      "faces": {
+        "west": {
+          "neoforge_data": {
+            "color": "ff2c3238"
+          },
+          "texture": "#flat"
+        }
+      },
+      "from": [
+        0,
+        11,
+        5
+      ],
+      "to": [
+        1,
+        12,
+        11
+      ]
+    },
+    {
+      "faces": {
+        "east": {
+          "neoforge_data": {
+            "color": "ff2c3238"
+          },
+          "texture": "#flat"
+        }
+      },
+      "from": [
+        0,
+        11,
+        5
+      ],
+      "to": [
+        1,
+        12,
+        11
+      ]
+    },
+    {
+      "faces": {
+        "down": {
+          "neoforge_data": {
+            "color": "ff16181a"
+          },
+          "texture": "#flat"
+        }
+      },
+      "from": [
+        1,
+        4.98,
+        5
+      ],
+      "to": [
+        2,
+        4.98,
+        11
+      ]
+    },
+    {
+      "faces": {
+        "down": {
+          "neoforge_data": {
+            "color": "ff16181a"
+          },
+          "texture": "#flat"
+        }
+      },
+      "from": [
+        2,
+        4.98,
+        5
+      ],
+      "to": [
+        14,
+        4.98,
+        6
+      ]
+    },
+    {
+      "faces": {
+        "down": {
+          "neoforge_data": {
+            "color": "ff16181a"
+          },
+          "texture": "#flat"
+        }
+      },
+      "from": [
+        2,
+        4.98,
+        10
+      ],
+      "to": [
+        14,
+        4.98,
+        11
+      ]
+    },
+    {
+      "faces": {
+        "up": {
+          "neoforge_data": {
+            "color": "ff16181a"
+          },
+          "texture": "#flat"
+        }
+      },
+      "from": [
+        1,
+        11.02,
+        5
+      ],
+      "to": [
+        2,
+        11.02,
+        11
+      ]
+    },
+    {
+      "faces": {
+        "up": {
+          "neoforge_data": {
+            "color": "ff16181a"
+          },
+          "texture": "#flat"
+        }
+      },
+      "from": [
+        2,
+        11.02,
+        5
+      ],
+      "to": [
+        14,
+        11.02,
+        6
+      ]
+    },
+    {
+      "faces": {
+        "up": {
+          "neoforge_data": {
+            "color": "ff16181a"
+          },
+          "texture": "#flat"
+        }
+      },
+      "from": [
+        2,
+        11.02,
+        10
+      ],
+      "to": [
+        14,
+        11.02,
+        11
+      ]
+    },
+    {
+      "faces": {
+        "north": {
+          "neoforge_data": {
+            "color": "ff16181a"
+          },
+          "texture": "#flat"
+        }
+      },
+      "from": [
+        1,
+        5,
+        4.98
+      ],
+      "to": [
+        2,
+        11,
+        4.98
+      ]
+    },
+    {
+      "faces": {
+        "north": {
+          "neoforge_data": {
+            "color": "ff16181a"
+          },
+          "texture": "#flat"
+        }
+      },
+      "from": [
+        2,
+        5,
+        4.98
+      ],
+      "to": [
+        14,
+        6,
+        4.98
+      ]
+    },
+    {
+      "faces": {
+        "north": {
+          "neoforge_data": {
+            "color": "ff16181a"
+          },
+          "texture": "#flat"
+        }
+      },
+      "from": [
+        2,
+        10,
+        4.98
+      ],
+      "to": [
+        14,
+        11,
+        4.98
+      ]
+    },
+    {
+      "faces": {
+        "south": {
+          "neoforge_data": {
+            "color": "ff16181a"
+          },
+          "texture": "#flat"
+        }
+      },
+      "from": [
+        1,
+        5,
+        11.02
+      ],
+      "to": [
+        2,
+        11,
+        11.02
+      ]
+    },
+    {
+      "faces": {
+        "south": {
+          "neoforge_data": {
+            "color": "ff16181a"
+          },
+          "texture": "#flat"
+        }
+      },
+      "from": [
+        2,
+        5,
+        11.02
+      ],
+      "to": [
+        14,
+        6,
+        11.02
+      ]
+    },
+    {
+      "faces": {
+        "south": {
+          "neoforge_data": {
+            "color": "ff16181a"
+          },
+          "texture": "#flat"
+        }
+      },
+      "from": [
+        2,
+        10,
+        11.02
+      ],
+      "to": [
+        14,
+        11,
+        11.02
+      ]
+    },
+    {
+      "faces": {
+        "west": {
+          "neoforge_data": {
+            "color": "ff16181a"
+          },
+          "texture": "#flat"
+        }
+      },
+      "from": [
+        0.98,
+        5,
+        5
+      ],
+      "to": [
+        0.98,
+        6,
+        11
+      ]
+    },
+    {
+      "faces": {
+        "west": {
+          "neoforge_data": {
+            "color": "ff16181a"
+          },
+          "texture": "#flat"
+        }
+      },
+      "from": [
+        0.98,
+        10,
+        5
+      ],
+      "to": [
+        0.98,
+        11,
+        11
+      ]
+    },
+    {
+      "faces": {
+        "west": {
+          "neoforge_data": {
+            "color": "ff16181a"
+          },
+          "texture": "#flat"
+        }
+      },
+      "from": [
+        0.98,
+        6,
+        5
+      ],
+      "to": [
+        0.98,
+        10,
+        6
+      ]
+    },
+    {
+      "faces": {
+        "west": {
+          "neoforge_data": {
+            "color": "ff16181a"
+          },
+          "texture": "#flat"
+        }
+      },
+      "from": [
+        0.98,
+        6,
+        10
+      ],
+      "to": [
+        0.98,
+        10,
+        11
+      ]
+    },
+    {
+      "faces": {
+        "east": {
+          "texture": "#glass"
+        }
+      },
+      "from": [
+        8,
+        5,
+        5
+      ],
+      "to": [
+        15,
+        11,
+        11
+      ]
+    },
+    {
+      "faces": {
+        "east": {
+          "neoforge_data": {
+            "color": "ff2c3238"
+          },
+          "texture": "#flat"
+        }
+      },
+      "from": [
+        8,
+        4,
+        4
+      ],
+      "to": [
+        16,
+        5,
+        5
+      ]
+    },
+    {
+      "faces": {
+        "east": {
+          "neoforge_data": {
+            "color": "ff2c3238"
+          },
+          "texture": "#flat"
+        }
+      },
+      "from": [
+        8,
+        4,
+        11
+      ],
+      "to": [
+        16,
+        5,
+        12
+      ]
+    },
+    {
+      "faces": {
+        "east": {
+          "neoforge_data": {
+            "color": "ff2c3238"
+          },
+          "texture": "#flat"
+        }
+      },
+      "from": [
+        8,
+        11,
+        4
+      ],
+      "to": [
+        16,
+        12,
+        5
+      ]
+    },
+    {
+      "faces": {
+        "east": {
+          "neoforge_data": {
+            "color": "ff2c3238"
+          },
+          "texture": "#flat"
+        }
+      },
+      "from": [
+        8,
+        11,
+        11
+      ],
+      "to": [
+        16,
+        12,
+        12
+      ]
+    },
+    {
+      "faces": {
+        "north": {
+          "neoforge_data": {
+            "color": "ff2c3238"
+          },
+          "texture": "#flat"
+        }
+      },
+      "from": [
+        15,
+        5,
+        4
+      ],
+      "to": [
+        16,
+        11,
+        5
+      ]
+    },
+    {
+      "faces": {
+        "south": {
+          "neoforge_data": {
+            "color": "ff2c3238"
+          },
+          "texture": "#flat"
+        }
+      },
+      "from": [
+        15,
+        5,
+        4
+      ],
+      "to": [
+        16,
+        11,
+        5
+      ]
+    },
+    {
+      "faces": {
+        "west": {
+          "neoforge_data": {
+            "color": "ff2c3238"
+          },
+          "texture": "#flat"
+        }
+      },
+      "from": [
+        15,
+        5,
+        4
+      ],
+      "to": [
+        16,
+        11,
+        5
+      ]
+    },
+    {
+      "faces": {
+        "east": {
+          "neoforge_data": {
+            "color": "ff2c3238"
+          },
+          "texture": "#flat"
+        }
+      },
+      "from": [
+        15,
+        5,
+        4
+      ],
+      "to": [
+        16,
+        11,
+        5
+      ]
+    },
+    {
+      "faces": {
+        "north": {
+          "neoforge_data": {
+            "color": "ff2c3238"
+          },
+          "texture": "#flat"
+        }
+      },
+      "from": [
+        15,
+        5,
+        11
+      ],
+      "to": [
+        16,
+        11,
+        12
+      ]
+    },
+    {
+      "faces": {
+        "south": {
+          "neoforge_data": {
+            "color": "ff2c3238"
+          },
+          "texture": "#flat"
+        }
+      },
+      "from": [
+        15,
+        5,
+        11
+      ],
+      "to": [
+        16,
+        11,
+        12
+      ]
+    },
+    {
+      "faces": {
+        "west": {
+          "neoforge_data": {
+            "color": "ff2c3238"
+          },
+          "texture": "#flat"
+        }
+      },
+      "from": [
+        15,
+        5,
+        11
+      ],
+      "to": [
+        16,
+        11,
+        12
+      ]
+    },
+    {
+      "faces": {
+        "east": {
+          "neoforge_data": {
+            "color": "ff2c3238"
+          },
+          "texture": "#flat"
+        }
+      },
+      "from": [
+        15,
+        5,
+        11
+      ],
+      "to": [
+        16,
+        11,
+        12
+      ]
+    },
+    {
+      "faces": {
+        "down": {
+          "neoforge_data": {
+            "color": "ff2c3238"
+          },
+          "texture": "#flat"
+        }
+      },
+      "from": [
+        15,
+        4,
+        5
+      ],
+      "to": [
+        16,
+        5,
+        11
+      ]
+    },
+    {
+      "faces": {
+        "up": {
+          "neoforge_data": {
+            "color": "ff2c3238"
+          },
+          "texture": "#flat"
+        }
+      },
+      "from": [
+        15,
+        4,
+        5
+      ],
+      "to": [
+        16,
+        5,
+        11
+      ]
+    },
+    {
+      "faces": {
+        "west": {
+          "neoforge_data": {
+            "color": "ff2c3238"
+          },
+          "texture": "#flat"
+        }
+      },
+      "from": [
+        15,
+        4,
+        5
+      ],
+      "to": [
+        16,
+        5,
+        11
+      ]
+    },
+    {
+      "faces": {
+        "east": {
+          "neoforge_data": {
+            "color": "ff2c3238"
+          },
+          "texture": "#flat"
+        }
+      },
+      "from": [
+        15,
+        4,
+        5
+      ],
+      "to": [
+        16,
+        5,
+        11
+      ]
+    },
+    {
+      "faces": {
+        "down": {
+          "neoforge_data": {
+            "color": "ff2c3238"
+          },
+          "texture": "#flat"
+        }
+      },
+      "from": [
+        15,
+        11,
+        5
+      ],
+      "to": [
+        16,
+        12,
+        11
+      ]
+    },
+    {
+      "faces": {
+        "up": {
+          "neoforge_data": {
+            "color": "ff2c3238"
+          },
+          "texture": "#flat"
+        }
+      },
+      "from": [
+        15,
+        11,
+        5
+      ],
+      "to": [
+        16,
+        12,
+        11
+      ]
+    },
+    {
+      "faces": {
+        "west": {
+          "neoforge_data": {
+            "color": "ff2c3238"
+          },
+          "texture": "#flat"
+        }
+      },
+      "from": [
+        15,
+        11,
+        5
+      ],
+      "to": [
+        16,
+        12,
+        11
+      ]
+    },
+    {
+      "faces": {
+        "east": {
+          "neoforge_data": {
+            "color": "ff2c3238"
+          },
+          "texture": "#flat"
+        }
+      },
+      "from": [
+        15,
+        11,
+        5
+      ],
+      "to": [
+        16,
+        12,
+        11
+      ]
+    },
+    {
+      "faces": {
+        "down": {
+          "neoforge_data": {
+            "color": "ff16181a"
+          },
+          "texture": "#flat"
+        }
+      },
+      "from": [
+        14,
+        4.98,
+        5
+      ],
+      "to": [
+        15,
+        4.98,
+        11
+      ]
+    },
+    {
+      "faces": {
+        "up": {
+          "neoforge_data": {
+            "color": "ff16181a"
+          },
+          "texture": "#flat"
+        }
+      },
+      "from": [
+        14,
+        11.02,
+        5
+      ],
+      "to": [
+        15,
+        11.02,
+        11
+      ]
+    },
+    {
+      "faces": {
+        "north": {
+          "neoforge_data": {
+            "color": "ff16181a"
+          },
+          "texture": "#flat"
+        }
+      },
+      "from": [
+        14,
+        5,
+        4.98
+      ],
+      "to": [
+        15,
+        11,
+        4.98
+      ]
+    },
+    {
+      "faces": {
+        "south": {
+          "neoforge_data": {
+            "color": "ff16181a"
+          },
+          "texture": "#flat"
+        }
+      },
+      "from": [
+        14,
+        5,
+        11.02
+      ],
+      "to": [
+        15,
+        11,
+        11.02
+      ]
+    },
+    {
+      "faces": {
+        "east": {
+          "neoforge_data": {
+            "color": "ff16181a"
+          },
+          "texture": "#flat"
+        }
+      },
+      "from": [
+        15.02,
+        5,
+        5
+      ],
+      "to": [
+        15.02,
+        6,
+        11
+      ]
+    },
+    {
+      "faces": {
+        "east": {
+          "neoforge_data": {
+            "color": "ff16181a"
+          },
+          "texture": "#flat"
+        }
+      },
+      "from": [
+        15.02,
+        10,
+        5
+      ],
+      "to": [
+        15.02,
+        11,
+        11
+      ]
+    },
+    {
+      "faces": {
+        "east": {
+          "neoforge_data": {
+            "color": "ff16181a"
+          },
+          "texture": "#flat"
+        }
+      },
+      "from": [
+        15.02,
+        6,
+        5
+      ],
+      "to": [
+        15.02,
+        10,
+        6
+      ]
+    },
+    {
+      "faces": {
+        "east": {
+          "neoforge_data": {
+            "color": "ff16181a"
+          },
+          "texture": "#flat"
+        }
+      },
+      "from": [
+        15.02,
+        6,
+        10
+      ],
+      "to": [
+        15.02,
+        10,
+        11
+      ]
+    }
+  ],
   "textures": {
-    "layer0": "maxtech_farms:block/lab_tube"
+    "flat": "maxtech_lib:block/conduit/flat",
+    "glass": "maxtech_farms:block/lab_tube_glass",
+    "particle": "maxtech_farms:block/lab_tube_glass"
   }
 }

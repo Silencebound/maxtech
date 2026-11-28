@@ -29,6 +29,8 @@ final class ConduitFrameGeometry {
     private static final double EPSILON = 1.0E-4;
     /** How far a collar stands out of the bars, in pixels, so their outer faces never fight. */
     static final double PROUD = 0.02;
+    /** Width of a tier stripe, in pixels. */
+    static final double STRIPE = 1.0;
 
     private ConduitFrameGeometry() {
     }
@@ -91,13 +93,16 @@ final class ConduitFrameGeometry {
         throw new IllegalArgumentException("no arm in " + arms);
     }
 
-    /** Adds the bars and collars of a conduit of {@code thickness} with {@code arms} and {@code rings}. */
+    /**
+     * Adds the bars and collars of a conduit of {@code thickness} with {@code arms} and {@code rings}; returns their
+     * boxes (empty for no bars).
+     */
     @SuppressWarnings("TooManyParameters") // the body key's parts, unpacked; kept primitive
-    static void addFrame(List<ConduitQuad> out, ConduitLook.Shell look, float thickness, int arms, int rings,
+    static List<AABB> addFrame(List<ConduitQuad> out, ConduitLook.Shell look, float thickness, int arms, int rings,
             int argb) {
         double bar = barWidth(look, thickness);
         if (bar < EPSILON) {
-            return;
+            return List.of();
         }
         AABB core = ConduitShapes.core(thickness);
         List<ConduitSilhouette.Band> bands = ConduitSilhouette.of(thickness, arms, rings, look.rim()).bands();
@@ -158,6 +163,99 @@ final class ConduitFrameGeometry {
                 }
             }
         }
+        return boxes;
+    }
+
+    /**
+     * Adds the tier stripes of {@code glass}, the set-in glass faces: on each, a flat strip {@link #STRIPE} px wide (at
+     * most half the face) along every edge a box of {@code frame} lies beside, as long as that box runs along the edge,
+     * {@code lift} px outside the glass, opaque in {@code argb}. Stripes across the face's first in-plane axis run its
+     * whole length; those along it stop at them, so none overlap.
+     */
+    static void addTierStripes(List<ConduitQuad> out, List<ConduitQuad> glass, List<AABB> frame, int argb,
+            double lift) {
+        for (ConduitQuad pane : glass) {
+            AABB box = pane.box();
+            Direction face = pane.facing();
+            Direction.Axis normal = face.getAxis();
+            double sign = face.getAxisDirection() == Direction.AxisDirection.POSITIVE ? 1 : -1;
+            double plane = ConduitGeometry.bound(box, face);
+            Direction.Axis first = null;
+            Direction.Axis second = null;
+            for (Direction.Axis axis : Direction.Axis.values()) {
+                if (axis == normal) {
+                    continue;
+                }
+                if (first == null) {
+                    first = axis;
+                } else {
+                    second = axis;
+                }
+            }
+            if (first == null || second == null) {
+                continue;
+            }
+            // stripes at the ends of first run along second, at full length
+            List<AABB> across = stripesAt(box, first, second, frame, normal, plane + sign * EPSILON);
+            List<AABB> along = stripesAt(box, second, first, frame, normal, plane + sign * EPSILON);
+            for (AABB stripe : across) {
+                addStripe(out, stripe, face, normal, plane + sign * lift, argb);
+            }
+            for (AABB stripe : along) {
+                double min = stripe.min(first);
+                double max = stripe.max(first);
+                for (AABB other : across) {
+                    if (other.min(second) < stripe.max(second) - EPSILON
+                            && other.max(second) > stripe.min(second) + EPSILON) {
+                        if (other.min(first) <= min + EPSILON) {
+                            min = Math.max(min, other.max(first));
+                        } else if (other.max(first) >= max - EPSILON) {
+                            max = Math.min(max, other.min(first));
+                        }
+                    }
+                }
+                if (max - min > EPSILON) {
+                    addStripe(out, ConduitGeometry.with(stripe, first, min, max), face, normal, plane + sign * lift,
+                            argb);
+                }
+            }
+        }
+    }
+
+    /**
+     * The stripes on {@code glass} at both ends of {@code edge} (each running along {@code length}), one per box of
+     * {@code frame} just past that end at {@code probe} along {@code normal}, cut to where box and glass share
+     * {@code length}.
+     */
+    private static List<AABB> stripesAt(AABB glass, Direction.Axis edge, Direction.Axis length, List<AABB> frame,
+            Direction.Axis normal, double probe) {
+        List<AABB> stripes = new ArrayList<>();
+        double width = Math.min(STRIPE, (glass.max(edge) - glass.min(edge)) / 2);
+        for (int end = 0; end < 2; end++) {
+            double at = end == 0 ? glass.min(edge) - EPSILON : glass.max(edge) + EPSILON;
+            for (AABB box : frame) {
+                if (box.min(edge) >= at || box.max(edge) <= at || box.min(normal) >= probe
+                        || box.max(normal) <= probe) {
+                    continue;
+                }
+                double from = Math.max(box.min(length), glass.min(length));
+                double to = Math.min(box.max(length), glass.max(length));
+                if (to - from <= EPSILON) {
+                    continue;
+                }
+                AABB stripe = ConduitGeometry.with(glass, length, from, to);
+                stripes.add(end == 0
+                        ? ConduitGeometry.with(stripe, edge, glass.min(edge), glass.min(edge) + width)
+                        : ConduitGeometry.with(stripe, edge, glass.max(edge) - width, glass.max(edge)));
+            }
+        }
+        return stripes;
+    }
+
+    private static void addStripe(List<ConduitQuad> out, AABB stripe, Direction face, Direction.Axis normal,
+            double plane, int argb) {
+        out.add(new ConduitQuad(ConduitGeometry.with(stripe, normal, plane, plane), face, ConduitTexture.FLAT, argb,
+                false));
     }
 
     /** Whether {@code box} has extent along every axis but {@code flat} (none: every axis). */

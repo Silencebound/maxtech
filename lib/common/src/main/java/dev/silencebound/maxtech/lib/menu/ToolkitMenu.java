@@ -100,6 +100,11 @@ public abstract class ToolkitMenu<H> extends AbstractContainerMenu {
      * The button ids travel as var-ints, so they need not fit a byte.
      */
     public static final int ACTION_BUTTONS = 2_000_000;
+    /**
+     * The first {@code clickMenuButton} id of a {@link DefinedMenu}'s face clicks (port values); ids from here on
+     * belong to them, and the cycle actions' ids stop below it.
+     */
+    public static final int PORT_BUTTONS = 3_000_000;
 
     /**
      * Adds menu slots for slots {@code from} (inclusive) to {@code to} (exclusive) of {@code slots}, in rows of

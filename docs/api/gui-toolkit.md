@@ -35,6 +35,10 @@ below, and the `toolkit_api_*` GameTests open it through the api only. In a dev 
   asks the server for the next one and a right click for the previous one, and the tooltip is `key` (with the choice
   as `%s`) over the choice's hint. The server takes only constants of the enum, only while the menu is open, and calls
   the setter on the server thread; the setter saves the host and wakes what the value controls.
+- **Side config**: `PortValue port = m.port(host -> host.port, ResourceKinds.ITEM, ResourceKinds.FLUID)` syncs the
+  host's `TransferPort` for those kinds (face modes, allowed modes), its facing (the block's `HORIZONTAL_FACING` or
+  `FACING`, or `m.port(getter, host -> facing, kinds...)`) and its block state. `m.sideConfig(port)` adds the standard
+  side tab; `Layout.faces(port, kinds...)` puts the same node in the panel instead. See "Side config" below.
 - **Open and close rules**: by default a block entity host keeps the menu open while the block stands and the player is
   in reach; `m.validWhile((host, player) -> ...)` replaces that.
 
@@ -44,8 +48,8 @@ below, and the `toolkit_api_*` GameTests open it through the api only. In a dev 
 `tank(value, width, height)`, `energy(value, height)`, `progress(value, ARROW | FLAME)`, `label(key, width)`,
 `value(intValue, key, width)` (the lang text gets the number as `%s`; experimental
 `value(intValue, key, width, shownWhenNonZero)`, see below), `status(enumValue, width)` (the enum implements
-`MenuStatus`: a lang key and a tone, which colours the dot), `cycleButton(action, key, width)` (16 tall), `spacer` and
-`playerInventory()`. Lib places everything, slots included, from the layout; text is fitted into its box and never
+`MenuStatus`: a lang key and a tone, which colours the dot), `cycleButton(action, key, width)` (16 tall),
+`faces(port, kinds...)` (experimental, see below), `spacer` and `playerInventory()`. Lib places everything, slots included, from the layout; text is fitted into its box and never
 moves anything.
 
 **Hiding a value line.** `Layout.value(value, key, width, shownWhenNonZero)` (experimental) shows the line only while
@@ -139,6 +143,30 @@ Pulse mode keeps up to `RedstoneControl.MAX_PENDING` (8) waiting runs; a changed
 reading and the waiting pulses are saved, so a reload neither loses nor doubles an edge. Lib ships the English names
 and hints of the modes. The demo machine (`/maxtech_lib_demo toolkit`) has the button; its arrow runs by the mode.
 
+## Side config
+
+A machine with a `TransferPort` (ADR-0018) lets the player set each face per kind to off, push or pull:
+
+```java
+PortValue port = m.port(host -> host.port, ResourceKinds.ITEM, ResourceKinds.FLUID);
+m.sideConfig(port);                        // one side tab; or Layout.faces(port) inside the layout
+```
+
+The node (`Layout.FACES_WIDTH` wide) has a block preview on top and one block net of 18 pixel faces per kind below it:
+top above front, then left, front, right and back, bottom below. Faces are named relative to the host's facing as a
+player in front of the block sees them, with top towards north for a block facing up or down (`RelativeFace`, owner
+2026-11-28). The facing is the block's vanilla `HORIZONTAL_FACING` or `FACING` property (other properties need the
+getter overload); a host without one gets absolute names. Pushing faces are orange, pulling faces blue, off faces
+untinted; a kind that allows only off is greyed. A left click asks for the next mode the kind allows, a right click
+for the previous one. The preview turns with a left drag, shows the modes of the kind last hovered, and a click on one
+of its faces works like that face's button.
+
+The server sets the asked-for mode with `TransferPort.setSettings` only when `port.allowed(kind)` holds it, so the
+port's settings listener runs as for a wrench; every other click, and any click on a kind no faces node shows, is
+ignored. With a side config the screen centres the panel, the tab column and the flyout together, so they fit side by
+side: three kinds beside a 176 wide panel fit a 320 by 240 GUI, and a fourth is a layout problem. Name a compat kind with the lang key
+`kind.<namespace>.<path>` (Lib ships items, fluids and energy); without one the screen shows the id's path.
+
 ## Testing menus
 
 `MenuTesting` (`lib.api.menu`, experimental, for GameTests only) opens a definition for a mock server player, which has
@@ -153,6 +181,7 @@ try (var session = MenuTesting.open(LabBlockEntity.MENU, player, lab)) {
     session.serverValues().amount(tank);              // or what the server read last
     session.pressTankButton(tank);                    // a bucket click on the gauge; true if fluid moved
     session.pressCycleButton(mode, RedstoneMode.HIGH); // a cycle button asking for HIGH; tick() before reading it back
+    session.pressFace(port, ResourceKinds.ITEM, Direction.UP, PortFaceMode.PUSH); // false if the kind disallows it
     session.shiftClick(input, 0);                     // slot 0 of a group; shiftClickPlayerSlot(i) for the player's
     session.menu().setCarried(new ItemStack(Items.BUCKET));   // vanilla's menu for everything else
 }

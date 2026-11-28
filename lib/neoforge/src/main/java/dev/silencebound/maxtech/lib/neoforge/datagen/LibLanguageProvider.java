@@ -1,29 +1,34 @@
 package dev.silencebound.maxtech.lib.neoforge.datagen;
 
+import dev.silencebound.maxtech.lib.MaxtechLib;
 import dev.silencebound.maxtech.lib.api.client.gui.AccentEnergyBar;
 import dev.silencebound.maxtech.lib.api.client.gui.AccentProgress;
 import dev.silencebound.maxtech.lib.api.client.gui.AccentTank;
 import dev.silencebound.maxtech.lib.api.machine.MachineStatus;
+import dev.silencebound.maxtech.lib.api.conduit.ConduitFaceMode;
 import dev.silencebound.maxtech.lib.api.machine.RedstoneMode;
+import dev.silencebound.maxtech.lib.api.resource.AmountUnit;
+import dev.silencebound.maxtech.lib.api.resource.ResourceKinds;
+import dev.silencebound.maxtech.lib.api.transfer.PortFaceMode;
+import dev.silencebound.maxtech.lib.api.transfer.RelativeFace;
+import dev.silencebound.maxtech.lib.client.conduit.ConduitLabels;
+import dev.silencebound.maxtech.lib.client.gui.ScreenComponents;
+import dev.silencebound.maxtech.lib.client.menu.FaceTexts;
+import dev.silencebound.maxtech.lib.conduit.ConduitBlock;
+import dev.silencebound.maxtech.lib.config.LibConfigNames;
 import dev.silencebound.maxtech.lib.facade.FacadeContent;
 import dev.silencebound.maxtech.lib.facade.FacadeItem;
-import dev.silencebound.maxtech.lib.api.conduit.ConduitFaceMode;
-import dev.silencebound.maxtech.lib.api.resource.AmountUnit;
-import dev.silencebound.maxtech.lib.client.gui.ScreenComponents;
-import dev.silencebound.maxtech.lib.conduit.ConduitBlock;
-import dev.silencebound.maxtech.lib.client.conduit.ConduitLabels;
-import dev.silencebound.maxtech.lib.config.LibConfigNames;
 import dev.silencebound.maxtech.lib.info.ConduitInfo;
 import dev.silencebound.maxtech.lib.info.EnergyInfo;
 import dev.silencebound.maxtech.lib.info.ScannerItem;
 import dev.silencebound.maxtech.lib.neoforge.client.ConfigScreens;
-import dev.silencebound.maxtech.lib.neoforge.guide.GuideConfigText;
 import dev.silencebound.maxtech.lib.neoforge.compat.jade.BlockInfoLines;
+import dev.silencebound.maxtech.lib.neoforge.guide.GuideConfigText;
 import dev.silencebound.maxtech.lib.neoforge.platform.ConfigTranslations;
 import dev.silencebound.maxtech.lib.viewer.RecipeViewText;
+import java.util.Locale;
 import net.minecraft.core.Direction;
 import net.minecraft.data.PackOutput;
-import dev.silencebound.maxtech.lib.MaxtechLib;
 import net.neoforged.neoforge.common.data.LanguageProvider;
 
 /** Lib's {@code en_us}: the frameworks' GUI, tooltip, info and recipe viewer lines. */
@@ -113,6 +118,30 @@ final class LibLanguageProvider extends LanguageProvider {
         add(MachineStatus.NO_ENERGY.translationKey(), "No energy");
         add(MachineStatus.OUTPUT_FULL.translationKey(), "Output full");
         add(MachineStatus.REDSTONE_OFF.translationKey(), "Off by redstone");
+        addFaceTranslations();
+    }
+
+    private void addFaceTranslations() {
+        add(FaceTexts.TAB_KEY, "Side config");
+        add(FaceTexts.PREVIEW_KEY, "Block preview: drag to turn, click a face to change it");
+        add(FaceTexts.FACE_KEY, "%s (%s)");
+        add(FaceTexts.MODE_KEY, "%s: %s");
+        add(FaceTexts.HINT_KEY, "Left click: next mode, right click: previous");
+        add(FaceTexts.FIXED_KEY, "This side can't be changed");
+        for (RelativeFace face : RelativeFace.values()) {
+            String name = face.name().toLowerCase(Locale.ROOT);
+            add(FaceTexts.relativeKey(face), Character.toUpperCase(name.charAt(0)) + name.substring(1));
+        }
+        for (Direction face : Direction.values()) {
+            String name = face.getSerializedName();
+            add(FaceTexts.directionKey(face), Character.toUpperCase(name.charAt(0)) + name.substring(1));
+        }
+        add(FaceTexts.modeKey(PortFaceMode.OFF), "Off");
+        add(FaceTexts.modeKey(PortFaceMode.PUSH), "Push");
+        add(FaceTexts.modeKey(PortFaceMode.PULL), "Pull");
+        add(FaceTexts.kindKey(ResourceKinds.ITEM), "Items");
+        add(FaceTexts.kindKey(ResourceKinds.FLUID), "Fluids");
+        add(FaceTexts.kindKey(ResourceKinds.ENERGY), "Energy");
     }
 
     private void addRedstoneMode(RedstoneMode mode, String name, String hint) {
