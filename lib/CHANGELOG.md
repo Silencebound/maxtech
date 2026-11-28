@@ -36,6 +36,14 @@ Api changes are marked **Api**.
 
 ### Added
 - **Api** Declared toolkit menus (`lib.api.menu`, experimental, ADR-0016): `Menus.define` builds a `MenuDefinition`
+  from a host's slot groups, fluid tanks, energy, progress and other values, a shift-click order, an `AccentTheme`
+  and a `Layout` of rows and columns in GUI pixels; `register` adds its menu type, `open` opens it for a player. The
+  layout is checked when defined (panel and title tab fit 320x240, nothing overlaps, every slot group placed once;
+  dev runs throw), and text never moves slots. `ItemSlots.Builder.size()` is new.
+- Lib binds a screen to every declared toolkit menu: the Accent panel in the definition's theme, slot frames, tank,
+  energy and progress bars with their tooltips (tanks of any kind, unknown contents as "Unknown"), labels, values and
+  status lines fitted into their boxes (drawn smaller at a large text size, never moving anything) and narrated, and
+  bucket clicks on fluid tanks. Addons write no client code for it. **Api** `AccentToast.theme` draws a toast's title and news strip in a mod's theme.
   from a host's slot groups, tanks of any kind (fluid tanks take bucket clicks; unknown contents show as "Unknown"
   with their amount), energy, progress and other values, a shift-click order, an `AccentTheme` and a `Layout` of rows
   and columns in GUI pixels, with `Layout.value` for a live number in a text; `register` adds its menu type, `open`
