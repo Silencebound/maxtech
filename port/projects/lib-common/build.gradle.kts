@@ -22,7 +22,8 @@ sourceSets {
     }
     main {
         java.setSrcDirs(listOf(gen.resolve("main/java")))
-        resources.setSrcDirs(listOf(gen.resolve("main/resources"), gen.resolve("generated/resources")))
+        // The port's runData output (lib-neoforge's data run), not main's 26.1 generated folder.
+        resources.setSrcDirs(listOf(gen.resolve("main/resources"), rootProject.file("generated/lib/common/resources")))
     }
     test {
         java.setSrcDirs(listOf(gen.resolve("test/java")))

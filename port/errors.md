@@ -17,7 +17,7 @@ sourcepath), so one package's errors never mask another's; `--single` is the all
 | saving + GameTest | 0 | 0 | 91 |
 | other | 0 | 0 | 469 |
 
-## Tests (2026-11-28, after the main merge)
+## Tests (2026-11-28, after the main merge and the GameTest fixes)
 
 - **Unit tests** (`./gradlew test`): all pass. Common, plain JUnit: 758 run, 0 failed, 13 skipped (legacy bridge
   tests that need FML). Neoforge, inside FML: 98 run, 0 failed, 0 skipped (its own plus common's legacy-bridge
@@ -26,21 +26,25 @@ sourcepath), so one package's errors never mask another's; `--single` is the all
   rule builds the test's saved list through `NbtOps` (as `PortFilter`'s codec saves it), and the test fails when the
   codec drops unknown keys.
 - **Jar**: `checkTransferJar` passes (`ForeignKinds` moved to `bridge.legacy` in #92).
-- **GameTests** (`./gradlew :lib:neoforge:runGameTestServer`): 216 ran, 176 passed, 40 failed. By cause:
-  - *Jade and mock players* (20: `menu_action_*` 2, `menu_definition_opens`, `side_config_*` 7, `toolkit_api_*` 10):
-    `GameTestHelper.makeMockServerPlayerInLevel` runs `PlayerList.placeNewPlayer`, where Jade (runtimeOnly in dev
-    runs) sends `jade:server_ping_v1` to a connection that never negotiated it, and NeoForge throws. Fix in the
-    GameTest shim (a mock player that skips the login event) or keep Jade out of the GameTest run.
+- **GameTests** (`./gradlew :lib:neoforge:runGameTestServer`): 216 ran, 216 passed (was 176 of 216 after the main
+  merge). The 40 failures and their fixes:
+  - *Jade and mock players* (20: `menu_action_*`, `menu_definition_opens`, `side_config_*`, `toolkit_api_*`):
+    `makeMockServerPlayerInLevel` runs `PlayerList.placeNewPlayer`, whose login event makes Jade
+    (`CommonProxy.playerJoin`) send `jade:server_ping_v1` to every player unconditionally; NeoForge 21.1's
+    `NetworkRegistry.checkPacket` throws for a payload the connection never negotiated, and the mock connection
+    negotiated nothing. Fix: `GameTestHelpers.makeMockServerPlayerInLevel` (saving's rule redirects the calls) is
+    1.21.1's mock player with that one payload in the connection's ad-hoc channels.
   - *Resources in 26.1 formats* (18: `content_toggle_recipe_condition`, `facade_recipe_binder`,
-    `machine_recipes_refused`, `machine_recipes_demo_loads`, and the 14 `machine_process_*` from main's machine core):
-    recipe JSON writes ingredients as strings (`"#c:ingots/iron"`, `"minecraft:dead_bush"`); 1.21.1 wants
-    `{"tag": ...}`/`{"item": ...}` objects. Affects Lib's generated recipes and the GameTest data packs (the
-    `test_process` recipes of `machine_process_*` among them).
-  - *Behaviour* (1: `machine_recipes_round_trip`): 1.21.1's ingredient stream codec sends a tag ingredient as its
-    items, so the streamed recipe has `{"item": ...}` where the test expects `{"tag": ...}`.
-  - *Legacy chests are not transactional* (1: `transfer_bridge_chest`, "chests roll back"): since the foreign-last
-    change (#91, #92) a 1.21.1 handler reaches Lib's ports through `ForeignKinds` as non-transactional, while the
-    test still expects a vanilla chest to be a transactional handler whose open transactions roll back.
+    `machine_recipes_refused`, `machine_recipes_demo_loads`, the 14 `machine_process_*`): Lib's generated resources
+    now come from the port's own `runData` (`port/generated`, README "Resources"); the hand-written GameTest JSON goes
+    through `rules/resources.py`; `machine_recipes_refused`'s inline recipe through a saving rule.
+    `machine_recipes_demo_loads` also needed `custom_name` as text JSON in a string (1.21.1's `FLAT_CODEC`).
+  - *Ingredient stream codec* (1: `machine_recipes_round_trip`): 1.21.1's `CONTENTS_STREAM_CODEC` sends a tag as its
+    items; `shim.misc.IngredientStreamCodec` sends tags as tags, as 26.1 does (other's rule, `ItemInput` and
+    `FacadeRecipe`).
+  - *Legacy chests are not transactional* (1: `transfer_bridge_chest`): the 1.21.1 version asserts moves happen at
+    once and runs `LegacyChestMoves` (foreign-last pushes and pulls on the real chest, honest, short and with a short
+    redo, exact totals on both sides); it fails when `LegacyForeignLast.into` skips its redo.
   - *Structures in 26.1 NBT*: none failed.
 - Not failing but in 26.1 formats: the pipe showcase's text displays (`Display entityNot a string`: 26.1 text
   component NBT in the summoned entity data).
@@ -109,9 +113,8 @@ A package that needs a further cross-cutting move (a 26.1 type used in other pac
    a file go to that file's owner, not to whoever uncovered them.
 4. **Licence**: the vendored transfer api is LGPL-2.1-only; it ships as its own nested jar in Lib's jar (owner
    2026-11-28; port/NOTICE-transfer.md has the layout and why it uses Lib's `shim.saving` interfaces at runtime).
-5. **Resources** are copied unchanged (no rules on JSON yet): 26.1 item model definitions (`assets/*/items/*.json`),
-   recipe and tag JSON formats may need rules or datagen on 1.21.1; that only shows at runtime, belongs to rendering
-   (models) and other (recipes/tags), and is not in the counts above.
+5. **Resources**: Lib's datagen output comes from the port's own data run (`port/generated`); main's hand-written JSON
+   goes through `rules/resources.py` (README, "Resources").
 
 ## Errors by package and file
 

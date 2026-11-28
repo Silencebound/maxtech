@@ -4,3 +4,4 @@
 /projects/*/build/
 /run/
 /runs/
+/generated/**/.cache/

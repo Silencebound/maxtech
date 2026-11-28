@@ -239,6 +239,9 @@ _GAMETEST_API = [
               name="helper.getBlockEntity(pos, type) -> GameTestHelpers", files=GAMETEST_FILES),
     # Block/Item.Properties.setId: 1.21.1 takes the id from the registry
     Transform(drop_call("setId"), name="drop Properties.setId", files=GAMETEST_FILES),
+    # 1.21.1's mock server player fails on login when Jade pings it (GameTestHelpers.makeMockServerPlayerInLevel)
+    Regex(r"\bhelper\.makeMockServerPlayerInLevel\(\)", f"{_GAMETEST}.GameTestHelpers.makeMockServerPlayerInLevel(helper)",
+          files=GAMETEST_FILES),
     # BlockEntityType(factory, blocks) -> 1.21.1's (factory, blocks, dataFixerType)
     Transform(append_arg("new BlockEntityType<>", "null"), name="BlockEntityType data fixer type",
               files=GAMETEST_FILES),
@@ -287,6 +290,13 @@ _GAMETEST_API = [
     ImportMove("net.minecraft.world.item.ItemStackTemplate", f"{_SHIM}.misc.ItemStackTemplate",
                files=_MACHINE_RECIPE_TESTS),
     Regex(r"Ingredient\.of\(items\.getOrThrow\(([\w.]+)\)\)", r"Ingredient.of(\1)", files=_MACHINE_RECIPE_TESTS),
+    # 1.21.1's Ingredient.CODEC takes {"tag": ...}/{"item": ...} objects, not 26.1's "#tag"/"id" strings
+    Regex(r'"ingredient": "#([^"]+)"', r'"ingredient": {"tag": "\1"}', scope="all", files=_MACHINE_RECIPE_TESTS),
+    Regex(r'\\"ingredient\\": \\"([^\\"]+)\\"', r'\\"ingredient\\": {\\"item\\": \\"\1\\"}', scope="all",
+          files=_MACHINE_RECIPE_TESTS),
+    Regex(r'new String\[\]\{"#c:ingots/iron", "nomod:nothing"\}',
+          r'new String[]{"{\\"tag\\": \\"c:ingots/iron\\"}", "{\\"item\\": \\"nomod:nothing\\"}"}', scope="all",
+          files=_MACHINE_RECIPE_TESTS),
     Regex(r"DataComponentIngredient\.of\((\w+),\s*DataComponentPatch\.builder\(\)\.set\(([^;]*?)\)\s*\.build\(\),\s*",
           r"DataComponentIngredient.of(\1, \2, ", scope="all", files=_MACHINE_RECIPE_TESTS),
     Regex(r"public void accept\(ResourceKey<Recipe<\?>> (\w+),", r"public void accept(ResourceLocation \1,",
@@ -390,3 +400,73 @@ RULES = [
           scope="all",
           files=("lib/common/src/test/java/dev/silencebound/maxtech/lib/api/transfer/PortFilterTest.java",)),
 ]
+
+# transfer_bridge_chest: 26.1's chests are transactional, 1.21.1's move foreign side last (owner, #91/#92). The test
+# keeps its cache, simulation and saturation checks; the rollback checks become checks that a move happens at once,
+# plus LegacyChestMoves: foreign-last moves on the real chest with exact totals, including short moves and redos.
+_TRANSFER_PORT_TESTS = tuple(p for p in GAMETEST_FILES if p.endswith("/TransferPortGameTests.java"))
+_BRIDGE_CHEST_EDITS = (
+    ("/** The item bridge on a real chest: one wrapper per handler, simulations and open transactions roll back. */",
+     "/**\n"
+     "     * The item bridge on a real chest: one wrapper per handler, simulations change nothing; on 1.21.1 the chest has\n"
+     "     * no transactions, so its moves happen at once and Lib moves through it foreign side last.\n"
+     "     */"),
+    ("""        helper.assertTrue(chest.transactional(), "chests roll back");
+        ItemKey stone = ItemKey.of(Items.STONE);
+
+        try (Transaction tx = Transaction.openRoot()) {
+            helper.assertValueEqual(chest.simulateInsert(stone, 10, tx), 10L, "simulated insert");
+            helper.assertValueEqual(total(chest), 0L, "a simulated insert changed the chest");
+            helper.assertValueEqual(chest.insert(stone, 10, tx), 10L, "insert in an open transaction");
+        }
+        helper.assertValueEqual(total(chest), 0L, "an insert without commit rolled back");
+
+        try (Transaction tx = Transaction.openRoot()) {
+            helper.assertValueEqual(chest.insert(stone, 10, tx), 10L, "insert");
+            tx.commit();
+        }
+        helper.assertValueEqual(total(chest), 10L, "committed insert");
+        try (Transaction tx = Transaction.openRoot()) {
+            helper.assertValueEqual(chest.simulateExtract(stone, 4, tx), 4L, "simulated extract");
+            helper.assertValueEqual(total(chest), 10L, "a simulated extract changed the chest");
+            helper.assertValueEqual(chest.extract(stone, 4, tx), 4L, "extract in an open transaction");
+        }
+        helper.assertValueEqual(total(chest), 10L, "an extract without commit rolled back");
+""",
+     """        helper.assertFalse(chest.transactional(), "1.21.1 chests move foreign side last");
+        ItemKey stone = ItemKey.of(Items.STONE);
+
+        try (Transaction tx = Transaction.openRoot()) {
+            helper.assertValueEqual(chest.simulateInsert(stone, 14, tx), 14L, "simulated insert");
+            helper.assertValueEqual(total(chest), 0L, "a simulated insert changed the chest");
+            helper.assertValueEqual(chest.insert(stone, 14, tx), 14L, "insert");
+            helper.assertValueEqual(total(chest), 14L, "an insert happens at once");
+            tx.commit();
+        }
+        try (Transaction tx = Transaction.openRoot()) {
+            helper.assertValueEqual(chest.simulateExtract(stone, 4, tx), 4L, "simulated extract");
+            helper.assertValueEqual(total(chest), 14L, "a simulated extract changed the chest");
+            helper.assertValueEqual(chest.extract(stone, 4, tx), 4L, "extract");
+            tx.commit();
+        }
+        helper.assertValueEqual(total(chest), 10L, "an extract happens at once");
+"""),
+    ("""                    "insert Long.MAX fills the free slots");
+        }
+        helper.succeed();""",
+     """                    "insert Long.MAX fills the free slots");
+        }
+        dev.silencebound.maxtech.lib.shim.gametest.LegacyChestMoves.check(helper, helper.absolutePos(BlockPos.ZERO));
+        helper.succeed();"""),
+)
+
+
+def _bridge_chest(text: str, rel: str) -> str:
+    for old, new in _BRIDGE_CHEST_EDITS:
+        if text.count(old) != 1:
+            raise SystemExit(f"saving.py: transfer_bridge_chest changed on main; re-check the 1.21.1 edit at:\n{old}")
+        text = text.replace(old, new)
+    return text
+
+
+RULES += [Transform(_bridge_chest, name="transfer_bridge_chest on 1.21.1 chests", files=_TRANSFER_PORT_TESTS)]

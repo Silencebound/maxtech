@@ -110,6 +110,16 @@ neoForge {
             systemProperty("neoforge.enabledGameTestNamespaces",
                 providers.gradleProperty("gametest").map { it.substringBefore(':') }.orElse(modId).get())
         }
+        // The port's own datagen: 1.21.1's providers write 1.21.1 formats. Output is committed in port/generated and
+        // replaces main's 26.1 generated folder in lib-common's resources.
+        register("data") {
+            data()
+            programArguments.addAll(
+                "--mod", modId, "--all",
+                "--output", rootProject.file("generated/lib/common/resources").absolutePath,
+                "--existing", rootProject.file("out/lib/common/src/main/resources").absolutePath,
+            )
+        }
         configureEach {
             gameDirectory = rootProject.file("run/$name")
         }
