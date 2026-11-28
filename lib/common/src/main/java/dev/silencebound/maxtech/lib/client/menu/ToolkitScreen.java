@@ -133,7 +133,11 @@ public final class ToolkitScreen<H> extends AbstractContainerScreen<DefinedMenu<
             switch (box.node()) {
                 case Layout.Label label ->
                     boxText(graphics, Component.translatable(label.key()), box.x(), box, mouseX, mouseY);
-                case Layout.Value value -> boxText(graphics, valueText(values, value), box.x(), box, mouseX, mouseY);
+                case Layout.Value value -> {
+                    if (value.shownIn(values)) {
+                        boxText(graphics, valueText(values, value), box.x(), box, mouseX, mouseY);
+                    }
+                }
                 case Layout.Status line -> {
                     MenuStatus state = current(values, line.value());
                     float scale = BoxText.factor(font.lineHeight, box.height(), TextScale.factor());
@@ -184,7 +188,11 @@ public final class ToolkitScreen<H> extends AbstractContainerScreen<DefinedMenu<
         for (LayoutPlan.Box box : definition.plan().boxes()) {
             switch (box.node()) {
                 case Layout.Label label -> parts.add(Component.translatable(label.key()));
-                case Layout.Value value -> parts.add(valueText(values, value));
+                case Layout.Value value -> {
+                    if (value.shownIn(values)) {
+                        parts.add(valueText(values, value));
+                    }
+                }
                 case Layout.Status line ->
                     parts.add(Component.translatable(current(values, line.value()).translationKey()));
                 default -> {
