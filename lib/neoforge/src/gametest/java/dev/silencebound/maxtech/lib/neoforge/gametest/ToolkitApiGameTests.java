@@ -1,6 +1,8 @@
 package dev.silencebound.maxtech.lib.neoforge.gametest;
 
 import dev.silencebound.maxtech.lib.MaxtechLib;
+import dev.silencebound.maxtech.lib.api.menu.Layout;
+import dev.silencebound.maxtech.lib.api.menu.LayoutPlan;
 import dev.silencebound.maxtech.lib.api.menu.MenuTesting;
 import dev.silencebound.maxtech.lib.menu.DefinedMenu;
 import dev.silencebound.maxtech.lib.api.registry.Registrar;
@@ -41,7 +43,8 @@ import net.neoforged.neoforge.event.RegisterGameTestsEvent;
 public final class ToolkitApiGameTests {
     private static final String[] NAMES = {"toolkit_api_opens", "toolkit_api_values_sync", "toolkit_api_shift_click",
             "toolkit_api_bucket_clicks", "toolkit_api_output_take_only", "toolkit_api_machine_runs",
-            "toolkit_api_hotbar_shift_click", "toolkit_api_close", "toolkit_api_first_tick"};
+            "toolkit_api_hotbar_shift_click", "toolkit_api_close", "toolkit_api_first_tick",
+            "toolkit_api_value_shown_when"};
     private static final Registrar<Consumer<GameTestHelper>> FUNCTIONS = Registrars.create(MaxtechLib.MOD_ID,
             Registries.TEST_FUNCTION);
 
@@ -59,6 +62,7 @@ public final class ToolkitApiGameTests {
         FUNCTIONS.register(NAMES[6], () -> ToolkitApiGameTests::hotbarShiftClick);
         FUNCTIONS.register(NAMES[7], () -> ToolkitApiGameTests::close);
         FUNCTIONS.register(NAMES[8], () -> ToolkitApiGameTests::firstTick);
+        FUNCTIONS.register(NAMES[9], () -> ToolkitApiGameTests::valueShownWhen);
     }
 
     private ToolkitApiGameTests() {
@@ -137,6 +141,24 @@ public final class ToolkitApiGameTests {
             session.tick();
             h.assertValueEqual(session.clientValues().get(handles.status), ToolkitDemo.Status.NO_FUEL,
                     "status without a flame");
+        });
+    }
+
+    /** A value line with a condition follows the synced condition on the client, and keeps its box either way. */
+    private static void valueShownWhen(GameTestHelper helper) {
+        withOpenMenu(helper, (h, player, machine, session) -> {
+            Layout.Value line = ToolkitDemo.DEFINITION.plan().boxes().stream().map(LayoutPlan.Box::node)
+                    .filter(Layout.Value.class::isInstance).map(Layout.Value.class::cast).findFirst()
+                    .orElseThrow(() -> h.assertionException("No value line"));
+            machine.cycles = 0;
+            session.tick();
+            h.assertFalse(line.shownIn(session.clientValues()), "shown without cycles");
+            machine.cycles = 3;
+            session.tick();
+            h.assertTrue(line.shownIn(session.clientValues()), "hidden with cycles");
+            machine.cycles = 0;
+            session.tick();
+            h.assertFalse(line.shownIn(session.clientValues()), "shown again without cycles");
         });
     }
 

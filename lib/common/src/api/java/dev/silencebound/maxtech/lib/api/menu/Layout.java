@@ -1,6 +1,8 @@
 package dev.silencebound.maxtech.lib.api.menu;
 
 import java.util.List;
+import org.jetbrains.annotations.ApiStatus;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Where a {@link MenuDefinition}'s parts sit inside its panel: a tree of rows and columns over fixed-size leaves, in
@@ -94,7 +96,19 @@ public sealed interface Layout {
      * into {@code width} pixels: live numbers such as a growth percentage.
      */
     static Layout value(IntValue value, String key, int width) {
-        return new Value(value, key, width);
+        return new Value(value, key, width, null);
+    }
+
+    /**
+     * Like {@link #value(IntValue, String, int)}, but the text is shown only while {@code shownWhenNonZero} is not 0 (a
+     * farm hub's sampler percentage while a sampler is in). The box keeps its size and place while hidden, so nothing
+     * else moves and the server and every client still place everything the same; the client draws nothing and narrates
+     * nothing for a hidden box. {@code shownWhenNonZero} may be {@code value} itself or any other {@link IntValue} of
+     * the same definition; it is synced like every value.
+     */
+    @ApiStatus.Experimental
+    static Layout value(IntValue value, String key, int width, IntValue shownWhenNonZero) {
+        return new Value(value, key, width, shownWhenNonZero);
     }
 
     /** A status dot and the text of the current constant of {@code value}, fitted into {@code width} pixels. */
@@ -300,8 +314,10 @@ public sealed interface Layout {
      *            the lang key of the text, with one {@code %s} for the number
      * @param width
      *            width in pixels the text is fitted into
+     * @param shownWhenNonZero
+     *            the value that must not be 0 for the text to show, or null to always show it
      */
-    record Value(IntValue value, String key, int width) implements Leaf {
+    record Value(IntValue value, String key, int width, @Nullable IntValue shownWhenNonZero) implements Leaf {
         /** Width must be at least 1. */
         public Value {
             positive(width, "width");
@@ -310,6 +326,13 @@ public sealed interface Layout {
         @Override
         public int height() {
             return TEXT_HEIGHT;
+        }
+
+        /**
+         * Whether the text is shown (drawn and narrated) given the current {@code values}; the box is placed anyway.
+         */
+        public boolean shownIn(MenuValueView values) {
+            return shownWhenNonZero == null || values.get(shownWhenNonZero) != 0;
         }
     }
 
