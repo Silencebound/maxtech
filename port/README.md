@@ -96,7 +96,7 @@ Where the 1.21.1 build intentionally differs from main:
 - `MachineRecipeType.bookCategory` is dropped.
 - `CraftingGridMenus` uses the non-untrusted item codec.
 - GameTest environment kinds `clock_time`, `game_rules` and `timelines` are dropped.
-- The GameTest server has no `--tests` filter: `neoforge.enabledGameTestNamespaces` selects the whole mod's tests.
+- The GameTest server has no `--tests` filter: `-Pgametest=<namespace>` (default `maxtech_lib`) sets `neoforge.enabledGameTestNamespaces`; a `:pattern` suffix is ignored, so a whole namespace runs.
 
 ## Versions
 

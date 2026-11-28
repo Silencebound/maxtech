@@ -61,21 +61,6 @@ TINTED_BUTTON = [
 VANILLA = [
     # 26.1 renamed the toast manager.
     Regex(r"\.getToastManager\(\)", ".getToasts()", files=_only(f"{_API}/client/gui/AccentToast.java")),
-    # 1.21.1's item cooldowns are per item; 26.1's per stack (its cooldown group, the item for Lib's scanner).
-    Regex(r"getCooldowns\(\)\.(isOnCooldown|addCooldown)\(stack\b", r"getCooldowns().\1(stack.getItem()",
-          files=_only(f"{_LIB}/info/ScannerItem.java")),
-    # 1.21.1's appendHoverText adds to a list and has no TooltipDisplay.
-    Regex(r"appendHoverText\(ItemStack stack, TooltipContext context, TooltipDisplay display,\s*"
-          r"Consumer<Component> builder, TooltipFlag flag\) \{",
-          "appendHoverText(ItemStack stack, TooltipContext context, java.util.List<Component> tooltip,"
-          " TooltipFlag flag) {\n        Consumer<Component> builder = tooltip::add;",
-          files=_only(f"{_LIB}/info/ScannerItem.java", f"{_LIB}/facade/FacadeItem.java")),
-    Regex(r"import net\.minecraft\.world\.item\.component\.TooltipDisplay;\n", "",
-          files=_only(f"{_LIB}/info/ScannerItem.java", f"{_LIB}/facade/FacadeItem.java")),
-    # 26.1 renamed ClickType to ContainerInput.
-    ImportMove("net.minecraft.world.inventory.ContainerInput", "net.minecraft.world.inventory.ClickType",
-               files=_only(f"{_LIB}/menu/MenuTestSession.java")),
-    Rename("ContainerInput", "ClickType", files=_only(f"{_LIB}/menu/MenuTestSession.java")),
 ]
 
 # Jade 15 (1.21.1) builds tooltip rows from IElement, not LayoutElement (InfoElements is an override for the rest).

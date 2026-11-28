@@ -244,16 +244,10 @@ _GAMETEST_API = [
     # neighborChanged(..., @Nullable Orientation, boolean) -> 1.21.1's (..., BlockPos fromPos, boolean)
     Regex(r"@Nullable Orientation (\w+)", r"BlockPos \1", files=GAMETEST_FILES),
     Regex(r"import net\.minecraft\.world\.level\.redstone\.Orientation;\n", "", scope="all", files=GAMETEST_FILES),
-    # 26.1's ContainerInput is 1.21.1's ClickType (same constants)
-    ImportMove("net.minecraft.world.inventory.ContainerInput", "net.minecraft.world.inventory.ClickType",
-               files=GAMETEST_FILES),
-    Rename("ContainerInput", "ClickType", files=GAMETEST_FILES),
     # Commands.hasPermission(level) predicate
     Regex(r"Commands\.hasPermission\(([^()]*)\)", r"source -> source.hasPermission(\1)", files=GAMETEST_FILES),
     # Registry.getValueOrThrow(key) is getOrThrow(key) on 1.21.1
     Rename("getValueOrThrow", "getOrThrow", files=GAMETEST_FILES),
-    # ServerLevel.recipeAccess() is getRecipeManager(); recipes are keyed by ResourceLocation
-    Regex(r"\.recipeAccess\(\)", ".getRecipeManager()", files=GAMETEST_FILES),
     Regex(r"\.byKey\(\s*ResourceKey\.(?:<Recipe<\?>>)?create\(\s*Registries\.RECIPE,\s*([^;]*?)\)\)", r".byKey(\1)",
           files=GAMETEST_FILES),
     Regex(r"\.id\(\)\.location\(\)", ".id()", files=_MACHINE_RECIPE_TESTS),
@@ -366,8 +360,6 @@ def pre_remove_side_effects(text: str, rel: str) -> str:
 _PRE_REMOVE = [
     Transform(pre_remove_side_effects, name="preRemoveSideEffects -> setRemoved unless unloading", files=OWN),
     Regex(r"(?<![\w.])problemPath\(\)", f"{_SAVING}.PortSaving.problemPath(this)", files=_CONDUIT_BE),
-    # NeoForge 21.1's model data lives below client.model
-    ImportMove("net.neoforged.neoforge.model.data", "net.neoforged.neoforge.client.model.data", files=_CONDUIT_BE),
 ]
 
 RULES = [
