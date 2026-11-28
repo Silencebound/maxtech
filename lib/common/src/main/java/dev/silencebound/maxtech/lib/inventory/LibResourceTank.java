@@ -75,6 +75,11 @@ public class LibResourceTank<K> implements ResourceTank<K> {
     }
 
     @Override
+    public final long unknownAmount() {
+        return unloadedAmount;
+    }
+
+    @Override
     public final void discardUnknown() {
         NoTransaction.check("Discarding unknown contents");
         if (unloaded != null) {

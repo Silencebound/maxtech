@@ -10,8 +10,8 @@
  * <p>
  * Lib's menu reads every getter each server tick without boxing or allocating, and sends the values that changed in one
  * payload, at most once a tick and only when something changed; nothing goes through vanilla data slots, so longs and
- * fluids with components arrive whole. Both sides must run the same build: values travel by position in the declaration
- * and enums by ordinal. Experimental until Farms (FM1) settles it.
+ * tank resources of any kind, components included, arrive whole. Both sides must run the same build: values travel by
+ * position in the declaration and enums by ordinal. Experimental until Farms (FM1) settles it.
  */
 @ApiStatus.Experimental
 @NullMarked
