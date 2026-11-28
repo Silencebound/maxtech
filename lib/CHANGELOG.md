@@ -6,6 +6,9 @@ Api changes are marked **Api**.
 
 ## [Unreleased]
 
+### Added
+- Docs: `docs/api/gui-toolkit.md` shows how to build a screen with the toolkit; a dev-only demo machine (`/maxtech_lib_demo toolkit`, GameTest source set) and `toolkit_api_*` GameTests use it through the api.
+
 ### Changed
 - **Api** The Accent widget set is api (`lib.api.client.gui`, client only, experimental, ADR-0016): `Accent`,
   `AccentButton`, `IconButton`, `Icon`, `AccentPanel`, `AccentInset`, `AccentRow`, `AccentReadout`, `AccentTag`,
