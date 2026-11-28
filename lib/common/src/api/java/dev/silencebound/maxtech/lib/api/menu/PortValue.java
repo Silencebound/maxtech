@@ -4,6 +4,7 @@ import dev.silencebound.maxtech.lib.api.resource.ResourceKind;
 import dev.silencebound.maxtech.lib.api.transfer.PortFaceMode;
 import dev.silencebound.maxtech.lib.api.transfer.PortFaces;
 import dev.silencebound.maxtech.lib.api.transfer.TransferPort;
+import java.util.Collections;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Optional;
@@ -17,7 +18,7 @@ import org.jetbrains.annotations.ApiStatus;
  * facing for the side config screen. {@link Layout#faces} and {@link MenuDefinition.Builder#sideConfig} show it; a
  * click on a face asks the server for one mode of that face and kind, which the server sets on the port only when the
  * port allows that mode for the kind (see {@link MenuDefinition.Builder#port}). Every part travels as a plain int
- * value, so reads never allocate apart from {@link #allowed}. Immutable; any thread.
+ * value, so reads never allocate. Immutable; any thread.
  */
 @ApiStatus.Experimental
 public final class PortValue {
@@ -25,6 +26,8 @@ public final class PortValue {
     public static final int MAX_KINDS = 16;
     /** The facing value of a host without a facing. */
     static final int NO_FACING = -1;
+
+    private static final Set<PortFaceMode>[] ALLOWED = allowedSets();
 
     private final int index;
     private final List<ResourceKind<?>> kinds;
@@ -73,16 +76,23 @@ public final class PortValue {
      */
     public Set<PortFaceMode> allowed(MenuValueView values, ResourceKind<?> kind) {
         int at = kindIndex(kind);
-        Set<PortFaceMode> modes = EnumSet.noneOf(PortFaceMode.class);
-        if (at >= 0) {
-            int mask = values.get(allowed[at]);
+        return at < 0 ? Set.of() : ALLOWED[values.get(allowed[at]) & 7];
+    }
+
+    /** Every set of modes by its mask (bit {@link PortFaceMode#id()} per mode), so reads never allocate. */
+    private static Set<PortFaceMode>[] allowedSets() {
+        @SuppressWarnings("unchecked") // an array of sets of one type
+        Set<PortFaceMode>[] sets = new Set[8];
+        for (int mask = 0; mask < sets.length; mask++) {
+            Set<PortFaceMode> modes = EnumSet.noneOf(PortFaceMode.class);
             for (PortFaceMode mode : PortFaceMode.values()) {
                 if ((mask & (1 << mode.id())) != 0) {
                     modes.add(mode);
                 }
             }
+            sets[mask] = Collections.unmodifiableSet(modes);
         }
-        return modes;
+        return sets;
     }
 
     /** The value's position among its definition's port values, for the button id. */

@@ -109,6 +109,13 @@ public final class ToolkitScreen<H> extends AbstractContainerScreen<DefinedMenu<
         super.init();
         // Centred with the title tab kept on the screen.
         topPos = Accent.top(height, imageHeight);
+        Layout.Faces side = definition.sideConfig().orElse(null);
+        if (side != null) {
+            // The panel, the tab column and the side config flyout are centred together, so the flyout fits beside
+            // the panel on the smallest GUI the definition's check allows.
+            int extra = SideTabs.GAP + SideTabs.TAB + SideTabs.GAP + SideTabs.outerWidth(side.width());
+            leftPos = Math.max(0, (width - imageWidth - extra) / 2);
+        }
         panel = AccentPanel.of(leftPos, topPos, imageWidth, imageHeight, title).theme(theme);
         tanks.clear();
         MenuValueView values = menu.values();

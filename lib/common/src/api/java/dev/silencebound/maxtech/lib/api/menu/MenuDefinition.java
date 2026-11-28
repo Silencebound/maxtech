@@ -112,15 +112,46 @@ public final class MenuDefinition<H> {
         this.slots = List.copyOf(builder.slots);
         this.tanks = List.copyOf(builder.tanks);
         this.cycles = List.copyOf(builder.cycles);
-        this.ports = List.copyOf(builder.ports);
         this.sideConfig = builder.sideConfig;
         this.shiftOrder = List.copyOf(builder.shiftOrder);
         this.validWhile = builder.validWhile;
         this.layout = layout;
         this.plan = LayoutPlan.of(layout);
+        this.ports = shown(builder.ports, builder.sideConfig, plan);
         List<String> found = new ArrayList<>(plan.problems());
         found.addAll(builder.checkLayout(plan));
         this.problems = List.copyOf(found);
+    }
+
+    /** {@code ports} with the kinds each shows in a faces node of {@code plan} or {@code side}. */
+    private static <H> List<Port<H>> shown(List<Port<H>> ports, Layout.@Nullable Faces side, LayoutPlan plan) {
+        int[] masks = new int[ports.size()];
+        List<Layout.Faces> nodes = new ArrayList<>();
+        for (LayoutPlan.Box box : plan.boxes()) {
+            if (box.node() instanceof Layout.Faces faces) {
+                nodes.add(faces);
+            }
+        }
+        if (side != null) {
+            nodes.add(side);
+        }
+        for (Layout.Faces node : nodes) {
+            int index = node.port().index();
+            if (index < ports.size() && ports.get(index).value() == node.port()) {
+                for (ResourceKind<?> kind : node.kinds()) {
+                    int at = node.port().kindIndex(kind);
+                    if (at >= 0) {
+                        masks[index] |= 1 << at;
+                    }
+                }
+            }
+        }
+        List<Port<H>> out = new ArrayList<>();
+        for (int i = 0; i < masks.length; i++) {
+            Port<H> port = ports.get(i);
+            out.add(new Port<>(port.value(), port.port(), masks[i]));
+        }
+        return List.copyOf(out);
     }
 
     /** Builds a definition; see {@link Menus#define}. */
@@ -312,25 +343,29 @@ public final class MenuDefinition<H> {
     }
 
     /**
-     * A declared port value: its handle and the getter of the host's port.
+     * A declared port value: its handle, the getter of the host's port and which of its kinds a faces node shows.
      *
      * @param value
      *            the handle
      * @param port
      *            the host's port
+     * @param shown
+     *            bit {@code k} set when the kind at position {@code k} of the value is in a faces node of the layout or
+     *            the side config tab; clicks on other kinds are ignored
      */
     @ApiStatus.Internal
-    public record Port<H>(PortValue value, Function<? super H, ? extends TransferPort> port) {
+    public record Port<H>(PortValue value, Function<? super H, ? extends TransferPort> port, int shown) {
         /**
          * Sets {@code face} of the kind at {@code kind} (its position in the value's kinds) to the mode with id
          * {@code mode} on the host's port. Returns false and changes nothing for a kind index, face or mode id out of
-         * range, or a mode the port does not allow for that kind; true otherwise, also when the face already had that
-         * mode (nothing changes then). Server thread.
+         * range, a kind no faces node shows, or a mode the port does not allow for that kind; true otherwise, also when
+         * the face already had that mode (nothing changes then). Server thread.
          */
         public boolean apply(H host, int kind, int face, int mode) {
             List<ResourceKind<?>> kinds = value.kinds();
             Optional<PortFaceMode> asked = PortFaceMode.byId(mode);
-            if (kind < 0 || kind >= kinds.size() || face < 0 || face > 5 || asked.isEmpty()) {
+            if (kind < 0 || kind >= kinds.size() || (shown & (1 << kind)) == 0 || face < 0 || face > 5
+                    || asked.isEmpty()) {
                 return false;
             }
             TransferPort target = port.apply(host);
@@ -494,15 +529,16 @@ public final class MenuDefinition<H> {
 
         /**
          * The host's transfer port, synced for {@link Layout#faces} and {@link #sideConfig}: per kind of {@code kinds}
-         * its face modes and the modes the kind allows, and the host's facing. The facing is the block state's
-         * {@code HORIZONTAL_FACING} or {@code FACING} property when the host is a block entity whose block has one, and
-         * none otherwise (faces are then named absolutely); {@link #port(Function, Function, ResourceKind...)} takes it
-         * from the host instead.
+         * its face modes and the modes the kind allows, and the host's facing. The facing is the block state's vanilla
+         * {@code BlockStateProperties.HORIZONTAL_FACING} or {@code FACING} property when the host is a block entity
+         * whose block has one (other facing properties are not detected), and none otherwise (faces are then named
+         * absolutely); {@link #port(Function, Function, ResourceKind...)} takes it from the host instead.
          * <p>
          * A click on a face names the mode it asks for, so a click the server sees twice sets the same mode twice. The
          * server sets it through {@link TransferPort#setSettings} only when the port allows that mode for the kind
          * ({@link TransferPort#allowed}) and ignores every other click; the port's settings listener runs as for a
-         * wrench. Kinds are fixed here, since the client menu has no port to ask.
+         * wrench. Clicks on a kind that no faces node shows are ignored too. Kinds are fixed here, since the client
+         * menu has no port to ask.
          *
          * @throws IllegalArgumentException
          *             for no kinds, a kind twice or more than {@link PortValue#MAX_KINDS} kinds
@@ -544,16 +580,17 @@ public final class MenuDefinition<H> {
                 allowed[i] = values.intValue(host -> allowedMask(port.apply(host).allowed(kind)));
             }
             PortValue handle = new PortValue(ports.size(), list, facingValue, faces, allowed);
-            ports.add(new Port<>(handle, port));
+            ports.add(new Port<>(handle, port, 0));
             handles.add(handle);
             return handle;
         }
 
         /**
          * Adds the standard side config tab: a side tab whose flyout shows {@link Layout#faces} of {@code port} for
-         * {@code kinds} (every kind of {@code port} when none are given). At most one per definition. The flyout must
-         * fit beside the panel on a GUI of {@link LayoutPlan#FIT_WIDTH} by {@link LayoutPlan#FIT_HEIGHT} (three kinds
-         * do); the definition reports a problem otherwise.
+         * {@code kinds} (every kind of {@code port} when none are given). At most one per definition. The screen
+         * centres the panel, the tab column and the flyout together; the three must fit a GUI of
+         * {@link LayoutPlan#FIT_WIDTH} by {@link LayoutPlan#FIT_HEIGHT} side by side (three kinds do beside a 176 wide
+         * panel), and the definition reports a problem otherwise.
          *
          * @throws IllegalArgumentException
          *             for a port value of another definition

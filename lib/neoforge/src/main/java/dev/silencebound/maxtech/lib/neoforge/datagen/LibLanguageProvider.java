@@ -1,34 +1,33 @@
 package dev.silencebound.maxtech.lib.neoforge.datagen;
 
-import dev.silencebound.maxtech.lib.api.resource.ResourceKinds;
-import dev.silencebound.maxtech.lib.api.transfer.PortFaceMode;
-import dev.silencebound.maxtech.lib.api.transfer.RelativeFace;
-import dev.silencebound.maxtech.lib.client.menu.FaceTexts;
-import java.util.Locale;
-import net.minecraft.core.Direction;
+import dev.silencebound.maxtech.lib.MaxtechLib;
 import dev.silencebound.maxtech.lib.api.client.gui.AccentEnergyBar;
 import dev.silencebound.maxtech.lib.api.client.gui.AccentProgress;
 import dev.silencebound.maxtech.lib.api.client.gui.AccentTank;
+import dev.silencebound.maxtech.lib.api.conduit.ConduitFaceMode;
 import dev.silencebound.maxtech.lib.api.machine.RedstoneMode;
+import dev.silencebound.maxtech.lib.api.resource.AmountUnit;
+import dev.silencebound.maxtech.lib.api.resource.ResourceKinds;
+import dev.silencebound.maxtech.lib.api.transfer.PortFaceMode;
+import dev.silencebound.maxtech.lib.api.transfer.RelativeFace;
+import dev.silencebound.maxtech.lib.client.conduit.ConduitLabels;
+import dev.silencebound.maxtech.lib.client.gui.ScreenComponents;
+import dev.silencebound.maxtech.lib.client.menu.FaceTexts;
+import dev.silencebound.maxtech.lib.conduit.ConduitBlock;
+import dev.silencebound.maxtech.lib.config.LibConfigNames;
 import dev.silencebound.maxtech.lib.facade.FacadeContent;
 import dev.silencebound.maxtech.lib.facade.FacadeItem;
-import dev.silencebound.maxtech.lib.api.conduit.ConduitFaceMode;
-import dev.silencebound.maxtech.lib.api.resource.AmountUnit;
-import dev.silencebound.maxtech.lib.client.gui.ScreenComponents;
-import dev.silencebound.maxtech.lib.conduit.ConduitBlock;
-import dev.silencebound.maxtech.lib.client.conduit.ConduitLabels;
-import dev.silencebound.maxtech.lib.config.LibConfigNames;
 import dev.silencebound.maxtech.lib.info.ConduitInfo;
 import dev.silencebound.maxtech.lib.info.EnergyInfo;
 import dev.silencebound.maxtech.lib.info.ScannerItem;
 import dev.silencebound.maxtech.lib.neoforge.client.ConfigScreens;
-import dev.silencebound.maxtech.lib.neoforge.guide.GuideConfigText;
 import dev.silencebound.maxtech.lib.neoforge.compat.jade.BlockInfoLines;
+import dev.silencebound.maxtech.lib.neoforge.guide.GuideConfigText;
 import dev.silencebound.maxtech.lib.neoforge.platform.ConfigTranslations;
 import dev.silencebound.maxtech.lib.viewer.RecipeViewText;
+import java.util.Locale;
 import net.minecraft.core.Direction;
 import net.minecraft.data.PackOutput;
-import dev.silencebound.maxtech.lib.MaxtechLib;
 import net.neoforged.neoforge.common.data.LanguageProvider;
 
 /** Lib's {@code en_us}: the frameworks' GUI, tooltip, info and recipe viewer lines. */

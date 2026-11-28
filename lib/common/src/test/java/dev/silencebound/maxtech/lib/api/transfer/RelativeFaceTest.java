@@ -8,10 +8,8 @@ import static net.minecraft.core.Direction.UP;
 import static net.minecraft.core.Direction.WEST;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-import java.util.EnumSet;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
 import net.minecraft.core.Direction;
 import org.junit.jupiter.api.Test;
 
@@ -39,17 +37,6 @@ class RelativeFaceTest {
                 assertEquals(expected[i], faces[i].toAbsolute(facing), faces[i] + " facing " + facing);
                 assertEquals(faces[i], RelativeFace.of(facing, expected[i]), expected[i] + " facing " + facing);
             }
-        }
-    }
-
-    @Test
-    void everyFacingCoversAllSixFaces() {
-        for (Direction facing : Direction.values()) {
-            Set<Direction> seen = EnumSet.noneOf(Direction.class);
-            for (RelativeFace face : RelativeFace.values()) {
-                seen.add(face.toAbsolute(facing));
-            }
-            assertEquals(6, seen.size(), "faces facing " + facing);
         }
     }
 }
