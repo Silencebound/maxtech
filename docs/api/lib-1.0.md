@@ -36,6 +36,7 @@ packages don't edit the same file. A new package gets its own page and one line 
 - [`lib.api.guide`](lib/guide.md)
 - [`lib.api.info`](lib/info.md)
 - [`lib.api.inventory`, `lib.neoforge.api.inventory`](lib/inventory.md)
+- [`lib.api.machine`](lib/machine.md)
 - [`lib.api.menu`](lib/menu.md)
 - [`lib.api.network`](lib/network.md)
 - [`lib.api.recipe`](lib/recipe.md)

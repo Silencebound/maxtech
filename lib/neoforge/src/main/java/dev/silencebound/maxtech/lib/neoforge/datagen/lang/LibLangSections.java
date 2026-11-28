@@ -22,6 +22,7 @@ public final class LibLangSections {
         all.add(ConduitLang::addTo);
         all.add(GuiLang::addTo);
         all.add(RedstoneLang::addTo);
+        all.add(MachineLang::addTo);
         all.add(FaceConfigLang::addTo);
         all.add(ConfigLang::addTo);
         all.add(GuideConfigLang::addTo);
