@@ -8,6 +8,8 @@
 #   scripts/pr.sh merge-all <pr>...  merge several PRs in order (one background job for a whole wave)
 #   scripts/pr.sh auto <pr>     merge its base in only on a conflict and turn on GitHub auto-merge (squash), then
 #                               return; GitHub merges it once CI and the review-gate status are green
+#   --dry-run (with merge, merge-all, auto)  only check whether the base would merge in, or whether the stack resolver
+#                               would resolve its conflict; commits, pushes and merges nothing
 #
 # Merge gate (owner decision 2026-10-19): branch protection requires the build check and the review-gate status
 # (.github/scripts/review-gate.sh): a risk label on every PR (trivial, normal, risky), a reviewer's "Verdict: Approve"
@@ -27,14 +29,28 @@
 # Stacked PRs: this repo deletes a branch on merge and GitHub then retargets PRs stacked on it to the merged PR's base;
 # `merge` also retargets them itself in case that setting changes. It then brings the base into each child: when the
 # child already contains the merged head and the base's tree equals that head's tree (the squash changed nothing else),
-# the child's tree is already right and is kept with an "ours" merge; otherwise it tries a normal merge and stops on
-# conflicts for a human. Never force-pushes.
+# the child's tree is already right and is kept with an "ours" merge; otherwise it tries a normal merge, then the stack
+# resolver below, and stops on conflicts for a human. Never force-pushes.
+#
+# Stacked PR after its base was squash-merged (scripts/stack-resolve.sh): when merging the base in conflicts, the branch
+# contains the final head of a PR merged into that base, and no other commit on the base that the branch lacks touches
+# the conflicted files, the branch's version of each conflicted file is kept and the merge is committed and pushed.
+# Otherwise it stops and names the files as before. `merge`, `merge-all`, `auto` and the stacked-child fix-up use it.
 set -euo pipefail
 
 usage() {
     sed -n '2,/^set -euo/p' "$0" | sed '$d'
 }
 
+# shellcheck source=SCRIPTDIR/stack-resolve.sh
+. "$(cd "$(dirname "$0")" && pwd)/stack-resolve.sh"
+
+dry_run=0
+args=()
+for a in "$@"; do
+    if [ "$a" = --dry-run ]; then dry_run=1; else args+=("$a"); fi
+done
+set -- ${args[@]+"${args[@]}"}
 cmd="${1:-}"
 pr="${2:-}"
 [ -n "$cmd" ] && [ -n "$pr" ] || { usage; exit 2; }
@@ -171,8 +187,26 @@ not_fork() {
     fi
 }
 
+# Prints "<number> <head> <squash>" of the most recent PR merged into $2 that HEAD in worktree $1 has some of the own
+# commits of (the PR this branch was stacked on), or nothing.
+merged_parent() {
+    local dir=$1 base=$2 number head squash seen
+    while read -r number head squash; do
+        [ -n "$squash" ] || continue
+        # A deleted branch's head may be missing locally; GitHub keeps it as the PR's ref.
+        git -C "$dir" cat-file -e "$head^{commit}" 2>/dev/null \
+            || git -C "$dir" fetch -q origin "refs/pull/$number/head" 2>/dev/null || continue
+        seen=$(git -C "$dir" merge-base "$head" HEAD 2>/dev/null) || continue
+        if ! git -C "$dir" merge-base --is-ancestor "$seen" "origin/$base"; then
+            echo "$number $head $squash"
+            return 0
+        fi
+    done < <(gh pr list --state merged --base "$base" --limit 20 --json number,headRefOid,mergeCommit \
+        --jq '.[] | "\(.number) \(.headRefOid) \(.mergeCommit.oid // "")"')
+}
+
 fix_child() {
-    local child=$1 merged_head=$2 base=$3 root branch rc=0
+    local child=$1 merged_head=$2 base=$3 squash=${4:-} root branch rc=0
     not_fork "$child" || return 1
     root=$(git rev-parse --show-toplevel)
     branch=$(gh pr view "$child" --json headRefName --jq .headRefName)
@@ -185,9 +219,11 @@ fix_child() {
         if git merge-base --is-ancestor "$merged_head" HEAD 2>/dev/null \
             && git diff --quiet "$merged_head" "origin/$base" 2>/dev/null; then
             git merge -q -s ours --no-edit -m "Merge origin/$base into $branch" "origin/$base" || exit 1
-        elif ! git merge -q --no-edit "origin/$base"; then
-            echo "#$child: merging origin/$base conflicts; resolve in $tmp_wt and push without force"
-            exit 2
+        elif ! git merge -q --no-edit -m "Merge origin/$base into $branch" "origin/$base"; then
+            if ! stack_resolve "$tmp_wt" "origin/$base" "$branch" "$merged_head" "$squash"; then
+                echo "#$child: merging origin/$base conflicts; resolve in $tmp_wt and push without force"
+                exit 2
+            fi
         fi
         git push -q origin "HEAD:$branch" || exit 1
         echo "#$child: origin/$base merged in and pushed"
@@ -224,12 +260,28 @@ update_branch() {
     echo "#$pr: $branch is behind origin/$base; merging it in"
     add_worktree "$root" "origin/$branch" pr-update || { echo "#$pr: no temporary worktree"; drop_worktree; return 1; }
     if ! git -C "$tmp_wt" merge -q --no-edit -m "Merge origin/$base into $branch" "origin/$base"; then
-        conflicts=$(git -C "$tmp_wt" diff --name-only --diff-filter=U | tr '\n' ' ')
+        local parent resolved=0
+        parent=$(merged_parent "$tmp_wt" "$base")
+        if [ -n "$parent" ]; then
+            echo "#$pr: $branch has commits of merged #${parent%% *}; trying the stack resolver"
+            # shellcheck disable=SC2086 # parent is "<number> <head> <squash>"
+            set -- $parent
+            stack_resolve "$tmp_wt" "origin/$base" "$branch" "$2" "$3" "$dry_run" && resolved=1
+        fi
+        if [ "$resolved" = 0 ]; then
+            conflicts=$(git -C "$tmp_wt" diff --name-only --diff-filter=U | tr '\n' ' ')
+            git -C "$tmp_wt" merge --abort 2>/dev/null || true
+            drop_worktree
+            echo "#$pr: merging origin/$base into $branch conflicts in: ${conflicts:-unknown files}"
+            echo "#$pr: not merged. Merge origin/$base into $branch by hand, push without force, then run merge again."
+            return 1
+        fi
+    fi
+    if [ "$dry_run" = 1 ]; then
         git -C "$tmp_wt" merge --abort 2>/dev/null || true
         drop_worktree
-        echo "#$pr: merging origin/$base into $branch conflicts in: ${conflicts:-unknown files}"
-        echo "#$pr: not merged. Merge origin/$base into $branch by hand, push without force, then run merge again."
-        return 1
+        echo "#$pr (dry run): origin/$base would merge into $branch; nothing pushed"
+        return 0
     fi
     if ! git -C "$tmp_wt" push -q origin "HEAD:$branch"; then
         drop_worktree
@@ -252,6 +304,7 @@ enable_auto() {
 merge() {
     # Explicit returns: merge-all calls this inside `||`, where `set -e` does not apply.
     update_branch || return 1
+    [ "$dry_run" = 0 ] || return 0
     enable_auto
     wait_ci || return 1
     # Returns at once without auto-merge; the PR is then merged below as before.
@@ -296,7 +349,7 @@ wait_and_watch() {
 }
 
 merge_now() {
-    local head base branch kids
+    local head base branch kids squash
     head=$(gh pr view "$pr" --json headRefOid --jq .headRefOid)
     base=$(gh pr view "$pr" --json baseRefName --jq .baseRefName)
     branch=$(gh pr view "$pr" --json headRefName --jq .headRefName)
@@ -305,8 +358,9 @@ merge_now() {
         gh pr merge "$pr" --squash --match-head-commit "$head" || { echo "#$pr: gh pr merge failed"; return 1; }
     fi
     echo "#$pr merged"
+    squash=$(gh pr view "$pr" --json mergeCommit --jq '.mergeCommit.oid // ""')
     for kid in $kids; do
-        fix_child "$kid" "$head" "$base" || { echo "stopped at #$kid; branch $branch kept"; return 1; }
+        fix_child "$kid" "$head" "$base" "$squash" || { echo "stopped at #$kid; branch $branch kept"; return 1; }
     done
     git push -q origin --delete "$branch" 2>/dev/null && echo "branch $branch deleted" || true
 }
@@ -325,7 +379,7 @@ case "$cmd" in
     status) status ;;
     wait) wait_and_watch ;;
     merge) merge ;;
-    auto) update_branch && enable_auto ;;
+    auto) update_branch && { [ "$dry_run" = 1 ] || enable_auto; } ;;
     merge-all) shift; merge_all "$@" ;;
     *) usage; exit 2 ;;
 esac
