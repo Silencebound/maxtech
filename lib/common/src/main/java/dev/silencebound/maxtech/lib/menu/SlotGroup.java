@@ -30,6 +30,16 @@ public final class SlotGroup {
         return slots;
     }
 
+    /** The first slot of the inventory in the group. */
+    public int from() {
+        return from;
+    }
+
+    /** One past the last slot of the inventory in the group. */
+    public int to() {
+        return to;
+    }
+
     /** The menu index of the group's first slot. */
     public int firstMenuSlot() {
         return firstMenuSlot;

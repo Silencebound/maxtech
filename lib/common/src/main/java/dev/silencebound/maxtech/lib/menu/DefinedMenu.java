@@ -20,7 +20,8 @@ import org.jspecify.annotations.Nullable;
  * The menu of a {@link MenuDefinition}, on both sides: the definition's slot groups at the places its layout gives them
  * (in declaration order, then the player's inventory), its shift-click order and its tanks' bucket clicks. Slot
  * positions come from {@link MenuDefinition#plan()}, pure arithmetic, so they are the same on the server and the
- * client. A group the layout lacks (a problem in dev runs) sits far off the panel.
+ * client. A group the layout lacks (a problem in dev runs) sits far off the panel. Button ids: tank {@code n} of the
+ * definition (declaration order) is {@link ToolkitMenu#TANK_BUTTONS} plus n; ids below that are free for later buttons.
  */
 public final class DefinedMenu<H> extends ToolkitMenu<H> {
     /** Where slots of a group the layout lacks go: off any screen. */
