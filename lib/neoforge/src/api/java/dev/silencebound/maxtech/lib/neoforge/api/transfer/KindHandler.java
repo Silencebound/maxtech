@@ -14,7 +14,8 @@ import org.jetbrains.annotations.ApiStatus;
  * {@code ResourceHandler}. One that is not (a mod with simulate/execute calls, such as Mekanism's chemicals) changes at
  * once and ignores the transaction; Lib's ports never move between two such handlers, and touch one such side last:
  * they simulate it, move on the transactional side in a nested transaction, carry out the foreign side, and keep only
- * what it took before committing. Server thread only.
+ * what it took before committing. The foreign execute must be the last step before the root commit: nothing that can
+ * fail or roll back may run between it and the commit, since it cannot be undone. Server thread only.
  *
  * @param <K>
  *            the key type of the kind

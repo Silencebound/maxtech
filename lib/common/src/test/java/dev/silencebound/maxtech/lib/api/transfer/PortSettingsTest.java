@@ -90,4 +90,23 @@ class PortSettingsTest {
         assertEquals(1 << 2, loaded.faces(TestKinds.TEXT));
         assertEquals(List.of(), loaded.withRate(TestKinds.NUMBER, 10).unknownKinds());
     }
+
+    @Test
+    void aValidEntryDoesNotDropABrokenOneOfItsKind() {
+        CompoundTag broken = new CompoundTag();
+        broken.putString("kind", "test:text");
+        broken.putString("faces", "not a number");
+        CompoundTag valid = new CompoundTag();
+        valid.putString("kind", "test:text");
+        valid.putInt("faces", 1 << 2);
+        ListTag kinds = new ListTag();
+        kinds.add(broken);
+        kinds.add(valid);
+        CompoundTag saved = new CompoundTag();
+        saved.put("kinds", kinds);
+
+        PortSettings loaded = CODEC.parse(NbtOps.INSTANCE, saved).getOrThrow();
+        assertEquals(1 << 2, loaded.faces(TestKinds.TEXT));
+        assertEquals(List.<Tag>of(broken), loaded.unknownKinds());
+    }
 }

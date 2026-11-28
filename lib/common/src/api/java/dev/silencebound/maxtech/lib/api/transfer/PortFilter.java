@@ -29,9 +29,12 @@ import org.jspecify.annotations.Nullable;
  * <p>
  * Lib's port screen lets a player add up to {@code transfer.filterSize} entries (keys and tags together); a saved
  * filter loads whole whatever its size. A saved key that no longer loads (its mod or a component's mod was removed) is
- * kept, saved back unchanged and matches nothing, so the entry returns with its mod.
+ * kept, saved back as saved (after the keys that load, so the list's order can change) and matches nothing, so the
+ * entry returns with its mod.
  * <p>
- * Immutable. {@link #test} allocates nothing and is safe from any thread; tags resolve once, when the filter is made.
+ * Immutable. {@link #test} allocates nothing and is safe from any thread; tags resolve once, when the filter is made,
+ * so tag support registered later ({@link #registerTags}) does not reach filters that already exist; register it during
+ * mod construction, before any filter loads.
  *
  * @param <K>
  *            the key type of the filter's kind

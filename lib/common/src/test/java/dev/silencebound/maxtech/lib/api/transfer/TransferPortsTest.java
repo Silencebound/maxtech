@@ -4,8 +4,12 @@ import static dev.silencebound.maxtech.lib.api.transfer.PortFaceMode.OFF;
 import static dev.silencebound.maxtech.lib.api.transfer.PortFaceMode.PULL;
 import static dev.silencebound.maxtech.lib.api.transfer.PortFaceMode.PUSH;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
+import dev.silencebound.maxtech.lib.api.energy.EnergyEndpoint;
+import dev.silencebound.maxtech.lib.api.energy.EnergyPriority;
+import dev.silencebound.maxtech.lib.api.energy.EnergyScheduler;
 import dev.silencebound.maxtech.lib.api.inventory.ResourceTank;
 import dev.silencebound.maxtech.lib.api.resource.ResourceKind;
 import dev.silencebound.maxtech.lib.api.resource.TestKinds;
@@ -13,6 +17,7 @@ import dev.silencebound.maxtech.lib.api.schedule.TaskScheduler;
 import java.util.EnumSet;
 import java.util.Optional;
 import java.util.Set;
+import net.minecraft.core.Direction;
 import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.level.storage.ValueOutput;
 import org.junit.jupiter.api.Test;
@@ -45,6 +50,23 @@ class TransferPortsTest {
                 .rate(TestKinds.NUMBER, 10);
         assertThrows(IllegalStateException.class, builder::build);
         assertThrows(IllegalStateException.class, () -> builder().build(), "no buffer");
+    }
+
+    @Test
+    void refusesEnergyThatIsNotAStandaloneBuffer() {
+        assertThrows(IllegalArgumentException.class, () -> builder().energy(EnergyEndpoint.producer(), Set.of(PUSH)));
+        assertThrows(IllegalArgumentException.class,
+                () -> builder().energy(EnergyEndpoint.consumer(EnergyPriority.DEFAULT), Set.of(PULL)));
+        EnergyEndpoint networked = EnergyEndpoint.buffer(1000, 10, 10, EnergyPriority.DEFAULT);
+        new EnergyScheduler(() -> 0L).createNetwork().add(networked);
+        assertThrows(IllegalArgumentException.class, () -> builder().energy(networked, Set.of(PUSH)), "in a network");
+    }
+
+    @Test
+    void keepsTheDefaultSettings() {
+        PortSettings defaults = PortSettings.EMPTY.withMode(TestKinds.TEXT, Direction.UP, PUSH);
+        assertSame(PortSettings.EMPTY, builder().defaults(), "no defaults set");
+        assertSame(defaults, builder().defaults(defaults).defaults());
     }
 
     private record StubTank<K>(ResourceKind<K> kind) implements ResourceTank<K> {

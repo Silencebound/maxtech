@@ -35,8 +35,9 @@ until Farms ships.
   into and an output tank it pushes from, an input and an output slot group. Per face and kind the face's mode picks
   the buffers (`PULL` fills those allowing `PULL`, `PUSH` empties those allowing `PUSH`), first-fit in the order
   they were added. A face of a kind may take `OFF` and the modes of the kind's buffers. Buffer roles are code and not
-  saved; settings stay per face and kind. A `TransferPort` runs one scheduled task in the owner's group, sleeps until a buffer or neighbour changes,
-  and is started and stopped by its block entity.
+  saved; settings stay per face and kind (`Builder.defaults` gives the settings a new port and data without settings
+  start with). A `TransferPort` runs one scheduled task in the owner's group, sleeps until a buffer or neighbour
+  changes, and is started and stopped by its block entity.
 - A face pushes or pulls, never both: `PortFaceMode` is `OFF`, `PUSH` or `PULL` (owner). `PortFaces` packs six modes
   into two bits per face, per kind.
 - Filters are per port and per kind, not per face (owner): `PortFilter` is an allow or deny list of keys and tags,
@@ -46,13 +47,20 @@ until Farms ships.
   move nothing between them, so two ports never move a resource back and forth. A neighbour port's `OFF` face counts
   as a block that is not a port (whether it exposes its buffers is that block's choice): such blocks are pushed into
   and pulled from as usual.
+- Buffer roles hold between ports: a port pushing into a neighbouring Lib port's `PULL` face inserts into that port's
+  buffers taking part in `PULL`, never into its push-only buffers, which the plain capability would offer. The pusher
+  finds the neighbour through an internal registry of started ports by level and position (T2; not api); for a block
+  that is not a Lib port it uses the neighbour's capability.
 - A move between two handlers without transactions is refused (owner, ADR-0017); with one such side Lib touches it
   last: simulate it, move on the transactional side in a nested transaction, carry out the foreign side, keep only
   what it took.
 - `PortSettings` saves per kind id; settings of a kind that is gone, or that no longer load, are kept and saved back,
   like `UnknownResource`.
 - `KindBridge<K>` gives a kind's `KindHandler<K>`s through a capability cache (`transactional()` says which handlers
-  roll back); `KindBridges` holds one per kind. Lib registers items and fluids; energy moves through Lib's FE edges.
+  roll back); `KindBridges` holds one per kind. Lib registers items and fluids.
+- Energy is split in two. Networked energy moves through Lib's FE edges and is not a port buffer. A standalone energy
+  buffer (an `EnergyEndpoint` with the `BUFFER` role outside any network, the only energy `energy()` accepts) moves
+  through the port, with FE capability lookups on its neighbours and the remainder carried to the next operation.
 - Which faces start active is the owner's choice: Farms' hub starts with every output face off (owner).
 - Limits per operation and the shortest interval come from config: `transfer.itemsPerOp`, `fluidPerOp`,
   `energyPerOp`, `minIntervalTicks`, `filterSize`, in both presets.

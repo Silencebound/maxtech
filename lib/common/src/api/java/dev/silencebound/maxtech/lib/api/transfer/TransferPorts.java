@@ -1,6 +1,7 @@
 package dev.silencebound.maxtech.lib.api.transfer;
 
 import dev.silencebound.maxtech.lib.api.energy.EnergyEndpoint;
+import dev.silencebound.maxtech.lib.api.energy.EnergyRole;
 import dev.silencebound.maxtech.lib.api.inventory.FluidTank;
 import dev.silencebound.maxtech.lib.api.inventory.ItemSlots;
 import dev.silencebound.maxtech.lib.api.inventory.ResourceTank;
@@ -52,6 +53,7 @@ public final class TransferPorts {
         private final TaskGroup tasks;
         private final List<Buffer> buffers = new ArrayList<>();
         private final Map<ResourceKind<?>, Long> rates = new LinkedHashMap<>();
+        private PortSettings defaults = PortSettings.EMPTY;
         @SuppressWarnings("UnusedVariable") // see tasks
         private Runnable onSettingsChanged = () -> {
         };
@@ -81,10 +83,18 @@ public final class TransferPorts {
         }
 
         /**
-         * Adds {@code endpoint}, a buffer outside any energy network, moving FE at the configured FE rate and taking
-         * part in {@code modes}, as {@link #items} does.
+         * Adds {@code endpoint}, a standalone energy buffer, moving FE at the configured FE rate and taking part in
+         * {@code modes}, as {@link #items} does. Only a {@link EnergyRole#BUFFER buffer} outside any energy network is
+         * accepted: networked energy moves through Lib's FE edges and is not a port buffer (ADR-0018). Throws
+         * {@link IllegalArgumentException} for another role or an endpoint that is in a network, here and again in
+         * {@link #build()}, in case it joined one since.
+         * <p>
+         * The port moves energy with the endpoint's own rates and level ({@code stored}, {@code setStored}). Those are
+         * not journaled in a transfer transaction, so the T4 core keeps its own journal for the endpoint instead of
+         * relying on the transaction to roll the level back.
          */
         public Builder energy(EnergyEndpoint endpoint, Set<PortFaceMode> modes) {
+            checkStandalone(endpoint);
             return buffer(ResourceKinds.ENERGY, endpoint, modes);
         }
 
@@ -101,6 +111,17 @@ public final class TransferPorts {
             return this;
         }
 
+        /**
+         * The settings a new port starts with, and that {@link TransferPort#load} falls back to for data saved without
+         * settings (instead of {@link PortSettings#EMPTY}), so an owner can start with some faces on (ADR-0018). The
+         * port puts them back within the allowed modes of its buffers, like loaded settings. Not saved by itself: only
+         * settings a player changed are.
+         */
+        public Builder defaults(PortSettings settings) {
+            this.defaults = Objects.requireNonNull(settings, "settings");
+            return this;
+        }
+
         /** Runs after the settings changed (wrench, screen, load excluded), so the owner can save and sync. */
         public Builder onSettingsChanged(Runnable listener) {
             this.onSettingsChanged = Objects.requireNonNull(listener, "listener");
@@ -109,7 +130,8 @@ public final class TransferPorts {
 
         /**
          * Checks the builder and makes the port: throws {@link IllegalStateException} without a buffer, or when
-         * {@code rate} names a kind without one. Lib's ports are not implemented in this version, so it then throws
+         * {@code rate} names a kind without one, and {@link IllegalArgumentException} for an energy buffer that joined
+         * an energy network since it was added. Lib's ports are not implemented in this version, so it then throws
          * {@link UnsupportedOperationException}.
          */
         public TransferPort build() {
@@ -121,7 +143,29 @@ public final class TransferPorts {
                     throw new IllegalStateException("rate names " + kind + ", which has no buffer");
                 }
             }
+            for (Buffer buffer : buffers) {
+                if (buffer.buffer instanceof EnergyEndpoint endpoint) {
+                    checkStandalone(endpoint);
+                }
+            }
             throw new UnsupportedOperationException("Transfer ports are not implemented in this Lib version");
+        }
+
+        /** The settings set with {@link #defaults}; {@link PortSettings#EMPTY} without. */
+        PortSettings defaults() {
+            return defaults;
+        }
+
+        private static void checkStandalone(EnergyEndpoint endpoint) {
+            Objects.requireNonNull(endpoint, "endpoint");
+            if (endpoint.role() != EnergyRole.BUFFER) {
+                throw new IllegalArgumentException(
+                        "A port energy buffer must have the BUFFER role: " + endpoint.role());
+            }
+            if (endpoint.network().isPresent()) {
+                throw new IllegalArgumentException(
+                        "A port energy buffer must be outside any energy network; networked energy moves through FE edges");
+            }
         }
 
         /** The modes faces of {@code kind} may take with the buffers added so far; empty without a buffer of it. */

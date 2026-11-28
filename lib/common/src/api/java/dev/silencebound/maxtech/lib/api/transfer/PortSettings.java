@@ -35,8 +35,10 @@ import org.jspecify.annotations.Nullable;
  * within them.
  * <p>
  * Saved by kind id ({@link #CODEC}). Settings of a kind no loaded mod registers, or that no longer load, are kept as
- * saved and saved back unchanged ({@link #unknownKinds()}), like {@code UnknownResource}, until settings of that kind
- * are set again.
+ * saved and saved back unchanged ({@link #unknownKinds()}), like {@code UnknownResource}, after the entries of known
+ * kinds (so the order of the saved list can change). Such a raw entry stays, even beside a valid entry of the same
+ * kind, until settings of that kind are set again through a {@code with} method, which replaces it. A known kind's
+ * entry is saved from what it decodes to: fields in it that this version does not know are dropped on the next save.
  * <p>
  * Immutable; the {@code with} methods return changed copies. Reads allocate nothing except {@link #filter} and
  * {@link #kinds()}; any thread.
@@ -254,7 +256,9 @@ public final class PortSettings {
                             .flatMap(kind -> loadEntry(kind, ops, map));
         });
         if (loaded.isPresent()) {
-            return loaded.get();
+            PortSettings with = loaded.get();
+            return new PortSettings(with.kinds, with.faces, with.rates, with.filters, unknown); // a valid entry keeps
+                                                                                                // broken raw ones
         }
         List<Tag> kept = new ArrayList<>(unknown);
         kept.add(ops.convertTo(NbtOps.INSTANCE, element));
