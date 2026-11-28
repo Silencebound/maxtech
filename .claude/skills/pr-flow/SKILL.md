@@ -12,10 +12,23 @@ description: How the main session takes a PR to merged by risk tier (trivial, no
 | `scripts/pr.sh status <pr>` | One line: state, head, base, mergeable, auto-merge, CI |
 | `scripts/pr.sh wait <pr>` | Blocks until CI on the current head finishes; exit 0 green, 1 failed |
 | `scripts/pr.sh merge <pr>` | Merges `origin/<base>` into the PR branch only when GitHub reports a conflict (temporary worktree, normal merge commit, push; stops on a real conflict and names the files); a branch that is only behind merges as it is, without another CI run (owner 2026-11-28; `main` does not require up-to-date branches, and the build on `main` after the squash catches a clash), then waits for green CI on that head, squash-merges, retargets PRs stacked on it, merges the base into each and pushes (no force), then fast-forwards the owner's main checkout when it is on main, clean and only behind |
-
 | `scripts/pr.sh auto <pr>` | Merges the base in only on a conflict and turns on auto-merge, then returns; GitHub merges it once the build and `review-gate` are green (stacked children are not fixed up; use `merge` for those) |
+| `--dry-run` (with `merge`, `merge-all`, `auto`) | Only says whether the base would merge in, or whether the stack resolver would resolve the conflict; commits, pushes and merges nothing |
+| `scripts/status.sh` | Table of open PRs (CI, `review-gate`, latest `Verdict:` with `@sha` when it is for an older commit, mergeable, auto-merge) and of the worktrees under `.claude/worktrees` with their PR's state |
+| `scripts/status.sh --clean` | Also removes worktrees whose PR is merged or closed and that have nothing uncommitted, untracked or unpushed; dirty, locked and the current worktree are listed, never removed (no `--force`); local branches stay |
 
 Run `wait` and `merge` with `run_in_background`, never as a foreground sleep loop.
+
+## Stacked PR after its base was squash-merged (2026-11-28)
+
+B stacked on A, A squash-merged: B then conflicts with `main` in files A touched (add/add or content), because the
+squash repeats A's changes under a new id. `pr.sh merge`, `merge-all`, `auto` and the child fix-up after a merge
+resolve this with `scripts/stack-resolve.sh`: B's version of every conflicted file is kept, committed as
+`Merge origin/main into <branch>` and pushed without force, only when B contains A's work in those files (A's final
+head is an ancestor of B, or B has some of A's own commits and none of A's later commits touches a conflicted file)
+and no commit on `main` that B lacks, other than A's squash, touches them. Otherwise it stops and lists the files as
+before. A is found as the most recent PR merged into B's base whose own commits B contains. Tests:
+`scripts/test/test-stack-resolve.sh` (scripted repository, no network).
 
 ## Writing commits and PRs (owner 2026-11-25)
 
