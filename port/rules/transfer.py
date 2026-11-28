@@ -22,7 +22,7 @@ RULES += [
     # 1.21.1 handlers behind the Legacy* wrappers have no transactions: they reach Lib's ports as non-transactional
     # KindHandlers, so KindMoves moves through them foreign side last instead of trusting the deferred ledger.
     Regex(r"Optional\.of\(new Wrapped\(current\)\)",
-          "Optional.of(dev.silencebound.maxtech.lib.shim.transfer.bridge.ForeignKinds.wrap(current, "
+          "Optional.of(dev.silencebound.maxtech.lib.shim.transfer.bridge.legacy.ForeignKinds.wrap(current, "
           "new Wrapped(current), toResource))", files=_BRIDGE),
     Regex(r"which\n \* always take part in transactions\.",
           "which\n * take part in transactions, except 1.21.1 handlers ({@code ForeignKinds}).", scope="all",

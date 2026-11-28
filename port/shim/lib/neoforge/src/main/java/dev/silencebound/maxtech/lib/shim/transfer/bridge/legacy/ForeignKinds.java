@@ -1,9 +1,8 @@
-package dev.silencebound.maxtech.lib.shim.transfer.bridge;
+package dev.silencebound.maxtech.lib.shim.transfer.bridge.legacy;
 
 import com.google.common.primitives.Ints;
 import dev.silencebound.maxtech.lib.neoforge.api.transfer.KindHandler;
 import dev.silencebound.maxtech.lib.shim.transfer.ResourceHandler;
-import dev.silencebound.maxtech.lib.shim.transfer.bridge.legacy.LegacyDirect;
 import dev.silencebound.maxtech.lib.shim.transfer.resource.Resource;
 import dev.silencebound.maxtech.lib.shim.transfer.transaction.TransactionContext;
 import java.util.Optional;

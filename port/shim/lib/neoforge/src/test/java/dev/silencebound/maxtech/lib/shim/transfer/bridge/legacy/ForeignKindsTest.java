@@ -1,4 +1,4 @@
-package dev.silencebound.maxtech.lib.shim.transfer.bridge;
+package dev.silencebound.maxtech.lib.shim.transfer.bridge.legacy;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -7,7 +7,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import dev.silencebound.maxtech.lib.neoforge.api.transfer.KindHandler;
 import dev.silencebound.maxtech.lib.shim.transfer.ResourceHandler;
-import dev.silencebound.maxtech.lib.shim.transfer.bridge.legacy.LegacyDirect;
 import dev.silencebound.maxtech.lib.shim.transfer.resource.Resource;
 import dev.silencebound.maxtech.lib.shim.transfer.transaction.Transaction;
 import dev.silencebound.maxtech.lib.shim.transfer.transaction.TransactionContext;
