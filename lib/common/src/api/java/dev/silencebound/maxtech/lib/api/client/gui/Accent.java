@@ -23,11 +23,11 @@ public final class Accent {
     /** The dark outline around boxes and dots. */
     public static final int OUTLINE = 0xFF0C0E10;
     /** The panel fill. */
-    public static final int GRAPHITE = 0xFF25292D;
+    public static final int GRAPHITE = 0xFF1C2023;
     /** The one-pixel bevel inside a box's outline. */
-    public static final int BEVEL = 0xFF343A3F;
+    public static final int BEVEL = 0xFF2C3135;
     /** The fill of slots, wells and idle button faces. */
-    public static final int SLOT = 0xFF15181B;
+    public static final int SLOT = 0xFF101215;
     /** The edge of slots, bars and idle button faces. */
     public static final int SLOT_EDGE = 0xFF3B4247;
     /** The accent line under a panel's tab and the edge of hovered and lit faces. */

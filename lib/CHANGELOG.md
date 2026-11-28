@@ -14,6 +14,7 @@ Api changes are marked **Api**.
 - Docs: `docs/api/gui-toolkit.md` shows how to build a screen with the toolkit; a dev-only demo machine (`/maxtech_lib_demo toolkit`, GameTest source set) and `toolkit_api_*` GameTests use it through the api.
 
 ### Changed
+- The Accent style's background is a bit darker (owner request): `Accent.GRAPHITE` 0xFF25292D to 0xFF1C2023, `BEVEL` 0xFF343A3F to 0xFF2C3135 and `SLOT` 0xFF15181B to 0xFF101215, so slots stay darker than the panel and the bevel still reads; TEXT and LABEL on the panel stay above 4.5:1.
 - **Api** `Layout.Value`'s canonical constructor gained a fourth component, `@Nullable IntValue shownWhenNonZero`
   (null: always shown); code that built `new Layout.Value(value, key, width)` directly passes `null` or uses
   `Layout.value(...)`, and record patterns on `Layout.Value` take four components.
