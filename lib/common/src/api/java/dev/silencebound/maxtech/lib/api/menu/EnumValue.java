@@ -6,7 +6,15 @@ package dev.silencebound.maxtech.lib.api.menu;
  * constant. Immutable; any thread.
  */
 public final class EnumValue<E extends Enum<E>> extends MenuValue {
-    EnumValue(int index) {
+    private final Class<E> type;
+
+    EnumValue(int index, Class<E> type) {
         super(index);
+        this.type = type;
+    }
+
+    /** The enum's class, for the definition's checks. */
+    Class<E> type() {
+        return type;
     }
 }

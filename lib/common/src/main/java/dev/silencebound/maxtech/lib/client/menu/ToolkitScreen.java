@@ -1,0 +1,221 @@
+package dev.silencebound.maxtech.lib.client.menu;
+
+import dev.silencebound.maxtech.lib.api.client.gui.Accent;
+import dev.silencebound.maxtech.lib.api.client.gui.AccentEnergyBar;
+import dev.silencebound.maxtech.lib.api.client.gui.AccentPanel;
+import dev.silencebound.maxtech.lib.api.client.gui.AccentProgress;
+import dev.silencebound.maxtech.lib.api.client.gui.AccentStatus;
+import dev.silencebound.maxtech.lib.api.client.gui.AccentTank;
+import dev.silencebound.maxtech.lib.api.client.gui.TextScale;
+import dev.silencebound.maxtech.lib.api.menu.EnumValue;
+import dev.silencebound.maxtech.lib.api.menu.Layout;
+import dev.silencebound.maxtech.lib.api.menu.LayoutPlan;
+import dev.silencebound.maxtech.lib.api.menu.MenuDefinition;
+import dev.silencebound.maxtech.lib.api.menu.MenuStatus;
+import dev.silencebound.maxtech.lib.api.menu.MenuValueView;
+import dev.silencebound.maxtech.lib.api.resource.AmountUnit;
+import dev.silencebound.maxtech.lib.api.resource.ResourceKind;
+import dev.silencebound.maxtech.lib.api.style.AccentTheme;
+import dev.silencebound.maxtech.lib.menu.DefinedMenu;
+import dev.silencebound.maxtech.lib.platform.Platform;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.function.Supplier;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.components.AbstractWidget;
+import net.minecraft.client.gui.narration.NarratedElementType;
+import net.minecraft.client.gui.narration.NarrationElementOutput;
+import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
+import net.minecraft.client.input.MouseButtonEvent;
+import net.minecraft.network.chat.CommonComponents;
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.inventory.MenuType;
+import net.minecraft.world.inventory.Slot;
+import org.jspecify.annotations.Nullable;
+
+/**
+ * The screen of a {@link MenuDefinition}: the Accent panel with the definition's title tab and theme, a frame behind
+ * every slot, and its layout's boxes as Accent widgets (tank, energy and progress bars, which show their numbers as
+ * tooltips) or text (labels, values and status lines, fitted into their boxes with the whole text as a tooltip, and
+ * narrated after the title). The panel's size and every box come from {@link MenuDefinition#plan()}, so nothing here
+ * moves with the text size: text too large for its box at the client's text size is drawn smaller. A click on a fluid
+ * tank sends its bucket click to the server. Lib binds it to each registered definition. Client only.
+ */
+public final class ToolkitScreen<H> extends AbstractContainerScreen<DefinedMenu<H>> {
+    /** Room between a status dot and its text. */
+    private static final int DOT_GAP = 3;
+
+    private final MenuDefinition<H> definition;
+    private final AccentTheme theme;
+    private final List<TankBox> tanks = new ArrayList<>();
+    private @Nullable AccentPanel panel;
+
+    public ToolkitScreen(DefinedMenu<H> menu, Inventory inventory, Component title) {
+        super(menu, inventory, title, menu.definition().plan().panelWidth(), menu.definition().plan().panelHeight());
+        this.definition = menu.definition();
+        this.theme = definition.theme();
+    }
+
+    /** Binds {@code definition}'s menu type to this screen; Lib's client entrypoint hands it every registration. */
+    @SuppressWarnings("unchecked") // a definition's registered type builds DefinedMenu<H> menus
+    public static void bind(MenuDefinition<?> definition) {
+        Supplier<MenuType<DefinedMenu<Object>>> type = () -> (MenuType<DefinedMenu<Object>>) definition.type().get();
+        Platform.get().menus().<DefinedMenu<Object>, ToolkitScreen<Object>>registerScreen(definition.modId(), type,
+                ToolkitScreen::new);
+    }
+
+    @Override
+    protected void init() {
+        super.init();
+        // Centred with the title tab kept on the screen.
+        topPos = Accent.top(height, imageHeight);
+        panel = AccentPanel.of(leftPos, topPos, imageWidth, imageHeight, title).theme(theme);
+        tanks.clear();
+        MenuValueView values = menu.values();
+        for (LayoutPlan.Box box : definition.plan().boxes()) {
+            int x = leftPos + box.x();
+            int y = topPos + box.y();
+            switch (box.node()) {
+                case Layout.Tank tank -> {
+                    ResourceKind<?> kind = values.kind(tank.value());
+                    AmountUnit emptyUnit = kind != null ? kind.unit() : AmountUnit.MILLIBUCKETS;
+                    AccentTank widget = addRenderableWidget(new AccentTank(x, y, box.width(), box.height(), theme,
+                            emptyUnit, () -> values.resource(tank.value()), () -> values.amount(tank.value()),
+                            () -> values.capacity(tank.value())));
+                    tanks.add(new TankBox(widget, menu.tankButton(tank.value())));
+                }
+                case Layout.Energy energy -> addRenderableWidget(new AccentEnergyBar(x, y, box.width(), box.height(),
+                        theme, () -> values.stored(energy.value()), () -> values.capacity(energy.value())));
+                case Layout.Progress progress -> addRenderableWidget(new AccentProgress(x, y, shape(progress.shape()),
+                        theme, () -> values.current(progress.value()), () -> values.total(progress.value())));
+                default -> {
+                }
+            }
+        }
+    }
+
+    private static AccentProgress.Shape shape(Layout.ProgressShape shape) {
+        return switch (shape) {
+            case ARROW -> AccentProgress.Shape.ARROW;
+            case FLAME -> AccentProgress.Shape.FLAME;
+        };
+    }
+
+    private static AccentStatus status(MenuStatus.Tone tone) {
+        return switch (tone) {
+            case OK -> AccentStatus.OK;
+            case WARN -> AccentStatus.WARN;
+            case ERROR -> AccentStatus.ERROR;
+            case OFF -> AccentStatus.OFF;
+        };
+    }
+
+    @Override
+    public void extractBackground(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float a) {
+        super.extractBackground(graphics, mouseX, mouseY, a);
+        AccentPanel shown = panel;
+        if (shown != null) {
+            shown.draw(graphics, font, mouseX, mouseY);
+        }
+        for (Slot slot : menu.slots) {
+            Accent.slot(graphics, leftPos + slot.x, topPos + slot.y);
+        }
+    }
+
+    /**
+     * Labels, values and status lines, relative to the panel; vanilla's title and inventory labels are not drawn.
+     */
+    @Override
+    protected void extractLabels(GuiGraphicsExtractor graphics, int mouseX, int mouseY) {
+        MenuValueView values = menu.values();
+        for (LayoutPlan.Box box : definition.plan().boxes()) {
+            switch (box.node()) {
+                case Layout.Label label ->
+                    boxText(graphics, Component.translatable(label.key()), box.x(), box, mouseX, mouseY);
+                case Layout.Value value -> boxText(graphics, valueText(values, value), box.x(), box, mouseX, mouseY);
+                case Layout.Status line -> {
+                    MenuStatus state = current(values, line.value());
+                    float scale = BoxText.factor(font.lineHeight, box.height(), TextScale.factor());
+                    int textHeight = (int) Math.ceil(font.lineHeight * scale) - 1;
+                    AccentStatus.dot(graphics, box.x(), AccentStatus.dotY(box.y() + BoxText.TOP, textHeight),
+                            status(state.tone()).colour());
+                    boxText(graphics, Component.translatable(state.translationKey()),
+                            box.x() + AccentStatus.SIZE + DOT_GAP, box, mouseX, mouseY);
+                }
+                default -> {
+                }
+            }
+        }
+    }
+
+    private static Component valueText(MenuValueView values, Layout.Value value) {
+        return Component.translatable(value.key(), values.get(value.value()));
+    }
+
+    /**
+     * Draws {@code text} from {@code x} to the right edge of {@code box}: cut with the whole text as a tooltip when too
+     * wide, and drawn smaller than the client's text size when that would be taller than the box.
+     */
+    private void boxText(GuiGraphicsExtractor graphics, Component text, int x, LayoutPlan.Box box, int mouseX,
+            int mouseY) {
+        int width = box.width() - (x - box.x());
+        int y = box.y() + BoxText.TOP;
+        float wanted = TextScale.factor();
+        float shrink = BoxText.factor(font.lineHeight, box.height(), wanted) / wanted;
+        if (shrink >= 1.0F) {
+            Accent.text(graphics, font, text, x, y, width, theme.text(), mouseX, mouseY);
+            return;
+        }
+        // Accent.text draws at the client's size inside this pose and maps the mouse through it for the tooltip.
+        graphics.pose().pushMatrix();
+        graphics.pose().translate(x, y);
+        graphics.pose().scale(shrink, shrink);
+        Accent.text(graphics, font, text, 0, 0, (int) Math.floor(width / shrink), theme.text(), mouseX, mouseY);
+        graphics.pose().popMatrix();
+    }
+
+    /** The title, then every label, value and status line in layout order, then the focused widget. */
+    @Override
+    protected void updateNarrationState(NarrationElementOutput output) {
+        MenuValueView values = menu.values();
+        List<Component> parts = new ArrayList<>();
+        parts.add(getNarrationMessage());
+        for (LayoutPlan.Box box : definition.plan().boxes()) {
+            switch (box.node()) {
+                case Layout.Label label -> parts.add(Component.translatable(label.key()));
+                case Layout.Value value -> parts.add(valueText(values, value));
+                case Layout.Status line ->
+                    parts.add(Component.translatable(current(values, line.value()).translationKey()));
+                default -> {
+                }
+            }
+        }
+        output.add(NarratedElementType.TITLE, CommonComponents.joinForNarration(parts.toArray(Component[]::new)));
+        updateNarratedWidget(output);
+    }
+
+    @SuppressWarnings({"unchecked", "rawtypes"}) // the definition refuses status lines over other enums
+    private static MenuStatus current(MenuValueView values, EnumValue<?> value) {
+        return (MenuStatus) values.get((EnumValue) value);
+    }
+
+    /** A click on a fluid tank moves fluid between the carried container and the tank, on the server. */
+    @Override
+    public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+        if (event.button() == 0 && minecraft != null && minecraft.gameMode != null) {
+            for (TankBox tank : tanks) {
+                if (tank.button() >= 0 && tank.widget().isMouseOver(event.x(), event.y())
+                        && !menu.getCarried().isEmpty()) {
+                    minecraft.gameMode.handleInventoryButtonClick(menu.containerId, tank.button());
+                    AbstractWidget.playButtonClickSound(minecraft.getSoundManager());
+                    return true;
+                }
+            }
+        }
+        return super.mouseClicked(event, doubleClick);
+    }
+
+    private record TankBox(AccentTank widget, int button) {
+    }
+}

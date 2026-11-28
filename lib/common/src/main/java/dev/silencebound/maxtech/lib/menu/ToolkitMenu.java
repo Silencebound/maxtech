@@ -23,6 +23,7 @@ import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.MenuType;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
+import org.jetbrains.annotations.VisibleForTesting;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 
@@ -48,6 +49,8 @@ import org.slf4j.Logger;
  */
 public abstract class ToolkitMenu<H> extends AbstractContainerMenu {
     private static final Logger LOGGER = LogUtils.getLogger();
+    /** See {@link #sendNewMenusValuesTo}; server thread only. */
+    private static @Nullable Consumer<MenuValuesPayload> newMenusSink;
 
     private final MenuValueTable<H> table;
     private final Player player;
@@ -72,7 +75,18 @@ public abstract class ToolkitMenu<H> extends AbstractContainerMenu {
         this.table = new MenuValueTable<>(values);
         this.player = player;
         this.host = host;
+        this.sink = newMenusSink;
         table.markAll();
+    }
+
+    /**
+     * Sends the values payloads of menus built from now on to {@code sink} (null: the player's connection again). For
+     * GameTests that open a menu through the api for a mock server player: vanilla broadcasts its values while opening
+     * it, before the test could set {@link #sendValuesTo}, and the mock connection refuses Lib's payloads.
+     */
+    @VisibleForTesting
+    public static void sendNewMenusValuesTo(@Nullable Consumer<MenuValuesPayload> sink) {
+        newMenusSink = sink;
     }
 
     /**
@@ -181,11 +195,13 @@ public abstract class ToolkitMenu<H> extends AbstractContainerMenu {
     }
 
     /** Sends values payloads to {@code sink} instead of the player's connection (GameTests: mock players have none). */
+    @VisibleForTesting
     public final void sendValuesTo(Consumer<MenuValuesPayload> sink) {
         this.sink = sink;
     }
 
     /** Counts ticks with {@code ticks} instead of the server's tick count (GameTests: a frozen level). */
+    @VisibleForTesting
     public final void countTicksWith(LongSupplier ticks) {
         this.ticks = ticks;
     }
