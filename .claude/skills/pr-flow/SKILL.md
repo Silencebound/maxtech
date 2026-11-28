@@ -66,6 +66,14 @@ After a wave of PRs has merged, or when builds feel slow in a long session, run 
 
 Read the failed step with `gh run view <run> --log-failed`. A "Gradle build daemon disappeared" or runner crash is infrastructure: `gh run rerun <run> --failed`. Anything else goes back to the author (three rounds, then stop and report, CLAUDE.md).
 
+**Flaky GameTests** (2026-11-28): `.github/flaky-tests.txt` lists tests that fail on hosted runners without a code
+cause (`<namespace:test> <#issue> <reason>`). `.github/scripts/gametests.sh` retries a failed GameTest step's tests one
+by one only when every failed test is listed and none failed a perf budget; a listed test failing twice, or any unlisted
+failure, fails as before. A pass on retry shows a "Flaky test retried" warning; the first run's error annotation stays.
+Add a test when it failed on a change that cannot have caused it, and open an issue for it first: the list is not a fix,
+and the entry leaves with the fix. `python3 .github/scripts/flaky-tests.py fetch [runs]` prints each listed test's
+flake rate over main's nightlies (kept 30 days) and PR runs (14 days).
+
 ## Stalled auto-merge, merging main, doc size (2026-10-01)
 
 - **Stalled auto-merge:** `pr.sh wait` and `pr.sh merge` now handle it. With auto-merge on, once CI is green they give GitHub 3 minutes (`AUTO_MERGE_GRACE`, counted from the last check's completion); if the PR is still open they print `auto-merge stalled ... merging it here` and run the normal merge path, stacked children included. Without auto-merge, `wait` returns on green and `merge` merges as before.
