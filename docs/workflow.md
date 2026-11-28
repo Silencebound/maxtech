@@ -49,6 +49,9 @@ same reviewer.
   since hosted runners vary too much to block on; locally it fails the test (owner 2026-11-25). Before merging a change
   to a hot path, or when CI warns, run the affected `perf_*` GameTests on a quiet machine (Mac or Windows PC).
 - CI failures: fix on the same branch, up to three rounds, then stop and report.
+- Known flaky GameTests are listed in `.github/flaky-tests.txt`, each with its issue. When every failed test of a
+  GameTest step is listed, CI runs each once more on its own; green passes with a "Flaky test retried" warning. The
+  outcomes are kept as artifacts; `python3 .github/scripts/flaky-tests.py fetch` prints flake rates (2026-11-28).
 
 ## Git
 

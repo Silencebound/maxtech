@@ -62,7 +62,10 @@ jobs:
 
       - name: Script tests
         # Seconds; the stacked-PR resolver (scripts/stack-resolve.sh) decides what a merge keeps, so its cases always run.
-        run: scripts/test/test-stack-resolve.sh
+        # The flaky-test retry decides whether a failed GameTest step fails.
+        run: |
+          scripts/test/test-stack-resolve.sh
+          .github/scripts/test/test-flaky-tests.sh
 
       - name: Docs did not balloon
         # A looped replace once grew a milestone doc from 168 to 41,694 lines. A pull_request checkout is the merge
@@ -96,17 +99,19 @@ jobs:
         if: steps.areas.outputs.docs_only != 'true'
         run: ./gradlew build --no-daemon
 
+      # gametests.sh tees the log to $RUNNER_TEMP/gametests.log and retries a failure once only when every failed test
+      # is on .github/flaky-tests.txt; anything else fails with Gradle's status.
       - name: GameTests (lib)
         if: env.PUSH != 'true' && steps.areas.outputs.lib == 'true'
-        run: ./gradlew :lib:neoforge:runGameTestServer --no-daemon 2>&1 | tee -a "$RUNNER_TEMP/gametests.log"
+        run: .github/scripts/gametests.sh lib
 
       - name: GameTests (storage)
         if: env.PUSH != 'true' && steps.areas.outputs.storage == 'true'
-        run: ./gradlew :storage:neoforge:runGameTestServer --no-daemon 2>&1 | tee -a "$RUNNER_TEMP/gametests.log"
+        run: .github/scripts/gametests.sh storage
 
       - name: GameTests (farms)
         if: env.PUSH != 'true' && steps.areas.outputs.farms == 'true'
-        run: ./gradlew :farms:neoforge:runGameTestServer --no-daemon 2>&1 | tee -a "$RUNNER_TEMP/gametests.log"
+        run: .github/scripts/gametests.sh farms
 
       # The network bridge against the real AE2 and Refined Storage (dev-only runtime deps from Maven Central and
       # Modrinth's maven, never in the jar or datagen): nightly, manual, and PRs that touch the bridge.
@@ -137,6 +142,18 @@ jobs:
           path: ${{ runner.temp }}/perf-results.json
           # The baseline has to outlive a few failed nightlies; a PR's results are only read by this run.
           retention-days: ${{ github.ref == 'refs/heads/main' && 30 || 3 }}
+
+      # The listed flaky tests' outcomes (pass, failed_then_passed, failed) for flaky-tests.py fetch. Main keeps them
+      # longer, like the perf baseline; PR runs a while for flake rates across PRs.
+      - name: Upload flaky test results
+        if: ${{ !cancelled() && env.PUSH != 'true' }}
+        continue-on-error: true
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ github.ref == 'refs/heads/main' && 'flaky-results-main' || 'flaky-results' }}
+          path: ${{ runner.temp }}/flaky-results.json
+          if-no-files-found: ignore
+          retention-days: ${{ github.ref == 'refs/heads/main' && 30 || 14 }}
 
       - name: Dedicated server starts (storage)
         if: (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && steps.areas.outputs.storage == 'true'
