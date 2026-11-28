@@ -58,6 +58,10 @@ jobs:
             exit 1
           fi
 
+      - name: Script tests
+        # Seconds; the stacked-PR resolver (scripts/stack-resolve.sh) decides what a merge keeps, so its cases always run.
+        run: scripts/test/test-stack-resolve.sh
+
       - name: Docs did not balloon
         # A looped replace once grew a milestone doc from 168 to 41,694 lines. A pull_request checkout is the merge
         # of the PR into its base, so its first parent is the base.

@@ -22,7 +22,7 @@
 # shellcheck disable=SC2086 # file lists are split on newlines on purpose (IFS below)
 stack_resolve() {
     local dir=$1 base_ref=$2 branch=$3 parent_head=$4 squash=$5 dry=${6:-0}
-    local files file others squash_full seen bad=""
+    local files file others squash_full seen bad="" beside="" deleted=""
     # One path per line; repository paths have no newlines.
     local IFS=$'\n'
     files=$(git -C "$dir" diff --name-only --diff-filter=U)
@@ -62,12 +62,12 @@ stack_resolve() {
     for file in $files; do
         others=$(git -C "$dir" rev-list --full-history "$base_ref" --not HEAD -- "$file" | grep -vx "$squash_full" || true)
         if [ -n "$others" ]; then
-            bad="$bad$file (also changed in $(printf '%s' "$others" | head -n 1 | cut -c1-7))"$'\n'
+            beside="$beside$file (also changed in $(printf '%s' "$others" | head -n 1 | cut -c1-7))"$'\n'
         fi
     done
-    if [ -n "$bad" ]; then
+    if [ -n "$beside" ]; then
         echo "stack-resolve: $base_ref changed these files after or beside the parent's squash; not resolving:"
-        printf '  %s\n' $bad
+        printf '  %s\n' $beside
         return 1
     fi
     if [ "$dry" = 1 ]; then
@@ -83,6 +83,7 @@ stack_resolve() {
             # Deleted on B's side: B's version is no file.
             git -C "$dir" rm -q --cached -- "$file" >/dev/null
             rm -f "$dir/$file"
+            deleted="$deleted$file"$'\n'
         fi
     done
     if [ -n "$(git -C "$dir" diff --name-only --diff-filter=U)" ]; then
@@ -98,6 +99,10 @@ stack_resolve() {
     git -C "$dir" commit -q --no-edit -m "Merge $base_ref into $branch" || return 1
     echo "stack-resolve: kept $branch's version of:"
     printf '  %s\n' $files
+    if [ -n "$deleted" ]; then
+        echo "stack-resolve: of these, $branch deletes (the file is removed):"
+        printf '  %s\n' $deleted
+    fi
 }
 
 if [ "${BASH_SOURCE[0]}" = "$0" ]; then
