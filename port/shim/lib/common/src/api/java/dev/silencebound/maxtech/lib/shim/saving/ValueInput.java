@@ -2,12 +2,32 @@ package dev.silencebound.maxtech.lib.shim.saving;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Stream;
 import net.minecraft.core.HolderLookup;
+import net.minecraft.nbt.CompoundTag;
+
+/**
+ * 26.1's {@code net.minecraft.world.level.storage.ValueInput} with NeoForge's {@code ValueInputExtension} folded in:
+ * a read-only view of saved data. Missing or mistyped keys read as empty or as the default.
+ */
 public interface ValueInput {
-    default java.util.Set<String> keySet() { throw new UnsupportedOperationException("port stub"); }
-    default void readChild(String key, ValueIOSerializable object) { throw new UnsupportedOperationException("port stub"); }
-    default ValueInput rawChildOrEmpty(String key) { throw new UnsupportedOperationException("port stub"); }
+    /** The top-level keys of this object. */
+    @SuppressWarnings("deprecation")
+    default Set<String> keySet() {
+        return read(MapCodec.assumeMapUnsafe(CompoundTag.CODEC)).orElseThrow().getAllKeys();
+    }
+
+    /** Reads {@code object} from the child at {@code key}, only if that child is present. */
+    default void readChild(String key, ValueIOSerializable object) {
+        child(key).ifPresent(object::deserialize);
+    }
+
+    /** Like {@link #childOrEmpty}, but an existing empty child still reads with codecs that accept an empty map. */
+    default ValueInput rawChildOrEmpty(String key) {
+        return childOrEmpty(key);
+    }
+
     <T> Optional<T> read(String name, Codec<T> codec);
     @Deprecated
     <T> Optional<T> read(MapCodec<T> codec);
