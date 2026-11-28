@@ -1,0 +1,21 @@
+{
+  "type": "maxtech_lib:test_process",
+  "mode": "a",
+  "inputs": [
+    {
+      "ingredient": "minecraft:clay_ball"
+    },
+    {
+      "ingredient": "minecraft:diamond",
+      "consumed": false
+    }
+  ],
+  "outputs": [
+    {
+      "item": {
+        "id": "minecraft:brick"
+      }
+    }
+  ],
+  "duration": 3
+}
