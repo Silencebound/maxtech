@@ -1,15 +1,16 @@
 <!DOCTYPE html>
 <!-- Licence: modified copy of GuideME's template (LGPLv3, https://github.com/AppliedEnergistics/GuideME).
-     GuideME 26.1.15-beta's layout.html (guideme/internal/web/default-assets/templates), with MaxTech Storage's title,
-     logo and favicon instead of the hard-coded AE2 ones. Used by :storage:neoforge:createGuideWebsite. -->
+     GuideME 26.1.15-beta's layout.html (guideme/internal/web/default-assets/templates), with the MaxTech mod's title,
+     logo and favicon instead of the hard-coded AE2 ones. Used by each mod's createGuideWebsite (maxtech.neoforge), which
+     fills in the mod's name and id. -->
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <!-- GuideME's plain-text title placeholder names AE2's guide and the page title placeholder is HTML, so the
          script at the end sets the tab title from the page heading. -->
-    <title>MaxTech Storage guide</title>
-    <link rel="icon" type="image/png" href="{{RELATIVE_PATH_TO_ROOT}}assets/maxtech_storage_logo.png">
+    <title>@MOD_NAME@ guide</title>
+    <link rel="icon" type="image/png" href="{{RELATIVE_PATH_TO_ROOT}}assets/@MOD_ID@_logo.png">
     <link rel="stylesheet" href="{{RELATIVE_PATH_TO_ROOT}}assets/bundle-IRSJDK6M.css">
 </head>
 <body>
@@ -17,8 +18,8 @@
 <main>
 <div class="topLogoBar">
     <a href="{{RELATIVE_PATH_TO_ROOT}}index.html" class="logo">
-        <img src="{{RELATIVE_PATH_TO_ROOT}}assets/maxtech_storage_logo.png" alt="" />
-        MaxTech Storage
+        <img src="{{RELATIVE_PATH_TO_ROOT}}assets/@MOD_ID@_logo.png" alt="" />
+        @MOD_NAME@
     </a>
     <!-- burger menu used on mobile devices when the actual navigation bar is hidden -->
     <a

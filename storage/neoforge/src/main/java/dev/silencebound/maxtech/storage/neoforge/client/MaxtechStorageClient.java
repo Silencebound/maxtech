@@ -1,5 +1,6 @@
 package dev.silencebound.maxtech.storage.neoforge.client;
 
+import dev.silencebound.maxtech.lib.neoforge.api.guide.Guides;
 import dev.silencebound.maxtech.storage.crafting.overview.client.CrafterManagerScreen;
 import dev.silencebound.maxtech.storage.crafting.stock.client.StockKeeperScreen;
 import dev.silencebound.maxtech.storage.crafting.stock.client.StockTab;
@@ -17,7 +18,6 @@ import dev.silencebound.maxtech.lib.neoforge.client.ConfigScreens;
 import dev.silencebound.maxtech.lib.platform.Platform;
 import java.util.List;
 import dev.silencebound.maxtech.storage.condition.client.ConditionScreen;
-import dev.silencebound.maxtech.storage.neoforge.guide.StorageGuide;
 import dev.silencebound.maxtech.storage.logic.controller.client.LogicControllerScreen;
 import dev.silencebound.maxtech.storage.sensor.SensorContent;
 import dev.silencebound.maxtech.storage.sensor.client.SensorScreen;
@@ -74,8 +74,8 @@ public final class MaxtechStorageClient {
         Platform.get().menus().registerScreen(MaxtechStorage.MOD_ID, ModMenus.TERMINAL, TerminalScreen::new);
         Platform.get().menus().registerScreen(MaxtechStorage.MOD_ID, CraftingTerminalContent.MENU, TerminalScreen::new);
         CraftingScreens.init();
-        // Storage's GuideME guide; GuideME loads its pages on the first resource reload.
-        StorageGuide.declare();
+        // Storage's guide (maxtech_storage:guide), drawn by Lib's GuideME; its pages load on the first resource reload.
+        Guides.register(MaxtechStorage.MOD_ID);
         StockTab.init();
         NetworkLogScreen.registerTab();
         RecordsScreen.registerTab();

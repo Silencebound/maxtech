@@ -52,7 +52,7 @@ jar, datagen or CI:
 - **Networks:** cables are Lib conduits (one `ConduitType` per block, no BER, never tick). Graphs are topology only and
   rebuilt lazily; respect `networks.unloadedChunkMode` and anchors.
 - **Optional mods:** compat code only under `compat.<modid>`, loaded behind `ModList.isLoaded`; Storage must run with
-  Lib alone (GuideME is bundled inside the Storage jar, not an optional mod).
+  Lib alone (GuideME is bundled inside the Lib jar, not an optional mod).
 - **Data and config:** use datagen for JSON; all player-facing text via lang keys; recipe inputs use `c:` tags; balance
   numbers come from config with defaults in both preset JSONs (`<mod>/common/src/main/resources/<modid>/presets/`).
   Blocks drop with their contents and settings.

@@ -1,9 +1,8 @@
-package dev.silencebound.maxtech.storage.neoforge.guide;
+package dev.silencebound.maxtech.lib.neoforge.guide;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import dev.silencebound.maxtech.storage.guide.GuideConfigText;
 import guideme.siteexport.ExportPostProcessor;
 import java.util.Map;
 import java.util.Optional;
@@ -13,17 +12,17 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Makes Storage's own tags readable on the guide website. GuideME's website generator (26.1.15-beta) draws only its
+ * Makes MaxTech's own tags readable on a guide's website. GuideME's website generator (26.1.15-beta) draws only its
  * built-in tags and has no hook for others, so this rewrites the exported page trees before the export is written:
  * {@code <Config key unit />} becomes the config's <b>default</b> value with its unit in bold (the website belongs to
- * no server), and {@code <KeyBind id />} becomes the key's default binding. A bare attribute such as
- * {@code <GameScene interactive>} gets the value {@code "true"}: GuideME exports it without one, and its website
- * generator then fails to read the export; scene annotations are dropped ({@link #DROPPED}). Runs once in the export
- * client; the generator never sees Storage's tags.
+ * no server; a key without a namespace names a value of the guide's mod), and {@code <KeyBind id />} becomes the key's
+ * default binding. A bare attribute such as {@code <GameScene interactive>} gets the value {@code "true"}: GuideME
+ * exports it without one, and its website generator then fails to read the export; scene annotations are dropped
+ * ({@link #DROPPED}). Runs once in the export client; the generator never sees MaxTech's tags.
  */
 public final class GuideWebExport implements ExportPostProcessor {
     /** The tags this rewrites; every other tag on a page must be one GuideME's website draws. */
-    public static final Set<String> TAGS = Set.of(StorageConfigTagCompiler.TAG_NAME, "KeyBind");
+    public static final Set<String> TAGS = Set.of(ConfigTagCompiler.TAG_NAME, "KeyBind");
     /**
      * Scene annotations, left out of the website: GuideME 26.1.15-beta's published jar has their attribute records
      * without constructors, so the generator fails on any page that has one. The scene itself stays.
@@ -34,13 +33,17 @@ public final class GuideWebExport implements ExportPostProcessor {
     private static final String FLOW_ELEMENT = "mdxJsxFlowElement";
     private static final String ATTRIBUTE = "mdxJsxAttribute";
 
+    private final String namespace;
     private final Function<String, Optional<String>> keyNames;
 
     /**
+     * @param namespace
+     *            the guide's namespace, where a {@code <Config>} key without one is looked up
      * @param keyNames
      *            a key mapping's id to the name of its default key, empty for an unknown id
      */
-    public GuideWebExport(Function<String, Optional<String>> keyNames) {
+    public GuideWebExport(String namespace, Function<String, Optional<String>> keyNames) {
+        this.namespace = namespace;
         this.keyNames = keyNames;
     }
 
@@ -80,7 +83,7 @@ public final class GuideWebExport implements ExportPostProcessor {
         }
     }
 
-    /** The node that replaces a Storage tag; empty for anything else, or a tag whose value is unknown. */
+    /** The node that replaces a MaxTech tag; empty for anything else, or a tag whose value is unknown. */
     private Optional<JsonObject> replacement(JsonObject node) {
         String type = string(node, "type");
         if (!type.equals(TEXT_ELEMENT) && !type.equals(FLOW_ELEMENT)) {
@@ -88,7 +91,7 @@ public final class GuideWebExport implements ExportPostProcessor {
         }
         String name = string(node, "name");
         Optional<String> text = switch (name) {
-            case StorageConfigTagCompiler.TAG_NAME -> configText(attribute(node, "key"), attribute(node, "unit"));
+            case ConfigTagCompiler.TAG_NAME -> configText(attribute(node, "key"), namespace, attribute(node, "unit"));
             case "KeyBind" -> keyNames.apply(attribute(node, "id"));
             default -> Optional.empty();
         };
@@ -102,9 +105,12 @@ public final class GuideWebExport implements ExportPostProcessor {
         return Optional.of(type.equals(FLOW_ELEMENT) ? element("paragraph", strong) : strong);
     }
 
-    /** The default of a Storage server config value as the page shows it; empty for an unknown key. */
-    public static Optional<String> configText(String key, String unit) {
-        return GuideConfigText.path(key).flatMap(GuideConfigText::value)
+    /**
+     * The default of a config value as the page shows it; empty for an unknown key. A key without a namespace is looked
+     * up in {@code namespace}.
+     */
+    public static Optional<String> configText(String key, String namespace, String unit) {
+        return GuideConfigText.value(key, namespace)
                 .map(value -> GuideConfigText.text(value.defaultValue(), unit).getString());
     }
 
