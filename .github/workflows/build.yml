@@ -33,7 +33,8 @@ jobs:
       perf: ${{ steps.perf.outputs.found }}
     env:
       # What runs when (see .claude/skills/pr-flow/SKILL.md):
-      # - docs-only PR or push: conflict markers (and the doc size guard on PRs) only;
+      # - docs-only PR or push: conflict markers (and the doc size guard on PRs) only; a diff that touches port/** besides
+      #   docs counts as docs-only and also runs port/convert.py --check (when the file exists);
       # - other PR: build always; GameTests and datagen for the flagged mods (a lib change flags storage and farms too,
       #   except a client-only lib change: build and Lib datagen, no GameTests; see changed-areas.sh);
       # - push to main: conflict markers and build (the build is skipped for docs-only commits);
@@ -66,6 +67,7 @@ jobs:
         run: |
           scripts/test/test-stack-resolve.sh
           .github/scripts/test/test-flaky-tests.sh
+          .github/scripts/test/test-changed-areas.sh
 
       - name: Docs did not balloon
         # A looped replace once grew a milestone doc from 168 to 41,694 lines. A pull_request checkout is the merge
@@ -81,6 +83,12 @@ jobs:
           done
           echo "::error::no working python found"
           exit 1
+
+      - name: Port check
+        # port/** is the 1.21.1 backport tree: no mod build or GameTest reads it. Skipped until the converter exists.
+        if: steps.areas.outputs.port == 'true'
+        run: |
+          if [ -f port/convert.py ]; then python3 -I port/convert.py --check; fi
 
       - name: Set up JDK 25
         if: steps.areas.outputs.docs_only != 'true'
