@@ -10,7 +10,9 @@ import dev.silencebound.maxtech.lib.api.recipe.ItemOutput;
 import dev.silencebound.maxtech.lib.api.recipe.KindInput;
 import dev.silencebound.maxtech.lib.api.recipe.KindOutput;
 import dev.silencebound.maxtech.lib.api.recipe.MachineRecipe;
+import dev.silencebound.maxtech.lib.api.recipe.MachineRecipeBuilder;
 import dev.silencebound.maxtech.lib.api.recipe.MachineRecipeInput;
+import dev.silencebound.maxtech.lib.api.recipe.MachineRecipeLookup;
 import dev.silencebound.maxtech.lib.api.recipe.MachineRecipePlan;
 import dev.silencebound.maxtech.lib.api.recipe.MachineRecipeShape;
 import dev.silencebound.maxtech.lib.api.recipe.MachineRecipeType;
@@ -22,15 +24,24 @@ import dev.silencebound.maxtech.lib.platform.Platform;
 import dev.silencebound.maxtech.lib.platform.RegistryHelper;
 import io.netty.buffer.Unpooled;
 import io.netty.handler.codec.DecoderException;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.Reader;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Consumer;
+import net.minecraft.advancements.Advancement;
+import net.minecraft.advancements.AdvancementHolder;
 import net.minecraft.core.Holder;
 import net.minecraft.core.HolderGetter;
 import net.minecraft.core.component.DataComponentPatch;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.Registries;
+import net.minecraft.data.recipes.RecipeOutput;
 import net.minecraft.gametest.framework.FunctionGameTestInstance;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.gametest.framework.TestData;
@@ -48,12 +59,15 @@ import net.minecraft.world.item.Items;
 import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.item.crafting.Recipe;
 import net.minecraft.world.item.crafting.RecipeHolder;
+import net.minecraft.world.item.crafting.RecipeManager;
 import net.minecraft.world.level.material.Fluids;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.common.Tags;
+import net.neoforged.neoforge.common.conditions.ICondition;
 import net.neoforged.neoforge.common.crafting.DataComponentIngredient;
 import net.neoforged.neoforge.event.RegisterGameTestsEvent;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Lib's machine recipes with registries, which the JUnit tests of {@code lib.api.recipe} cannot build: codecs, shape
@@ -65,10 +79,13 @@ public final class MachineRecipeGameTests {
     /** Two input slots, one catalyst, two outputs, two input tanks and one output tank, modes fine and coarse. */
     static final MachineRecipeType TEST_MACHINE = MachineRecipeType.define(MaxtechLib.MOD_ID, "test_machine",
             MachineRecipeShape.items(2, 2).withCatalysts(1).withTanks(2, 1).withModes("fine", "coarse"));
+    /** The demo recipe in {@code src/gametest/resources}, which {@link #demo} must equal. */
+    private static final Identifier DEMO = MaxtechLib.id("test_machine/demo");
 
     private static final String ROUND_TRIP = "machine_recipes_round_trip";
     private static final String REFUSED = "machine_recipes_refused";
     private static final String MATCHING = "machine_recipes_matching";
+    private static final String DEMO_LOADS = "machine_recipes_demo_loads";
     private static final String TANK_ONLY = "machine_recipes_tank_only";
     /** A recipe in {@code src/gametest/resources} that takes only water and makes only lava. */
     static final Identifier TANK_ONLY_RECIPE = MaxtechLib.id("test_machine/tank_only");
@@ -79,6 +96,7 @@ public final class MachineRecipeGameTests {
         FUNCTIONS.register(ROUND_TRIP, () -> MachineRecipeGameTests::roundTrip);
         FUNCTIONS.register(REFUSED, () -> MachineRecipeGameTests::refused);
         FUNCTIONS.register(MATCHING, () -> MachineRecipeGameTests::matching);
+        FUNCTIONS.register(DEMO_LOADS, () -> MachineRecipeGameTests::demoLoads);
         FUNCTIONS.register(TANK_ONLY, () -> MachineRecipeGameTests::tankOnly);
     }
 
@@ -88,7 +106,7 @@ public final class MachineRecipeGameTests {
     @SubscribeEvent
     static void register(RegisterGameTestsEvent event) {
         Holder<TestEnvironmentDefinition<?>> environment = event.registerEnvironment(MaxtechLib.id("machine_recipes"));
-        for (String name : List.of(ROUND_TRIP, REFUSED, MATCHING, TANK_ONLY)) {
+        for (String name : List.of(ROUND_TRIP, REFUSED, MATCHING, TANK_ONLY, DEMO_LOADS)) {
             Identifier id = MaxtechLib.id(name);
             event.registerTest(id, new FunctionGameTestInstance(ResourceKey.create(Registries.TEST_FUNCTION, id),
                     new TestData<>(environment, LibGameTests.EMPTY_STRUCTURE, 20, 0, true)));
@@ -103,7 +121,7 @@ public final class MachineRecipeGameTests {
 
     /**
      * Two iron ingots and a diamond catalyst, 1000 mB of any water and 100 mB of holy water, in fine mode, make a gold
-     * ingot (half the time) and 250 mB of lava.
+     * ingot (half the time) and 250 mB of lava. The demo recipe file holds the same.
      */
     private static MachineRecipe demo(HolderGetter<Item> items) {
         return new MachineRecipe(TEST_MACHINE, Optional.of("fine"),
@@ -324,6 +342,104 @@ public final class MachineRecipeGameTests {
         input.tanks[1] = Optional.of(holyWater());
         input.amounts[1] = 100;
         return input;
+    }
+
+    /**
+     * The demo recipe file loads as what the builder makes, and the lookup finds it, remembers it and drops it when the
+     * inputs no longer match.
+     */
+    private static void demoLoads(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        Optional<RecipeHolder<?>> holder = level.recipeAccess().byKey(ResourceKey.create(Registries.RECIPE, DEMO));
+        helper.assertTrue(holder.isPresent(), "demo recipe loaded");
+        JsonElement file = readDemo(helper);
+        helper.assertValueEqual(encode(level, holder.get().value()), file, "loaded as the file says");
+        List<Recipe<?>> written = new ArrayList<>();
+        MachineRecipeBuilder.of(TEST_MACHINE, level.registryAccess().lookupOrThrow(Registries.ITEM)).mode("fine")
+                .input(Tags.Items.INGOTS_IRON, 2).catalyst(Tags.Items.GEMS_DIAMOND).tankInput(Tags.Fluids.WATER, 1000)
+                .tankInput(KindInput.of(holyWater(), 100)).output(Items.GOLD_INGOT, 1, 5000)
+                .tankOutput(Fluids.LAVA, 250).energyPerTick(20).duration(100).save(new Capture(written), DEMO);
+        helper.assertValueEqual(written.size(), 1, "builder saved one recipe");
+        helper.assertValueEqual(encode(level, written.getFirst()), file, "datagen output matches the file");
+
+        MachineRecipeLookup lookup = new MachineRecipeLookup(TEST_MACHINE);
+        TestInput input = full(new KindKey<>(ResourceKinds.FLUID, FluidKey.of(Fluids.WATER)));
+        Optional<RecipeHolder<MachineRecipe>> found = lookup.find(level, input);
+        helper.assertTrue(found.isPresent() && found.get().id().identifier().equals(DEMO), "found the demo");
+        helper.assertTrue(same(lookup.find(level, input), found), "remembered recipe returns the same Optional");
+        input.amounts[0] = 10;
+        helper.assertTrue(lookup.find(level, input).isEmpty(), "nothing matches 10 mB of water");
+        helper.assertTrue(same(lookup.last(), found), "last recipe kept after a miss");
+        lookup.clear();
+        helper.assertTrue(lookup.last().isEmpty(), "cleared");
+
+        // A reload is a new recipe manager: the remembered recipe is dropped, not checked again.
+        input.amounts[0] = 1000;
+        Optional<RecipeHolder<MachineRecipe>> again = lookup.find(level, input);
+        helper.assertTrue(again.isPresent(), "found again");
+        Optional<RecipeHolder<MachineRecipe>> reloaded = lookup.find(new RecipeManager(level.registryAccess()), level,
+                input);
+        helper.assertTrue(reloaded.isEmpty(), "an empty reload has no demo: " + reloaded);
+        helper.assertTrue(lookup.last().isEmpty(), "reload dropped the remembered recipe");
+        Optional<RecipeHolder<MachineRecipe>> back = lookup.find(level, input);
+        helper.assertTrue(back.isPresent() && !same(back, again), "the real manager is asked again");
+
+        // A tank-only recipe is found with every item slot empty.
+        Optional<RecipeHolder<MachineRecipe>> tanks = lookup.find(level, tankOnlyInput());
+        helper.assertTrue(tanks.isPresent() && tanks.get().id().identifier().equals(TANK_ONLY_RECIPE),
+                "tank-only recipe found by the lookup: " + tanks);
+
+        // Datagen refuses a recipe without a duration rather than writing a default.
+        MachineRecipeBuilder noDuration = MachineRecipeBuilder
+                .of(TEST_MACHINE, level.registryAccess().lookupOrThrow(Registries.ITEM)).mode("fine")
+                .input(Items.STONE, 1).output(Items.DIRT, 1);
+        boolean refused = false;
+        try {
+            noDuration.build();
+        } catch (IllegalStateException expected) {
+            refused = true;
+        }
+        helper.assertTrue(refused, "a recipe without a duration is refused");
+        helper.assertValueEqual(noDuration.duration(5).build().duration(), 5, "with a duration it builds");
+        helper.succeed();
+    }
+
+    /** Whether both are one instance: the lookup hands out its remembered Optional, not a new one. */
+    @SuppressWarnings("ReferenceEquality") // identity is what is tested
+    private static boolean same(Object first, Object second) {
+        return first == second;
+    }
+
+    private static JsonElement readDemo(GameTestHelper helper) {
+        String path = "/data/maxtech_lib/recipe/test_machine/demo.json";
+        try (InputStream stream = MachineRecipeGameTests.class.getResourceAsStream(path)) {
+            if (stream == null) {
+                throw helper.assertionException("No " + path + " on the GameTest classpath");
+            }
+            try (Reader reader = new InputStreamReader(stream, StandardCharsets.UTF_8)) {
+                return JsonParser.parseReader(reader);
+            }
+        } catch (IOException e) {
+            throw helper.assertionException("Cannot read " + path + ": " + e);
+        }
+    }
+
+    /** A datagen output that keeps the recipes it gets. */
+    private record Capture(List<Recipe<?>> recipes) implements RecipeOutput {
+        @Override
+        public void accept(ResourceKey<Recipe<?>> key, Recipe<?> recipe, @Nullable AdvancementHolder advancement,
+                ICondition... conditions) {
+            recipes.add(recipe);
+        }
+
+        @Override
+        public Advancement.Builder advancement() {
+            return Advancement.Builder.recipeAdvancement();
+        }
+
+        @Override
+        public void includeRootAdvancement() {
+        }
     }
 
     /** Two input slots, one catalyst slot and two input tanks, set directly by the tests. */
