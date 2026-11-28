@@ -1,6 +1,7 @@
 package dev.silencebound.maxtech.lib.api.conduit;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -33,7 +34,7 @@ class ConduitLookTest {
         JsonObject wire = ConduitLook.CODEC.codec().encodeStart(JsonOps.INSTANCE, ConduitLook.wire()).getOrThrow()
                 .getAsJsonObject();
         assertEquals("solid", wire.get("look").getAsString());
-        assertTrue(!wire.has("colour"), "the type's colour is left out");
+        assertFalse(wire.has("colour"), "the type's colour is left out");
         JsonObject cable = ConduitLook.CODEC.codec().encodeStart(JsonOps.INSTANCE, ConduitLook
                 .solid(Identifier.fromNamespaceAndPath("test", "end"), null, 0x353529, ConduitLook.TYPE_COLOUR))
                 .getOrThrow().getAsJsonObject();
@@ -108,7 +109,7 @@ class ConduitLookTest {
     @Test
     void shellFrameBarsAreOptional() {
         Identifier glass = Identifier.fromNamespaceAndPath("farms", "block/lab_tube_glass");
-        assertTrue(!ConduitLook.shell(glass).frameBars(), "off by default");
+        assertFalse(ConduitLook.shell(glass).frameBars(), "off by default");
         assertEquals(JsonParser.parseString("""
                 {"look": "shell", "shell": "farms:block/lab_tube_glass"}
                 """), ConduitLook.CODEC.codec().encodeStart(JsonOps.INSTANCE, ConduitLook.shell(glass)).getOrThrow());

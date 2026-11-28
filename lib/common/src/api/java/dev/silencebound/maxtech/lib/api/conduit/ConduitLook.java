@@ -122,7 +122,8 @@ public sealed interface ConduitLook {
      * of its core, each arm one on its four long edges, and the bars run to the block face, where the next tube's go
      * on. Nothing is left out, so the bars on the far side, seen through the glass, read as the back of the frame. An
      * open end's edges are bars too (no rim), a rim band becomes a collar one bar deep, and the contents sit
-     * {@code inset} px inside the inset glass.
+     * {@code inset} px inside the inset glass. Label marks sit on the inset glass between the bars, mode glyphs past
+     * the collar.
      * <p>
      * The block state fields are {@code shell}, then {@code border_colour}, {@code border}, {@code rim}, {@code inset},
      * {@code lane_width} and {@code frame_bars}, each left out at its default; later fields will be optional too, so
