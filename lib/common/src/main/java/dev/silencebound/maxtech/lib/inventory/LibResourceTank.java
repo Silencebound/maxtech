@@ -6,6 +6,7 @@ import com.mojang.serialization.Dynamic;
 import dev.silencebound.maxtech.lib.api.inventory.ResourceTank;
 import dev.silencebound.maxtech.lib.api.resource.ResourceKind;
 import java.util.Optional;
+import java.util.function.Function;
 import java.util.function.Predicate;
 import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.level.storage.ValueOutput;
@@ -31,12 +32,27 @@ public class LibResourceTank<K> implements ResourceTank<K> {
 
     private final ResourceKind<K> kind;
     private final TankJournal<K> journal;
+    private final JournalTank<K> machine;
+    private @Nullable Object machineView;
     private @Nullable Dynamic<?> unloaded;
     private long unloadedAmount;
 
     LibResourceTank(ResourceKind<K> kind, long capacity, Predicate<? super K> filter, Runnable onChange) {
         this.kind = kind;
         this.journal = new TankJournal<>(capacity, filter, onChange);
+        this.machine = new JournalTank<>(journal);
+    }
+
+    /**
+     * The machine's transactional view of this tank, wrapped once by {@code create} (Lib's NeoForge side, for
+     * {@code Handlers#machineTank}) so it is the same instance every time. Server thread only.
+     */
+    @SuppressWarnings("unchecked")
+    public final <T> T machineView(Function<? super JournalTank<K>, T> create) {
+        if (machineView == null) {
+            machineView = create.apply(machine);
+        }
+        return (T) machineView;
     }
 
     @Override
