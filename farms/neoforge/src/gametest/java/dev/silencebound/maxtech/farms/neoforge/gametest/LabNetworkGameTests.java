@@ -2,6 +2,7 @@ package dev.silencebound.maxtech.farms.neoforge.gametest;
 
 import dev.silencebound.maxtech.farms.MaxtechFarms;
 import dev.silencebound.maxtech.farms.config.FarmsServerConfig;
+import dev.silencebound.maxtech.farms.hub.HubStorage;
 import dev.silencebound.maxtech.farms.hub.LabHubBlockEntity;
 import dev.silencebound.maxtech.farms.hub.LabHubBlockEntity.LabLink;
 import dev.silencebound.maxtech.farms.lab.FluidPortBlockEntity;
@@ -30,6 +31,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
@@ -175,12 +177,12 @@ public final class LabNetworkGameTests {
                     try (Transaction transaction = Transaction.openRoot()) {
                         helper.assertValueEqual(input.insert(water, 3000, transaction), 3000, "pushed in");
                     }
-                    helper.assertValueEqual(hub.storage().tank().getAmountAsLong(0), 0L, "aborted push");
+                    helper.assertValueEqual(hub.storage().tank().amount(), 0L, "aborted push");
                     try (Transaction transaction = Transaction.openRoot()) {
                         input.insert(water, 3000, transaction);
                         transaction.commit();
                     }
-                    helper.assertValueEqual(hub.storage().tank().getAmountAsLong(0), 3000L, "committed push");
+                    helper.assertValueEqual(hub.storage().tank().amount(), 3000L, "committed push");
                     try (Transaction transaction = Transaction.openRoot()) {
                         helper.assertValueEqual(input.extract(water, 1000, transaction), 0, "the port never gives");
                         helper.assertValueEqual(input.insert(water, capacity, transaction), capacity - 3000,
@@ -209,7 +211,7 @@ public final class LabNetworkGameTests {
         LabHubBlockEntity hub = hub(helper, HUB);
         FluidResource water = FluidResource.of(Fluids.WATER);
         try (Transaction transaction = Transaction.openRoot()) {
-            hub.storage().tank().insert(water, FarmsServerConfig.hubTankCapacity(), transaction);
+            hub.storage().fluidHandler().insert(water, FarmsServerConfig.hubTankCapacity(), transaction);
             transaction.commit();
         }
         tubes(helper, 2, 2);
@@ -224,29 +226,25 @@ public final class LabNetworkGameTests {
         });
     }
 
-    /** Output a specimen hands the lab lands in the hub's buffer on commit; a lab without a hub takes none. */
+    /** Output a specimen hands the lab lands in the hub's buffer; a simulation moves nothing; no hub takes none. */
     private static void outputReachesHub(GameTestHelper helper) {
         LabHubBlockEntity hub = hub(helper, HUB);
         tubes(helper, 2, 2);
         tubes(helper, 5, 5);
-        ItemResource wheat = ItemResource.of(Items.WHEAT);
+        ItemStack wheat = new ItemStack(Items.WHEAT, 5);
         helper.startSequence().thenWaitUntil(
                 () -> helper.assertTrue(lab(helper, new BlockPos(2, 1, 1)).hub().isPresent(), "the lab has its hub"))
                 .thenExecute(() -> {
                     LabNetwork lab = lab(helper, new BlockPos(2, 1, 1));
-                    try (Transaction transaction = Transaction.openRoot()) {
-                        helper.assertValueEqual(lab.insertOutput(wheat, 5, transaction), 5, "output in");
-                    }
-                    helper.assertValueEqual(hub.storage().output().getAmountAsLong(0), 0L, "aborted output");
-                    try (Transaction transaction = Transaction.openRoot()) {
-                        lab.insertOutput(wheat, 5, transaction);
-                        transaction.commit();
-                    }
-                    helper.assertValueEqual(hub.storage().output().getAmountAsLong(0), 5L, "committed output");
-                    try (Transaction transaction = Transaction.openRoot()) {
-                        helper.assertValueEqual(lab(helper, new BlockPos(5, 1, 1)).insertOutput(wheat, 5, transaction),
-                                0, "a lab without a hub");
-                    }
+                    helper.assertValueEqual(lab.insertOutput(wheat, true), 5, "output fits");
+                    helper.assertTrue(hub.storage().slots().stack(HubStorage.OUTPUT_FIRST).isEmpty(),
+                            "simulated output");
+                    helper.assertValueEqual(lab.insertOutput(wheat, false), 5, "output in");
+                    helper.assertValueEqual(hub.storage().slots().stack(HubStorage.OUTPUT_FIRST).getCount(), 5,
+                            "output in the buffer");
+                    helper.assertValueEqual(wheat.getCount(), 5, "the stack handed in is unchanged");
+                    helper.assertValueEqual(lab(helper, new BlockPos(5, 1, 1)).insertOutput(wheat, false), 0,
+                            "a lab without a hub");
                 }).thenSucceed();
     }
 
@@ -379,7 +377,7 @@ public final class LabNetworkGameTests {
                 }).thenExecute(() -> {
                     helper.assertValueEqual(push(helper, farPos, water, 1000), 0, "taken by the far port");
                     helper.assertValueEqual(push(helper, nearPos, water, 1000), 1000, "taken by the near port");
-                    helper.assertValueEqual(hub.storage().tank().getAmountAsLong(0), 1000L, "in the tank");
+                    helper.assertValueEqual(hub.storage().tank().amount(), 1000L, "in the tank");
                 }).thenSucceed();
     }
 
@@ -399,7 +397,7 @@ public final class LabNetworkGameTests {
                     helper.assertTrue(hub.energy().network().isEmpty(), "the hub's MU left the lab");
                 }).thenExecute(() -> {
                     helper.assertValueEqual(push(helper, portPos, water, 1000), 0, "taken by the port");
-                    helper.assertValueEqual(hub.storage().tank().getAmountAsLong(0), 0L, "in the tank");
+                    helper.assertValueEqual(hub.storage().tank().amount(), 0L, "in the tank");
                 }).thenSucceed();
     }
 
@@ -432,7 +430,7 @@ public final class LabNetworkGameTests {
                     helper.assertTrue(hub.energy().network().orElse(null) == lab.energy(), "the store moved over");
                 }).thenExecute(() -> {
                     helper.assertValueEqual(push(helper, eastPort, water, 1000), 1000, "taken by the east port");
-                    helper.assertValueEqual(hub.storage().tank().getAmountAsLong(0), 2000L, "in the tank");
+                    helper.assertValueEqual(hub.storage().tank().amount(), 2000L, "in the tank");
                 }).thenSucceed();
     }
 

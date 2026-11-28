@@ -17,8 +17,9 @@ Api changes are marked **Api**.
 - Lab hub (`maxtech_farms:lab_hub`): a nutrient tank (`hub.tankCapacity`, 16 buckets), 27 output slots other mods
   empty, an MU store (`hub.energyCapacity`) charged by FE at Lib's rate and by a fuel slot that burns any furnace fuel
   at its burn time (`hub.fuelMuPerTick`), and a sampler charging slot (`hub.samplerChargeMuPerTick`; use a sampler on
-  the hub to put it in, sneak-use with an empty hand to take it out); no screen yet. It drops with everything it
-  holds, with any tool and in explosions.
+  the hub to put it in, sneak-use with an empty hand to take it out); no screen yet. A burnt fuel's remainder (the
+  empty bucket of lava) goes into the output slots. It drops with everything it holds, with any tool and in
+  explosions. Its tank and slots are Lib's inventories.
 - Lab tube (`maxtech_farms:lab_tube`): a Lib conduit (dyes and facades work) that joins one lab hub, its fluid
   ports and later the specimen blocks into a lab network carrying nutrient, MU and output. A lab takes one hub: a
   hub placed on tubes that already have a running hub stays idle and says so (it still burns fuel into its own store).
