@@ -10,6 +10,7 @@ import dev.silencebound.maxtech.lib.api.transfer.PortSettings;
 import dev.silencebound.maxtech.lib.api.transfer.PortStatus;
 import dev.silencebound.maxtech.lib.api.transfer.TransferPort;
 import dev.silencebound.maxtech.lib.config.ServerConfig;
+import it.unimi.dsi.fastutil.HashCommon;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import java.util.List;
 import java.util.Optional;
@@ -25,21 +26,19 @@ import org.jspecify.annotations.Nullable;
 /**
  * Lib's {@link TransferPort}: one {@link ScheduledTask}, in Lib's transfer group of the level ({@link PortRegistry}) or
  * the owner's group, runs one operation per kind and then sleeps until an event (a buffer, neighbour, capability or
- * settings change, a neighbouring port's settings change, or {@link #start}). An event less than
- * {@code transfer.minIntervalTicks} after the last operation, whatever it did, runs the port only once that interval is
- * over, so events every tick cannot run a blocked port every tick. When a partner refused or held nothing it backs off
- * ({@code IDLE}, capped by {@code scheduler.maxBackoffTicks}), since a vertical or modded neighbour may change without
- * telling it; with nothing to do it waits for an event. Events during its own operation come from its own moves and are
- * ignored. While started it is in {@link PortRegistry}. Like Storage's device scheduler, the port runs whatever the
- * ticking status of its own chunk, a border chunk included; it only moves through faces whose neighbour is at full
- * status. Server thread only.
+ * settings change, a neighbouring port's settings change, or {@link #start}). It runs at most once per
+ * {@code transfer.minIntervalTicks}, whatever the last operation did: an event within that interval runs it once the
+ * interval is over, so events every tick cannot run a blocked port every tick. When a partner refused or held nothing
+ * it backs off with its own timer, doubling from that interval up to {@code scheduler.maxBackoffTicks} and spread by
+ * position like the scheduler's {@code IDLE} (whose steps below the interval it cannot use), since a vertical or modded
+ * neighbour may change without telling it; an event starts the doubling again. With nothing to do it waits for an
+ * event. Events during its own operation come from its own moves and are ignored. While started it is in
+ * {@link PortRegistry}. Like Storage's device scheduler, the port runs whatever the ticking status of its own chunk, a
+ * border chunk included; it only moves through faces whose neighbour is at full status. Server thread only.
  */
 public final class LibTransferPort implements TransferPort {
     private static final String SETTINGS = "port_settings";
-    /**
-     * {@link #lastRun} and {@link #deferredUntil} before any run; far enough below any game time that the difference
-     * cannot overflow.
-     */
+    /** {@link #lastRun} before any run; far enough below any game time that the difference cannot overflow. */
     private static final long NEVER = Long.MIN_VALUE / 2;
 
     private final @Nullable Function<ServerLevel, TaskGroup> groups;
@@ -60,10 +59,10 @@ public final class LibTransferPort implements TransferPort {
     private boolean running;
     /** Game time of the last operation, whatever it did. */
     private long lastRun = NEVER;
-    /** Until this game time a timer will run the task, so events need not queue it again. */
-    private long deferredUntil = NEVER;
-    /** An event came since the last run. */
-    private boolean woken;
+    /** Operations in a row that moved nothing but may succeed without an event; sets the backoff. */
+    private int idleRuns;
+    /** Fixed per-port value that spreads backoff wake-ups, from the position. */
+    private int spreadKey;
 
     LibTransferPort(@Nullable Function<ServerLevel, TaskGroup> groups, @Nullable ItemChannel items,
             PortSettings defaults, Runnable onSettingsChanged) {
@@ -120,20 +119,48 @@ public final class LibTransferPort implements TransferPort {
     }
 
     /**
-     * Wakes the task for an event, unless it comes from the port's own operation or the port is stopped. Within the
-     * interval after an operation the timer already set runs it; a port whose group closed joins a group again.
+     * Wakes the task for an event, unless it comes from the port's own operation or the port is stopped, and restarts
+     * the backoff. A task already queued, or with a timer due by the end of the minimum interval, runs then anyway and
+     * is left alone; a port whose group closed joins a group again.
      */
     void wakeForEvent() {
         ServerLevel current = level;
         if (current == null || running) {
             return;
         }
-        woken = true;
+        idleRuns = 0;
         if (task.group() == null) {
             join(current);
-        } else if (current.getGameTime() >= deferredUntil) {
-            task.wake();
+            return;
         }
+        if (task.isQueued()) {
+            return;
+        }
+        long timer = task.wakeAt();
+        if (timer >= 0 && timer <= lastRun + interval()) {
+            return;
+        }
+        task.wake();
+    }
+
+    private static int interval() {
+        return Math.max(1, ServerConfig.TRANSFER_MIN_INTERVAL_TICKS.getAsInt());
+    }
+
+    /**
+     * The delay after the next of {@code idleRuns} operations in a row that moved nothing: the minimum interval doubled
+     * per run up to the maximum backoff, moved by a fixed offset in about {@code [-period/8, period/8]} from 16 ticks.
+     */
+    private int backoff(int interval) {
+        int max = Math.max(interval, ServerConfig.SCHEDULER_MAX_BACKOFF_TICKS.getAsInt());
+        int period = idleRuns >= 30 ? max : (int) Math.min(max, (long) interval << idleRuns);
+        if (idleRuns < 30) {
+            idleRuns++;
+        }
+        if (period < 16) {
+            return period;
+        }
+        return Math.max(interval, period - period / 8 + spreadKey % (period / 4 + 1));
     }
 
     /** Wakes the started ports beside this one: they may have slept because of this port's settings. */
@@ -182,8 +209,8 @@ public final class LibTransferPort implements TransferPort {
             channel.open(this, newLevel, pos, settings.faces(channel.kind));
         }
         lastRun = NEVER;
-        deferredUntil = NEVER;
-        woken = false;
+        idleRuns = 0;
+        spreadKey = (int) (HashCommon.mix(packedPos) >>> 33);
         forgetFilterAnswers();
         join(newLevel);
     }
@@ -334,17 +361,12 @@ public final class LibTransferPort implements TransferPort {
             if (level == null) {
                 return WAIT;
             }
-            int interval = Math.max(1, ServerConfig.TRANSFER_MIN_INTERVAL_TICKS.getAsInt());
-            boolean event = woken;
-            woken = false;
+            int interval = interval();
             long since = gameTime - lastRun;
-            if (since < interval && (event || gameTime < deferredUntil)) {
-                // Only events wait out the interval: a delay would reset a backoff timer's doubling.
-                deferredUntil = gameTime + interval - since;
+            if (since < interval) {
                 return (int) (interval - since);
             }
             lastRun = gameTime;
-            deferredUntil = NEVER;
             running = true;
             try {
                 boolean moved = false;
@@ -356,10 +378,14 @@ public final class LibTransferPort implements TransferPort {
                     poll |= result == PortChannel.POLL;
                 }
                 if (moved) {
-                    deferredUntil = gameTime + interval;
+                    idleRuns = 0;
                     return interval;
                 }
-                return poll ? IDLE : WAIT;
+                if (poll) {
+                    return backoff(interval);
+                }
+                idleRuns = 0;
+                return WAIT;
             } finally {
                 running = false;
             }
