@@ -33,7 +33,8 @@ import org.jspecify.annotations.Nullable;
  * A shell conduit's glass is laid out the same way (a straight run is one box), every face translucent and showing the
  * shell sprite projected onto the block ({@link ConduitUvs#projected}), turned so its rows run along the tube. Its
  * border lines and rims ({@link ConduitSilhouette}) are opaque flat strips {@value #STRIP_OFFSET} px outside the glass,
- * one on each face beside an edge.
+ * one on each face beside an edge. With {@link ConduitLook.Shell#frameBars frame bars} the borders are solid bars
+ * instead and the glass sits one bar in between them ({@link ConduitFrameGeometry}).
  */
 public final class ConduitGeometry {
     private static final Direction[] DIRECTIONS = Direction.values();
@@ -87,9 +88,16 @@ public final class ConduitGeometry {
                 shellBody(out, shell, key.type().thickness(), key.arms(), key.rings(), argb);
                 DyeColor colour = key.colour();
                 if (labels && colour != null) {
-                    // The letter sits on the glass, mostly away from the borders, so its ink suits the glass.
-                    ConduitLabels.addDyeLetter(out, key.type().thickness(), key.arms(), colour,
-                            ConduitLabels.ink(WHITE), MARK_LIFT);
+                    // The letter sits on the glass, mostly away from the borders, so its ink suits the glass; with
+                    // frame bars on the set-in glass, between the bars.
+                    double bar = ConduitFrameGeometry.barWidth(shell, key.type().thickness());
+                    if (bar > 0) {
+                        ConduitLabels.addDyeLetter(out, key.type().thickness(), key.arms(), colour,
+                                ConduitLabels.ink(WHITE), MARK_LIFT, bar);
+                    } else {
+                        ConduitLabels.addDyeLetter(out, key.type().thickness(), key.arms(), colour,
+                                ConduitLabels.ink(WHITE), MARK_LIFT);
+                    }
                 }
             }
         }
@@ -130,7 +138,16 @@ public final class ConduitGeometry {
             if (labels) {
                 double depth = ring.max(side.getAxis()) - ring.min(side.getAxis());
                 double lift = look instanceof ConduitLook.Shell ? MARK_LIFT : ConduitLabels.LIFT;
-                ConduitLabels.addModeMark(out, thickness, side, key.mode(), depth + RING_GAP, argb, lift);
+                if (look instanceof ConduitLook.Shell shell && ConduitFrameGeometry.barWidth(shell, thickness) > 0) {
+                    // On the set-in glass between the bars, past the collar, which would hide it.
+                    double bar = ConduitFrameGeometry.barWidth(shell, thickness);
+                    AABB arm = ConduitShapes.armBeforeRing(thickness, side);
+                    double collar = Math.min(shell.rim(), arm.max(side.getAxis()) - arm.min(side.getAxis()));
+                    ConduitLabels.addModeMark(out, thickness, side, key.mode(), depth + collar + RING_GAP, argb, lift,
+                            bar);
+                } else {
+                    ConduitLabels.addModeMark(out, thickness, side, key.mode(), depth + RING_GAP, argb, lift);
+                }
             }
         }
         return out;
@@ -178,36 +195,47 @@ public final class ConduitGeometry {
             int borderArgb) {
         AABB core = ConduitShapes.core(thickness);
         Direction.Axis straight = straightAxis(arms);
+        double bar = ConduitFrameGeometry.barWidth(look, thickness);
         if (straight != null) {
             Direction negative = Direction.fromAxisAndDirection(straight, Direction.AxisDirection.NEGATIVE);
-            AABB box = core.minmax(glassArm(thickness, negative, rings))
-                    .minmax(glassArm(thickness, negative.getOpposite(), rings));
+            AABB box = core.minmax(ConduitFrameGeometry.glassArm(look, thickness, negative, rings))
+                    .minmax(ConduitFrameGeometry.glassArm(look, thickness, negative.getOpposite(), rings));
             for (Direction face : DIRECTIONS) {
                 if (face.getAxis() != straight) {
-                    out.add(glass(look, box, face, straight));
+                    out.add(glass(look, ConduitFrameGeometry.glass(box, face, bar, straight, null), face, straight));
                 }
             }
         } else {
+            // An open end's core glass runs on into its arm on that side.
+            Direction kept = Integer.bitCount(arms) == 1 ? ConduitFrameGeometry.onlyArm(arms) : null;
             for (Direction side : DIRECTIONS) {
                 if (!ConduitConnections.isConnected(arms, side)) {
-                    out.add(glass(look, core, side, runPassing(arms, side.getAxis())));
+                    out.add(glass(look, ConduitFrameGeometry.glass(core, side, bar, null, kept), side,
+                            runPassing(arms, side.getAxis())));
                 }
             }
             for (Direction side : DIRECTIONS) {
                 if (!ConduitConnections.isConnected(arms, side)) {
                     continue;
                 }
-                AABB arm = glassArm(thickness, side, rings);
+                AABB arm = ConduitFrameGeometry.glassArm(look, thickness, side, rings);
                 if (arm.max(side.getAxis()) - arm.min(side.getAxis()) < EPSILON) {
                     continue;
                 }
                 // Neither end: the inner one lies on the core, the outer one on the next tube's glass or the ring.
                 for (Direction face : DIRECTIONS) {
                     if (face.getAxis() != side.getAxis()) {
-                        out.add(glass(look, arm, face, side.getAxis()));
+                        out.add(glass(look, ConduitFrameGeometry.glass(arm, face, bar, side.getAxis(), null), face,
+                                side.getAxis()));
                     }
                 }
             }
+        }
+        if (look.frameBars()) {
+            // Bars half the tube wide or more leave no window: drop the glass that has shrunk to nothing.
+            out.removeIf(quad -> !ConduitFrameGeometry.hasArea(quad.box(), quad.facing().getAxis()));
+            ConduitFrameGeometry.addFrame(out, look, thickness, arms, rings, borderArgb);
+            return;
         }
         ConduitSilhouette.Outline outline = ConduitSilhouette.of(thickness, arms, rings, look.rim());
         List<ConduitSilhouette.Line> lines = outline.lines();
@@ -236,7 +264,7 @@ public final class ConduitGeometry {
     }
 
     /** The one axis both arms of a straight conduit run along, or null if the arms are not exactly one pair. */
-    private static Direction.@Nullable Axis straightAxis(int arms) {
+    static Direction.@Nullable Axis straightAxis(int arms) {
         for (Direction.Axis axis : Direction.Axis.values()) {
             Direction negative = Direction.fromAxisAndDirection(axis, Direction.AxisDirection.NEGATIVE);
             if (arms == (ConduitConnections.bit(negative) | ConduitConnections.bit(negative.getOpposite()))) {
@@ -246,7 +274,7 @@ public final class ConduitGeometry {
         return null;
     }
 
-    private static AABB glassArm(float thickness, Direction side, int rings) {
+    static AABB glassArm(float thickness, Direction side, int rings) {
         return ConduitConnections.isConnected(rings, side)
                 ? ConduitShapes.armBeforeRing(thickness, side)
                 : ConduitShapes.arm(thickness, side);
@@ -370,7 +398,7 @@ public final class ConduitGeometry {
     }
 
     /** Where the glass's face {@code face} lies along its axis. */
-    private static double bound(AABB core, Direction face) {
+    static double bound(AABB core, Direction face) {
         return face.getAxisDirection() == Direction.AxisDirection.POSITIVE
                 ? core.max(face.getAxis())
                 : core.min(face.getAxis());
@@ -390,7 +418,7 @@ public final class ConduitGeometry {
         return with(with(box, normal, plane, plane), axis, from, to);
     }
 
-    private static AABB with(AABB box, Direction.Axis axis, double min, double max) {
+    static AABB with(AABB box, Direction.Axis axis, double min, double max) {
         return switch (axis) {
             case X -> new AABB(min, box.minY, box.minZ, max, box.maxY, box.maxZ);
             case Y -> new AABB(box.minX, min, box.minZ, box.maxX, max, box.maxZ);

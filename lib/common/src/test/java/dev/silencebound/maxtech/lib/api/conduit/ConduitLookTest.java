@@ -1,6 +1,7 @@
 package dev.silencebound.maxtech.lib.api.conduit;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -33,7 +34,7 @@ class ConduitLookTest {
         JsonObject wire = ConduitLook.CODEC.codec().encodeStart(JsonOps.INSTANCE, ConduitLook.wire()).getOrThrow()
                 .getAsJsonObject();
         assertEquals("solid", wire.get("look").getAsString());
-        assertTrue(!wire.has("colour"), "the type's colour is left out");
+        assertFalse(wire.has("colour"), "the type's colour is left out");
         JsonObject cable = ConduitLook.CODEC.codec().encodeStart(JsonOps.INSTANCE, ConduitLook
                 .solid(Identifier.fromNamespaceAndPath("test", "end"), null, 0x353529, ConduitLook.TYPE_COLOUR))
                 .getOrThrow().getAsJsonObject();
@@ -102,6 +103,23 @@ class ConduitLookTest {
                 {"look": "shell", "shell": "farms:block/lab_tube_glass", "inset": 1.0, "lane_width": 0.75}
                 """), json);
         assertEquals(shell, ConduitLook.CODEC.codec().parse(JsonOps.INSTANCE, json).getOrThrow());
+    }
+
+    /** Frame bars are off by default, kept by later withers, written only when on and read back. */
+    @Test
+    void shellFrameBarsAreOptional() {
+        Identifier glass = Identifier.fromNamespaceAndPath("farms", "block/lab_tube_glass");
+        assertFalse(ConduitLook.shell(glass).frameBars(), "off by default");
+        assertEquals(JsonParser.parseString("""
+                {"look": "shell", "shell": "farms:block/lab_tube_glass"}
+                """), ConduitLook.CODEC.codec().encodeStart(JsonOps.INSTANCE, ConduitLook.shell(glass)).getOrThrow());
+        ConduitLook.Shell framed = ConduitLook.shell(glass).withFrameBars().withBorder(1);
+        assertTrue(framed.frameBars(), "kept by later withers");
+        JsonElement json = ConduitLook.CODEC.codec().encodeStart(JsonOps.INSTANCE, framed).getOrThrow();
+        assertEquals(JsonParser.parseString("""
+                {"look": "shell", "shell": "farms:block/lab_tube_glass", "border": 1.0, "frame_bars": true}
+                """), json);
+        assertEquals(framed, ConduitLook.CODEC.codec().parse(JsonOps.INSTANCE, json).getOrThrow());
     }
 
     /** A shell without its sprite, or with a width out of range, is not read. */
