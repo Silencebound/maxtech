@@ -92,6 +92,8 @@ final class LibLanguageProvider extends LanguageProvider {
         add(ScreenComponents.OFF_KEY, "off");
         add(AccentTank.EMPTY_KEY, "Empty");
         add(AccentTank.AMOUNT_KEY, "%s / %s mB");
+        add(AccentTank.UNIT_AMOUNT_KEY, "%s / %s");
+        add(AccentTank.UNKNOWN_KEY, "Unknown");
         add(AccentEnergyBar.MU_KEY, "%s / %s MU");
         add(AccentEnergyBar.FE_KEY, "%s / %s FE");
         add(AccentProgress.PERCENT_KEY, "%s%%");

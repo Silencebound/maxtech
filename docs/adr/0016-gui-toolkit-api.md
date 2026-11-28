@@ -63,3 +63,7 @@ experimental until Farms ships.
   `lib/neoforge` main from the fluid's baked fluid model, so the common api still names no NeoForge type. Amended
   2026-11-27 (K2b): it is now the fluid kind's `ResourceLook` (`lib.api.client.resource`), registered once through
   `ResourceLooks` (a second registration for a kind throws) instead of an internal setter.
+- Amended 2026-11-28 (K3): `AccentTank` and tank menu values take a resource of any kind (ADR-0017). A gauge draws with
+  its kind's `ResourceLook` and amount unit, only the outlined well for a kind without a look, and "Unknown" for
+  unknown contents. Fluid tank values keep their encoding; other tanks send an optional
+  `KindKey.CLIENTBOUND_STREAM_CODEC` inside the same payload framing.

@@ -11,6 +11,9 @@ import dev.silencebound.maxtech.lib.api.menu.ProgressValue;
 import dev.silencebound.maxtech.lib.api.menu.TankValue;
 import dev.silencebound.maxtech.lib.menu.MenuLayout.Kind;
 import dev.silencebound.maxtech.lib.api.resource.FluidKey;
+import dev.silencebound.maxtech.lib.api.resource.KindKey;
+import dev.silencebound.maxtech.lib.api.resource.ResourceKind;
+import dev.silencebound.maxtech.lib.api.resource.ResourceKinds;
 import java.util.Arrays;
 import java.util.Objects;
 import java.util.Optional;
@@ -18,6 +21,7 @@ import java.util.function.Function;
 import java.util.function.ToIntFunction;
 import java.util.function.ToLongFunction;
 import net.minecraft.network.RegistryFriendlyByteBuf;
+import org.jspecify.annotations.Nullable;
 
 /**
  * One menu's values in primitive arrays, the pure part of {@link ToolkitMenu}'s sync. On the server
@@ -28,8 +32,11 @@ import net.minecraft.network.RegistryFriendlyByteBuf;
  * Encoding: the changed mask as {@code ceil(size / 64)} var-longs (bit {@code i % 64} of word {@code i / 64} for value
  * {@code i}), then each marked value in order: ints and enum ordinals as var-ints; longs, energy and progress as
  * var-longs; a tank as its content through the codec its layout gives, then amount and capacity as var-longs. That
- * codec is the only part that knows the content is a fluid, so another resource kind can take its place without
- * changing the framing.
+ * codec is the only part that knows the content's kind: {@code FluidKey.OPTIONAL_STREAM_CODEC} for fluid tanks, an
+ * optional {@code KindKey.CLIENTBOUND_STREAM_CODEC} for tanks of other kinds, with the same framing around both.
+ * <p>
+ * A tank's change key (what its getter returns, a kept {@code Optional} or Lib's tank state) is compared every tick;
+ * its content and the resource and fluid views are built only when it changed (server) or arrived (client).
  * <p>
  * Neither collecting nor reading allocates. One thread (the main thread of the menu's side).
  */
@@ -38,13 +45,19 @@ public final class MenuValueTable<H> implements MenuValueView {
     private final ToIntFunction<? super H>[] intReaders;
     private final ToLongFunction<? super H>[] longReaders;
     private final Function<? super H, ?>[] objectReaders;
+    private final @Nullable Function<? super H, ?>[] objectContents;
     /** Value index of each field, to mark what changed. */
     private final int[] intOwner;
     private final int[] longOwner;
     private final int[] objectOwner;
     private final int[] ints;
     private final long[] longs;
+    /** Server: the change key read last, per object field. */
+    private final Object[] changeKeys;
+    /** The content as sent: the server's last content, the client's last received. */
     private final Object[] objects;
+    private final Optional<KindKey<?>>[] resources;
+    private final @Nullable Optional<FluidKey>[] fluids;
     private final long[] mask;
     private boolean dirty;
 
@@ -57,6 +70,7 @@ public final class MenuValueTable<H> implements MenuValueView {
         intReaders = layout.intReaders;
         longReaders = layout.longReaders;
         objectReaders = layout.objectReaders;
+        objectContents = layout.objectContents;
         int intCount = intReaders.length;
         int longCount = longReaders.length;
         int objectCount = objectReaders.length;
@@ -66,6 +80,12 @@ public final class MenuValueTable<H> implements MenuValueView {
         ints = new int[intCount];
         longs = new long[longCount];
         objects = layout.objectInitials.clone();
+        changeKeys = layout.objectInitials.clone();
+        resources = newResources(objectCount);
+        fluids = newFluids(objectCount);
+        for (int f = 0; f < objectCount; f++) {
+            derive(f);
+        }
         int size = layout.size();
         for (int v = 0; v < size; v++) {
             int intEnd = v + 1 < size ? layout.firstInt[v + 1] : intCount;
@@ -102,12 +122,35 @@ public final class MenuValueTable<H> implements MenuValueView {
         }
         for (int i = 0; i < objects.length; i++) {
             Object current = Objects.requireNonNull(objectReaders[i].apply(host), "menu value getter returned null");
-            if (!current.equals(objects[i])) {
-                objects[i] = current;
+            if (!current.equals(changeKeys[i])) {
+                changeKeys[i] = current;
+                Function<? super H, ?> content = objectContents[i];
+                objects[i] = content == null
+                        ? current
+                        : Objects.requireNonNull(content.apply(host), "menu value getter returned null");
+                derive(i);
                 mark(objectOwner[i]);
             }
         }
         return dirty;
+    }
+
+    /** Builds the resource and fluid views of object field {@code field} from its content. */
+    private void derive(int field) {
+        Object content = objects[field];
+        resources[field] = layout.toResource[field].apply(content);
+        Function<Object, Optional<FluidKey>> toFluid = layout.toFluid[field];
+        fluids[field] = toFluid == null ? null : toFluid.apply(content);
+    }
+
+    @SuppressWarnings("unchecked") // an array of one generic type, filled by derive
+    private static Optional<KindKey<?>>[] newResources(int size) {
+        return new Optional[size];
+    }
+
+    @SuppressWarnings("unchecked") // an array of one generic type, filled by derive
+    private static @Nullable Optional<FluidKey>[] newFluids(int size) {
+        return new Optional[size];
     }
 
     /** Marks every value, so the next {@link #encode} sends all of them (a menu that just opened or resyncs). */
@@ -178,6 +221,7 @@ public final class MenuValueTable<H> implements MenuValueView {
                 case TANK -> {
                     int field = layout.firstObject[v];
                     objects[field] = layout.objectCodecs[field].decode(buf);
+                    derive(field);
                     longs[layout.firstLong[v]] = buf.readVarLong();
                     longs[layout.firstLong[v] + 1] = buf.readVarLong();
                 }
@@ -237,14 +281,28 @@ public final class MenuValueTable<H> implements MenuValueView {
     }
 
     @Override
-    @SuppressWarnings("unchecked") // checked: a fluid field holds Optional<FluidKey>
     public Optional<FluidKey> fluid(TankValue value) {
         int index = index(value, Kind.TANK);
-        int field = layout.firstObject[index];
-        if (!layout.fluid[field]) {
+        Optional<FluidKey> fluid = fluids[layout.firstObject[index]];
+        if (fluid == null) {
             throw new IllegalArgumentException("Menu value " + index + " is not a fluid tank of this menu");
         }
-        return (Optional<FluidKey>) objects[field];
+        return fluid;
+    }
+
+    @Override
+    public Optional<KindKey<?>> resource(TankValue value) {
+        return resources[layout.firstObject[index(value, Kind.TANK)]];
+    }
+
+    @Override
+    public @Nullable ResourceKind<?> kind(TankValue value) {
+        int field = layout.firstObject[index(value, Kind.TANK)];
+        ResourceKind<?> declared = layout.declaredKinds[field];
+        if (declared == null && layout.toFluid[field] != null) {
+            return ResourceKinds.FLUID;
+        }
+        return declared;
     }
 
     /**
