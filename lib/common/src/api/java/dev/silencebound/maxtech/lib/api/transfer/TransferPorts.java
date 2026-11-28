@@ -34,9 +34,8 @@ import org.jspecify.annotations.Nullable;
  * ports in a level slow down rather than cost more tick time. An owner with a budget of its own passes its group with
  * {@link Builder#tasks}.
  * <p>
- * Ports move items and tanks of any kind with a {@code KindBridge} (fluids built in, at {@code transfer.fluidPerOp} per
- * operation, which other tank kinds use too). {@link Builder#build()} throws {@link UnsupportedOperationException} for
- * a port with an energy buffer until a later Lib version (ADR-0018).
+ * Ports move items, tanks of any kind with a {@code KindBridge} (fluids built in, at {@code transfer.fluidPerOp} per
+ * operation, which other tank kinds use too) and standalone energy buffers as FE (ADR-0018).
  */
 @ApiStatus.Experimental
 public final class TransferPorts {
@@ -104,19 +103,22 @@ public final class TransferPorts {
         }
 
         /**
-         * Adds {@code endpoint}, a standalone energy buffer, moving FE at the configured FE rate and taking part in
-         * {@code modes}, as {@link #items} does. Only a {@link EnergyRole#BUFFER buffer} outside any energy network is
-         * accepted: networked energy moves through Lib's FE edges and is not a port buffer (ADR-0018). Throws
-         * {@link IllegalArgumentException} for another role or an endpoint that is in a network, here and again in
-         * {@link #build()}, in case it joined one since.
+         * Adds {@code endpoint}, a standalone energy buffer, taking part in {@code modes}, as {@link #items} does. Only
+         * a {@link EnergyRole#BUFFER buffer} outside any energy network is accepted: networked energy moves through
+         * Lib's FE edges and is not a port buffer (ADR-0018). Throws {@link IllegalArgumentException} for another role
+         * or an endpoint that is in a network, here and again in {@link #build()}, in case it joined one since; an
+         * endpoint that joins a network after the build is left alone by the port.
          * <p>
-         * The port moves energy with the endpoint's own rates and level ({@code stored}, {@code setStored}). Those are
-         * not journaled in a transfer transaction, so the T4 core keeps its own journal for the endpoint instead of
-         * relying on the transaction to roll the level back.
+         * The port moves FE with the FE handlers beside it, converted at the configured FE rate, up to
+         * {@code transfer.energyPerOp} MU per operation (at least 1 FE). The fraction of one MU a conversion leaves is
+         * kept by the port for the next operation and saved with it ({@link TransferPort#save}). The port changes the
+         * endpoint's stored energy directly, so {@code onMoved} runs after each operation that changed it (or the
+         * port's remainder): mark the block entity changed there, so the energy is saved.
          */
-        public Builder energy(EnergyEndpoint endpoint, Set<PortFaceMode> modes) {
+        public Builder energy(EnergyEndpoint endpoint, Set<PortFaceMode> modes, Runnable onMoved) {
             checkStandalone(endpoint);
-            return buffer(ResourceKinds.ENERGY, endpoint, modes);
+            return buffer(ResourceKinds.ENERGY,
+                    new TransferPortFactory.EnergyBuffer(endpoint, Objects.requireNonNull(onMoved, "onMoved")), modes);
         }
 
         /**
@@ -154,8 +156,7 @@ public final class TransferPorts {
          * {@code rate} names a kind without one, {@link IllegalArgumentException} for an energy buffer that joined an
          * energy network since it was added, item slots not made by {@code ItemSlots.builder}, a tank not made by
          * {@link ResourceTank#create} or {@link FluidTank#create}, or a tank of a kind without a registered
-         * {@code KindBridge}, and {@link UnsupportedOperationException} for an energy buffer, which this Lib version
-         * does not move yet.
+         * {@code KindBridge}.
          */
         public TransferPort build() {
             if (buffers.isEmpty()) {
@@ -167,8 +168,8 @@ public final class TransferPorts {
                 }
             }
             for (Buffer buffer : buffers) {
-                if (buffer.buffer instanceof EnergyEndpoint endpoint) {
-                    checkStandalone(endpoint);
+                if (buffer.buffer instanceof TransferPortFactory.EnergyBuffer energy) {
+                    checkStandalone(energy.endpoint());
                 }
             }
             List<TransferPortFactory.Buffer> specs = new ArrayList<>(buffers.size());

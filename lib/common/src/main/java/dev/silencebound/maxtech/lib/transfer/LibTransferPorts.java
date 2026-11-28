@@ -1,5 +1,6 @@
 package dev.silencebound.maxtech.lib.transfer;
 
+import dev.silencebound.maxtech.lib.api.energy.EnergyEndpoint;
 import dev.silencebound.maxtech.lib.api.resource.ResourceKind;
 import dev.silencebound.maxtech.lib.api.resource.ResourceKinds;
 import dev.silencebound.maxtech.lib.api.transfer.PortFaceMode;
@@ -19,26 +20,28 @@ import java.util.Map;
 /**
  * Lib's {@link TransferPortFactory.Factory}, installed in {@code MaxtechLib.init}: one channel per kind, in the order
  * the builder first added a buffer of it. Item slots go to an {@link ItemChannel} on Lib's item caches; tanks of any
- * kind with a transfer bridge go to a {@link TankChannel}. Energy buffers are refused with
- * {@link UnsupportedOperationException} until T4 (ADR-0018).
+ * kind with a transfer bridge go to a {@link TankChannel}; standalone energy buffers go to an {@link EnergyChannel} on
+ * the FE capability (ADR-0018).
  */
 public final class LibTransferPorts implements TransferPortFactory.Factory {
     @Override
     public TransferPort create(TransferPortFactory.Spec spec) {
         Map<ResourceKind<?>, List<TransferPortFactory.Buffer>> byKind = new LinkedHashMap<>();
         for (TransferPortFactory.Buffer buffer : spec.buffers()) {
-            if (buffer.kind() == ResourceKinds.ENERGY) {
-                throw new UnsupportedOperationException("This Lib version's transfer ports move no energy yet");
-            }
             byKind.computeIfAbsent(buffer.kind(), kind -> new ArrayList<>()).add(buffer);
         }
         List<PortChannel> channels = new ArrayList<>(byKind.size());
         for (Map.Entry<ResourceKind<?>, List<TransferPortFactory.Buffer>> entry : byKind.entrySet()) {
             Long cap = spec.rates().get(entry.getKey());
             long ownerCap = cap == null ? Long.MAX_VALUE : cap;
-            channels.add(entry.getKey() == ResourceKinds.ITEM
-                    ? items(entry.getValue(), ownerCap)
-                    : tanks(entry.getKey(), entry.getValue(), ownerCap));
+            ResourceKind<?> kind = entry.getKey();
+            if (kind == ResourceKinds.ITEM) {
+                channels.add(items(entry.getValue(), ownerCap));
+            } else if (kind == ResourceKinds.ENERGY) {
+                channels.add(energy(entry.getValue(), ownerCap));
+            } else {
+                channels.add(tanks(kind, entry.getValue(), ownerCap));
+            }
         }
         return new LibTransferPort(spec.tasks(), channels.toArray(PortChannel[]::new), spec.defaults(),
                 spec.onSettingsChanged());
@@ -54,6 +57,20 @@ public final class LibTransferPorts implements TransferPortFactory.Factory {
             views[i] = slots.automation();
         }
         return new ItemChannel(views, pushes(buffers), pulls(buffers), allowed(buffers), ownerCap);
+    }
+
+    private static EnergyChannel energy(List<TransferPortFactory.Buffer> buffers, long ownerCap) {
+        EnergyEndpoint[] endpoints = new EnergyEndpoint[buffers.size()];
+        Runnable[] listeners = new Runnable[buffers.size()];
+        for (int i = 0; i < endpoints.length; i++) {
+            if (!(buffers.get(i).buffer() instanceof TransferPortFactory.EnergyBuffer energy)) {
+                throw new IllegalArgumentException("A port's energy buffer must be added with TransferPorts.Builder"
+                        + ".energy, not " + buffers.get(i).buffer().getClass().getName());
+            }
+            endpoints[i] = energy.endpoint();
+            listeners[i] = energy.onMoved();
+        }
+        return new EnergyChannel(endpoints, listeners, pushes(buffers), pulls(buffers), allowed(buffers), ownerCap);
     }
 
     private static <K> TankChannel<K> tanks(ResourceKind<K> kind, List<TransferPortFactory.Buffer> buffers,

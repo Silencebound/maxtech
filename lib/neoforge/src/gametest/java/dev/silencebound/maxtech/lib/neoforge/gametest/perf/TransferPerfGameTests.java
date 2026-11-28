@@ -10,6 +10,7 @@ import dev.silencebound.maxtech.lib.api.transfer.PortSettings;
 import dev.silencebound.maxtech.lib.api.transfer.PortStatus;
 import dev.silencebound.maxtech.lib.config.ServerConfig;
 import dev.silencebound.maxtech.lib.neoforge.gametest.LibGameTests;
+import dev.silencebound.maxtech.lib.neoforge.gametest.TestEnergy;
 import dev.silencebound.maxtech.lib.neoforge.gametest.TestPorts;
 import dev.silencebound.maxtech.lib.neoforge.gametest.TestTanks;
 import dev.silencebound.maxtech.lib.neoforge.perf.PerfBudget;
@@ -43,12 +44,12 @@ import org.slf4j.Logger;
 
 /**
  * The cost of transfer ports that cannot move (PRD 8.1), 200 ports each: pushing a full output slot into a full chest
- * once they backed off to the scheduler's maximum, and the same with tank ports pushing water into a tank of lava;
- * beside a chunk below full status, half of them with something to push; and blocked while their buffers report a
- * change every tick. The mean time the level's task scheduler takes per tick must stay under budget, and the ports must
- * run only as often as backoff or the minimum interval allow. Only the scheduler's time is measured: the wake storm's
- * {@code bufferChanged} calls, made from the test's tick hook, are outside the measure, as a machine's own change
- * listener would be. Each runs in its own batch.
+ * once they backed off to the scheduler's maximum, and the same with tank ports pushing water into a tank of lava and
+ * energy ports pushing into full FE stores; beside a chunk below full status, half of them with something to push; and
+ * blocked while their buffers report a change every tick. The mean time the level's task scheduler takes per tick must
+ * stay under budget, and the ports must run only as often as backoff or the minimum interval allow. Only the
+ * scheduler's time is measured: the wake storm's {@code bufferChanged} calls, made from the test's tick hook, are
+ * outside the measure, as a machine's own change listener would be. Each runs in its own batch.
  */
 @EventBusSubscriber(modid = MaxtechLib.MOD_ID)
 public final class TransferPerfGameTests {
@@ -56,6 +57,7 @@ public final class TransferPerfGameTests {
     private static final Identifier STRUCTURE = MaxtechLib.id("empty_42x4x27");
     private static final String IDLE = "perf_transfer_idle";
     private static final String IDLE_FLUIDS = "perf_transfer_idle_fluids";
+    private static final String IDLE_ENERGY = "perf_transfer_idle_energy";
     private static final String UNLOADED = "perf_transfer_unloaded_neighbour";
     private static final String STORM = "perf_transfer_wake_storm";
     private static final int PORTS = 200;
@@ -68,6 +70,11 @@ public final class TransferPerfGameTests {
      * simulates the insert inside a transaction, since a foreign tank's room cannot be read without one.
      */
     private static final long IDLE_FLUIDS_BUDGET_NANOS = 20_000;
+    /**
+     * Mean scheduler time per tick for 200 energy ports at full backoff beside full FE stores; each poll tries the move
+     * inside a transaction, since a foreign handler's room cannot be read without one.
+     */
+    private static final long IDLE_ENERGY_BUDGET_NANOS = 20_000;
     /**
      * Mean scheduler time per tick for 200 ports beside a chunk below full status, 100 of them with stone to push at
      * full backoff and 100 with nothing to push, which must not run at all.
@@ -86,6 +93,7 @@ public final class TransferPerfGameTests {
         PerfEnvironment.init();
         FUNCTIONS.register(IDLE, () -> TransferPerfGameTests::idle);
         FUNCTIONS.register(IDLE_FLUIDS, () -> TransferPerfGameTests::idleFluids);
+        FUNCTIONS.register(IDLE_ENERGY, () -> TransferPerfGameTests::idleEnergy);
         FUNCTIONS.register(UNLOADED, () -> TransferPerfGameTests::unloadedNeighbour);
         FUNCTIONS.register(STORM, () -> TransferPerfGameTests::wakeStorm);
     }
@@ -98,6 +106,7 @@ public final class TransferPerfGameTests {
         int measuring = 2 * (MEASURED_TICKS + 1) + 200;
         register(event, IDLE, STRUCTURE, warmupTicks() + measuring);
         register(event, IDLE_FLUIDS, STRUCTURE, warmupTicks() + measuring);
+        register(event, IDLE_ENERGY, STRUCTURE, warmupTicks() + measuring);
         register(event, UNLOADED, LibGameTests.EMPTY_STRUCTURE, warmupTicks() + measuring + 100);
         register(event, STORM, STRUCTURE, 100 + measuring);
     }
@@ -187,6 +196,39 @@ public final class TransferPerfGameTests {
                 .thenExecute(() -> {
                     for (TestTanks.PortEntity port : ports) {
                         helper.assertValueEqual(port.output.amount(), 4000L, "water in a port");
+                    }
+                }).thenSucceed();
+    }
+
+    private static void idleEnergy(GameTestHelper helper) {
+        TaskGroup group = LevelTasks.newGroup(helper.getLevel());
+        PerfEnvironment.onTeardown(group::close);
+        PortSettings push = PortSettings.EMPTY.withMode(ResourceKinds.ENERGY, Direction.EAST, PortFaceMode.PUSH);
+        TestEnergy.PortEntity[] ports = new TestEnergy.PortEntity[PORTS];
+        for (int i = 0; i < PORTS; i++) {
+            BlockPos pos = new BlockPos((i % 14) * 3, 0, i / 14);
+            TestEnergy.store(helper.getLevel(), helper.absolutePos(pos.east()), 1000, 1000, Block.UPDATE_ALL);
+            ports[i] = TestEnergy.place(helper.getLevel(), helper.absolutePos(pos), group, Block.UPDATE_ALL);
+            ports[i].output.setStored(5000);
+            ports[i].port.setSettings(push);
+        }
+        int maxBackoff = ServerConfig.SCHEDULER_MAX_BACKOFF_TICKS.getAsInt();
+        Timing timing = new Timing(helper, IDLE_ENERGY, group, null, IDLE_ENERGY_BUDGET_NANOS, () -> {
+        });
+        helper.startSequence().thenIdle(2 * maxBackoff + 100).thenExecute(() -> {
+            for (TestEnergy.PortEntity port : ports) {
+                helper.assertValueEqual(port.port.status(ResourceKinds.ENERGY), PortStatus.BLOCKED, "status");
+            }
+        }).thenWaitUntil(PerfBudget.measureTicks(helper, IDLE_ENERGY, MEASURED_TICKS, IDLE_ENERGY_BUDGET_NANOS,
+                timing.with(ran -> {
+                    long allowed = (long) PORTS * (MEASURED_TICKS / (maxBackoff - maxBackoff / 8) + 1);
+                    helper.assertTrue(ran <= allowed,
+                            ran + " runs, at most " + allowed + ": ports are not backing off");
+                }), mean -> PORTS + " blocked energy ports take " + millis(mean) + " ms per tick, over the "
+                        + millis(IDLE_ENERGY_BUDGET_NANOS) + " ms budget"))
+                .thenExecute(() -> {
+                    for (TestEnergy.PortEntity port : ports) {
+                        helper.assertValueEqual(port.output.stored(), 5000L, "MU in a port");
                     }
                 }).thenSucceed();
     }

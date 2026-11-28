@@ -37,7 +37,7 @@ import org.jetbrains.annotations.ApiStatus;
  * buffers always take part in transactions.</li>
  * </ul>
  * <p>
- * Host rule: the owner's block must expose the capability of each kind it moves (items, fluids, a compat kind's) on
+ * Host rule: the owner's block must expose the capability of each kind it moves (items, fluids, FE, a compat kind's) on
  * every face that can pull, and should expose it on all faces. A neighbouring port pushes into this port's pulling
  * buffers only while that capability is there, since it shows the block still exists; without it, nothing arrives. What
  * the capability itself offers is the owner's choice (the port never uses it).

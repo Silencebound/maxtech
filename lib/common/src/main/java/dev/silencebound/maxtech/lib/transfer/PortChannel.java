@@ -8,6 +8,8 @@ import java.util.Set;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.level.storage.ValueInput;
+import net.minecraft.world.level.storage.ValueOutput;
 
 /**
  * One resource kind of a {@link LibTransferPort}: its buffers, a neighbour cache per active face, the round-robin
@@ -54,6 +56,14 @@ abstract class PortChannel {
 
     /** One operation over the faces active in {@code faces}, moving at most {@code amount}; {@link #NONE} etc. */
     abstract int operate(LibTransferPort port, int faces, long amount);
+
+    /** Saves what the channel holds beyond its buffers (the energy remainder) beside the port's settings. */
+    void save(ValueOutput output) {
+    }
+
+    /** Loads what {@link #save} wrote; data without it resets that state. */
+    void load(ValueInput input) {
+    }
 
     /** The configured most one operation moves, before the owner's and the player's caps. */
     abstract long configPerOp();

@@ -294,16 +294,25 @@ public final class LibTransferPort implements TransferPort {
         return channel == null || level == null ? PortStatus.OFF : channel.status;
     }
 
-    /** Saves the settings, defaults included, so changed builder defaults never reconfigure an existing port. */
+    /**
+     * Saves the settings, defaults included, so changed builder defaults never reconfigure an existing port, and the
+     * energy remainder.
+     */
     @Override
     public void save(ValueOutput output) {
         output.store(SETTINGS, PortSettings.CODEC, settings);
+        for (PortChannel channel : channels) {
+            channel.save(output);
+        }
     }
 
     @Override
     public void load(ValueInput input) {
         Optional<PortSettings> loaded = input.read(SETTINGS, PortSettings.CODEC);
         apply(loaded.orElse(defaults));
+        for (PortChannel channel : channels) {
+            channel.load(input);
+        }
     }
 
     /** Puts {@code newSettings} within the allowed modes and uses them; returns whether anything changed. */
