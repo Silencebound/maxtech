@@ -12,5 +12,10 @@
   "energy.exportEnabled": true,
   "energy.exportPerEdge": 0,
   "energy.exportPerNetwork": 0,
-  "energy.edgePollTicks": 20
+  "energy.edgePollTicks": 20,
+  "transfer.itemsPerOp": 64,
+  "transfer.fluidPerOp": 1000,
+  "transfer.energyPerOp": 1000,
+  "transfer.minIntervalTicks": 8,
+  "transfer.filterSize": 9
 }
