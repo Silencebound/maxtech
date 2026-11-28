@@ -45,10 +45,15 @@ same reviewer.
 - The bridge GameTests against the real AE2 and Refined Storage (`ae2_*` with `-PwithAe2=true`, `rs_*` with
   `-PwithRs=true`) run in steps of their own: nightly, manual, and on PRs that touch `compat/ae2`,
   `compat/refinedstorage`, `storage/bridge`, the bridge GameTests or `storage/neoforge/build.gradle.kts`.
+- A `port/**`-only diff runs `python3 -I port/convert.py --check` instead of the build (pr-flow skill). A GameTest
+  step whose summary is complete but whose Gradle run failed for another reason is never turned green by a retry.
 - Perf: every perf GameTest goes through `PerfBudget`. In CI a budget over twice only warns ("Perf budget over"),
   since hosted runners vary too much to block on; locally it fails the test (owner 2026-11-25). Before merging a change
   to a hot path, or when CI warns, run the affected `perf_*` GameTests on a quiet machine (Mac or Windows PC).
 - CI failures: fix on the same branch, up to three rounds, then stop and report.
+- Known flaky GameTests are listed in `.github/flaky-tests.txt`, each with its issue. When every failed test of a
+  GameTest step is listed, CI runs each once more on its own; green passes with a "Flaky test retried" warning. The
+  outcomes are kept as artifacts; `python3 .github/scripts/flaky-tests.py fetch` prints flake rates (2026-11-28).
 
 ## Git
 
@@ -74,6 +79,22 @@ same reviewer.
 - User-visible PRs add one line under `Unreleased` in `lib/CHANGELOG.md` or `storage/CHANGELOG.md`; a release renames it to the version.
 - Squash-merge with the PR title as subject. Approvals are comments starting `Verdict: Approve` (GitHub refuses
   self-approval on the shared account).
+
+### Shared lists
+
+Parallel PRs used to collide in files every feature appends to. Keep each feature's entries in its own file:
+
+- **Add lang keys in your feature's lang class, not in the provider.** Lib's lines live in one `LangSection` class per
+  feature in `lib/neoforge/.../datagen/lang/` (`FacadeLang`, `EnergyInfoLang`, ...); a new feature adds its own class
+  and one `all.add(...)` line at the end of `LibLangSections` (the file merges with `merge=union`).
+  The provider sorts keys and fails on a duplicate, so a bad union merge fails datagen instead of shipping. Storage
+  keeps the same split by hand (`Showcase.translations()`, `Ae2Lang`, `StorageRecipeViews`): add a method beside your
+  feature and one call in `StorageLanguageProvider`. Farms' provider is still one flat list; split it the same way when
+  it grows.
+- Lib's api inventory has one page per package in `docs/api/lib/`; `docs/api/lib-1.0.md` only links them. Not
+  `merge=union`: PRs edit existing rows, and a union merge keeps both the old and the new row without a conflict.
+- Lists whose order matters or that sit in shared Java code (`MaxtechLib.init`, the NeoForge entrypoints, import
+  blocks) stay as they are; their conflicts are a line or two and real ordering questions.
 
 ## Changing ids or saved formats from the 0.9 beta on
 

@@ -1,0 +1,7 @@
+# Known flaky GameTests. CI retries one of these once when every failed test of a GameTest step is on this list
+# (.github/scripts/gametests.sh); green on the retry passes the step with a "Flaky test retried" warning.
+# The list is not a fix: every entry links the issue that tracks one, and leaves the list with that fix.
+# One test per line: <namespace:test> <issue> <short reason>
+maxtech_lib:worker_pool_commits_on_server_thread #80 no result yet on tick 102 on hosted runners
+maxtech_storage:perf_storage_idle_world_devices #81 devices still settling on tick 1404, before the budget is measured
+maxtech_lib:pipe_showcase_builds_and_clears #85 chunk entities not loaded yet on tick 402

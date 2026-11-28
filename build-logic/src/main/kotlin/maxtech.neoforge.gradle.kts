@@ -22,6 +22,9 @@ val common = maxtech.commonProject(project.parent!!.path)
 
 // GameTests (CLAUDE.md, Testing). Loaded as part of this project's mod in dev runs, never packed into the jar.
 val gametest = sourceSets.create("gametest")
+// The client screenshot harness (runScreenshots below) lives in Lib and is compiled into every mod's GameTest source
+// set, so each mod's scenes can use it and no jar contains it.
+gametest.java.srcDir(rootProject.file("lib/neoforge/src/screenshots/java"))
 
 configurations.named(gametest.compileOnlyConfigurationName) {
     extendsFrom(configurations.compileOnly.get())
@@ -126,6 +129,18 @@ neoForge {
             jvmArguments.addAll(providers.gradleProperty("gametest.jfr")
                 .map { listOf("-XX:StartFlightRecording=settings=profile,filename=$it") }
                 .orElse(emptyList()))
+        }
+        // ./gradlew :<mod>:neoforge:runScreenshots -Pscene=<name>: a client starts, creates a fresh flat world, builds the
+        // scene, saves its shots to runs/<mod>-neoforge/screenshots/auto/<scene>/<shot>.png and quits (the client-check
+        // skill; the scenes are in each mod's GameTest source set). -Pscreenshots.width/height set the window size.
+        register("screenshots") {
+            client()
+            systemProperty("maxtech.screenshots.scene", providers.gradleProperty("scene").orElse("").get())
+            systemProperty("maxtech.screenshots.dir", runDirectory("screenshots").dir("auto").asFile.absolutePath)
+            programArguments.addAll(
+                "--width", providers.gradleProperty("screenshots.width").orElse("1280").get(),
+                "--height", providers.gradleProperty("screenshots.height").orElse("720").get(),
+            )
         }
         register("data") {
             clientData()

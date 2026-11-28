@@ -1,0 +1,10 @@
+# `lib.api.menu`
+
+Part of the [Lib api inventory](../lib-1.0.md); labels as defined there.
+
+| Package / type | Purpose | Label |
+|---|---|---|
+| **`lib.api.menu`** | Toolkit menus for MaxTech screens (ADR-0016): values synced to the screen, and menus declared with their layout, so addons write no menu or screen class. | experimental |
+| `MenuValues`, `MenuValueView`, value handles | Values a menu syncs (int, long, enum, energy, progress, tank) by getters over a server-side host, sent in one payload a tick when changed; `read` and `Reader` are Lib's (`@ApiStatus.Internal`). | experimental |
+| `Menus`, `MenuDefinition`, `MenuItems`, `MenuSlots`, `MenuStatus` | `Menus.define(modId, name, hostClass, body)`: slot groups over `ItemSlots`, tanks (`tank(getter)` for a `FluidTank` with bucket clicks, `tank(kind, getter)` for a `ResourceTank` of any kind without; unknown contents show as "Unknown" with their amount), energy (MU), progress, enum and int values, a transfer port's side config (`port(getter, kinds...)` returns a `PortValue` of face modes, allowed modes, facing and block state; `sideConfig(port)` adds the side tab; a face click is applied only when the port allows that mode for the kind), shift-click order, theme, title and layout; `register` (menu type through a `Registrar`, screen bound by Lib) and `open`; `problems()` lists layout problems, which throw in dev runs (checked again at `register` for a definition built before Lib's construction). Layout and inventory shapes must not depend on config or the side. Getters of the definition's parts and `Menus.setBackend` are Lib's (`@ApiStatus.Internal`). How to build a screen: `docs/api/gui-toolkit.md`. | experimental |
+| `Layout`, `LayoutPlan` | Rows, columns and fixed-size leaves (slots, tank, energy, progress, label, value, status, cycle button, faces, spacer, player inventory) in GUI pixels, gaps never negative; `Layout.value` shows a synced int in a lang key's text. `LayoutPlan.of` measures and arranges them with pure int arithmetic and checks fit and overlap. | experimental |

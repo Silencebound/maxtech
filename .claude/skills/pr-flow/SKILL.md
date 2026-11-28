@@ -12,10 +12,23 @@ description: How the main session takes a PR to merged by risk tier (trivial, no
 | `scripts/pr.sh status <pr>` | One line: state, head, base, mergeable, auto-merge, CI |
 | `scripts/pr.sh wait <pr>` | Blocks until CI on the current head finishes; exit 0 green, 1 failed |
 | `scripts/pr.sh merge <pr>` | Merges `origin/<base>` into the PR branch only when GitHub reports a conflict (temporary worktree, normal merge commit, push; stops on a real conflict and names the files); a branch that is only behind merges as it is, without another CI run (owner 2026-11-28; `main` does not require up-to-date branches, and the build on `main` after the squash catches a clash), then waits for green CI on that head, squash-merges, retargets PRs stacked on it, merges the base into each and pushes (no force), then fast-forwards the owner's main checkout when it is on main, clean and only behind |
-
 | `scripts/pr.sh auto <pr>` | Merges the base in only on a conflict and turns on auto-merge, then returns; GitHub merges it once the build and `review-gate` are green (stacked children are not fixed up; use `merge` for those) |
+| `--dry-run` (with `merge`, `merge-all`, `auto`) | Only says whether the base would merge in, or whether the stack resolver would resolve the conflict; commits, pushes and merges nothing |
+| `scripts/status.sh` | Table of open PRs (CI, `review-gate`, latest `Verdict:` with `@sha` when it is for an older commit, mergeable, auto-merge) and of the worktrees under `.claude/worktrees` with their PR's state |
+| `scripts/status.sh --clean` | Also removes worktrees whose PR is merged or closed and that have nothing uncommitted, untracked or unpushed; dirty, locked and the current worktree are listed, never removed (no `--force`); local branches stay |
 
 Run `wait` and `merge` with `run_in_background`, never as a foreground sleep loop.
+
+## Stacked PR after its base was squash-merged (2026-11-28)
+
+B stacked on A, A squash-merged: B then conflicts with `main` in files A touched (add/add or content), because the
+squash repeats A's changes under a new id. `pr.sh merge`, `merge-all`, `auto` and the child fix-up after a merge
+resolve this with `scripts/stack-resolve.sh`: B's version of every conflicted file is kept, committed as
+`Merge origin/main into <branch>` and pushed without force, only when B contains A's work in those files (A's final
+head is an ancestor of B, or B has some of A's own commits and none of A's later commits touches a conflicted file)
+and no commit on `main` that B lacks, other than A's squash, touches them. Otherwise it stops and lists the files as
+before. A is found as the most recent PR merged into B's base whose own commits B contains. Tests:
+`scripts/test/test-stack-resolve.sh` (scripted repository, no network).
 
 ## Writing commits and PRs (owner 2026-11-25)
 
@@ -53,6 +66,14 @@ After a wave of PRs has merged, or when builds feel slow in a long session, run 
 
 Read the failed step with `gh run view <run> --log-failed`. A "Gradle build daemon disappeared" or runner crash is infrastructure: `gh run rerun <run> --failed`. Anything else goes back to the author (three rounds, then stop and report, CLAUDE.md).
 
+**Flaky GameTests** (2026-11-28): `.github/flaky-tests.txt` lists tests that fail on hosted runners without a code
+cause (`<namespace:test> <#issue> <reason>`). `.github/scripts/gametests.sh` retries a failed GameTest step's tests one
+by one only when every failed test is listed and none failed a perf budget; a listed test failing twice, or any unlisted
+failure, fails as before. A pass on retry shows a "Flaky test retried" warning; the first run's error annotation stays.
+Add a test when it failed on a change that cannot have caused it, and open an issue for it first: the list is not a fix,
+and the entry leaves with the fix. `python3 .github/scripts/flaky-tests.py fetch [runs]` prints each listed test's
+flake rate over main's nightlies (kept 30 days) and PR runs (14 days).
+
 ## Stalled auto-merge, merging main, doc size (2026-10-01)
 
 - **Stalled auto-merge:** `pr.sh wait` and `pr.sh merge` now handle it. With auto-merge on, once CI is green they give GitHub 3 minutes (`AUTO_MERGE_GRACE`, counted from the last check's completion); if the PR is still open they print `auto-merge stalled ... merging it here` and run the normal merge path, stacked children included. Without auto-merge, `wait` returns on green and `merge` merges as before.
@@ -65,7 +86,12 @@ Read the failed step with `gh run view <run> --log-failed`. A "Gradle build daem
 `.github/scripts/changed-areas.sh` classifies the diff against the first parent (the base on a PR, the previous main commit on a push) into `docs_only`, `lib`, `storage` and `all`. `lib/**`, `build-logic/**`, `gradle/**`, `*.gradle.kts`, `gradle.properties`, `.github/**` and any unrecognised path set `all`, which flags both mods; so do `workflow_dispatch` and the nightly run. `storage/**` alone sets `storage`. A Lib change that touches only client code (`lib/client`, `lib/api/client`, `lib/neoforge/client`), Lib's hand-made assets or Lib unit tests sets `lib_client` instead of `all`: build and Lib datagen, no GameTests, since GameTests run headless and never load client code. A changed client class that non-client code imports (outside any `client` package, unit tests and Lib datagen) still sets `all` (2026-11-28). Two more flags, `ae2` and `rs`, run the bridge GameTests against the real mods in steps of their own (`-PwithAe2=true -Pgametest=maxtech_storage:ae2_*`, `-PwithRs=true ... rs_*`): always nightly and on manual runs; on a PR only when it touches `compat/ae2` or `Ae2*GameTests` (ae2), `compat/refinedstorage` or `Rs*GameTests` (rs), or `storage/bridge`, `BridgeGameTests` or `storage/neoforge/build.gradle.kts` (both). A lib or build-logic change alone does not set them (2026-10-15).
 
 - **Docs-only PR or push** (only `*.md`, `docs/**`, `.claude/**`, `scripts/**`, `LICENSE`, `README`): conflict markers (plus the doc size guard on a PR), then green. The `build` check still reports.
+- **Port-only PR** (only `port/**`, the 1.21.1 backport tree, plus docs paths): no build, GameTests or datagen, like docs-only, but `python3 -I port/convert.py --check` runs when `port/convert.py` exists; `build` still reports. Any other path keeps its usual area (2026-11-28).
 - **Other PR:** `./gradlew build` always; GameTests and datagen only for the flagged mods. No server smoke.
 - **Push to main:** conflict markers and `./gradlew build` (compile and unit tests); skipped build for docs-only commits. No GameTests, datagen or server smoke.
 - **Perf budgets only warn in CI** (GitHub-hosted runners, since 2026-11-25): a "Perf budget over" annotation means run those `perf_*` GameTests locally before merging, where the budget fails.
+- **Perf trends** (2026-11-28): a same-repo PR that ran GameTests gets one "Perf trends" comment (updated on every
+  push) listing `perf_*` tests over 20% slower or faster than main's last nightly, and tests without a baseline. The
+  separate `perf trends` job never blocks a merge; a listed slowdown in the PR's area is checked on a quiet machine
+  like a budget warning (perf skill).
 - **Nightly (01:00 UTC) on main:** everything, including every GameTest suite, datagen and the dedicated-server smoke. A failure opens or comments on the "Nightly CI failed" issue. A broken GameTest, generated file or server start from a merged PR shows up there, not on main's push check.

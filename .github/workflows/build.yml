@@ -29,9 +29,12 @@ jobs:
     # GitHub-hosted runners only (owner 2026-11-25): nothing to maintain, and fork pull requests run like any other.
     runs-on: ubuntu-latest
     timeout-minutes: 60
+    outputs:
+      perf: ${{ steps.perf.outputs.found }}
     env:
       # What runs when (see .claude/skills/pr-flow/SKILL.md):
-      # - docs-only PR or push: conflict markers (and the doc size guard on PRs) only;
+      # - docs-only PR or push: conflict markers (and the doc size guard on PRs) only; a diff that touches port/** besides
+      #   docs counts as docs-only and also runs port/convert.py --check (when the file exists);
       # - other PR: build always; GameTests and datagen for the flagged mods (a lib change flags storage and farms too,
       #   except a client-only lib change: build and Lib datagen, no GameTests; see changed-areas.sh);
       # - push to main: conflict markers and build (the build is skipped for docs-only commits);
@@ -58,6 +61,14 @@ jobs:
             exit 1
           fi
 
+      - name: Script tests
+        # Seconds; the stacked-PR resolver (scripts/stack-resolve.sh) decides what a merge keeps, so its cases always run.
+        # The flaky-test retry decides whether a failed GameTest step fails.
+        run: |
+          scripts/test/test-stack-resolve.sh
+          .github/scripts/test/test-flaky-tests.sh
+          .github/scripts/test/test-changed-areas.sh
+
       - name: Docs did not balloon
         # A looped replace once grew a milestone doc from 168 to 41,694 lines. A pull_request checkout is the merge
         # of the PR into its base, so its first parent is the base.
@@ -72,6 +83,12 @@ jobs:
           done
           echo "::error::no working python found"
           exit 1
+
+      - name: Port check
+        # port/** is the 1.21.1 backport tree: no mod build or GameTest reads it. Skipped until the converter exists.
+        if: steps.areas.outputs.port == 'true'
+        run: |
+          if [ -f port/convert.py ]; then python3 -I port/convert.py --check; fi
 
       - name: Set up JDK 25
         if: steps.areas.outputs.docs_only != 'true'
@@ -90,17 +107,19 @@ jobs:
         if: steps.areas.outputs.docs_only != 'true'
         run: ./gradlew build --no-daemon
 
+      # gametests.sh tees the log to $RUNNER_TEMP/gametests.log and retries a failure once only when every failed test
+      # is on .github/flaky-tests.txt; anything else fails with Gradle's status.
       - name: GameTests (lib)
         if: env.PUSH != 'true' && steps.areas.outputs.lib == 'true'
-        run: ./gradlew :lib:neoforge:runGameTestServer --no-daemon
+        run: .github/scripts/gametests.sh lib
 
       - name: GameTests (storage)
         if: env.PUSH != 'true' && steps.areas.outputs.storage == 'true'
-        run: ./gradlew :storage:neoforge:runGameTestServer --no-daemon
+        run: .github/scripts/gametests.sh storage
 
       - name: GameTests (farms)
         if: env.PUSH != 'true' && steps.areas.outputs.farms == 'true'
-        run: ./gradlew :farms:neoforge:runGameTestServer --no-daemon
+        run: .github/scripts/gametests.sh farms
 
       # The network bridge against the real AE2 and Refined Storage (dev-only runtime deps from Maven Central and
       # Modrinth's maven, never in the jar or datagen): nightly, manual, and PRs that touch the bridge.
@@ -111,6 +130,38 @@ jobs:
       - name: GameTests (storage, RS bridge)
         if: env.PUSH != 'true' && steps.areas.outputs.rs == 'true'
         run: ./gradlew :storage:neoforge:runGameTestServer -PwithRs=true "-Pgametest=maxtech_storage:rs_*" --no-daemon
+
+      # Perf trends (perf skill): every perf_* result of the GameTest steps above as JSON. Nightly and manual runs on
+      # main store it as perf-results-main, the baseline; a PR stores perf-results for the perf-trends job.
+      - name: Collect perf results
+        id: perf
+        if: ${{ !cancelled() && env.PUSH != 'true' && (steps.areas.outputs.lib == 'true' || steps.areas.outputs.storage == 'true' || steps.areas.outputs.farms == 'true') }}
+        continue-on-error: true
+        run: |
+          python3 .github/scripts/perf-trends.py extract "$RUNNER_TEMP/perf-results.json" "$RUNNER_TEMP/gametests.log"
+          if grep -q '"measured_ns"' "$RUNNER_TEMP/perf-results.json"; then echo "found=true" >> "$GITHUB_OUTPUT"; fi
+
+      - name: Upload perf results
+        if: ${{ !cancelled() && steps.perf.outputs.found == 'true' }}
+        continue-on-error: true
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ github.ref == 'refs/heads/main' && 'perf-results-main' || 'perf-results' }}
+          path: ${{ runner.temp }}/perf-results.json
+          # The baseline has to outlive a few failed nightlies; a PR's results are only read by this run.
+          retention-days: ${{ github.ref == 'refs/heads/main' && 30 || 3 }}
+
+      # The listed flaky tests' outcomes (pass, failed_then_passed, failed) for flaky-tests.py fetch. Main keeps them
+      # longer, like the perf baseline; PR runs a while for flake rates across PRs.
+      - name: Upload flaky test results
+        if: ${{ !cancelled() && env.PUSH != 'true' }}
+        continue-on-error: true
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ github.ref == 'refs/heads/main' && 'flaky-results-main' || 'flaky-results' }}
+          path: ${{ runner.temp }}/flaky-results.json
+          if-no-files-found: ignore
+          retention-days: ${{ github.ref == 'refs/heads/main' && 30 || 14 }}
 
       - name: Dedicated server starts (storage)
         if: (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && steps.areas.outputs.storage == 'true'
@@ -181,3 +232,47 @@ jobs:
           else
             gh issue create --repo "$GITHUB_REPOSITORY" --title "$title" --body "The nightly run failed: $RUN_URL"
           fi
+
+  # Compares the PR's perf results with main's latest baseline and keeps one PR comment up to date. It never fails the
+  # build: hosted runners are noisy, like the budgets (which only warn in CI). Fork PRs get a read-only token: skipped.
+  perf-trends:
+    name: perf trends
+    needs: build
+    if: ${{ !cancelled() && github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && needs.build.outputs.perf == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    continue-on-error: true
+    permissions:
+      actions: read # this run's and main's perf artifacts
+      contents: read
+      pull-requests: write # the comment
+    steps:
+      - name: Checkout the compare script
+        uses: actions/checkout@v7
+        with:
+          sparse-checkout: .github/scripts/perf-trends.py
+          sparse-checkout-cone-mode: false
+
+      - name: Compare with main and comment
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" -n perf-results -D "$RUNNER_TEMP/current"
+          # Artifacts come newest first: the baseline is main's latest nightly or manual run that reached the GameTests.
+          baseline_run=$(gh api "repos/$GITHUB_REPOSITORY/actions/artifacts?name=perf-results-main&per_page=30" \
+            --jq '[.artifacts[] | select(.expired | not) | select(.workflow_run.head_branch == "main")][0].workflow_run.id // empty')
+          if [ -n "$baseline_run" ]; then
+            gh run download "$baseline_run" --repo "$GITHUB_REPOSITORY" -n perf-results-main -D "$RUNNER_TEMP/baseline"
+          fi
+          body=$(python3 .github/scripts/perf-trends.py compare "$RUNNER_TEMP/current/perf-results.json" \
+            "$RUNNER_TEMP/baseline/perf-results.json")
+          comment=$(gh api --paginate "repos/$GITHUB_REPOSITORY/issues/$PR/comments" \
+            --jq '.[] | select(.user.login == "github-actions[bot]" and (.body | startswith("<!-- perf-trends -->"))) | .id' \
+            | head -n 1)
+          if [ -n "$comment" ]; then
+            gh api -X PATCH "repos/$GITHUB_REPOSITORY/issues/comments/$comment" -f body="$body" > /dev/null
+          else
+            gh api "repos/$GITHUB_REPOSITORY/issues/$PR/comments" -f body="$body" > /dev/null
+          fi
+          echo "$body" >> "$GITHUB_STEP_SUMMARY"

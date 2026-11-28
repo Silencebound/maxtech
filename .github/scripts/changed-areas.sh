@@ -2,7 +2,9 @@
 # Classifies the files a CI run has to cover and prints flags as key=value lines (also appended to $GITHUB_OUTPUT).
 # Usage: changed-areas.sh [base [head]]. Defaults: base HEAD^1, head HEAD. On a pull_request the checkout is the merge
 # of the PR into its base and on a push to main it is the squash commit, so HEAD^1 is the base in both cases.
-# Flags: docs_only, lib, lib_client, storage, farms, all, ae2, rs. `all` implies every module flag.
+# Flags: docs_only, port, lib, lib_client, storage, farms, all, ae2, rs. `all` implies every module flag.
+# port: the diff touches port/** (the 1.21.1 backport tree). It needs no mod build, so port/** counts like docs; the
+# workflow runs port/convert.py --check for it. Any other unrecognised path still sets `all`.
 # lib_client: the Lib change touches only client code (render, screens, models), its hand-made assets or its unit
 # tests, and no non-client source imports a changed client class. GameTests run on a headless server and never load
 # that code, so it gets the build (unit tests) and Lib's datagen check but no GameTests. `./gradlew build` still compiles and unit-tests it on every run.
@@ -15,7 +17,7 @@ base="${1:-HEAD^1}"
 head="${2:-HEAD}"
 event="${GITHUB_EVENT_NAME:-}"
 
-docs_only=false lib=false lib_client=false storage=false farms=false all=false ae2=false rs=false
+docs_only=false port=false lib=false lib_client=false storage=false farms=false all=false ae2=false rs=false
 
 case "$event" in
   workflow_dispatch | schedule) all=true ae2=true rs=true ;;
@@ -27,7 +29,7 @@ case "$event" in
     other=false
     client_classes=()
     if git rev-parse -q --verify "$base^{commit}" > /dev/null; then
-      changed=$(git diff --name-only "$base" "$head")
+      changed=$(git diff --name-only --no-renames "$base" "$head")
     else
       # The repository's first commit has no parent: everything in it is new.
       changed=""
@@ -48,6 +50,7 @@ case "$event" in
         lib/* | build-logic/* | gradle/* | *.gradle.kts | gradle.properties | settings.gradle.kts | .github/*) all=true ;;
         storage/*) storage=true ;;
         farms/*) farms=true ;;
+        port/*) port=true ;;
         *.md | docs/* | .claude/* | scripts/* | LICENSE* | README*) ;;
         *) other=true ;; # unknown path (gradlew, .editorconfig, ...): be safe and run everything
       esac
@@ -80,6 +83,7 @@ fi
 if $lib; then lib_client=false; fi
 
 out="docs_only=$docs_only
+port=$port
 lib=$lib
 lib_client=$lib_client
 storage=$storage

@@ -230,6 +230,7 @@ def append_arg(call: str, arg: str):
 
 _SKIP_SIDE_EFFECTS = r"(\w+)\.setBlock\(([^;]*?),\s*Block\.UPDATE_CLIENTS \| Block\.UPDATE_SKIP_BLOCK_ENTITY_SIDEEFFECTS\);"
 _MACHINE_RECIPE_TESTS = tuple(p for p in GAMETEST_FILES if p.endswith("/MachineRecipeGameTests.java"))
+_MACHINE_PROCESS_TESTS = tuple(p for p in GAMETEST_FILES if p.endswith("/MachineProcessGameTests.java"))
 _PIPE_SHOWCASE = tuple(p for p in GAMETEST_FILES if "/PipeShowcase" in p)
 
 # 26.1 game and NeoForge apis the GameTests use, in their 1.21.1 shape (only in saving's GameTest files).
@@ -250,7 +251,14 @@ _GAMETEST_API = [
     Rename("getValueOrThrow", "getOrThrow", files=GAMETEST_FILES),
     Regex(r"\.byKey\(\s*ResourceKey\.(?:<Recipe<\?>>)?create\(\s*Registries\.RECIPE,\s*([^;]*?)\)\)", r".byKey(\1)",
           files=GAMETEST_FILES),
-    Regex(r"\.id\(\)\.location\(\)", ".id()", files=_MACHINE_RECIPE_TESTS),
+    Regex(r"\.id\(\)\.location\(\)", ".id()", files=_MACHINE_RECIPE_TESTS + _MACHINE_PROCESS_TESTS),
+    # MachineProcessGameTests' reload pack: 1.21.1's pack.mcmeta has one pack_format, and a recipe's item ingredient
+    # is an {"item": ...} object
+    Regex(r'\\"min_format\\": "\s*\+ SharedConstants\.DATA_PACK_FORMAT_MAJOR \+ ", \\"max_format\\": "\s*'
+          r'\+ SharedConstants\.DATA_PACK_FORMAT_MAJOR \+ "',
+          r'\\"pack_format\\": " + SharedConstants.DATA_PACK_FORMAT + "', scope="all", files=_MACHINE_PROCESS_TESTS),
+    Regex(r'\{\\"ingredient\\": "\s*\+ "\\"(minecraft:\w+)\\"\}', r'{\\"ingredient\\": {\\"item\\": \\"\1\\"}}',
+          scope="all", files=_MACHINE_PROCESS_TESTS),
     # LevelChunk.tryMarkSaved() (clears the unsaved flag) is setUnsaved(false)
     Regex(r"\.tryMarkSaved\(\)", ".setUnsaved(false)", files=GAMETEST_FILES),
     # BlockEntity.loadWithComponents(ValueInput) is (CompoundTag, Provider)

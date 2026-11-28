@@ -4,3 +4,5 @@
 *.png binary
 # Parallel PRs each add a line at the top of a changelog section; keep both sides on merge.
 */CHANGELOG.md merge=union
+# Append-only lists of one entry per line (docs/workflow.md, "Shared lists"); keep both sides on merge.
+*LangSections.java merge=union
