@@ -52,7 +52,7 @@ public interface ItemAccess {
             return forInfiniteMaterials(player, player.getItemInHand(hand));
         } else {
             return forPlayerSlot(player, switch (hand) {
-                case MAIN_HAND -> player.getInventory().getSelectedSlot();
+                case MAIN_HAND -> player.getInventory().selected;
                 case OFF_HAND -> Inventory.SLOT_OFFHAND;
             });
         }

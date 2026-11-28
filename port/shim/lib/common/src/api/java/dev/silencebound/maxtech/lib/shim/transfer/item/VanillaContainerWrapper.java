@@ -159,8 +159,9 @@ public class VanillaContainerWrapper implements ResourceHandler<ItemResource> {
 
         @Override
         protected void setStack(ItemStack item) {
-            // We pass insideTransaction = true to disable all non-transactional actions.
-            container.setItem(index, item, true);
+            // 1.21.1's Container has no insideTransaction flag, so the container's own setItem side effects run here
+            // (Lib only wraps player inventories and plain SimpleContainers this way).
+            container.setItem(index, item);
         }
 
         @Override
@@ -192,23 +193,7 @@ public class VanillaContainerWrapper implements ResourceHandler<ItemResource> {
             return resource.isEmpty() ? container.getMaxStackSize() : container.getMaxStackSize(resource.toStack());
         }
 
-        @Override
-        public int insert(int index, ItemResource resource, int amount, TransactionContext transaction) {
-            int inserted = super.insert(index, resource, amount, transaction);
-            if (inserted > 0) {
-                container.onTransfer(this.index, inserted, transaction);
-            }
-            return inserted;
-        }
-
-        @Override
-        public int extract(int index, ItemResource resource, int amount, TransactionContext transaction) {
-            int extracted = super.extract(index, resource, amount, transaction);
-            if (extracted > 0) {
-                container.onTransfer(this.index, -extracted, transaction);
-            }
-            return extracted;
-        }
+        // 1.21.1's Container has no onTransfer hook, so insert and extract are ItemStackResourceHandler's own.
 
         // We override updateSnapshots to also schedule a setChanged call for the backing container.
         @Override

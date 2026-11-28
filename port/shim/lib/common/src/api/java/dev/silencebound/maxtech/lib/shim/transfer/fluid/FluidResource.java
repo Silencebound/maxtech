@@ -12,6 +12,7 @@ package dev.silencebound.maxtech.lib.shim.transfer.fluid;
 import com.mojang.serialization.Codec;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 import net.minecraft.core.Holder;
@@ -20,13 +21,13 @@ import net.minecraft.core.component.DataComponentPatch;
 import net.minecraft.core.component.DataComponentType;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.chat.Component;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.util.ExtraCodecs;
 import net.minecraft.world.level.material.Fluid;
 import net.minecraft.world.level.material.Fluids;
-import net.neoforged.neoforge.fluids.FluidInstance;
 import net.neoforged.neoforge.fluids.FluidStack;
-import net.neoforged.neoforge.fluids.FluidStackTemplate;
 import net.neoforged.neoforge.fluids.FluidType;
 import dev.silencebound.maxtech.lib.shim.transfer.TransferPreconditions;
 import dev.silencebound.maxtech.lib.shim.transfer.resource.DataComponentHolderResource;
@@ -37,6 +38,7 @@ import org.jspecify.annotations.Nullable;
  * Similar to a {@link FluidStack}, but immutable and without amount information.
  */
 public final class FluidResource implements DataComponentHolderResource<Fluid> {
+    private static final ConcurrentHashMap<Fluid, FluidResource> DEFAULTS = new ConcurrentHashMap<>();
     /**
      * The empty resource instance of a {@link FluidResource}
      */
@@ -60,7 +62,7 @@ public final class FluidResource implements DataComponentHolderResource<Fluid> {
      * Stream codec for a fluid resource. Accepts empty resources.
      */
     public static final StreamCodec<RegistryFriendlyByteBuf, FluidResource> STREAM_CODEC = StreamCodec.composite(
-            FluidInstance.FLUID_HOLDER_STREAM_CODEC, FluidResource::typeHolder,
+            ByteBufCodecs.holderRegistry(Registries.FLUID), FluidResource::typeHolder,
             DataComponentPatch.STREAM_CODEC, FluidResource::getComponentsPatch,
             FluidResource::of);
 
@@ -77,24 +79,6 @@ public final class FluidResource implements DataComponentHolderResource<Fluid> {
         return new FluidResource(stack.copyWithAmount(FluidType.BUCKET_VOLUME));
     }
 
-    /// Creates a FluidResource using the default or copy of the passed in fluid stack. Note the amount is lost.
-    ///
-    /// @param template stack to copy with a size of 1
-    /// @return If null was given, an empty resource is returned.
-    ///         If there were no patches on the stack's data components, the fluid's default resource will be returned, otherwise a new instance with the copied stack.
-    public static FluidResource of(@Nullable FluidStackTemplate template) {
-        if (template == null) {
-            return EMPTY;
-        }
-        if (template.components().isEmpty()) {
-            return of(template.fluid());
-        }
-
-        var stack = template.create();
-        stack.setAmount(FluidType.BUCKET_VOLUME);
-        return new FluidResource(stack);
-    }
-
     /**
      * <strong>Note:</strong> This cannot be called before your fluid is registered
      *
@@ -103,7 +87,8 @@ public final class FluidResource implements DataComponentHolderResource<Fluid> {
      */
     public static FluidResource of(Fluid fluid) {
         if (fluid == Fluids.EMPTY) return EMPTY;
-        return fluid.computeDefaultResource(f -> new FluidResource(new FluidStack(f, FluidType.BUCKET_VOLUME)));
+        // 1.21.1 has no Fluid#computeDefaultResource; the cache keeps 26.1's one shared default instance per fluid.
+        return DEFAULTS.computeIfAbsent(fluid, f -> new FluidResource(new FluidStack(f, FluidType.BUCKET_VOLUME)));
     }
 
     /**
@@ -172,7 +157,7 @@ public final class FluidResource implements DataComponentHolderResource<Fluid> {
      */
     @Override
     public Holder<Fluid> typeHolder() {
-        return innerStack.typeHolder();
+        return innerStack.getFluidHolder();
     }
 
     /**
@@ -236,7 +221,7 @@ public final class FluidResource implements DataComponentHolderResource<Fluid> {
 
     @Override
     public DataComponentMap getComponents() {
-        return innerStack.immutableComponents();
+        return innerStack.getComponents();
     }
 
     @Override
@@ -276,13 +261,6 @@ public final class FluidResource implements DataComponentHolderResource<Fluid> {
      */
     public boolean matches(FluidStack stack) {
         return FluidStack.isSameFluidSameComponents(stack, innerStack);
-    }
-
-    /// {@return true if this resource matches the fluid and components of the passed template}
-    ///
-    /// @param template the fluid stack template to check
-    public boolean matches(@Nullable FluidStackTemplate template) {
-        return FluidStack.isSameFluidSameComponents(innerStack, template);
     }
 
     /**
