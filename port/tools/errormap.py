@@ -3,6 +3,7 @@
 
     python3 -I port/tools/errormap.py --run [--single] [--symbols] [--write-ownership]   (what errormap.sh calls)
     python3 -I port/tools/errormap.py port/build/errormap.log [--symbols] [--write-ownership]  (an existing javac log)
+    python3 -I port/tools/errormap.py --run --mod storage [--single] [--symbols]   (Storage: port/storage-errors.md)
 
 --run compiles with the javac inputs that `gradlew errorMapInputs` wrote. The default is the per-package mode: one javac
 run per work package that names only that package's files (ownership.txt) and finds the rest through -sourcepath; only
@@ -153,19 +154,24 @@ def read_ownership() -> dict[str, str]:
     return owners
 
 
-def javac_cmd(work: Path, extra: list[str]) -> list[str]:
-    ne = PORT / "projects/lib-neoforge/build/errorMap"
-    cm = PORT / "projects/lib-common/build/errorMap"
+def javac_cmd(work: Path, extra: list[str], mod: str = "lib") -> list[str]:
+    ne = PORT / f"projects/{mod}-neoforge/build/errorMap"
+    cm = PORT / f"projects/{mod}-common/build/errorMap"
     jars = sorted({line for f in (cm / "classpath.txt", ne / "classpath.txt")
                    for line in f.read_text(encoding="utf-8").splitlines() if line})
+    if mod != "lib":
+        # the generated Lib's classes; Storage's own come from source, never from a stale build
+        jars += sorted({line for f in (cm / "classdirs.txt", ne / "classdirs.txt")
+                        for line in f.read_text(encoding="utf-8").splitlines()
+                        if line and "/projects/lib-" in line.replace("\\", "/") and Path(line).is_dir()})
     return [(ne / "javac.txt").read_text(encoding="utf-8").strip(), "-J-Duser.language=en", "-J-Duser.country=US",
             "-XDshould-stop.ifError=FLOW", "-proc:none", "-encoding", "UTF-8", "-Xmaxerrs", "100000", "-Xmaxwarns", "0", "-nowarn",
             "-implicit:none", "-d", str(work / "classes"), "-cp", os.pathsep.join(jars), *extra]
 
 
-def source_files() -> list[str]:
+def source_files(mod: str = "lib") -> list[str]:
     files = []
-    for proj in ("lib-common", "lib-neoforge"):
+    for proj in (f"{mod}-common", f"{mod}-neoforge"):
         files += (PORT / "projects" / proj / "build/errorMap/sources.txt").read_text(encoding="utf-8").splitlines()
     return [f.replace("\\", "/") for f in files if f]
 
@@ -208,10 +214,126 @@ def run_all(single: bool) -> list[dict]:
     return errs
 
 
+# --- Storage (--mod storage, port/storage-errors.md) ------------------------------------------------------------------
+# Storage has no work packages yet, so each file gets an area from its path (first match wins, regex on the path below
+# port/out). The default mode runs one javac per area on that area's files, like Lib's per-package mode, so one area's
+# broken files do not hide another's errors; Lib comes in as compiled classes (classdirs.txt).
+STORAGE_AREAS = [
+    ("gametest", r"/src/gametest/"),
+    ("compat", r"/compat/"),
+    ("datagen", r"/datagen/"),
+    ("unit tests", r"/src/test/"),
+    ("rendering", r"/client/.*(render|model|Render|Model|Bak|Quad|Atlas|Particle|Painter)"),
+    ("gui", r"/client/|/storage/(terminal|devicetab)/"),
+    ("saving", r"/storage/save/"),
+    ("network", r"/storage/(network|cable|subnet|p2p|cluster|hub|controller|energy|signal|redstone|togglebus|"
+                r"priority)/"),
+    ("storage", r"/storage/(cell|drive|storageblock|storagechest|bulk|creative)/"),
+    ("transfer", r"/storage/(port|ioport|iface|bridge|part)/"),
+    ("crafting", r"/storage/crafting/"),
+    ("logic", r"/storage/(logic|sensor|condition|display)/"),
+    ("tools", r"/storage/tool/"),
+    ("other", r""),
+]
+
+
+def storage_area(rel: str) -> str:
+    return next(a for a, rx in STORAGE_AREAS if re.search(rx, rel))
+
+
+def storage_short(rel: str) -> str:
+    return re.sub(r"^storage/(common|neoforge)/src/(\w+)/java/dev/silencebound/maxtech/storage/", r"\1/\2: ", rel)
+
+
+def storage_run(single: bool) -> tuple[list[dict], list[str]]:
+    work = PORT / "build" / "errorMap-storage"
+    work.mkdir(parents=True, exist_ok=True)
+    files = source_files("storage")
+    out = _ci(OUT.as_posix()) + "/"
+    rels = {f: (f[len(out):] if _ci(f).startswith(out) else f) for f in files}
+    if single:
+        (work / "sources.txt").write_text("\n".join(files) + "\n", encoding="utf-8")
+        text = run_javac(javac_cmd(work, [f"@{work / 'sources.txt'}"], "storage"), work)
+        (PORT / "build" / "errormap-storage.log").write_text(text, encoding="utf-8")
+        return parse(text), list(rels.values())
+    dirs = sorted({f[:f.index("/java/") + 5] for f in files if "/java/" in f})
+    areas = [a for a, _ in STORAGE_AREAS]
+    mine = {a: [f for f in files if storage_area(rels[f]) == a] for a in areas}
+
+    def one(area: str) -> tuple[str, str]:
+        w = work / area.replace(" ", "-")
+        w.mkdir(exist_ok=True)
+        (w / "sources.txt").write_text("\n".join(mine[area]) + "\n", encoding="utf-8")
+        cmd = javac_cmd(w, ["-sourcepath", os.pathsep.join(dirs), f"@{w / 'sources.txt'}"], "storage")
+        return area, run_javac(cmd, w)
+
+    errs, logs = [], []
+    # Each run reads the rest of Storage through the sourcepath; four at a time keeps the memory in bounds.
+    with concurrent.futures.ThreadPoolExecutor(4) as pool:
+        for area, text in pool.map(one, [a for a in areas if mine[a]]):
+            logs.append(text)
+            errs += parse(text, {rels[f] for f in mine[area]})
+    (PORT / "build" / "errormap-storage.log").write_text("\n".join(logs), encoding="utf-8")
+    return errs, list(rels.values())
+
+
+def storage_main(single: bool) -> int:
+    errs, rels = storage_run(single)
+    by_file = collections.defaultdict(list)
+    for e in errs:
+        by_file[e["rel"]].append(e)
+    main_root = PORT.parent
+    unchanged = {r for r in rels if (main_root / r).is_file()
+                 and (main_root / r).read_bytes() == (OUT / r).read_bytes()}
+
+    def clean(fs: list[str]) -> tuple[int, int]:
+        ok = [r for r in fs if r not in by_file]
+        return sum(1 for r in ok if r in unchanged), sum(1 for r in ok if r not in unchanged)
+
+    same, changed = clean(rels)
+    lines = [f"total {len(errs)} errors in {len(by_file)} of {len(rels)} files"
+             f" ({'one javac run over all files' if single else 'per area, own files only'})",
+             f"clean files: {same} unchanged from main, {changed} changed by rules", "",
+             "by area (path):   errors  files with errors / files  clean unchanged  clean changed"]
+    for a, _ in STORAGE_AREAS:
+        fs = [r for r in rels if storage_area(r) == a]
+        bad = [r for r in fs if r in by_file]
+        s, c = clean(fs)
+        lines.append(f"  {a:12s} {sum(len(by_file[r]) for r in bad):7d} {len(bad):10d} / {len(fs):4d} {s:16d} {c:14d}")
+    kinds = collections.defaultdict(list)
+    for e in errs:
+        kinds[e["area"]].append(e)
+    lines.append("by kind (message, as Lib's areas):")
+    for k, es in sorted(kinds.items(), key=lambda kv: -len(kv[1])):
+        lines.append(f"  {k:12s} {len(es):5d} errors {len({e['rel'] for e in es}):4d} files")
+    lines.append("")
+    for a, _ in STORAGE_AREAS:
+        fs = sorted((r for r in by_file if storage_area(r) == a), key=lambda r: -len(by_file[r]))
+        if fs:
+            lines.append(f"[{a}]")
+        for r in fs:
+            c = collections.Counter(e["area"] for e in by_file[r])
+            lines.append(f"  {len(by_file[r]):4d}  {storage_short(r)}  ({', '.join(f'{k} {n}' for k, n in c.most_common())})")
+    if "--symbols" in sys.argv:
+        lines.append("[symbols all areas]")
+        for s, n in collections.Counter((e["sym"] or e["msg"])[:100] for e in errs).most_common(30):
+            lines.append(f"  {n:4d} {s}")
+        for a, _ in STORAGE_AREAS:
+            es = [e for e in errs if storage_area(e["rel"]) == a]
+            if es:
+                lines.append(f"[symbols {a}]")
+            for s, n in collections.Counter((e["sym"] or e["msg"])[:100] for e in es).most_common(15):
+                lines.append(f"  {n:4d} {s}")
+    print("\n".join(lines))
+    return 0
+
+
 def main() -> int:
     if len(sys.argv) < 2:
         sys.exit(__doc__)
     single = "--single" in sys.argv or "--write-ownership" in sys.argv
+    if "--mod" in sys.argv and sys.argv[sys.argv.index("--mod") + 1:][:1] == ["storage"]:
+        return storage_main("--single" in sys.argv)
     if "--run" in sys.argv:
         errs = run_all(single)
     else:
@@ -257,7 +379,7 @@ def main() -> int:
                "# change a file owned by another package. Every generated .java file is listed; a new main file",
                "# belongs to `other` until moved."]
         total = dict(owners)
-        for f in OUT.rglob("*.java"):
+        for f in (OUT / "lib").rglob("*.java"):
             rel = f.relative_to(OUT).as_posix()
             total.setdefault(rel, owner_without_errors(rel))
         out += [f"{total[f]:10s} {f}" for f in sorted(total)]

@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""Generates the 1.21.1 sources of MaxTech Lib from main's 26.1.2 sources (port/README.md).
+"""Generates the 1.21.1 sources of MaxTech Lib (and Storage) from main's 26.1.2 sources (port/README.md).
 
-    python3 -I port/convert.py [--main <checkout>] [--check]
+    python3 -I port/convert.py [--main <checkout>] [--check] [--mod lib|storage|all]
 
-1. Copies <main>/lib/{common,neoforge}/src/** to port/out/lib/... (port/out is wiped first).
+1. Copies <main>/<mod>/{common,neoforge}/src/** to port/out/<mod>/... (port/out is wiped first). --mod storage adds
+   Storage to Lib (only measured so far, port/storage-errors.md; the default lib keeps Lib's loop at seconds).
 2. Applies the rules: port/rules/core.py first, then every other port/rules/<package>.py in name order.
 3. Overlays port/shim/** (new, Lib-owned files; a shim may not replace a generated file).
 4. Overlays port/override/** (whole-file replacements of generated files). An override's first line is
@@ -25,7 +26,7 @@ from pathlib import Path
 
 PORT = Path(__file__).resolve().parent
 OUT = PORT / "out"
-PIECES = ("lib/common/src", "lib/neoforge/src")
+MODS = {"lib": ("lib/common/src", "lib/neoforge/src"), "storage": ("storage/common/src", "storage/neoforge/src")}
 REMOVE = ".port-remove"
 HEADER = "// port-override: base="
 
@@ -48,9 +49,9 @@ def load_rules() -> list[tuple[str, list[framework.Rule]]]:
     return loaded
 
 
-def copy_main(main: Path) -> list[Path]:
+def copy_main(main: Path, pieces: tuple[str, ...]) -> list[Path]:
     copied = []
-    for piece in PIECES:
+    for piece in pieces:
         src = main / piece
         if not src.is_dir():
             sys.exit(f"convert: {src} not found (is --main a MaxTech checkout?)")
@@ -141,12 +142,15 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--main", type=Path, default=PORT.parent, help="main checkout to convert (default: this one)")
     parser.add_argument("--check", action="store_true", help="exit 1 on warnings")
+    parser.add_argument("--mod", choices=("lib", "storage"), default="lib",
+                        help="lib, or storage for Lib and Storage (Storage needs Lib)")
     args = parser.parse_args()
     main_dir = args.main.resolve()
 
     if OUT.exists():
         shutil.rmtree(OUT)
-    files = copy_main(main_dir)
+    pieces = MODS["lib"] + (MODS["storage"] if args.mod == "storage" else ())
+    files = copy_main(main_dir, pieces)
     rules = load_rules()
     warnings: list[str] = []
     apply_rules(files, rules, warnings)
