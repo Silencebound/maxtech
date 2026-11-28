@@ -68,3 +68,17 @@ api, the network graph, config and presets, the content builder, schedulers, syn
 A day later the owner chose a clean slate: the remaining pipe leftovers (`api.pipe` with `PipeSize`, the pipe and
 glass conduit looks, face channels, extractor attachments and the unused conduit-kind hooks) were removed too.
 `lib_version` went to 0.2.0 and then 0.3.0, breaking api changes before 1.0.
+
+## Amendment: Lib bundles GuideME (owner decision 2026-11-28, Lib 0.15.0)
+
+Every MaxTech mod gets a GuideME guide, and Farms builds on Lib's api jars only, so the GuideME integration moved from
+Storage into Lib. Lib now bundles a third-party library: GuideME (LGPLv3, MIT and Apache 2.0) sits unchanged inside
+Lib's jar as jar-in-jar, and Lib declares it as a required dependency; Storage dropped its own copy. This is the only
+third-party library Lib bundles, and it is allowed because its licences permit redistribution in an LGPL-3.0-only mod
+(`CREDITS.md`). The rule "Lib registers no player-facing items" stands: each mod registers its own guide book.
+
+- The api names no GuideME type: `lib.neoforge.api.guide.Guides.register(modId)` declares `<modid>:guide` from the
+  mod's client entrypoint, `lib.api.guide.GuideBook` marks an item that opens a guide, and `GuideConfigValues` feeds
+  the `<Config>` tag. Lib's internals hold the tag, the website export's rewrite and the GuideME calls.
+- The build's hot reload and website tasks live in `maxtech.neoforge` and apply to any mod with guide pages.
+- A Lib-only install loads GuideME too; a newer GuideME from another mod (AE2) still replaces the bundled one.

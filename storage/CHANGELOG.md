@@ -63,6 +63,8 @@ Api changes are marked **Api**.
 
 ### Changed
 - Needs MaxTech Lib 0.15 (the Accent widgets moved to Lib's api); screens look and work as before.
+- GuideME is no longer bundled in Storage's jar: Lib 0.15 bundles it and draws Storage's guide, with the same pages,
+  tags, scenes and website. A `<Config>` key may now name another MaxTech mod's value (`maxtech_lib:energy.feRate`).
 - The logic controller, logic remote and logic admin screens use the Accent Frame look like every other Storage
   screen; the controller's label, status and power priority moved to the device side tabs.
 - With the same pattern in several providers or crafters, the highest pattern priority gets its batches first and

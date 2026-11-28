@@ -8,7 +8,7 @@ that folder, since GuideME reads every `.md` there as a page. Pages written by d
 ## Hot reload
 
 `./gradlew :storage:neoforge:runClient` sets `-Dguideme.maxtech_storage.guide.sources` to the page folder above (see
-`storage/neoforge/build.gradle.kts`). GuideME then reads the pages from the source folder and reloads a page as soon
+the guides section of `build-logic/src/main/kotlin/maxtech.neoforge.gradle.kts`). GuideME then reads the pages from the source folder and reloads a page as soon
 as its file is saved, while the guide is open; no resource reload or restart is needed. Generated pages still come
 from the build output, so run `runData` after changing their sources.
 
@@ -23,12 +23,12 @@ GuideME reports a missing item, recipe, page or unknown tag as red text on the p
 
 ## Storage's tags
 
-Pages use GuideME's tags plus one of Storage's own, registered in `StorageGuide.tagCompilers()`:
+Pages use GuideME's tags plus one of MaxTech's own, from Lib (`LibGuides.tagCompilers()`):
 
 - `<Config key="network.channels.adHoc" unit="channels" />` shows a value of Storage's server config in bold, with
   thousands grouped and the unit after a space; its tooltip names the path and the default. On a client in a world the
   value is the server's (NeoForge sends server configs to joining clients); outside a world it is the default. The key
-  may carry the `maxtech_storage:` prefix; other mods' configs are not readable.
+  may carry the `maxtech_storage:` prefix; another MaxTech mod's value takes its namespace (`maxtech_lib:...`).
 
 Tables are GitHub Markdown tables, and their cells may hold tags (`<ItemLink>`, `<Config>`). Scenes are GuideME's
 `<GameScene>` with `<Block id="..." x="0" y="0" z="0" p:facing="south" />` or `<ImportStructure src="x.nbt" />` and
