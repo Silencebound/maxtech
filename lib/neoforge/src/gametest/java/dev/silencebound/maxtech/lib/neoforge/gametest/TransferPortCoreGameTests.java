@@ -77,7 +77,8 @@ public final class TransferPortCoreGameTests {
             new Test("transfer_port_neighbour_filter", 100, false),
             new Test("transfer_port_neighbour_full", 100, false), new Test("transfer_port_stingy_source", 200, false),
             new Test("transfer_port_pull_filter", 100, false), new Test("transfer_port_vertical_wake", 100, false),
-            new Test("transfer_port_groups", 100, false), new Test("transfer_port_neighbour_port_unload", 400, true));
+            new Test("transfer_port_groups", 100, false), new Test("transfer_port_neighbour_port_unload", 400, true),
+            new Test("transfer_port_stale_cache", 800, true));
 
     static {
         FUNCTIONS.register("transfer_port_push_chest", () -> TransferPortCoreGameTests::pushChest);
@@ -100,6 +101,7 @@ public final class TransferPortCoreGameTests {
         FUNCTIONS.register("transfer_port_vertical_wake", () -> TransferPortCoreGameTests::verticalWake);
         FUNCTIONS.register("transfer_port_groups", () -> TransferPortCoreGameTests::groups);
         FUNCTIONS.register("transfer_port_neighbour_port_unload", () -> TransferPortCoreGameTests::neighbourPortUnload);
+        FUNCTIONS.register("transfer_port_stale_cache", () -> TransferPortCoreGameTests::staleCache);
     }
 
     private record Test(String name, int maxTicks, boolean far) {
@@ -474,6 +476,78 @@ public final class TransferPortCoreGameTests {
                 .thenExecute(() -> {
                     ChestBlockEntity chest = (ChestBlockEntity) level.getBlockEntity(chestPos);
                     helper.assertTrue(chest != null && count(chest, Items.STONE) == 64, "stone in the chest");
+                    level.setBlock(portPos, Blocks.AIR.defaultBlockState(), QUIET);
+                    level.setBlock(chestPos, Blocks.AIR.defaultBlockState(), QUIET);
+                    level.setChunkForced(chestChunkX, chunkZ, false);
+                    level.setChunkForced(anchorX, chunkZ, false);
+                }).thenSucceed();
+    }
+
+    /**
+     * A face whose cache already holds the chest's handler (the port is blocked by a full chest) when the chest's chunk
+     * drops below full status and comes back: once the chest is emptied the stone goes into the live chest, and the
+     * totals never change on any tick.
+     */
+    private static void staleCache(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        int anchorX = 6900;
+        int chunkZ = 6900;
+        int portChunkX = anchorX + 2;
+        int chestChunkX = anchorX + 3;
+        int y = helper.absolutePos(BlockPos.ZERO).getY();
+        BlockPos portPos = new BlockPos(portChunkX * 16 + 15, y, chunkZ * 16 + 8);
+        BlockPos chestPos = portPos.east();
+        PortEntity[] port = new PortEntity[1];
+        boolean[] checking = new boolean[1];
+        helper.onEachTick(() -> {
+            if (checking[0]) {
+                ChestBlockEntity live = (ChestBlockEntity) level.getBlockEntity(chestPos);
+                int inChest = live == null ? 0 : count(live, Items.STONE);
+                helper.assertValueEqual(TestPorts.count(port[0].output, Items.STONE) + inChest, 64,
+                        "stone in the port and the live chest");
+            }
+        });
+        helper.startSequence().thenExecute(() -> {
+            level.setChunkForced(anchorX, chunkZ, true);
+            level.setChunkForced(chestChunkX, chunkZ, true);
+            level.getChunk(portChunkX, chunkZ);
+            level.getChunk(chestChunkX, chunkZ);
+        }).thenWaitUntil(() -> {
+            helper.assertTrue(level.getChunkSource().getChunkNow(portChunkX, chunkZ) != null, "port chunk not full");
+            helper.assertTrue(level.getChunkSource().getChunkNow(chestChunkX, chunkZ) != null, "chest chunk not full");
+        }).thenExecute(() -> {
+            level.setBlock(chestPos, Blocks.CHEST.defaultBlockState(), QUIET);
+            ChestBlockEntity chest = (ChestBlockEntity) Objects.requireNonNull(level.getBlockEntity(chestPos));
+            for (int i = 0; i < chest.getContainerSize(); i++) {
+                chest.setItem(i, new ItemStack(Items.DIRT, 64));
+            }
+            port[0] = TestPorts.place(level, portPos, LevelTasks.newGroup(level), QUIET);
+            port[0].output.set(0, new ItemStack(Items.STONE, 64));
+            port[0].port.setSettings(faces(Direction.EAST, PUSH));
+        }).thenWaitUntil(() -> helper.assertValueEqual(port[0].port.status(ResourceKinds.ITEM), PortStatus.BLOCKED,
+                "status beside the full chest")).thenExecute(() -> level.setChunkForced(chestChunkX, chunkZ, false))
+                .thenWaitUntil(() -> helper.assertTrue(level.getChunkSource().getChunkNow(chestChunkX, chunkZ) == null,
+                        "the chest's chunk is still at full status"))
+                .thenIdle(ServerConfig.SCHEDULER_MAX_BACKOFF_TICKS.getAsInt() + 20).thenExecute(() -> {
+                    helper.assertTrue(level.getChunkSource().getChunkNow(chestChunkX, chunkZ) == null,
+                            "the port loaded the chest's chunk");
+                    level.setChunkForced(chestChunkX, chunkZ, true);
+                    level.getChunk(chestChunkX, chunkZ);
+                })
+                .thenWaitUntil(() -> helper.assertTrue(level.getChunkSource().getChunkNow(chestChunkX, chunkZ) != null,
+                        "the chest's chunk is not back at full status"))
+                .thenExecute(() -> {
+                    ChestBlockEntity live = (ChestBlockEntity) Objects.requireNonNull(level.getBlockEntity(chestPos),
+                            "no chest after its chunk came back");
+                    live.clearContent();
+                    live.setChanged();
+                    checking[0] = true;
+                }).thenWaitUntil(() -> helper.assertValueEqual(TestPorts.count(port[0].output, Items.STONE), 0,
+                        "stone left after the chest was emptied"))
+                .thenExecute(() -> {
+                    ChestBlockEntity live = (ChestBlockEntity) level.getBlockEntity(chestPos);
+                    helper.assertTrue(live != null && count(live, Items.STONE) == 64, "stone in the live chest");
+                    checking[0] = false;
                     level.setBlock(portPos, Blocks.AIR.defaultBlockState(), QUIET);
                     level.setBlock(chestPos, Blocks.AIR.defaultBlockState(), QUIET);
                     level.setChunkForced(chestChunkX, chunkZ, false);

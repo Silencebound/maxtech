@@ -163,7 +163,7 @@ public final class TestTanks {
     /**
      * Fluid tanks {@code inputA} and {@code inputB} (pull, 4,000 mB each, added in that order), {@code output} (push,
      * 4,000 mB), a plain fluid handler of 4,000 mB as its capability, and glow tanks {@code glowIn} (pull) and
-     * {@code glowOut} (push) of 4,000. Saves the tanks and the port's settings.
+     * {@code glowOut} and {@code glowOut2} (push) of 4,000. Saves the tanks and the port's settings.
      */
     public static final class PortEntity extends BlockEntity {
         public final FluidTank inputA = FluidTank.create(4000, this::changed);
@@ -173,6 +173,8 @@ public final class TestTanks {
                 this::changed);
         public final ResourceTank<Integer> glowOut = ResourceTank.create(ConduitApiGameTests.TEST_KIND, 4000,
                 this::changed);
+        public final ResourceTank<Integer> glowOut2 = ResourceTank.create(ConduitApiGameTests.TEST_KIND, 4000,
+                this::changed);
         public final FluidStacksResourceHandler plain = new FluidStacksResourceHandler(1, 4000);
         public final TransferPort port;
 
@@ -181,7 +183,7 @@ public final class TestTanks {
             TransferPorts.Builder builder = TransferPorts.builder().fluids(inputA, Set.of(PortFaceMode.PULL))
                     .fluids(inputB, Set.of(PortFaceMode.PULL)).fluids(output, Set.of(PortFaceMode.PUSH))
                     .tank(glowIn, Set.of(PortFaceMode.PULL)).tank(glowOut, Set.of(PortFaceMode.PUSH))
-                    .onSettingsChanged(this::setChanged);
+                    .tank(glowOut2, Set.of(PortFaceMode.PUSH)).onSettingsChanged(this::setChanged);
             TaskGroup group = nextGroup;
             if (group != null) {
                 builder.tasks(level -> group);

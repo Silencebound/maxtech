@@ -21,6 +21,7 @@ import dev.silencebound.maxtech.lib.platform.Platform;
 import dev.silencebound.maxtech.lib.platform.RegistryHelper;
 import dev.silencebound.maxtech.lib.schedule.LevelTasks;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Consumer;
 import net.minecraft.core.BlockPos;
@@ -72,8 +73,13 @@ public final class TransferPortTankGameTests {
             new Test("transfer_port_fluid_unknown", 100, false),
             new Test("transfer_port_foreign_push_short", 200, false),
             new Test("transfer_port_foreign_pull_short", 200, false),
+            new Test("transfer_port_foreign_push_one_move", 400, false),
+            new Test("transfer_port_fluid_pull_unknown", 100, false),
+            new Test("transfer_port_fluid_pull_filter", 150, false),
+            new Test("transfer_port_fluid_neighbour_filters", 100, false),
             new Test("transfer_port_fluid_sleeps", 1600, false),
-            new Test("transfer_port_fluid_target_unload", 400, true));
+            new Test("transfer_port_fluid_target_unload", 400, true),
+            new Test("transfer_port_fluid_stale_cache", 800, true));
 
     static {
         FUNCTIONS.register("transfer_port_fluid_push_tank", () -> TransferPortTankGameTests::pushTank);
@@ -85,8 +91,13 @@ public final class TransferPortTankGameTests {
         FUNCTIONS.register("transfer_port_fluid_unknown", () -> TransferPortTankGameTests::unknown);
         FUNCTIONS.register("transfer_port_foreign_push_short", () -> TransferPortTankGameTests::foreignPush);
         FUNCTIONS.register("transfer_port_foreign_pull_short", () -> TransferPortTankGameTests::foreignPull);
+        FUNCTIONS.register("transfer_port_foreign_push_one_move", () -> TransferPortTankGameTests::foreignOneMove);
+        FUNCTIONS.register("transfer_port_fluid_pull_unknown", () -> TransferPortTankGameTests::pullUnknown);
+        FUNCTIONS.register("transfer_port_fluid_pull_filter", () -> TransferPortTankGameTests::pullFilter);
+        FUNCTIONS.register("transfer_port_fluid_neighbour_filters", () -> TransferPortTankGameTests::neighbourFilters);
         FUNCTIONS.register("transfer_port_fluid_sleeps", () -> TransferPortTankGameTests::sleeps);
         FUNCTIONS.register("transfer_port_fluid_target_unload", () -> TransferPortTankGameTests::targetUnload);
+        FUNCTIONS.register("transfer_port_fluid_stale_cache", () -> TransferPortTankGameTests::staleCache);
     }
 
     private record Test(String name, int maxTicks, boolean far) {
@@ -315,6 +326,99 @@ public final class TransferPortTankGameTests {
     }
 
     /**
+     * Two pushing glow tanks and a store without transactions: one operation makes one foreign move, so the second tank
+     * is touched only once the first is empty, and the totals stay the same on every tick.
+     */
+    private static void foreignOneMove(GameTestHelper helper) {
+        PortEntity port = port(helper, PORT);
+        ForeignEntity store = TestTanks.foreign(helper.getLevel(), helper.absolutePos(PORT.east()), 5, 0, 100_000);
+        port.glowOut.set(5, 1000);
+        port.glowOut2.set(5, 1000);
+        port.port.setSettings(PortSettings.EMPTY.withMode(ConduitApiGameTests.TEST_KIND, Direction.EAST, PUSH));
+        helper.onEachTick(() -> {
+            helper.assertValueEqual(port.glowOut.amount() + port.glowOut2.amount() + store.handler.amount, 2000L,
+                    "glow in the port and the store");
+            helper.assertTrue(port.glowOut.amount() == 0 || port.glowOut2.amount() == 1000,
+                    "second tank moved while the first holds " + port.glowOut.amount());
+        });
+        helper.succeedWhen(() -> helper.assertValueEqual(store.handler.amount, 2000L, "glow in the store"));
+    }
+
+    /**
+     * A pull into pulling tanks where the one with room holds unknown contents and the other is full moves nothing, and
+     * the unknown contents stay as saved.
+     */
+    private static void pullUnknown(GameTestHelper helper) {
+        PortEntity port = port(helper, PORT);
+        TankEntity source = tank(helper, PORT.west(), 16000);
+        source.handler.set(0, FluidResource.of(Fluids.WATER), 1000);
+        ServerLevel level = helper.getLevel();
+        port.inputA.set(WATER, 1000);
+        TagValueOutput out = TagValueOutput.createWithContext(ProblemReporter.DISCARDING, level.registryAccess());
+        port.inputA.save(out);
+        CompoundTag missing = out.buildResult().copy();
+        missing.getCompoundOrEmpty("resource").putString("id", "missing_mod:goo");
+        port.inputA.load(TagValueInput.create(ProblemReporter.DISCARDING, level.registryAccess(), missing));
+        helper.assertTrue(port.inputA.unknown(), "the tank holds unknown contents: " + missing);
+        port.inputB.set(LAVA, 4000);
+        port.port.setSettings(faces(Direction.WEST, PULL));
+        helper.startSequence().thenExecuteAfter(40, () -> {
+            helper.assertValueEqual(amount(source.handler, Fluids.WATER), 1000L, "water left in the source");
+            helper.assertTrue(port.inputA.unknown(), "the contents are no longer unknown");
+            helper.assertValueEqual(port.inputA.unknownAmount(), 1000L, "unknown amount");
+            helper.assertValueEqual(amount(port.inputB, LAVA), 4000L, "lava in the full tank");
+            helper.assertValueEqual(port.output.amount(), 0L, "pulled into the push-only tank");
+        }).thenSucceed();
+    }
+
+    /** A pulling face's filter: a deny list with the water tag pulls no water; denying lava instead pulls it. */
+    private static void pullFilter(GameTestHelper helper) {
+        PortEntity port = port(helper, PORT);
+        TankEntity source = tank(helper, PORT.west(), 16000);
+        source.handler.set(0, FluidResource.of(Fluids.WATER), 1000);
+        PortSettings pull = faces(Direction.WEST, PULL);
+        port.port.setSettings(pull.withFilter(ResourceKinds.FLUID, Optional.of(PortFilter.of(ResourceKinds.FLUID,
+                PortFilter.Mode.DENY, List.of(), List.of(Identifier.withDefaultNamespace("water"))))));
+        helper.startSequence().thenExecuteAfter(40, () -> {
+            helper.assertValueEqual(amount(source.handler, Fluids.WATER), 1000L, "denied water pulled");
+            helper.assertValueEqual(amount(port.inputA, WATER), 0L, "water in the port");
+            port.port.setSettings(pull.withFilter(ResourceKinds.FLUID,
+                    Optional.of(PortFilter.of(ResourceKinds.FLUID, PortFilter.Mode.DENY, List.of(LAVA), List.of()))));
+        }).thenWaitUntil(() -> helper.assertValueEqual(amount(port.inputA, WATER), 1000L, "water pulled"))
+                .thenSucceed();
+    }
+
+    /**
+     * A push into a neighbouring port's pulling face asks both ports' filters: water moves only when neither denies it
+     * (pairs: the pusher denies, the puller denies, neither does).
+     */
+    private static void neighbourFilters(GameTestHelper helper) {
+        Optional<PortFilter<FluidKey>> denyWater = Optional
+                .of(PortFilter.of(ResourceKinds.FLUID, PortFilter.Mode.DENY, List.of(WATER), List.of()));
+        PortEntity[] as = new PortEntity[3];
+        PortEntity[] bs = new PortEntity[3];
+        for (int k = 0; k < 3; k++) {
+            BlockPos a = new BlockPos(0, 0, k);
+            as[k] = port(helper, a);
+            bs[k] = port(helper, a.east());
+            as[k].output.set(WATER, 1000);
+            PortSettings push = faces(Direction.EAST, PUSH);
+            PortSettings pull = faces(Direction.WEST, PULL);
+            as[k].port.setSettings(k == 0 ? push.withFilter(ResourceKinds.FLUID, denyWater) : push);
+            bs[k].port.setSettings(k == 1 ? pull.withFilter(ResourceKinds.FLUID, denyWater) : pull);
+        }
+        helper.startSequence().thenExecuteAfter(40, () -> {
+            String[] pairs = {"the pusher denies: ", "the puller denies: ", "neither denies: "};
+            for (int k = 0; k < 3; k++) {
+                long moved = k == 2 ? 1000 : 0;
+                helper.assertValueEqual(amount(bs[k].inputA, WATER), moved, pairs[k] + "water in B");
+                helper.assertValueEqual(amount(bs[k].plain, Fluids.WATER), 0L, pairs[k] + "water at B");
+                helper.assertValueEqual(amount(as[k].output, WATER), 1000 - moved, pairs[k] + "water left in A");
+            }
+        }).thenSucceed();
+    }
+
+    /**
      * A port blocked by a tank of another fluid runs only at its backoff, a port with nothing to push never runs, and
      * emptying the blocking tank (its block entity reports the change) wakes the blocked port within a tick.
      */
@@ -398,6 +502,74 @@ public final class TransferPortTankGameTests {
                 .thenExecute(() -> {
                     TankEntity tank = (TankEntity) level.getBlockEntity(tankPos);
                     helper.assertTrue(tank != null && amount(tank.handler, Fluids.WATER) == 1000, "water in the tank");
+                    level.setBlock(portPos, Blocks.AIR.defaultBlockState(), QUIET);
+                    level.setBlock(tankPos, Blocks.AIR.defaultBlockState(), QUIET);
+                    level.setChunkForced(tankChunkX, chunkZ, false);
+                    level.setChunkForced(anchorX, chunkZ, false);
+                }).thenSucceed();
+    }
+
+    /**
+     * A face whose cache already holds the tank's handler (the port is blocked by lava) when the tank's chunk drops
+     * below full status and comes back: once the lava is gone the water goes into the live tank, and the totals never
+     * change on any tick.
+     */
+    private static void staleCache(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        int anchorX = 6800;
+        int chunkZ = 6800;
+        int portChunkX = anchorX + 2;
+        int tankChunkX = anchorX + 3;
+        int y = helper.absolutePos(BlockPos.ZERO).getY();
+        BlockPos portPos = new BlockPos(portChunkX * 16 + 15, y, chunkZ * 16 + 8);
+        BlockPos tankPos = portPos.east();
+        PortEntity[] port = new PortEntity[1];
+        boolean[] checking = new boolean[1];
+        helper.onEachTick(() -> {
+            if (checking[0]) {
+                TankEntity live = (TankEntity) level.getBlockEntity(tankPos);
+                long inTank = live == null ? 0 : amount(live.handler, Fluids.WATER);
+                helper.assertValueEqual(port[0].output.amount() + inTank, 1000L, "water in the port and the live tank");
+            }
+        });
+        helper.startSequence().thenExecute(() -> {
+            level.setChunkForced(anchorX, chunkZ, true);
+            level.setChunkForced(tankChunkX, chunkZ, true);
+            level.getChunk(portChunkX, chunkZ);
+            level.getChunk(tankChunkX, chunkZ);
+        }).thenWaitUntil(() -> {
+            helper.assertTrue(level.getChunkSource().getChunkNow(portChunkX, chunkZ) != null, "port chunk not full");
+            helper.assertTrue(level.getChunkSource().getChunkNow(tankChunkX, chunkZ) != null, "tank chunk not full");
+        }).thenExecute(() -> {
+            TankEntity tank = TestTanks.tank(level, tankPos, 1000, QUIET);
+            tank.handler.set(0, FluidResource.of(Fluids.LAVA), 1000);
+            port[0] = TestTanks.place(level, portPos, LevelTasks.newGroup(level), QUIET);
+            port[0].output.set(WATER, 1000);
+            port[0].port.setSettings(faces(Direction.EAST, PUSH));
+        }).thenWaitUntil(() -> helper.assertValueEqual(port[0].port.status(ResourceKinds.FLUID), PortStatus.BLOCKED,
+                "status beside the lava")).thenExecute(() -> level.setChunkForced(tankChunkX, chunkZ, false))
+                .thenWaitUntil(() -> helper.assertTrue(level.getChunkSource().getChunkNow(tankChunkX, chunkZ) == null,
+                        "the tank's chunk is still at full status"))
+                .thenIdle(ServerConfig.SCHEDULER_MAX_BACKOFF_TICKS.getAsInt() + 20).thenExecute(() -> {
+                    helper.assertTrue(level.getChunkSource().getChunkNow(tankChunkX, chunkZ) == null,
+                            "the port loaded the tank's chunk");
+                    level.setChunkForced(tankChunkX, chunkZ, true);
+                    level.getChunk(tankChunkX, chunkZ);
+                }).thenWaitUntil(() -> helper.assertTrue(level.getChunkSource().getChunkNow(tankChunkX, chunkZ) != null,
+                        "the tank's chunk is not back at full status"))
+                .thenExecute(() -> {
+                    TankEntity live = (TankEntity) Objects.requireNonNull(level.getBlockEntity(tankPos),
+                            "no tank after its chunk came back");
+                    live.handler.set(0, FluidResource.EMPTY, 0);
+                    live.setChanged();
+                    checking[0] = true;
+                }).thenWaitUntil(() -> helper.assertValueEqual(port[0].output.amount(), 0L,
+                        "water left after the lava was gone"))
+                .thenExecute(() -> {
+                    TankEntity live = (TankEntity) level.getBlockEntity(tankPos);
+                    helper.assertTrue(live != null && amount(live.handler, Fluids.WATER) == 1000,
+                            "water in the live tank");
+                    checking[0] = false;
                     level.setBlock(portPos, Blocks.AIR.defaultBlockState(), QUIET);
                     level.setBlock(tankPos, Blocks.AIR.defaultBlockState(), QUIET);
                     level.setChunkForced(tankChunkX, chunkZ, false);

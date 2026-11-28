@@ -94,6 +94,26 @@ class KindMovesTest {
         assertEquals(0, target.amount);
     }
 
+    @Test
+    void overReportingForeignTargetGetsNoMoreThanAsked() {
+        Journaled source = new Journaled(1000, 1000, 1000);
+        OverReporting target = new OverReporting(0, 10_000);
+        assertEquals(400, move(source, target, 400));
+        assertEquals(600, source.amount);
+        assertEquals(400, target.amount);
+        assertEquals(1, target.executes);
+    }
+
+    @Test
+    void overReportingForeignSourceGivesNoMoreThanAsked() {
+        OverReporting source = new OverReporting(1000, 10_000);
+        Journaled target = new Journaled(0, 1000, 4000);
+        assertEquals(400, move(source, target, 400));
+        assertEquals(600, source.amount);
+        assertEquals(400, target.amount);
+        assertEquals(1, source.executes);
+    }
+
     /** A transactional store of {@link #KEY} that moves at most {@code perCall} per insert or extract. */
     private static final class Journaled extends SnapshotJournal<Long> implements KindStorage<String> {
         long amount;
@@ -211,6 +231,65 @@ class KindMovesTest {
             amount -= moved;
             executes++;
             return moved;
+        }
+
+        @Override
+        public boolean transactional() {
+            return false;
+        }
+
+        @Override
+        public long simulateInsert(String key, long wanted, TransactionContext transaction) {
+            return Math.max(0, Math.min(wanted, capacity - amount));
+        }
+
+        @Override
+        public long simulateExtract(String key, long wanted, TransactionContext transaction) {
+            return Math.min(wanted, amount);
+        }
+    }
+
+    /**
+     * A store without transactions whose executes move what was asked (as far as it fits) but report 100 more, more
+     * than asked and more than simulated.
+     */
+    private static final class OverReporting implements KindStorage<String> {
+        long amount;
+        private final long capacity;
+        int executes;
+
+        OverReporting(long amount, long capacity) {
+            this.amount = amount;
+            this.capacity = capacity;
+        }
+
+        @Override
+        public int size() {
+            return 1;
+        }
+
+        @Override
+        public @Nullable String resourceAt(int index) {
+            return amount > 0 ? KEY : null;
+        }
+
+        @Override
+        public long amountAt(int index) {
+            return amount;
+        }
+
+        @Override
+        public long insert(String key, long wanted, TransactionContext transaction) {
+            amount += simulateInsert(key, wanted, transaction);
+            executes++;
+            return wanted + 100;
+        }
+
+        @Override
+        public long extract(String key, long wanted, TransactionContext transaction) {
+            amount -= simulateExtract(key, wanted, transaction);
+            executes++;
+            return wanted + 100;
         }
 
         @Override

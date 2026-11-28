@@ -90,7 +90,9 @@ final class KindMoves {
                 return done;
             }
         }
-        // The foreign side took less than it simulated and the nested part rolled back: take exactly that again.
+        // The foreign side took less than it simulated and the nested part rolled back: take exactly that again. The
+        // port's side gave this much a moment ago, so with Lib's own tanks the redo always matches; the log below is an
+        // invariant check for a transactional side that changes its answer.
         if (done > 0) {
             long again = source.extract(key, done, root);
             if (again != done) {
@@ -120,7 +122,9 @@ final class KindMoves {
                 return done;
             }
         }
-        // The foreign side gave less than it simulated and the nested part rolled back: put exactly that in again.
+        // The foreign side gave less than it simulated and the nested part rolled back: put exactly that in again. The
+        // port's side took this much a moment ago, so with Lib's own tanks the redo always matches; the log below is an
+        // invariant check for a transactional side that changes its answer.
         if (done > 0) {
             long again = target.insert(key, done, root);
             if (again != done) {
