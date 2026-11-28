@@ -21,6 +21,7 @@ import java.util.Random;
 import java.util.Set;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.Identifier;
+import net.minecraft.world.item.DyeColor;
 import net.minecraft.world.level.ItemLike;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
@@ -41,6 +42,11 @@ class ConduitFrameGeometryTest {
     private static final double LOW = 5;
     private static final double HIGH = 11;
     private static final double BAR = 1;
+    /** How far either side of a seam the targeted rays pass: half a 0.02 px slit. */
+    private static final double SEAM_OFFSET = 0.01;
+    /** Where the targeted rays start, inside the core's glass. */
+    private static final List<Vec3> SEAM_ORIGINS = List.of(new Vec3(8, 8, 8), new Vec3(6.3, 7.1, 9.6),
+            new Vec3(9.7, 6.4, 6.8));
 
     /**
      * Every edge of the tube's outer box has a bar flush on it, all along: a straight run's four long edges, an open
@@ -134,11 +140,36 @@ class ConduitFrameGeometryTest {
                     assertFalse(Math.abs(out.get(quad.facing().getAxis()) - 8) > 8 - 0.01,
                             arms + "/" + rings + ": face on the block face " + quad);
                 }
+                // The rest: a face whose middle nothing lies against, off the joints, is drawn.
+                for (AABB box : solids) {
+                    for (Direction face : Direction.values()) {
+                        Vec3 middle = box.getCenter().with(face.getAxis(), ConduitGeometry.bound(box, face));
+                        Vec3 out = middle.add(new Vec3(face.getStepX(), face.getStepY(), face.getStepZ()).scale(0.001));
+                        boolean joint = ConduitConnections.isConnected(arms, face)
+                                && Math.abs(ConduitGeometry.bound(box, face) - ConduitGeometry
+                                        .bound(ConduitGeometry.glassArm(TYPE.thickness(), face, rings), face)) < EPS;
+                        if (joint || solids.stream().anyMatch(other -> other.contains(out))) {
+                            continue;
+                        }
+                        assertTrue(quads.stream().anyMatch(q -> q.facing() == face && q.box().equals(box)),
+                                arms + "/" + rings + ": open face not drawn " + face + " of " + box);
+                    }
+                }
             }
         }
-        // A straight run's bars show all four long faces, the two inner ones looking onto the glass.
-        List<ConduitQuad> straight = body(mask("we"), 0);
-        assertEquals(16, straight.stream().filter(q -> q.layer() != ConduitLayer.TRANSLUCENT).count());
+    }
+
+    /** How many opaque faces some shapes draw: their bars' and collars' faces less those culled. */
+    @ParameterizedTest(name = "{0}")
+    @CsvSource({
+            // name, arms, rings, faces
+            // A straight run's bars show all four long faces, the two inner ones looking onto the glass.
+            "straight, we, '', 16", "cap, e, '', 36", "single, '', '', 56", "L, es, '', 84", "six-way, dunswe, '', 144",
+            "ringed straight, we, e, 32", "ringed L, es, s, 100"})
+    void drawnFacesArePinned(String name, String arms, String rings, int faces) {
+        assertEquals(faces,
+                body(mask(arms), mask(rings)).stream().filter(q -> q.layer() != ConduitLayer.TRANSLUCENT).count(),
+                name);
     }
 
     /**
@@ -182,8 +213,55 @@ class ConduitFrameGeometryTest {
                     assertTrue(enclosed(quads, arms, rings, from, dir),
                             arms + "/" + rings + ": ray from " + from + " along " + dir + " gets out");
                 }
+                // Rays at every edge of every pane, just either side of it, so a slit along any seam lets one out:
+                // one straight through the pane's plane and some slanting in from inside the core.
+                for (ConduitQuad pane : quads) {
+                    if (pane.layer() != ConduitLayer.TRANSLUCENT) {
+                        continue;
+                    }
+                    Vec3 normal = new Vec3(pane.facing().getStepX(), pane.facing().getStepY(),
+                            pane.facing().getStepZ());
+                    for (Vec3 target : seamTargets(pane)) {
+                        List<Vec3> origins = new ArrayList<>(SEAM_ORIGINS);
+                        origins.add(target.subtract(normal.scale(0.5)));
+                        for (Vec3 from : origins) {
+                            Vec3 dir = target.subtract(from).normalize();
+                            assertTrue(enclosed(quads, arms, rings, from, dir),
+                                    arms + "/" + rings + ": ray at seam " + target + " from " + from + " gets out");
+                        }
+                    }
+                }
             }
         }
+    }
+
+    /**
+     * Points on the plane of {@code pane}, {@value #SEAM_OFFSET} px either side of each of its edges, within the block.
+     */
+    private static List<Vec3> seamTargets(ConduitQuad pane) {
+        AABB box = pane.box();
+        Direction.Axis normal = pane.facing().getAxis();
+        double plane = ConduitGeometry.bound(box, pane.facing());
+        List<Vec3> targets = new ArrayList<>();
+        for (Direction.Axis across : Direction.Axis.values()) {
+            for (Direction.Axis along : Direction.Axis.values()) {
+                if (across == normal || along == normal || across == along) {
+                    continue;
+                }
+                for (double edge : new double[]{box.min(across), box.max(across)}) {
+                    for (double fraction : new double[]{0.02, 0.25, 0.5, 0.75, 0.98}) {
+                        double at = box.min(along) + fraction * (box.max(along) - box.min(along));
+                        for (double offset : new double[]{-SEAM_OFFSET, SEAM_OFFSET}) {
+                            // Not past the block face, where the next tube's glass goes on.
+                            if (edge + offset > 0 && edge + offset < 16) {
+                                targets.add(Vec3.ZERO.with(normal, plane).with(across, edge + offset).with(along, at));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        return targets;
     }
 
     /** The contents sit inside the set-in glass, {@code inset} px in from it. */
@@ -209,6 +287,78 @@ class ConduitFrameGeometryTest {
                 }
             }
         }
+    }
+
+    /**
+     * With labels, the dye letter and the mode marks sit {@link ConduitGeometry#MARK_LIFT} in front of the set-in
+     * glass, within the window between the bars, and touch no bar, collar or ring.
+     */
+    @Test
+    void marksSitOnTheGlassBetweenTheBars() {
+        for (int arms = 0; arms < 64; arms++) {
+            for (int rings : new int[]{0, arms}) {
+                List<ConduitQuad> quads = new ArrayList<>(
+                        ConduitGeometry.body(FRAMED, new ConduitBodyKey(TYPE, DyeColor.RED, arms, rings), true));
+                List<ConduitQuad> marks = new ArrayList<>(
+                        quads.stream().filter(ConduitFrameGeometryTest::isMark).toList());
+                assertEquals(6 - Integer.bitCount(arms), marks.stream().map(ConduitQuad::facing).distinct().count(),
+                        arms + "/" + rings + ": a letter on every free core face");
+                for (Direction side : Direction.values()) {
+                    if (ConduitConnections.isConnected(rings, side)) {
+                        List<ConduitQuad> face = ConduitGeometry.face(FRAMED,
+                                new ConduitFaceKey(TYPE, side, ConduitFaceMode.BOTH), true);
+                        List<ConduitQuad> modeMarks = face.stream().filter(ConduitFrameGeometryTest::isMark).toList();
+                        assertFalse(modeMarks.isEmpty(), arms + "/" + rings + ": no mode mark on " + side);
+                        quads.addAll(face);
+                        marks.addAll(modeMarks);
+                    }
+                }
+                List<AABB> solids = solids(quads.stream().filter(q -> !isMark(q)).toList());
+                for (ConduitQuad mark : marks) {
+                    AABB box = mark.box();
+                    Direction.Axis normal = mark.facing().getAxis();
+                    double expected = mark.facing().getAxisDirection() == Direction.AxisDirection.POSITIVE
+                            ? HIGH - BAR + ConduitGeometry.MARK_LIFT
+                            : LOW + BAR - ConduitGeometry.MARK_LIFT;
+                    assertEquals(expected, box.min(normal), EPS, arms + "/" + rings + ": mark off the glass " + mark);
+                    for (Direction.Axis axis : Direction.Axis.values()) {
+                        // Across the tube; along an arm a mark lies wholly past the core.
+                        if (axis != normal && box.max(axis) > LOW && box.min(axis) < HIGH) {
+                            assertTrue(box.min(axis) >= LOW + BAR - EPS && box.max(axis) <= HIGH - BAR + EPS,
+                                    arms + "/" + rings + ": mark outside the window " + mark);
+                        }
+                    }
+                    AABB sliver = flat(mark).deflate(EPS);
+                    for (AABB solid : solids) {
+                        assertFalse(sliver.intersects(solid.deflate(EPS)),
+                                arms + "/" + rings + ": mark " + mark + " crosses " + solid);
+                    }
+                }
+            }
+        }
+    }
+
+    /** Bars half the tube wide or wider leave no glass and no bars of no length. */
+    @Test
+    void barsAsWideAsHalfTheTubeLeaveNothingEmpty() {
+        ConduitLook.Shell wide = FRAMED.withBorder(ConduitLook.Shell.MAX_WIDTH);
+        for (int arms = 0; arms < 64; arms++) {
+            for (int rings : new int[]{0, arms}) {
+                for (ConduitQuad quad : ConduitGeometry.body(wide, new ConduitBodyKey(TYPE, null, arms, rings))) {
+                    Direction.Axis normal = quad.facing().getAxis();
+                    assertTrue(
+                            ConduitFrameGeometry.hasArea(quad.box(),
+                                    quad.layer() == ConduitLayer.TRANSLUCENT ? normal : null),
+                            arms + "/" + rings + ": empty " + quad);
+                }
+            }
+        }
+    }
+
+    /** A label mark: an opaque pane flat along its facing, unlike the bars and collars. */
+    private static boolean isMark(ConduitQuad quad) {
+        Direction.Axis normal = quad.facing().getAxis();
+        return quad.layer() != ConduitLayer.TRANSLUCENT && quad.box().max(normal) - quad.box().min(normal) < EPS;
     }
 
     /** A ringed arm's collar wraps the arm all round from where the rim band starts to the ring. */
@@ -374,8 +524,17 @@ class ConduitFrameGeometryTest {
                 return true;
             }
         }
-        // Out through the joint to the next tube.
-        return ConduitConnections.isConnected(arms, exitFace) && !ConduitConnections.isConnected(rings, exitFace);
+        // Out through the joint to the next tube, inside the arm's cross-section.
+        if (!ConduitConnections.isConnected(arms, exitFace) || ConduitConnections.isConnected(rings, exitFace)) {
+            return false;
+        }
+        Vec3 out = from.add(dir.scale(exit));
+        for (Direction.Axis axis : Direction.Axis.values()) {
+            if (axis != exitFace.getAxis() && (out.get(axis) < LOW - EPS || out.get(axis) > HIGH + EPS)) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private static boolean onEachOther(ConduitQuad a, ConduitQuad b) {

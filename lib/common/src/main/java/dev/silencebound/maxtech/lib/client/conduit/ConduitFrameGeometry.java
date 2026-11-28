@@ -143,6 +143,8 @@ final class ConduitFrameGeometry {
         for (ConduitSilhouette.Band band : bands) {
             addCollar(boxes, core, band, bar);
         }
+        // Bars half the tube wide meet in the middle, so those between the others have no length.
+        boxes.removeIf(box -> !hasArea(box, null));
         for (int i = 0; i < boxes.size(); i++) {
             AABB box = boxes.get(i);
             for (Direction face : DIRECTIONS) {
@@ -156,6 +158,16 @@ final class ConduitFrameGeometry {
                 }
             }
         }
+    }
+
+    /** Whether {@code box} has extent along every axis but {@code flat} (none: every axis). */
+    static boolean hasArea(AABB box, Direction.@Nullable Axis flat) {
+        for (Direction.Axis axis : Direction.Axis.values()) {
+            if (axis != flat && box.max(axis) - box.min(axis) < EPSILON) {
+                return false;
+            }
+        }
+        return true;
     }
 
     /** The arm on {@code side} as far as its bars run: to the block face, or to the start of its collar. */

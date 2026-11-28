@@ -153,7 +153,8 @@ square, flush with it: a straight run's four long edges; an open end's long edge
 rim); at a bend, branch or single tube all twelve edges of the core plus each arm's four. Nothing is left out, so the
 bars on the far side, seen through the glass, read as the back of the frame instead of lines floating in it. Arm bars
 run to the block face and meet the next tube's end to end. A rim band becomes a collar one bar deep around the arm.
-The contents sit `inset` px inside the set-in glass.
+The contents sit `inset` px inside the set-in glass, and the label marks (dye letter, mode glyphs) on it between the
+bars, the mode glyphs past the collar.
 
 With `bar_texture` (Lib 0.15.0) the border lines, rims, bars and collars show that sprite instead of a flat colour,
 still tinted with `border_colour` (`#ffffff` keeps the sprite's own colours). It is projected onto the block like the

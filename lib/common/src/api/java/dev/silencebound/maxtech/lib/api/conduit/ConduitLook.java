@@ -123,7 +123,8 @@ public sealed interface ConduitLook {
      * of its core, each arm one on its four long edges, and the bars run to the block face, where the next tube's go
      * on. Nothing is left out, so the bars on the far side, seen through the glass, read as the back of the frame. An
      * open end's edges are bars too (no rim), a rim band becomes a collar one bar deep, and the contents sit
-     * {@code inset} px inside the inset glass.
+     * {@code inset} px inside the inset glass. Label marks sit on the inset glass between the bars, mode glyphs past
+     * the collar.
      * <p>
      * With a {@code barTexture} (Lib 0.15.0) the border lines, rims, bars and collars show that sprite instead of a
      * flat colour, still tinted with {@code borderColour} (white, {@code 0xFFFFFF}, shows the sprite's own colours).

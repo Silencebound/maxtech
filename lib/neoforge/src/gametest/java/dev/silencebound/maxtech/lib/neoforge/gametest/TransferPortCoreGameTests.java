@@ -395,7 +395,8 @@ public final class TransferPortCoreGameTests {
     /**
      * A port blocked by a full chest backs off to the scheduler's maximum (it runs at most about once per maximum
      * backoff), a port with nothing to push waits without running at all, and freeing room in the chest beside the
-     * blocked port wakes it within a tick.
+     * blocked port wakes it within a tick, or once {@code transfer.minIntervalTicks} after its last backoff run when
+     * that run was more recent.
      */
     private static void sleeps(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
@@ -413,6 +414,13 @@ public final class TransferPortCoreGameTests {
         empty.port.setSettings(faces(Direction.EAST, PUSH));
         long[] runs = new long[2];
         long[] freedAt = new long[1];
+        long[] earliest = new long[1];
+        long[] arrivedAt = new long[1];
+        helper.onEachTick(() -> {
+            if (freedAt[0] != 0 && arrivedAt[0] == 0 && count(full, Items.STONE) == 64) {
+                arrivedAt[0] = level.getGameTime();
+            }
+        });
         helper.startSequence().thenExecuteAfter(2 * maxBackoff + 100, () -> {
             runs[0] = blockedGroup.runs();
             runs[1] = emptyGroup.runs();
@@ -425,10 +433,11 @@ public final class TransferPortCoreGameTests {
             helper.assertValueEqual(emptyGroup.runs() - runs[1], 0L, "runs of a port with nothing to push");
             full.removeItem(5, 64);
             freedAt[0] = level.getGameTime();
+            earliest[0] = Math.max(freedAt[0] + 1, ((LibTransferPort) blocked.port).earliestNextRun());
         }).thenWaitUntil(() -> helper.assertValueEqual(count(full, Items.STONE), 64, "stone pushed after room freed"))
                 .thenExecute(() -> {
-                    long delay = level.getGameTime() - freedAt[0];
-                    helper.assertTrue(delay <= 1, "woke " + delay + " ticks after the chest changed");
+                    helper.assertTrue(arrivedAt[0] <= earliest[0], "moved " + (arrivedAt[0] - freedAt[0])
+                            + " ticks after the chest changed, due " + (earliest[0] - freedAt[0]));
                 }).thenSucceed();
     }
 

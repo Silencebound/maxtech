@@ -89,9 +89,16 @@ public final class ConduitGeometry {
                 shellBody(out, shell, key.type().thickness(), key.arms(), key.rings(), argb);
                 DyeColor colour = key.colour();
                 if (labels && colour != null) {
-                    // The letter sits on the glass, mostly away from the borders, so its ink suits the glass.
-                    ConduitLabels.addDyeLetter(out, key.type().thickness(), key.arms(), colour,
-                            ConduitLabels.ink(WHITE), MARK_LIFT);
+                    // The letter sits on the glass, mostly away from the borders, so its ink suits the glass; with
+                    // frame bars on the set-in glass, between the bars.
+                    double bar = ConduitFrameGeometry.barWidth(shell, key.type().thickness());
+                    if (bar > 0) {
+                        ConduitLabels.addDyeLetter(out, key.type().thickness(), key.arms(), colour,
+                                ConduitLabels.ink(WHITE), MARK_LIFT, bar);
+                    } else {
+                        ConduitLabels.addDyeLetter(out, key.type().thickness(), key.arms(), colour,
+                                ConduitLabels.ink(WHITE), MARK_LIFT);
+                    }
                 }
             }
         }
@@ -132,7 +139,16 @@ public final class ConduitGeometry {
             if (labels) {
                 double depth = ring.max(side.getAxis()) - ring.min(side.getAxis());
                 double lift = look instanceof ConduitLook.Shell ? MARK_LIFT : ConduitLabels.LIFT;
-                ConduitLabels.addModeMark(out, thickness, side, key.mode(), depth + RING_GAP, argb, lift);
+                if (look instanceof ConduitLook.Shell shell && ConduitFrameGeometry.barWidth(shell, thickness) > 0) {
+                    // On the set-in glass between the bars, past the collar, which would hide it.
+                    double bar = ConduitFrameGeometry.barWidth(shell, thickness);
+                    AABB arm = ConduitShapes.armBeforeRing(thickness, side);
+                    double collar = Math.min(shell.rim(), arm.max(side.getAxis()) - arm.min(side.getAxis()));
+                    ConduitLabels.addModeMark(out, thickness, side, key.mode(), depth + collar + RING_GAP, argb, lift,
+                            bar);
+                } else {
+                    ConduitLabels.addModeMark(out, thickness, side, key.mode(), depth + RING_GAP, argb, lift);
+                }
             }
         }
         return out;
@@ -191,10 +207,11 @@ public final class ConduitGeometry {
                 }
             }
         } else {
+            // An open end's core glass runs on into its arm on that side.
+            Direction kept = Integer.bitCount(arms) == 1 ? ConduitFrameGeometry.onlyArm(arms) : null;
             for (Direction side : DIRECTIONS) {
                 if (!ConduitConnections.isConnected(arms, side)) {
-                    Direction open = Integer.bitCount(arms) == 1 ? ConduitFrameGeometry.onlyArm(arms) : null;
-                    out.add(glass(look, ConduitFrameGeometry.glass(core, side, bar, null, open), side,
+                    out.add(glass(look, ConduitFrameGeometry.glass(core, side, bar, null, kept), side,
                             runPassing(arms, side.getAxis())));
                 }
             }
@@ -217,6 +234,8 @@ public final class ConduitGeometry {
         }
         int borders = out.size();
         if (look.frameBars()) {
+            // Bars half the tube wide or more leave no window: drop the glass that has shrunk to nothing.
+            out.removeIf(quad -> !ConduitFrameGeometry.hasArea(quad.box(), quad.facing().getAxis()));
             ConduitFrameGeometry.addFrame(out, look, thickness, arms, rings, borderArgb);
         } else {
             borderLines(out, look, core, thickness, arms, rings, borderArgb);

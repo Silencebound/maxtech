@@ -147,7 +147,17 @@ public final class ConduitLabels {
      */
     public static void addDyeLetter(List<ConduitQuad> out, float thickness, int arms, DyeColor colour, int ink,
             double lift) {
-        double width = ConduitShapes.width(thickness);
+        addDyeLetter(out, thickness, arms, colour, ink, lift, 0);
+    }
+
+    /**
+     * Adds the letter as {@link #addDyeLetter(List, float, int, DyeColor, int, double)} on faces set {@code inset} px
+     * in from the core's and {@code inset} px in from each of their edges, as a framed shell's glass is.
+     */
+    @SuppressWarnings("TooManyParameters") // the letter's conduit, dye, ink and placement; kept primitive
+    static void addDyeLetter(List<ConduitQuad> out, float thickness, int arms, DyeColor colour, int ink, double lift,
+            double inset) {
+        double width = ConduitShapes.width(thickness) - 2 * inset;
         double cell = Math.min(1.0, (width - MARGIN) / LETTER_ROWS);
         if (cell < MIN_CELL) {
             return;
@@ -181,12 +191,22 @@ public final class ConduitLabels {
     @SuppressWarnings("TooManyParameters") // the mark's arm, mode, position, colour and lift; kept primitive
     public static void addModeMark(List<ConduitQuad> out, float thickness, Direction side, ConduitFaceMode mode,
             double fromFace, int argb, double lift) {
+        addModeMark(out, thickness, side, mode, fromFace, argb, lift, 0);
+    }
+
+    /**
+     * Adds the glyph as {@link #addModeMark(List, float, Direction, ConduitFaceMode, double, int, double)} on sides set
+     * {@code inset} px in from the arm's and {@code inset} px in from their long edges, as a framed shell's glass is.
+     */
+    @SuppressWarnings("TooManyParameters") // the mark's arm, mode, position, colour and placement; kept primitive
+    static void addModeMark(List<ConduitQuad> out, float thickness, Direction side, ConduitFaceMode mode,
+            double fromFace, int argb, double lift, double inset) {
         int glyph = modeBits(mode);
-        double cell = modeCell(thickness, fromFace);
+        double cell = modeCell(thickness, fromFace, inset);
         if (glyph == 0 || cell < MIN_CELL) {
             return;
         }
-        double half = ConduitShapes.width(thickness) / 2;
+        double half = (ConduitShapes.width(thickness) - 2 * inset) / 2;
         // The glyph's centre, measured along the arm from the block's centre.
         double along = CENTRE - (fromFace + MODE_ROWS * cell / 2);
         for (Direction face : DIRECTIONS) {
@@ -205,14 +225,15 @@ public final class ConduitLabels {
      * {@code thickness} thick, in px from the block face; {@code fromFace} when no glyph fits.
      */
     public static double modeMarkEnd(float thickness, double fromFace) {
-        double cell = modeCell(thickness, fromFace);
+        double cell = modeCell(thickness, fromFace, 0);
         return cell < MIN_CELL ? fromFace : fromFace + MODE_ROWS * cell;
     }
 
-    private static double modeCell(float thickness, double fromFace) {
+    private static double modeCell(float thickness, double fromFace, double inset) {
         double width = ConduitShapes.width(thickness);
         double armLength = (BLOCK - width) / 2;
-        return Math.min(1.0, Math.min((width - MARGIN) / MODE_COLUMNS, (armLength - fromFace - MARGIN) / MODE_ROWS));
+        return Math.min(1.0,
+                Math.min((width - 2 * inset - MARGIN) / MODE_COLUMNS, (armLength - fromFace - MARGIN) / MODE_ROWS));
     }
 
     /**

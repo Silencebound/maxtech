@@ -359,6 +359,14 @@ public final class LibTransferPort implements TransferPort {
         return null;
     }
 
+    /**
+     * The earliest game time the next operation may run: the last operation plus {@code transfer.minIntervalTicks}, or
+     * any time before the first; for tests.
+     */
+    public long earliestNextRun() {
+        return lastRun + interval();
+    }
+
     /** The group the task is in while started, or null; for tests. */
     public @Nullable TaskGroup tasks() {
         return tasks;

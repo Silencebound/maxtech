@@ -20,6 +20,7 @@ import dev.silencebound.maxtech.lib.neoforge.gametest.TestTanks.TankEntity;
 import dev.silencebound.maxtech.lib.platform.Platform;
 import dev.silencebound.maxtech.lib.platform.RegistryHelper;
 import dev.silencebound.maxtech.lib.schedule.LevelTasks;
+import dev.silencebound.maxtech.lib.transfer.LibTransferPort;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -425,7 +426,8 @@ public final class TransferPortTankGameTests {
 
     /**
      * A port blocked by a tank of another fluid runs only at its backoff, a port with nothing to push never runs, and
-     * emptying the blocking tank (its block entity reports the change) wakes the blocked port within a tick.
+     * emptying the blocking tank (its block entity reports the change) wakes the blocked port within a tick, or once
+     * {@code transfer.minIntervalTicks} after its last backoff run when that run was more recent.
      */
     private static void sleeps(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
@@ -444,6 +446,13 @@ public final class TransferPortTankGameTests {
         empty.port.setSettings(faces(Direction.EAST, PUSH));
         long[] runs = new long[2];
         long[] freedAt = new long[1];
+        long[] earliest = new long[1];
+        long[] arrivedAt = new long[1];
+        helper.onEachTick(() -> {
+            if (freedAt[0] != 0 && arrivedAt[0] == 0 && amount(full.handler, Fluids.WATER) == 1000L) {
+                arrivedAt[0] = level.getGameTime();
+            }
+        });
         helper.startSequence().thenExecuteAfter(2 * maxBackoff + 100, () -> {
             runs[0] = blockedGroup.runs();
             runs[1] = emptyGroup.runs();
@@ -457,10 +466,11 @@ public final class TransferPortTankGameTests {
             full.handler.set(0, FluidResource.EMPTY, 0);
             full.setChanged();
             freedAt[0] = level.getGameTime();
+            earliest[0] = Math.max(freedAt[0] + 1, ((LibTransferPort) blocked.port).earliestNextRun());
         }).thenWaitUntil(() -> helper.assertValueEqual(amount(full.handler, Fluids.WATER), 1000L, "water pushed"))
                 .thenExecute(() -> {
-                    long delay = level.getGameTime() - freedAt[0];
-                    helper.assertTrue(delay <= 1, "woke " + delay + " ticks after the tank changed");
+                    helper.assertTrue(arrivedAt[0] <= earliest[0], "moved " + (arrivedAt[0] - freedAt[0])
+                            + " ticks after the tank changed, due " + (earliest[0] - freedAt[0]));
                     blockedGroup.close();
                     emptyGroup.close();
                 }).thenSucceed();
