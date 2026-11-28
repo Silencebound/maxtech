@@ -11,9 +11,9 @@ description: How the main session takes a PR to merged by risk tier (trivial, no
 |---|---|
 | `scripts/pr.sh status <pr>` | One line: state, head, base, mergeable, auto-merge, CI |
 | `scripts/pr.sh wait <pr>` | Blocks until CI on the current head finishes; exit 0 green, 1 failed |
-| `scripts/pr.sh merge <pr>` | First merges `origin/<base>` into the PR branch when the branch does not contain it (temporary worktree, normal merge commit, push; stops on a conflict and names the files), then waits for green CI on that head, squash-merges, retargets PRs stacked on it, merges the base into each and pushes (no force), then fast-forwards the owner's main checkout when it is on main, clean and only behind |
+| `scripts/pr.sh merge <pr>` | Merges `origin/<base>` into the PR branch only when GitHub reports a conflict (temporary worktree, normal merge commit, push; stops on a real conflict and names the files); a branch that is only behind merges as it is, without another CI run (owner 2026-11-28; `main` does not require up-to-date branches, and the build on `main` after the squash catches a clash), then waits for green CI on that head, squash-merges, retargets PRs stacked on it, merges the base into each and pushes (no force), then fast-forwards the owner's main checkout when it is on main, clean and only behind |
 
-| `scripts/pr.sh auto <pr>` | Brings the PR up to date and turns on auto-merge, then returns; GitHub merges it once the build and `review-gate` are green (stacked children are not fixed up; use `merge` for those) |
+| `scripts/pr.sh auto <pr>` | Merges the base in only on a conflict and turns on auto-merge, then returns; GitHub merges it once the build and `review-gate` are green (stacked children are not fixed up; use `merge` for those) |
 
 Run `wait` and `merge` with `run_in_background`, never as a foreground sleep loop.
 
