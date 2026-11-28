@@ -36,7 +36,7 @@ public final class MachineRecipeBuilder {
     private final List<KindOutput> tankOutputs = new ArrayList<>();
     private @Nullable String mode;
     private int energyPerTick;
-    private int duration = 1;
+    private int duration;
 
     private MachineRecipeBuilder(MachineRecipeType type, HolderGetter<Item> items) {
         this.type = type;
@@ -72,7 +72,17 @@ public final class MachineRecipeBuilder {
 
     /** One item of {@code tag} that must sit in a catalyst slot and is kept, such as a mask. */
     public MachineRecipeBuilder catalyst(TagKey<Item> tag) {
-        inputs.add(new ItemInput(Ingredient.of(items.getOrThrow(tag)), 1, false));
+        return catalyst(Ingredient.of(items.getOrThrow(tag)));
+    }
+
+    /** One {@code item} without a convention tag that must sit in a catalyst slot and is kept. */
+    public MachineRecipeBuilder catalyst(ItemLike item) {
+        return catalyst(Ingredient.of(item));
+    }
+
+    /** One item {@code ingredient} accepts that must sit in a catalyst slot and is kept. */
+    public MachineRecipeBuilder catalyst(Ingredient ingredient) {
+        inputs.add(new ItemInput(ingredient, 1, false));
         return this;
     }
 
@@ -112,15 +122,26 @@ public final class MachineRecipeBuilder {
         return this;
     }
 
-    /** {@code energyPerTick} FE drawn on each of {@code duration} ticks. */
-    public MachineRecipeBuilder energy(int energyPerTick, int duration) {
-        this.energyPerTick = energyPerTick;
-        this.duration = duration;
+    /** FE drawn on each tick of a run; 0 (no energy) unless set. */
+    public MachineRecipeBuilder energyPerTick(int fe) {
+        this.energyPerTick = fe;
         return this;
     }
 
-    /** The recipe; throws {@link IllegalStateException} if it does not fit its type's shape. */
+    /** Ticks per run, at least 1; every recipe sets it. */
+    public MachineRecipeBuilder duration(int ticks) {
+        this.duration = ticks;
+        return this;
+    }
+
+    /**
+     * The recipe; throws {@link IllegalStateException} if the duration was never set or the recipe does not fit its
+     * type's shape, and {@link IllegalArgumentException} for negative energy or a duration below 1.
+     */
     public MachineRecipe build() {
+        if (duration == 0) {
+            throw new IllegalStateException(type.id() + ": recipe without a duration");
+        }
         MachineRecipe recipe = new MachineRecipe(type, Optional.ofNullable(mode), inputs, tankInputs, outputs,
                 tankOutputs, energyPerTick, duration);
         Optional<String> problem = type.shape().check(recipe);

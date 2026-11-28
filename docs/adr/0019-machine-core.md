@@ -44,7 +44,8 @@ sits in `lib.neoforge.api.inventory` beside `Handlers` (amended 2026-11-28, PR #
   Inputs are items, fluids or other kinds by `ResourceKind`, matched by item or `c:` tag. A recipe has modes (variants
   of one machine) and outputs with a chance.
 - JEI and REI plugins are generated from the recipe's shape, so a mod adds a type and gets both viewers (owner).
-  EMI follows when it exists for 26.1.2.
+  EMI follows when it exists for 26.1.2. Minecraft 26.1 no longer syncs recipes to clients, so the plugins' PR must
+  send each machine type with NeoForge's `OnDatapackSyncEvent.sendRecipes` for the viewers to see them.
 
 **Upgrades**
 - Lib owns the `maxtech_lib:upgrade` data component, `UpgradeSlots` and `UpgradeEffects` (the math that turns the

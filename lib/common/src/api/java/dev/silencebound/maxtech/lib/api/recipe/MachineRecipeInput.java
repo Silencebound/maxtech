@@ -27,6 +27,26 @@ public interface MachineRecipeInput extends RecipeInput {
         return inputSlots() + catalystSlots();
     }
 
+    /**
+     * Whether every slot and every input tank is empty. Vanilla's recipe lookup finds nothing for an empty input
+     * without asking the recipes, and {@link RecipeInput#isEmpty()} counts only items, so a tank-only recipe would
+     * never be found.
+     */
+    @Override
+    default boolean isEmpty() {
+        for (int tank = 0; tank < inputTanks(); tank++) {
+            if (tankAmount(tank) > 0) {
+                return false;
+            }
+        }
+        for (int slot = 0; slot < size(); slot++) {
+            if (!getItem(slot).isEmpty()) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     /** Input tanks. */
     int inputTanks();
 

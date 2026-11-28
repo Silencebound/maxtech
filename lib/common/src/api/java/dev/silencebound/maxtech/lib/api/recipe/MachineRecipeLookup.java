@@ -4,15 +4,16 @@ import java.util.Optional;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.item.crafting.RecipeHolder;
 import net.minecraft.world.item.crafting.RecipeManager;
+import net.minecraft.world.level.Level;
 import org.jetbrains.annotations.ApiStatus;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Finds the recipe of one machine's type that its inputs match, remembering the last one: a machine that runs the same
- * recipe again checks only that one, with no stream and no allocation, and asks the recipe manager only when it no
- * longer matches. A datapack reload makes a new recipe manager, which drops what was remembered. One per machine (it
- * holds that machine's last recipe); call it when the inputs or mode change, not every tick. Not thread-safe: use it on
- * the server thread.
+ * Finds the recipe of one machine's type that its inputs match, remembering the last one: while that recipe still
+ * matches, a lookup checks only it and allocates nothing (no stream, the same {@code Optional}); only when it no longer
+ * matches does the lookup ask the recipe manager, which streams over the type's recipes. A datapack reload makes a new
+ * recipe manager, which drops what was remembered. One per machine (it holds that machine's last recipe); call it when
+ * the inputs or mode change, not every tick. Not thread-safe: use it on the server thread.
  */
 @ApiStatus.Experimental
 public final class MachineRecipeLookup {
@@ -30,17 +31,24 @@ public final class MachineRecipeLookup {
      * {@link MachineRecipe#matches}); {@code input}'s plan then holds where its inputs come from. Empty when none
      * matches. Returns the same {@code Optional} instance while the remembered recipe keeps matching.
      */
-    @SuppressWarnings("ReferenceEquality") // a reload makes a new manager; identity is the point
     public Optional<RecipeHolder<MachineRecipe>> find(ServerLevel level, MachineRecipeInput input) {
-        RecipeManager current = level.recipeAccess();
-        if (current != manager) {
-            manager = current;
+        return find(level.recipeAccess(), level, input);
+    }
+
+    /**
+     * {@link #find(ServerLevel, MachineRecipeInput)} against {@code recipes}; a manager other than the last one's (a
+     * reload) drops the remembered recipe first.
+     */
+    @SuppressWarnings("ReferenceEquality") // a reload makes a new manager; identity is the point
+    public Optional<RecipeHolder<MachineRecipe>> find(RecipeManager recipes, Level level, MachineRecipeInput input) {
+        if (recipes != manager) {
+            manager = recipes;
             last = Optional.empty();
         }
         if (last.isPresent() && last.get().value().matches(input, level)) {
             return last;
         }
-        Optional<RecipeHolder<MachineRecipe>> found = current.getRecipeFor(type.recipeType(), input, level);
+        Optional<RecipeHolder<MachineRecipe>> found = recipes.getRecipeFor(type.recipeType(), input, level);
         if (found.isPresent()) {
             last = found;
         }

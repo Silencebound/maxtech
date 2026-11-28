@@ -4,6 +4,7 @@ import com.mojang.serialization.Codec;
 import com.mojang.serialization.DataResult;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import dev.silencebound.maxtech.lib.api.resource.KindKey;
+import io.netty.handler.codec.DecoderException;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
@@ -29,16 +30,26 @@ public record KindOutput(KindKey<?> resource, long amount) {
             .<Raw>create(i -> i.group(KindKey.CODEC.fieldOf("resource").forGetter(Raw::resource),
                     Codec.LONG.fieldOf("amount").forGetter(Raw::amount)).apply(i, Raw::new))
             .flatXmap(KindOutput::decode, output -> DataResult.success(new Raw(output.resource, output.amount)));
-    /** Network form: the resource ({@link KindKey#CLIENTBOUND_STREAM_CODEC}), then the amount. */
+    /**
+     * Network form: the resource ({@link KindKey#CLIENTBOUND_STREAM_CODEC}), then the amount; an amount below 1 fails
+     * with a {@link DecoderException}.
+     */
     public static final StreamCodec<RegistryFriendlyByteBuf, KindOutput> STREAM_CODEC = StreamCodec.composite(
             KindKey.CLIENTBOUND_STREAM_CODEC, KindOutput::resource, ByteBufCodecs.VAR_LONG, KindOutput::amount,
-            KindOutput::new);
+            KindOutput::received);
 
     /** Throws {@link IllegalArgumentException} for an amount below 1. */
     public KindOutput {
         if (amount < 1) {
             throw new IllegalArgumentException("Kind output amount must be at least 1, was " + amount);
         }
+    }
+
+    private static KindOutput received(KindKey<?> resource, long amount) {
+        if (amount < 1) {
+            throw new DecoderException("Kind output amount " + amount);
+        }
+        return new KindOutput(resource, amount);
     }
 
     private static DataResult<KindOutput> decode(Raw raw) {
