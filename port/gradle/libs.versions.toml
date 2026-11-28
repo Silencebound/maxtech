@@ -1,0 +1,26 @@
+# Versions for the 1.21.1 build only (port/README.md). Main's catalog (../gradle/libs.versions.toml) stays 26.1.2.
+# Picked by the 2026-11-28 spike (spike/lib-1.21.1): the newest 1.21.1 line of each dependency.
+[versions]
+minecraft-range = "[1.21.1]"
+neoforge = "21.1.268"
+neoforge-range = "[21.1,21.2)"
+javafml-range = "[1,)"
+junit = "6.1.3"
+# 26.1 brings JSpecify with Minecraft's libraries; 1.21.1 does not, so the port adds it (compile only).
+jspecify = "1.0.0"
+kubejs = "2101.7.2-build.381"
+rhino = "2101.2.8-build.91+Rhino-1.21"
+jade = "15.10.6+neoforge"
+guideme = "21.1.22"
+ftb-teams = "2101.1.12"
+
+[libraries]
+junit-bom = { module = "org.junit:junit-bom", version.ref = "junit" }
+junit-jupiter = { module = "org.junit.jupiter:junit-jupiter" }
+junit-launcher = { module = "org.junit.platform:junit-platform-launcher" }
+jspecify = { module = "org.jspecify:jspecify", version.ref = "jspecify" }
+kubejs = { module = "maven.modrinth:kubejs", version.ref = "kubejs" }
+rhino = { module = "maven.modrinth:rhino", version.ref = "rhino" }
+jade-neoforge = { module = "maven.modrinth:jade", version.ref = "jade" }
+guideme = { module = "org.appliedenergistics:guideme", version.ref = "guideme" }
+ftb-teams-neoforge = { module = "dev.ftb.mods:ftb-teams-neoforge", version.ref = "ftb-teams" }
