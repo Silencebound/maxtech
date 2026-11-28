@@ -9,7 +9,11 @@ import dev.silencebound.maxtech.lib.api.menu.MenuValueView;
 import dev.silencebound.maxtech.lib.api.menu.MenuValues;
 import dev.silencebound.maxtech.lib.api.menu.ProgressValue;
 import dev.silencebound.maxtech.lib.api.menu.TankValue;
+import dev.silencebound.maxtech.lib.api.inventory.FluidTank;
+import dev.silencebound.maxtech.lib.api.inventory.ResourceTank;
 import dev.silencebound.maxtech.lib.api.resource.FluidKey;
+import dev.silencebound.maxtech.lib.api.resource.KindKey;
+import dev.silencebound.maxtech.lib.api.resource.ResourceKinds;
 import dev.silencebound.maxtech.lib.menu.MenuValuesPayload;
 import dev.silencebound.maxtech.lib.menu.ToolkitMenu;
 import dev.silencebound.maxtech.lib.platform.Platform;
@@ -28,17 +32,22 @@ import net.minecraft.gametest.framework.FunctionGameTestInstance;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.gametest.framework.TestData;
 import net.minecraft.gametest.framework.TestEnvironmentDefinition;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.util.ProblemReporter;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.material.Fluids;
+import net.minecraft.world.level.storage.TagValueInput;
+import net.minecraft.world.level.storage.TagValueOutput;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.RegisterGameTestsEvent;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Toolkit menu values on a running server: the client mirror follows the server through the real payload codec (fluid
@@ -48,7 +57,8 @@ import net.neoforged.neoforge.event.RegisterGameTestsEvent;
 @EventBusSubscriber(modid = MaxtechLib.MOD_ID)
 public final class MenuValuesGameTests {
     private static final String[] NAMES = {"menu_values_mirror_follows_server", "menu_values_idle_sends_nothing",
-            "menu_values_equal_fluid_sends_nothing", "menu_values_resync_sends_all", "menu_values_frozen_level_syncs"};
+            "menu_values_equal_fluid_sends_nothing", "menu_values_resync_sends_all", "menu_values_frozen_level_syncs",
+            "menu_values_kind_tanks_sync"};
     private static final RegistryHelper.Registrar<Consumer<GameTestHelper>> FUNCTIONS = Platform.get().registry()
             .registrar(MaxtechLib.MOD_ID, Registries.TEST_FUNCTION);
     private static final int TICKS = 30;
@@ -70,12 +80,20 @@ public final class MenuValuesGameTests {
             h -> h.amount, h -> h.tankCapacity);
     private static final MenuValues<Host> FRESH_VALUES = FRESH_BUILDER.build();
 
+    /** Tanks of the GameTest kind {@code maxtech_lib:test_glow}, given as a key and as a Lib tank, and a fluid tank. */
+    private static final MenuValues.Builder<KindHost> KIND_BUILDER = MenuValues.builder();
+    private static final TankValue GLOW = KIND_BUILDER.kindTank(h -> h.glow, h -> h.glowAmount, h -> 1000);
+    private static final TankValue GLOW_TANK = KIND_BUILDER.tank(ConduitApiGameTests.TEST_KIND, h -> h.glowTank);
+    private static final TankValue FLUID_TANK = KIND_BUILDER.tank(ResourceKinds.FLUID, h -> h.fluidTank);
+    private static final MenuValues<KindHost> KIND_VALUES = KIND_BUILDER.build();
+
     static {
         FUNCTIONS.register(NAMES[0], () -> MenuValuesGameTests::mirrorFollowsServer);
         FUNCTIONS.register(NAMES[1], () -> MenuValuesGameTests::idleSendsNothing);
         FUNCTIONS.register(NAMES[2], () -> MenuValuesGameTests::equalFluidSendsNothing);
         FUNCTIONS.register(NAMES[3], () -> MenuValuesGameTests::resyncSendsAll);
         FUNCTIONS.register(NAMES[4], () -> MenuValuesGameTests::frozenLevelSyncs);
+        FUNCTIONS.register(NAMES[5], () -> MenuValuesGameTests::kindTanksSync);
     }
 
     private MenuValuesGameTests() {
@@ -103,6 +121,32 @@ public final class MenuValuesGameTests {
         Optional<FluidKey> fluid = Optional.empty();
         long amount;
         long tankCapacity = 8000;
+    }
+
+    /** A block entity with tanks of more than one kind. */
+    private static final class KindHost {
+        Optional<KindKey<?>> glow = Optional.empty();
+        long glowAmount;
+        final ResourceTank<Integer> glowTank = ResourceTank.create(ConduitApiGameTests.TEST_KIND, 2000, () -> {
+        });
+        FluidTank fluidTank = FluidTank.create(8000, () -> {
+        });
+    }
+
+    private static final class KindMenu extends ToolkitMenu<KindHost> {
+        KindMenu(int containerId, Player player, @Nullable KindHost host) {
+            super(null, containerId, player, KIND_VALUES, host);
+        }
+
+        @Override
+        public ItemStack quickMoveStack(Player player, int slot) {
+            return ItemStack.EMPTY;
+        }
+
+        @Override
+        public boolean stillValid(Player player) {
+            return true;
+        }
     }
 
     private static final class TestMenu extends ToolkitMenu<Host> {
@@ -334,5 +378,87 @@ public final class MenuValuesGameTests {
         }
         helper.assertValueEqual(client.values().get(COUNT), 5, "last count");
         helper.succeed();
+    }
+
+    /**
+     * Tanks of the GameTest kind sync through the real payload codec, whether declared by key or over a Lib tank; a
+     * fluid tank whose saved fluid no longer loads arrives as unknown with its saved amount, not as empty, and once its
+     * contents are discarded and refilled it reads as a fluid again. Idle ticks send nothing.
+     */
+    private static void kindTanksSync(GameTestHelper helper) {
+        var registries = helper.getLevel().registryAccess();
+        Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+        KindHost host = new KindHost();
+        host.glow = Optional.of(new KindKey<>(ConduitApiGameTests.TEST_KIND, 37));
+        host.glowAmount = 600;
+        host.glowTank.set(40, 1500);
+        FluidTank saved = FluidTank.create(8000, () -> {
+        });
+        saved.set(FluidKey.of(Fluids.WATER), 2500);
+        TagValueOutput out = TagValueOutput.createWithContext(ProblemReporter.DISCARDING, registries);
+        saved.save(out);
+        CompoundTag missing = out.buildResult();
+        CompoundTag resource = missing.getCompoundOrEmpty("resource");
+        resource.putString("id", "gone_mod:goo");
+        missing.put("resource", resource);
+        host.fluidTank.load(TagValueInput.create(ProblemReporter.DISCARDING, registries, missing));
+        helper.assertTrue(host.fluidTank.unknown(), "saved fluid still loads");
+
+        KindMenu server = new KindMenu(11, player, host);
+        KindMenu client = new KindMenu(11, player, null);
+        List<MenuValuesPayload> sent = new ArrayList<>();
+        server.sendValuesTo(sent::add);
+        Runnable deliver = () -> {
+            for (MenuValuesPayload payload : sent) {
+                helper.assertTrue(MenuValuesPayload.apply(overTheWire(helper, payload), client, registries),
+                        "payload applied");
+            }
+            sent.clear();
+        };
+        server.broadcastChanges();
+        deliver.run();
+        MenuValueView view = client.values();
+        helper.assertValueEqual(view.resource(GLOW), Optional.of(new KindKey<>(ConduitApiGameTests.TEST_KIND, 37)),
+                "glow by key");
+        helper.assertValueEqual(view.amount(GLOW), 600L, "glow amount");
+        helper.assertValueEqual(view.resource(GLOW_TANK), Optional.of(new KindKey<>(ConduitApiGameTests.TEST_KIND, 40)),
+                "glow tank");
+        helper.assertValueEqual(view.amount(GLOW_TANK), 1500L, "glow tank amount");
+        helper.assertValueEqual(view.capacity(GLOW_TANK), 2000L, "glow tank capacity");
+        boolean refused = false;
+        try {
+            view.fluid(GLOW_TANK);
+        } catch (IllegalArgumentException expected) {
+            refused = true;
+        }
+        helper.assertTrue(refused, "fluid read of a glow tank not refused");
+        KindKey<?> unknown = view.resource(FLUID_TANK).orElseThrow();
+        helper.assertTrue(unknown.isUnknown(), "unloaded fluid not unknown: " + unknown);
+        helper.assertValueEqual(unknown.kindId(), ResourceKinds.FLUID.id(), "unknown contents' kind");
+        helper.assertValueEqual(view.amount(FLUID_TANK), 2500L, "unknown contents' saved amount");
+        helper.assertValueEqual(view.fluid(FLUID_TANK), Optional.empty(), "unknown contents as a fluid");
+
+        int[] ticks = new int[1];
+        helper.onEachTick(() -> {
+            ticks[0]++;
+            if (ticks[0] <= 10) {
+                server.broadcastChanges();
+                helper.assertValueEqual(sent.size(), 0, "idle tick " + ticks[0] + " sent");
+            } else if (ticks[0] == 11) {
+                host.fluidTank.discardUnknown();
+                host.fluidTank.set(FluidKey.of(Fluids.LAVA), 700);
+                host.glowTank.set(41, 1500);
+                server.broadcastChanges();
+                helper.assertValueEqual(sent.size(), 1, "one payload for the changes");
+                deliver.run();
+                helper.assertValueEqual(view.fluid(FLUID_TANK), Optional.of(FluidKey.of(Fluids.LAVA)), "refilled");
+                helper.assertValueEqual(view.resource(FLUID_TANK),
+                        Optional.of(new KindKey<>(ResourceKinds.FLUID, FluidKey.of(Fluids.LAVA))), "refilled key");
+                helper.assertValueEqual(view.amount(FLUID_TANK), 700L, "refilled amount");
+                helper.assertValueEqual(view.resource(GLOW_TANK),
+                        Optional.of(new KindKey<>(ConduitApiGameTests.TEST_KIND, 41)), "glow tank changed");
+                helper.succeed();
+            }
+        });
     }
 }
