@@ -61,6 +61,11 @@ TINTED_BUTTON = [
 VANILLA = [
     # 26.1 renamed the toast manager.
     Regex(r"\.getToastManager\(\)", ".getToasts()", files=_only(f"{_API}/client/gui/AccentToast.java")),
+    # 1.21.1's container screen getters are NeoForge's getGuiLeft/getGuiTop/getXSize/getYSize.
+    *[Regex(rf"\bcontainer\.{old}\(\)", f"container.{new}()",
+            files=_only("lib/neoforge/src/main/java/dev/silencebound/maxtech/lib/neoforge/client/LayoutCheckClient.java"))
+      for old, new in (("getLeftPos", "getGuiLeft"), ("getTopPos", "getGuiTop"), ("getImageWidth", "getXSize"),
+                       ("getImageHeight", "getYSize"))],
 ]
 
 # Jade 15 (1.21.1) builds tooltip rows from IElement, not LayoutElement (InfoElements is an override for the rest).

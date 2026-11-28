@@ -20,6 +20,15 @@ NeoForge 26.1.2.109 sources), because NeoForge 21.1 has no transfer api and Lib'
   1.21.1 jar's META-INF next to Lib's licence texts.
 
 Decided (owner 2026-11-28): the vendored api ships as its own nested jar (jar-in-jar) under LGPL-2.1, apart from
-Lib's classes. Not built that way yet. The vendored files still use Lib's `shim.saving` value-io shims
-(`StacksResourceHandler`, `SimpleEnergyHandler`, `ItemStackResourceHandler`), so the nested jar needs those too or the
-vendored files need their own copy.
+Lib's classes. Lib's 1.21.1 jar carries it as `META-INF/jarjar/dev.silencebound.maxtech.lib.maxtech_lib-transfer-<version>.jar`
+(built by `transferJar` in `port/projects/lib-common`), with this file and the LGPL-2.1 text (`LICENSE-transfer.txt`)
+in its META-INF. `bridge/legacy/` stays in Lib's jar.
+
+The nested jar uses Lib's classes at runtime and carries no copy of them: the `shim.saving` interfaces (`ValueInput`,
+`ValueOutput`, `ValueIOSerializable`) and, from `EnergyHandlerUtil`, `bridge.legacy.LegacyForeignLast`. Licence: the
+vendored code only calls Lib's classes, so no LGPL-3.0 code lands in the
+LGPL-2.1 jar and nothing is relicensed; each jar can be replaced on its own. Classloading: the nested jar is a game
+library (`FMLModType: GAMELIBRARY`), loaded in the same layer as Lib, where both see each other; a copy would put the
+`shim.saving` package into two jars, which the module layer refuses (split package), or need a second package that
+Lib's implementations would then have to implement. `:lib:neoforge:checkTransferJar` (part of `check`) fails when
+the two jars share a package.

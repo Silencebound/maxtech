@@ -22,12 +22,20 @@ python3 -I port/convert.py                 # regenerate port/out from this check
 python3 -I port/convert.py --main ../other # ... from another main checkout
 python3 -I port/convert.py --check         # exit 1 on warnings (stale overrides, rule ownership, shadowing shims)
 (cd port && ./gradlew compileJava --continue)          # normal 1.21.1 build of the generated tree
-(cd port && ./gradlew :lib:neoforge:runGameTestServer) # GameTests, once Lib compiles
+(cd port && ./gradlew test)                            # unit tests: common's in plain JUnit, neoforge's inside FML
+(cd port && ./gradlew :lib:neoforge:runGameTestServer) # GameTests (whole maxtech_lib namespace; see below)
+(cd port && ./gradlew :lib:neoforge:jar)               # the jar, with the transfer api nested (NOTICE-transfer.md)
+(cd port && ./gradlew :lib:neoforge:checkTransferJar)  # fails when Lib's jar and the nested one share a package
 (cd port && ./gradlew :lib:neoforge:runClient)         # dev client
 port/tools/errormap.sh                     # regenerate, then one javac per work package; summary on stdout
 port/tools/errormap.sh --single            # ... or ONE javac over everything (faster, can hide errors)
 port/tools/errormap.sh --symbols           # ... plus the most common missing symbols per area
 ```
+
+`:lib:neoforge:test` runs inside FML (ModDevGradle's `unitTest`, tested mod `maxtech_lib`), so tests can use the
+game's registries; it also runs common's tests under `shim/transfer/bridge/legacy`, which skip themselves in common's
+plain run (they need FML to bootstrap the game). Common's other tests run only in plain JUnit: their Platform service
+(the config outline) must not replace NeoForge's inside the mod.
 
 Gradle's `compileJava` stops at the first failing source set (common's api), so while errors remain use the error map:
 it compiles all seven source sets (common api/main/test, neoforge api/main/gametest/test) and groups the errors by area,
@@ -83,7 +91,11 @@ package's file. A move every package needs goes into `core.py`, in its own small
 
 Shim types that replace 26.1-only types keep 26.1's simple name and public shape (`errors.md`, "Contracts"), so code
 generated from main compiles against them unchanged and the packages can work in parallel. The vendored transfer api
-keeps NeoForge's LGPL-2.1-only headers plus a modification notice; `NOTICE-transfer.md` travels in the jar's META-INF.
+keeps NeoForge's LGPL-2.1-only headers plus a modification notice. It ships as its own nested jar
+(`maxtech_lib-transfer`, `FMLModType: GAMELIBRARY`) with `NOTICE-transfer.md` and the LGPL-2.1 text
+(`LICENSE-transfer.txt`) in its META-INF; `bridge/legacy/` is Lib's own code and stays in Lib's jar. Dev runs and
+tests load it from the source sets as part of Lib, so only the built jar has the split. No package may be in both jars
+(FML's module layer refuses a split package); Lib's own code next to the vendored api goes into `bridge.legacy`.
 Re-vendoring (`python3 -I port/tools/vendor_transfer.py <neoforge-26.1.2.x-sources.jar>`) overwrites the hand edits
 made for 1.21.1, so diff before committing one.
 
@@ -96,6 +108,9 @@ Where the 1.21.1 build intentionally differs from main:
 - `MachineRecipeType.bookCategory` is dropped.
 - `CraftingGridMenus` uses the non-untrusted item codec.
 - GameTest environment kinds `clock_time`, `game_rules` and `timelines` are dropped.
+- `neoforge.mods.toml` names the 1.21.1 lines of GuideME, Jade and FTB Teams (`rules/other.py`).
+- Recipe providers keep 1.21.1's final name `Recipes`, so one data run holds one recipe provider.
+- Common's tests in plain JUnit cannot bootstrap the game on NeoForge 21.1; tests that need it run in neoforge's FML test task.
 - The GameTest server has no `--tests` filter: `-Pgametest=<namespace>` (default `maxtech_lib`) sets `neoforge.enabledGameTestNamespaces`; a `:pattern` suffix is ignored, so a whole namespace runs.
 
 ## Versions

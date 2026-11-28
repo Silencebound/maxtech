@@ -239,7 +239,17 @@ GUIDE_RULES = [
     drop_import("guideme.siteexport.ExportPostProcessor", (NEO + "guide/LibGuides.java",)),
     edit(("""        builder.extension(ExportPostProcessor.EXTENSION_POINT,
                 new GuideWebExport(id.getNamespace(), LibGuides::defaultKeyName));
-""", ""), files=(NEO + "guide/LibGuides.java",), name="LibGuides export hook"),
+""", ""),
+         # Its key name helper served only the export; KeyMapping.get(String) is 26.1's.
+         ("""    /** The name of a key mapping's default key, for the website (which knows no player's bindings). */
+    private static Optional<String> defaultKeyName(String id) {
+        KeyMapping mapping = KeyMapping.get(id);
+        return mapping == null ? Optional.empty() : Optional.of(mapping.getDefaultKey().getDisplayName().getString());
+    }
+
+""", ""),
+         ("import java.util.Optional;\n", ""), ("import net.minecraft.client.KeyMapping;\n", ""),
+         files=(NEO + "guide/LibGuides.java",), name="LibGuides export hook"),
 ]
 
 
@@ -254,6 +264,85 @@ TOOLTIP_RULES = [
     # Cooldowns are per item on 1.21.1; 26.1 keys them by the stack's cooldown group, which this scanner leaves unset.
     Regex(r"getCooldowns\(\)\.(isOnCooldown|addCooldown)\(stack\b", r"getCooldowns().\1(stack.getItem()",
           files=(LIB + "info/ScannerItem.java",)),
+]
+
+# --- Events, commands and the rest of the NeoForge side ----------------------------------------------------------------
+LOOKUP_RULES = [
+    # 1.21.1's listRegistries() yields the registry keys (26.1's listRegistryKeys); the lookups come from lookupOrThrow.
+    edit(("lookup.listRegistries().forEach(registry -> {\n            ResourceKey<? extends Registry<?>> key = registry.key();",
+          "lookup.listRegistries().forEach(key -> {"),
+         ("registry.listElementIds().forEach(", "lookup.lookupOrThrow(key).listElementIds().forEach("),
+         ("lookup.listRegistryKeys()", "lookup.listRegistries()"),
+         files=(NEO + "datagen/ContentIndexProvider.java",), name="ContentIndexProvider registries"),
+]
+
+_TAB = "CreativeModeTab.TabVisibility"
+NEOFORGE_RULES = [
+    # 1.21.1's tag event has no subclasses; the update cause tells a datapack load from a client sync.
+    edit(("NeoForge.EVENT_BUS.addListener(TagsUpdatedEvent.ServerDataLoad.class, event -> action.run());",
+          "NeoForge.EVENT_BUS.addListener(TagsUpdatedEvent.class, event -> {\n"
+          "            if (event.getUpdateCause() == TagsUpdatedEvent.UpdateCause.SERVER_DATA_LOAD) {\n"
+          "                action.run();\n"
+          "            }\n"
+          "        });"),
+         ("event.getChunk().getPos().pack()", "event.getChunk().getPos().toLong()"),
+         files=(NEO + "platform/NeoForgeLifecycleEvents.java",), name="NeoForgeLifecycleEvents"),
+    # 1.21.1's creative tab event has no removeIf: remove the matching entries of each tab view one by one.
+    edit(("""            event.removeIf(stack -> hidden.contains(stack.getItem()),
+                    CreativeModeTab.TabVisibility.PARENT_AND_SEARCH_TABS);""",
+          f"""            for (net.minecraft.world.item.ItemStack stack : java.util.List.copyOf(event.getParentEntries())) {{
+                if (hidden.contains(stack.getItem())) {{
+                    event.remove(stack, {_TAB}.PARENT_TAB_ONLY);
+                }}
+            }}
+            for (net.minecraft.world.item.ItemStack stack : java.util.List.copyOf(event.getSearchEntries())) {{
+                if (hidden.contains(stack.getItem())) {{
+                    event.remove(stack, {_TAB}.SEARCH_TAB_ONLY);
+                }}
+            }}"""),
+         files=(NEO + "ContentEnabledCondition.java",), name="ContentEnabledCondition.hideDisabled"),
+    Regex(r"\.requires\(Commands\.hasPermission\(Commands\.LEVEL_GAMEMASTERS\)\)",
+          ".requires(source -> source.hasPermission(Commands.LEVEL_GAMEMASTERS))", files=(NEO + "LibCommands.java",)),
+    # 1.21.1's block and fluid tag providers take an ExistingFileHelper (nullable: no existence checks).
+    edit(("super(output, registries, content.modId());", "super(output, registries, content.modId(), null);"),
+         files=(NEO + "datagen/ContentBlockTagsProvider.java", NEO + "datagen/ContentFluidTagsProvider.java"),
+         name="Content tag providers"),
+]
+
+# --- KubeJS 2101: a component names its RecipeComponentType, which the plugin registers ---------------------------
+KUBEJS_RULES = [
+    edit(("new ItemInputComponent(type(\"item_input\"))",
+          "RecipeComponentType.unit(MaxtechLib.id(\"item_input\"), ItemInputComponent::new).instance()"),
+         ("new ItemOutputComponent(type(\"item_output\"))",
+          "RecipeComponentType.unit(MaxtechLib.id(\"item_output\"), ItemOutputComponent::new).instance()"),
+         ("""    private static ResourceKey<RecipeComponentType<?>> type(String name) {
+        return RecipeComponentType.key(MaxtechLib.id(name));
+    }
+
+""", ""),
+         ("ResourceKey<RecipeComponentType<?>> type", "RecipeComponentType<?> type"),
+         ("type.location().toString()", "type.id().toString()"),
+         ("import net.minecraft.resources.ResourceKey;\n", ""),
+         files=(NEO + "compat/kubejs/MachineRecipeComponents.java",), name="MachineRecipeComponents types"),
+    Regex(r"registry\.unit\((MachineRecipeComponents\.\w+)\)", r"registry.register(\1.type())",
+          files=(NEO + "compat/kubejs/LibKubeJSPlugin.java",)),
+]
+
+# --- mods.toml: the optional and bundled mods' 1.21.1 lines (port/gradle/libs.versions.toml) ------------------------
+_DEPENDENCY_RANGES = {"guideme": "[21.1.22,21.2)", "jade": "[15.10.6,)", "ftbteams": "[2101.1.12,)"}
+
+
+def _mods_toml(text: str, rel: str) -> str:
+    def repl(m: re.Match[str]) -> str:
+        return m.group(1) + '"' + _DEPENDENCY_RANGES[m.group(2)] + '"'
+
+    pattern = r'(modId = "(' + "|".join(_DEPENDENCY_RANGES) + r')"\n(?:(?!\[\[)[^\n]*\n)*?versionRange = )"[^"]*"'
+    return re.sub(pattern, repl, text)
+
+
+MODS_TOML_RULES = [
+    Transform(_mods_toml, "mods.toml dependency ranges",
+              files=("lib/neoforge/src/main/resources/META-INF/neoforge.mods.toml",)),
 ]
 
 RULES = [
@@ -294,4 +383,8 @@ RULES = [
     *DATAGEN_RULES,
     *GUIDE_RULES,
     *TOOLTIP_RULES,
+    *LOOKUP_RULES,
+    *NEOFORGE_RULES,
+    *KUBEJS_RULES,
+    *MODS_TOML_RULES,
 ]
