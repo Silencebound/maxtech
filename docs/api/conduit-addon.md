@@ -96,7 +96,7 @@ For a conduit `<modid>:<name>` registered with a look:
 
 | File | Needed |
 |---|---|
-| `assets/<modid>/models/item/<name>.json` | yes; Lib's item model definition names `<modid>:item/<name>` |
+| `assets/<modid>/models/item/<name>.json` | yes; Lib's item model definition names `<modid>:item/<name>`. For a shell look, `ConduitItemModels.shell` (Lib's NeoForge api, Lib 0.15.0) writes it in the addon's datagen as a straight piece of the tube |
 | `assets/<modid>/textures/block/...png` | only for sprites the look names in the addon's namespace (`end`, `overlay`, `shell`); `ConduitLook.FLAT` is Lib's |
 | `assets/<modid>/lang/en_us.json` | yes: `block.<modid>.<name>` (the item uses the block's name) |
 | `data/<modid>/loot_table/blocks/<name>.json` | only to drop something other than the conduit's item; without one Lib drops the item, and a facade drops either way |
