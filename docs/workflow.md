@@ -45,6 +45,8 @@ same reviewer.
 - The bridge GameTests against the real AE2 and Refined Storage (`ae2_*` with `-PwithAe2=true`, `rs_*` with
   `-PwithRs=true`) run in steps of their own: nightly, manual, and on PRs that touch `compat/ae2`,
   `compat/refinedstorage`, `storage/bridge`, the bridge GameTests or `storage/neoforge/build.gradle.kts`.
+- A `port/**`-only diff runs `python3 -I port/convert.py --check` instead of the build (pr-flow skill). A GameTest
+  step whose summary is complete but whose Gradle run failed for another reason is never turned green by a retry.
 - Perf: every perf GameTest goes through `PerfBudget`. In CI a budget over twice only warns ("Perf budget over"),
   since hosted runners vary too much to block on; locally it fails the test (owner 2026-11-25). Before merging a change
   to a hot path, or when CI warns, run the affected `perf_*` GameTests on a quiet machine (Mac or Windows PC).

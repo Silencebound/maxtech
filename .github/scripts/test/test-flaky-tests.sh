@@ -117,6 +117,13 @@ grep -q 'maxtech_lib:flaky_one failed again on retry (#80)' "$tmp/empty/out.txt"
 ! grep -q 'Flaky test retried' "$tmp/empty/out.txt" || fail "empty retry: warned of a pass"
 [ "$(outcome empty maxtech_lib:flaky_one)" = failed ] || fail "empty retry: outcome"
 
+# A retry whose pattern matched nothing ("All 0 required tests passed", exit 0) is no pass.
+run_case zero lib "$(summary 1 maxtech_lib:flaky_one)" 1 "$(passed 0)" 0
+[ "$status" = 1 ] || fail "zero tests: status $status"
+grep -q 'maxtech_lib:flaky_one failed again on retry (#80)' "$tmp/zero/out.txt" || fail "zero tests: reason"
+! grep -q 'Flaky test retried' "$tmp/zero/out.txt" || fail "zero tests: warned of a pass"
+[ "$(outcome zero maxtech_lib:flaky_one)" = failed ] || fail "zero tests: outcome"
+
 # A perf budget failure is never retried: PerfBudget already measured twice.
 run_case budget lib "[12:00:00] [Server thread/INFO] [PerfBudget/]: perf-result flaky_one 300 200 FAIL
 $(summary 1 maxtech_lib:flaky_one)" 1
