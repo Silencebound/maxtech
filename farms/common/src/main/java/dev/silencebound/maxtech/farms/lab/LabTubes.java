@@ -27,8 +27,7 @@ public final class LabTubes {
     public static final NetworkType NETWORK = NetworkType.register(NETWORK_ID,
             level -> Conduits.connectivity(level, NETWORK_ID), LabNetworkLogic::new);
     public static final ConduitEntry<ConduitType> TUBE = Conduits
-            .builder(MaxtechFarms.MOD_ID, "lab_tube",
-                    item -> new ConduitType(NETWORK_ID, "lab", 0xE4F4F4, 0.375F, item))
+            .builder(MaxtechFarms.MOD_ID, "lab_tube", item -> new ConduitType(NETWORK_ID, "lab", 0xE4F4F4, 0.5F, item))
             .look(ConduitLook.shell(MaxtechFarms.id("block/lab_tube_glass")).withBorderColour(BORDER_COLOUR)
                     .withBorder(1.0F).withFrameBars())
             .attachesToBlocks().register();

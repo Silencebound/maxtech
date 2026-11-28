@@ -221,10 +221,9 @@ public final class ConduitGeometry {
         } else {
             borderLines(out, look, core, thickness, arms, rings, borderArgb);
         }
-        Identifier barTexture = look.barTexture();
-        if (barTexture != null) {
+        if (look.barTexture().isPresent()) {
             for (int i = borders; i < out.size(); i++) {
-                out.set(i, textured(out.get(i), barTexture));
+                out.set(i, textured(out.get(i), look.barTexture().get()));
             }
         }
     }
@@ -301,19 +300,23 @@ public final class ConduitGeometry {
 
     /**
      * {@code flat}, a border quad, drawn with {@code texture} instead, projected like the glass and turned so that the
-     * sprite's rows (its u axis) run along the longer side of the face.
+     * sprite's rows (its u axis) run along the longer side of the face. A square face (within {@link #EPSILON}) has no
+     * longer side: its rows run along the first of X, Y, Z that is not the face's own axis.
      */
     static ConduitQuad textured(ConduitQuad flat, Identifier texture) {
         AABB box = flat.box();
         Direction face = flat.facing();
         Direction.Axis along = face.getAxis() == Direction.Axis.X ? Direction.Axis.Y : Direction.Axis.X;
         for (Direction.Axis axis : Direction.Axis.values()) {
+            // strictly longer only: on a tie the earlier axis in X, Y, Z order stays
             if (axis != face.getAxis() && box.max(axis) - box.min(axis) > box.max(along) - box.min(along) + EPSILON) {
                 along = axis;
             }
         }
+        // along is never the face's axis, so flowTurns is present; one more quarter turn than the flow's puts the
+        // sprite's u (not its v) along it, as for the glass
         int turns = (ConduitUvs.flowTurns(face, Direction.fromAxisAndDirection(along, Direction.AxisDirection.POSITIVE))
-                .orElse(3) + 1) % 4;
+                .orElseThrow() + 1) % 4;
         return new ConduitQuad(box, face, ConduitTexture.FLAT, flat.argb(), flat.culled(), flat.layer(), texture,
                 ConduitUvs.projected(box, face, turns), flat.lightEmission());
     }

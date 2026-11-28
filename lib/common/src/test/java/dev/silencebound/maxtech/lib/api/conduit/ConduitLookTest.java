@@ -9,6 +9,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.mojang.serialization.JsonOps;
 import java.util.List;
+import java.util.Optional;
 import net.minecraft.resources.Identifier;
 import org.junit.jupiter.api.Test;
 
@@ -126,10 +127,13 @@ class ConduitLookTest {
     void shellBarTextureIsOptional() {
         Identifier glass = Identifier.fromNamespaceAndPath("farms", "block/lab_tube_glass");
         Identifier bar = Identifier.fromNamespaceAndPath("farms", "block/pipe_bar");
-        assertEquals(null, ConduitLook.shell(glass).withFrameBars().barTexture(), "unset by default");
-        assertEquals(null, new ConduitLook.Shell(glass, 0, 1, 1, 1, 1, true).barTexture(), "old constructor");
+        assertEquals(Optional.empty(), ConduitLook.shell(glass).withFrameBars().barTexture(), "unset by default");
+        assertEquals(Optional.empty(), new ConduitLook.Shell(glass, 0, 1, 1, 1, 1, true).barTexture(),
+                "old constructor");
         ConduitLook.Shell textured = ConduitLook.shell(glass).withBarTexture(bar).withFrameBars().withBorder(2);
-        assertEquals(bar, textured.barTexture(), "kept by later withers");
+        assertEquals(Optional.of(bar), textured.barTexture(), "kept by later withers");
+        assertEquals(Optional.empty(), textured.withoutBarTexture().barTexture(), "back to flat");
+        assertEquals(textured, textured.withoutBarTexture().withBarTexture(Optional.of(bar)));
         JsonElement json = ConduitLook.CODEC.codec().encodeStart(JsonOps.INSTANCE, textured).getOrThrow();
         assertEquals(JsonParser.parseString("""
                 {"look": "shell", "shell": "farms:block/lab_tube_glass", "border": 2.0, "frame_bars": true,

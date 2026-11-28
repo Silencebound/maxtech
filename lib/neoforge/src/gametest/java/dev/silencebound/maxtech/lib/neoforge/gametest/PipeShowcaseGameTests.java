@@ -27,6 +27,7 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.levelgen.structure.BoundingBox;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -75,8 +76,24 @@ public final class PipeShowcaseGameTests {
             PipeShowcase.build(helper.getLevel(), origin, Direction.SOUTH);
             helper.assertValueEqual(area, PipeShowcase.build(helper.getLevel(), origin, Direction.SOUTH), "area");
             check(helper, area);
+            refusesOverOtherBlocks(helper, origin, area);
             forceChunks(helper, area, false);
         }).thenSucceed();
+    }
+
+    /** A block that is not the showcase's stays untouched, and nothing is built over it. */
+    private static void refusesOverOtherBlocks(GameTestHelper helper, BlockPos origin, BoundingBox area) {
+        BlockPos stone = new BlockPos(area.minX() + 1, area.minY(), area.minZ() + 1);
+        helper.getLevel().setBlock(stone, Blocks.STONE.defaultBlockState(), Block.UPDATE_ALL);
+        boolean refused = false;
+        try {
+            PipeShowcase.build(helper.getLevel(), origin, Direction.SOUTH);
+        } catch (IllegalStateException expected) {
+            refused = true;
+        }
+        helper.assertTrue(refused, "build refuses over a foreign block");
+        helper.assertTrue(helper.getLevel().getBlockState(stone).is(Blocks.STONE), "foreign block kept");
+        helper.getLevel().setBlock(stone, Blocks.AIR.defaultBlockState(), Block.UPDATE_ALL);
     }
 
     private static void check(GameTestHelper helper, BoundingBox area) {

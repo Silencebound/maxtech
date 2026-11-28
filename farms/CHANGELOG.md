@@ -6,6 +6,7 @@ Api changes are marked **Api**.
 ## [Unreleased]
 
 ### Added
+- Lab tubes are 8 px wide (were 6 px); their bars stay 1 px.
 - The mod itself: an empty `maxtech_farms` on Lib's api.
 - Server config `maxtech_farms-server.toml` with presets (`standalone`, `pack`); values arrive with the features that
   read them. The `presets_complete` GameTest checks that the presets and the values match.

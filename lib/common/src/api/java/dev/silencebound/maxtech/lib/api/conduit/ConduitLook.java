@@ -3,6 +3,7 @@ package dev.silencebound.maxtech.lib.api.conduit;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
+import java.util.Objects;
 import java.util.Optional;
 import net.minecraft.resources.Identifier;
 import net.minecraft.util.ExtraCodecs;
@@ -149,11 +150,11 @@ public sealed interface ConduitLook {
      * @param frameBars
      *            whether the borders are solid bars on every edge, with the glass set in between them
      * @param barTexture
-     *            sprite of the borders, rims and bars (block atlas), or {@code null} to draw them flat in
-     *            {@code borderColour}
+     *            sprite of the borders, rims and bars (block atlas), or empty to draw them flat in
+     *            {@code borderColour}; never null
      */
     record Shell(Identifier shell, int borderColour, float border, float rim, float inset, float laneWidth,
-            boolean frameBars, @Nullable Identifier barTexture) implements ConduitLook {
+            boolean frameBars, Optional<Identifier> barTexture) implements ConduitLook {
         /** Default {@link #border}, in pixels. */
         public static final float DEFAULT_BORDER = 0.5F;
         /** Default {@link #rim}, in pixels. */
@@ -173,18 +174,20 @@ public sealed interface ConduitLook {
                         widthField("inset", DEFAULT_INSET).forGetter(Shell::inset),
                         widthField("lane_width", DEFAULT_LANE_WIDTH).forGetter(Shell::laneWidth),
                         Codec.BOOL.optionalFieldOf("frame_bars", false).forGetter(Shell::frameBars),
-                        Identifier.CODEC.optionalFieldOf("bar_texture")
-                                .forGetter(s -> Optional.ofNullable(s.barTexture())))
+                        Identifier.CODEC.optionalFieldOf("bar_texture").forGetter(Shell::barTexture))
                 .apply(i, (shell, colour, border, rim, inset, laneWidth, frameBars, barTexture) -> new Shell(shell,
-                        colour, border, rim, inset, laneWidth, frameBars, barTexture.orElse(null))));
+                        colour, border, rim, inset, laneWidth, frameBars, barTexture)));
 
         /**
          * Checks the widths.
          *
          * @throws IllegalArgumentException
          *             when a width is outside 0 to {@value #MAX_WIDTH} or not a number
+         * @throws NullPointerException
+         *             when {@code barTexture} is null (use {@link Optional#empty()})
          */
         public Shell {
+            Objects.requireNonNull(barTexture, "barTexture");
             requireWidth("border", border);
             requireWidth("rim", rim);
             requireWidth("inset", inset);
@@ -204,7 +207,7 @@ public sealed interface ConduitLook {
         /** A shell with flat borders, as shells before {@link #barTexture} were. */
         public Shell(Identifier shell, int borderColour, float border, float rim, float inset, float laneWidth,
                 boolean frameBars) {
-            this(shell, borderColour, border, rim, inset, laneWidth, frameBars, null);
+            this(shell, borderColour, border, rim, inset, laneWidth, frameBars, Optional.empty());
         }
 
         /** This look with its borders and rims in {@code colour} ({@code 0xRRGGBB} or {@link #TYPE_COLOUR}). */
@@ -242,7 +245,17 @@ public sealed interface ConduitLook {
          * {@code farms:block/pipe_bar}) tinted with {@link #borderColour}, instead of flat ({@link #barTexture}).
          */
         public Shell withBarTexture(Identifier texture) {
+            return withBarTexture(Optional.of(texture));
+        }
+
+        /** This look with its bar sprite set to {@code texture}, or, when empty, back to flat bars. */
+        public Shell withBarTexture(Optional<Identifier> texture) {
             return new Shell(shell, borderColour, border, rim, inset, laneWidth, frameBars, texture);
+        }
+
+        /** This look with flat borders, rims and bars in {@link #borderColour} again. */
+        public Shell withoutBarTexture() {
+            return withBarTexture(Optional.empty());
         }
 
         @Override

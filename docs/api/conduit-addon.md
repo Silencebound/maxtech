@@ -188,9 +188,8 @@ alike.
 Lib leaves out each field at its default when it writes the file. Later Lib versions add more optional fields, so a
 file written now stays valid. The model is translucent, so block outlines and moving blocks treat it as such;
 particles show the `shell` sprite. In code: `ConduitLook.shell(id).withBorderColour(0x2E4A52)`, `.withBorder(1)`,
-`.withRim(2)`, `.withInset(1)`, `.withLaneWidth(0.5F)`, `.withFrameBars()`,
-`.withBarTexture(id)`. `ConduitLookTest` and `ConduitAssetsTest`
-pin this format too.
+`.withRim(2)`, `.withInset(1)`, `.withLaneWidth(0.5F)`, `.withFrameBars()`, `.withBarTexture(id)` (`.withoutBarTexture()` goes back to flat bars; `barTexture()` is an
+`Optional`). `ConduitLookTest` and `ConduitAssetsTest` pin this format too.
 
 A shell draws the conduit's `ConduitContents` (`ConduitHost.setContents`) inside the glass, opaque, with the
 resource kind's client look (`ResourceLook`, registered with `ResourceLooks.register` on the client): its still and
