@@ -421,6 +421,9 @@ public class GuiGraphicsExtractor {
             return;
         }
         listening = true;
+        // A tooltip left from a pass that never reached its Post event is not drawn a frame late.
+        NeoForge.EVENT_BUS.addListener((RenderGuiEvent.Pre event) -> pendingTooltip = null);
+        NeoForge.EVENT_BUS.addListener((ScreenEvent.Render.Pre event) -> pendingTooltip = null);
         NeoForge.EVENT_BUS.addListener((ScreenEvent.Render.Post event) -> drawPending(event.getGuiGraphics()));
         NeoForge.EVENT_BUS.addListener((RenderGuiEvent.Post event) -> {
             if (Minecraft.getInstance().screen == null) {
