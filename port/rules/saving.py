@@ -281,6 +281,9 @@ _GAMETEST_API = [
           r"return ResourceKey\.create\(Registries\.RECIPE, MaxtechLib\.id\(path\)\);",
           "private static net.minecraft.resources.ResourceLocation recipe(String path) {\n        return MaxtechLib.id(path);",
           files=tuple(p for p in GAMETEST_FILES if p.endswith("/ContentToggleGameTests.java"))),
+    # other's shim of 26.1's ItemStackTemplate, which Lib's ItemOutput takes
+    ImportMove("net.minecraft.world.item.ItemStackTemplate", f"{_SHIM}.misc.ItemStackTemplate",
+               files=_MACHINE_RECIPE_TESTS),
     Regex(r"Ingredient\.of\(items\.getOrThrow\(([\w.]+)\)\)", r"Ingredient.of(\1)", files=_MACHINE_RECIPE_TESTS),
     Regex(r"DataComponentIngredient\.of\((\w+),\s*DataComponentPatch\.builder\(\)\.set\(([^;]*?)\)\s*\.build\(\),\s*",
           r"DataComponentIngredient.of(\1, \2, ", scope="all", files=_MACHINE_RECIPE_TESTS),
