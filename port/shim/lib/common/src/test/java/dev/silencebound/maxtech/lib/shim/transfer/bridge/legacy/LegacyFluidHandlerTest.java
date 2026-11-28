@@ -96,4 +96,22 @@ class LegacyFluidHandlerTest {
         assertEquals(4000, tank.getFluidAmount());
         assertEquals(before + 1, LegacyLedger.MISMATCHES.get());
     }
+
+    @Test
+    void directMovesHappenAtOnceAndWaitForPendingLedgerMoves() {
+        assumeTrue(GameBootstrap.available(), "needs the game bootstrapped (FML unit tests)");
+        var tank = tank(1000);
+        var handler = new LegacyFluidHandler(tank);
+        var water = FluidResource.of(Fluids.WATER);
+        assertEquals(1000, handler.simulateExtractNow(water, 3000));
+        assertEquals(400, handler.extractNow(water, 400));
+        assertEquals(600, tank.getFluidAmount());
+        assertEquals(3400, handler.simulateInsertNow(water, 5000));
+        try (var tx = Transaction.openRoot()) {
+            assertEquals(100, handler.insert(water, 100, tx));
+            assertEquals(0, handler.insertNow(water, 100));
+            assertEquals(0, handler.extractNow(water, 100));
+        }
+        assertEquals(600, tank.getFluidAmount());
+    }
 }
