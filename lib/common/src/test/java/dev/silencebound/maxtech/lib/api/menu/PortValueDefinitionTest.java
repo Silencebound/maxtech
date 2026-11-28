@@ -44,7 +44,7 @@ class PortValueDefinitionTest {
         assertEquals(List.of(), definition.problems());
         LayoutPlan.Box box = definition.plan().boxes().getFirst();
         assertEquals(Layout.FACES_WIDTH, box.width());
-        assertEquals(2 * Layout.FACES_NET_HEIGHT + Layout.SMALL_GAP, box.height());
+        assertEquals(Layout.FACES_PREVIEW + 2 * (Layout.SMALL_GAP + Layout.FACES_NET_HEIGHT), box.height());
         assertEquals(List.of(A, B), handle.get().kinds());
         assertEquals(1, handle.get().kindIndex(B));
         assertEquals(-1, handle.get().kindIndex(C));

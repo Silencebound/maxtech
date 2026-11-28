@@ -34,7 +34,7 @@ import net.neoforged.neoforge.event.RegisterGameTestsEvent;
 /**
  * The side config of the toolkit demo machine ({@link ToolkitDemo}): a face click sets the port's mode on the server
  * and the mirror follows; modes the port does not allow for a kind, ids of no port, kind or face, and clicks on the
- * hostless client menu change nothing; the host's facing reaches the client.
+ * hostless client menu change nothing; the host's facing and block reach the client.
  */
 @EventBusSubscriber(modid = MaxtechLib.MOD_ID)
 public final class SideConfigGameTests {
@@ -165,13 +165,14 @@ public final class SideConfigGameTests {
         });
     }
 
-    /** The block's facing reaches the client mirror, so the screen names faces relative to the front. */
+    /** The block's facing and state reach the client mirror, so the screen names faces relative to the front. */
     private static void facing(GameTestHelper helper) {
         BlockState state = machine().setValue(BlockStateProperties.HORIZONTAL_FACING, Direction.EAST);
         withOpenMenu(helper, state, (h, player, machine, session) -> {
             PortValue port = ToolkitDemo.handles().port;
             session.tick();
             h.assertValueEqual(port.facing(session.clientValues()), Optional.of(Direction.EAST), "facing");
+            h.assertValueEqual(port.blockState(session.clientValues()), Optional.of(state), "block state");
         });
     }
 }

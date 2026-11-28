@@ -89,9 +89,9 @@ experimental until Farms ships.
 ## Amendment (2026-11-28): side config (machine core PR 3, ADR-0018 T5)
 
 - `MenuDefinition.Builder.port(getter, kinds...)` syncs a host's `TransferPort` as plain int values: per declared kind
-  its packed faces and allowed modes, plus the host's facing (block state `HORIZONTAL_FACING` or `FACING`, or a getter).
-  Kinds are declared, since the client menu has no port to ask.
-- `Layout.faces(port, kinds...)` is a fixed-size node (one 72 by 54 block net per kind), and
+  its packed faces and allowed modes, plus the host's facing (block state `HORIZONTAL_FACING` or `FACING`, or a getter)
+  and block state id. Kinds are declared, since the client menu has no port to ask.
+- `Layout.faces(port, kinds...)` is a fixed-size node (a block preview on top, one 72 by 54 block net per kind), and
   `Builder.sideConfig(port, kinds...)` puts it in the one standard side tab. The tab is declared in the common
   definition and drawn by Lib's internal `SideTabs`, so `SideTabs` and `SidePanel` stay internal and addons write no
   client code. The screen centres the panel, the tab column and the flyout together, and the definition checks
@@ -102,3 +102,5 @@ experimental until Farms ships.
   the same mode again rather than stepping on; `cycleFace` only steps forward and is not used.
 - Owner choices (2026-11-28): faces are named relative to the facing as seen from the front, top towards north for
   blocks facing up or down; kinds are stacked, one net each; push is orange, pull blue, off untinted.
+- The preview is a picture-in-picture renderer (`FacePreviewRenderer`, vanilla rendering only, registered by Lib's
+  NeoForge client) that draws the block model as block displays do and tints its faces.

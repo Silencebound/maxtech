@@ -30,6 +30,7 @@
   "gui.maxtech_lib.faces.mode.pull": "Pull",
   "gui.maxtech_lib.faces.mode.push": "Push",
   "gui.maxtech_lib.faces.north": "North",
+  "gui.maxtech_lib.faces.preview": "Block preview: drag to turn, click a face to change it",
   "gui.maxtech_lib.faces.right": "Right",
   "gui.maxtech_lib.faces.south": "South",
   "gui.maxtech_lib.faces.tab": "Side config",
