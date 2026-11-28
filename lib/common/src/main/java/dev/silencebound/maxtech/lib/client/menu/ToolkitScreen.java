@@ -7,6 +7,7 @@ import dev.silencebound.maxtech.lib.api.client.gui.AccentPanel;
 import dev.silencebound.maxtech.lib.api.client.gui.AccentProgress;
 import dev.silencebound.maxtech.lib.api.client.gui.AccentStatus;
 import dev.silencebound.maxtech.lib.api.client.gui.AccentTank;
+import dev.silencebound.maxtech.lib.api.client.gui.Icon;
 import dev.silencebound.maxtech.lib.api.client.gui.TextScale;
 import dev.silencebound.maxtech.lib.api.menu.CycleAction;
 import dev.silencebound.maxtech.lib.api.menu.EnumValue;
@@ -19,10 +20,12 @@ import dev.silencebound.maxtech.lib.api.menu.MenuValueView;
 import dev.silencebound.maxtech.lib.api.resource.AmountUnit;
 import dev.silencebound.maxtech.lib.api.resource.ResourceKind;
 import dev.silencebound.maxtech.lib.api.style.AccentTheme;
+import dev.silencebound.maxtech.lib.client.gui.accent.SideTabs;
 import dev.silencebound.maxtech.lib.menu.DefinedMenu;
 import dev.silencebound.maxtech.lib.platform.Platform;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractWidget;
@@ -30,6 +33,7 @@ import net.minecraft.client.gui.narration.NarratedElementType;
 import net.minecraft.client.gui.narration.NarrationElementOutput;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.input.InputWithModifiers;
+import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.CommonComponents;
 import net.minecraft.network.chat.Component;
@@ -45,22 +49,51 @@ import org.jspecify.annotations.Nullable;
  * tooltips) or text (labels, values and status lines, fitted into their boxes with the whole text as a tooltip, and
  * narrated after the title). The panel's size and every box come from {@link MenuDefinition#plan()}, so nothing here
  * moves with the text size: text too large for its box at the client's text size is drawn smaller. A click on a fluid
- * tank sends its bucket click to the server; a cycle button asks the server for the next or previous choice. Lib binds
- * it to each registered definition. Client only.
+ * tank sends its bucket click to the server; a cycle button asks the server for the next or previous choice; a faces
+ * node ({@link FacesWidget}) asks for a face's next or previous mode. A definition with a side config
+ * ({@code MenuDefinition.Builder.sideConfig}) gets one side tab whose flyout holds that faces node. Lib binds it to
+ * each registered definition. Client only.
  */
 public final class ToolkitScreen<H> extends AbstractContainerScreen<DefinedMenu<H>> {
     /** Room between a status dot and its text. */
     private static final int DOT_GAP = 3;
+    /** The side config tab's icon: a block net. */
+    private static final Icon SIDE_CONFIG_ICON = Icon.glyph("..##....", "..##....", "########", "########", "..##....",
+            "..##....");
 
     private final MenuDefinition<H> definition;
     private final AccentTheme theme;
     private final List<TankBox> tanks = new ArrayList<>();
+    private final @Nullable SideTabs sideTabs;
     private @Nullable AccentPanel panel;
 
     public ToolkitScreen(DefinedMenu<H> menu, Inventory inventory, Component title) {
         super(menu, inventory, title, menu.definition().plan().panelWidth(), menu.definition().plan().panelHeight());
         this.definition = menu.definition();
         this.theme = definition.theme();
+        this.sideTabs = definition.sideConfig().map(this::sideTabs).orElse(null);
+    }
+
+    /** The single side config tab over {@code faces}. */
+    private SideTabs sideTabs(Layout.Faces faces) {
+        SideTabs.Flyout flyout = new SideTabs.Flyout() {
+            @Override
+            public int width() {
+                return faces.width();
+            }
+
+            @Override
+            public int height() {
+                return faces.height();
+            }
+
+            @Override
+            public void init(SideTabs.Rect content, Consumer<AbstractWidget> add) {
+                add.accept(new FacesWidget(content.x(), content.y(), faces, menu, theme));
+            }
+        };
+        return new SideTabs(
+                List.of(SideTabs.Tab.of(SIDE_CONFIG_ICON, Component.translatable(FaceTexts.TAB_KEY), flyout)));
     }
 
     /** Binds {@code definition}'s menu type to this screen; Lib's client entrypoint hands it every registration. */
@@ -76,6 +109,13 @@ public final class ToolkitScreen<H> extends AbstractContainerScreen<DefinedMenu<
         super.init();
         // Centred with the title tab kept on the screen.
         topPos = Accent.top(height, imageHeight);
+        Layout.Faces side = definition.sideConfig().orElse(null);
+        if (side != null) {
+            // The panel, the tab column and the side config flyout are centred together, so the flyout fits beside
+            // the panel on the smallest GUI the definition's check allows.
+            int extra = SideTabs.GAP + SideTabs.TAB + SideTabs.GAP + SideTabs.outerWidth(side.width());
+            leftPos = Math.max(0, (width - imageWidth - extra) / 2);
+        }
         panel = AccentPanel.of(leftPos, topPos, imageWidth, imageHeight, title).theme(theme);
         tanks.clear();
         MenuValueView values = menu.values();
@@ -96,9 +136,19 @@ public final class ToolkitScreen<H> extends AbstractContainerScreen<DefinedMenu<
                 case Layout.Progress progress -> addRenderableWidget(new AccentProgress(x, y, shape(progress.shape()),
                         theme, () -> values.current(progress.value()), () -> values.total(progress.value())));
                 case Layout.CycleButton button -> addRenderableWidget(cycleButton(button, x, y, box));
+                case Layout.Faces faces -> addRenderableWidget(new FacesWidget(x, y, faces, menu, theme));
                 default -> {
                 }
             }
+        }
+        layoutSideTabs();
+    }
+
+    private void layoutSideTabs() {
+        SideTabs tabs = sideTabs;
+        if (tabs != null) {
+            tabs.layout(leftPos, topPos, imageWidth, imageHeight, width, height,
+                    SideTabs.host(this::addRenderableWidget, this::removeWidget));
         }
     }
 
@@ -189,6 +239,20 @@ public final class ToolkitScreen<H> extends AbstractContainerScreen<DefinedMenu<
         for (Slot slot : menu.slots) {
             Accent.slot(graphics, leftPos + slot.x, topPos + slot.y);
         }
+        SideTabs tabs = sideTabs;
+        if (tabs != null) {
+            tabs.extractFlyout(graphics, font, mouseX, mouseY);
+        }
+    }
+
+    /** Escape closes an open side tab flyout before it closes the screen. */
+    @Override
+    public boolean keyPressed(KeyEvent event) {
+        SideTabs tabs = sideTabs;
+        if (tabs != null && tabs.keyPressed(event)) {
+            return true;
+        }
+        return super.keyPressed(event);
     }
 
     /**
@@ -279,6 +343,10 @@ public final class ToolkitScreen<H> extends AbstractContainerScreen<DefinedMenu<
     /** A click on a fluid tank moves fluid between the carried container and the tank, on the server. */
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+        SideTabs tabs = sideTabs;
+        if (tabs != null && tabs.mouseClicked(event)) {
+            return true;
+        }
         if (event.button() == 0 && minecraft != null && minecraft.gameMode != null) {
             for (TankBox tank : tanks) {
                 if (tank.button() >= 0 && tank.widget().isMouseOver(event.x(), event.y())

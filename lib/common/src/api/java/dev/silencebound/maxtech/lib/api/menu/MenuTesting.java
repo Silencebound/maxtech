@@ -1,5 +1,8 @@
 package dev.silencebound.maxtech.lib.api.menu;
 
+import dev.silencebound.maxtech.lib.api.resource.ResourceKind;
+import dev.silencebound.maxtech.lib.api.transfer.PortFaceMode;
+import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import org.jetbrains.annotations.ApiStatus;
@@ -92,6 +95,15 @@ public final class MenuTesting {
          * action of another definition.
          */
         <E extends Enum<E> & MenuChoice> boolean pressCycleButton(CycleAction<E> action, E choice);
+
+        /**
+         * Clicks {@code face} of {@code kind} in a faces node of {@code port}, asking for {@code mode}, as the screen
+         * does (it asks for the next or previous mode the kind allows); returns whether the server took the click:
+         * false for a mode the host's port does not allow for the kind. Throws {@link IllegalArgumentException} for a
+         * port value of another definition or a kind it does not show.
+         */
+        @ApiStatus.Experimental
+        boolean pressFace(PortValue port, ResourceKind<?> kind, Direction face, PortFaceMode mode);
 
         /**
          * Shift-clicks slot {@code index} (0 based) of {@code group}, as a player does on that slot of the machine

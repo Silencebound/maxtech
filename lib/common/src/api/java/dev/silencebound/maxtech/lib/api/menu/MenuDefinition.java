@@ -8,6 +8,8 @@ import dev.silencebound.maxtech.lib.api.registry.Registrar;
 import dev.silencebound.maxtech.lib.api.resource.ResourceKind;
 import dev.silencebound.maxtech.lib.api.resource.ResourceKinds;
 import dev.silencebound.maxtech.lib.api.style.AccentTheme;
+import dev.silencebound.maxtech.lib.api.transfer.PortFaceMode;
+import dev.silencebound.maxtech.lib.api.transfer.TransferPort;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -23,17 +25,22 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.function.ToIntFunction;
 import java.util.function.ToLongFunction;
+import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.MenuType;
+import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import org.jetbrains.annotations.ApiStatus;
 import org.jspecify.annotations.Nullable;
 
 /**
  * One kind of MaxTech menu and its screen, declared once with {@link Menus#define}: the host's slots, tanks, energy,
- * progress and other synced values, the buttons that ask the server to change a value ({@link Builder#cycle}), where
- * shift-clicks go, the mod's {@link AccentTheme} and the {@link Layout} of the panel. Lib builds the server and client
- * menus and the screen from it; an addon writes no menu or screen class and no client code.
+ * progress and other synced values, the buttons that ask the server to change a value ({@link Builder#cycle}), its
+ * transfer port's side config ({@link Builder#port}, {@link Builder#sideConfig}), where shift-clicks go, the mod's
+ * {@link AccentTheme} and the {@link Layout} of the panel. Lib builds the server and client menus and the screen from
+ * it; an addon writes no menu or screen class and no client code.
  *
  * <pre>{@code
  * static final MenuDefinition<LabHub> HUB = Menus.define(MOD_ID, "lab_hub", LabHub.class, m -> {
@@ -83,6 +90,8 @@ public final class MenuDefinition<H> {
     private final List<MenuSlots> slots;
     private final List<Tank<H, ?>> tanks;
     private final List<Cycle<H, ?>> cycles;
+    private final List<Port<H>> ports;
+    private final Layout.@Nullable Faces sideConfig;
     private final List<MenuSlots> shiftOrder;
     private final @Nullable BiPredicate<? super H, Player> validWhile;
     private final Layout layout;
@@ -103,13 +112,46 @@ public final class MenuDefinition<H> {
         this.slots = List.copyOf(builder.slots);
         this.tanks = List.copyOf(builder.tanks);
         this.cycles = List.copyOf(builder.cycles);
+        this.sideConfig = builder.sideConfig;
         this.shiftOrder = List.copyOf(builder.shiftOrder);
         this.validWhile = builder.validWhile;
         this.layout = layout;
         this.plan = LayoutPlan.of(layout);
+        this.ports = shown(builder.ports, builder.sideConfig, plan);
         List<String> found = new ArrayList<>(plan.problems());
         found.addAll(builder.checkLayout(plan));
         this.problems = List.copyOf(found);
+    }
+
+    /** {@code ports} with the kinds each shows in a faces node of {@code plan} or {@code side}. */
+    private static <H> List<Port<H>> shown(List<Port<H>> ports, Layout.@Nullable Faces side, LayoutPlan plan) {
+        int[] masks = new int[ports.size()];
+        List<Layout.Faces> nodes = new ArrayList<>();
+        for (LayoutPlan.Box box : plan.boxes()) {
+            if (box.node() instanceof Layout.Faces faces) {
+                nodes.add(faces);
+            }
+        }
+        if (side != null) {
+            nodes.add(side);
+        }
+        for (Layout.Faces node : nodes) {
+            int index = node.port().index();
+            if (index < ports.size() && ports.get(index).value() == node.port()) {
+                for (ResourceKind<?> kind : node.kinds()) {
+                    int at = node.port().kindIndex(kind);
+                    if (at >= 0) {
+                        masks[index] |= 1 << at;
+                    }
+                }
+            }
+        }
+        List<Port<H>> out = new ArrayList<>();
+        for (int i = 0; i < masks.length; i++) {
+            Port<H> port = ports.get(i);
+            out.add(new Port<>(port.value(), port.port(), masks[i]));
+        }
+        return List.copyOf(out);
     }
 
     /** Builds a definition; see {@link Menus#define}. */
@@ -233,6 +275,18 @@ public final class MenuDefinition<H> {
         return cycles;
     }
 
+    /** The port values, in declaration order (their button ids follow it). */
+    @ApiStatus.Internal
+    public List<Port<H>> ports() {
+        return ports;
+    }
+
+    /** The faces node the side config tab shows, when {@link Builder#sideConfig} declared one. */
+    @ApiStatus.Internal
+    public Optional<Layout.Faces> sideConfig() {
+        return Optional.ofNullable(sideConfig);
+    }
+
     /** Where shift-clicked player stacks go, in order. */
     @ApiStatus.Internal
     public List<MenuSlots> shiftOrder() {
@@ -289,6 +343,45 @@ public final class MenuDefinition<H> {
     }
 
     /**
+     * A declared port value: its handle, the getter of the host's port and which of its kinds a faces node shows.
+     *
+     * @param value
+     *            the handle
+     * @param port
+     *            the host's port
+     * @param shown
+     *            bit {@code k} set when the kind at position {@code k} of the value is in a faces node of the layout or
+     *            the side config tab; clicks on other kinds are ignored
+     */
+    @ApiStatus.Internal
+    public record Port<H>(PortValue value, Function<? super H, ? extends TransferPort> port, int shown) {
+        /**
+         * Sets {@code face} of the kind at {@code kind} (its position in the value's kinds) to the mode with id
+         * {@code mode} on the host's port. Returns false and changes nothing for a kind index, face or mode id out of
+         * range, a kind no faces node shows, or a mode the port does not allow for that kind; true otherwise, also when
+         * the face already had that mode (nothing changes then). Server thread.
+         */
+        public boolean apply(H host, int kind, int face, int mode) {
+            List<ResourceKind<?>> kinds = value.kinds();
+            Optional<PortFaceMode> asked = PortFaceMode.byId(mode);
+            if (kind < 0 || kind >= kinds.size() || (shown & (1 << kind)) == 0 || face < 0 || face > 5
+                    || asked.isEmpty()) {
+                return false;
+            }
+            TransferPort target = port.apply(host);
+            ResourceKind<?> resource = kinds.get(kind);
+            if (!target.allowed(resource).contains(asked.get())) {
+                return false;
+            }
+            Direction direction = Direction.from3DDataValue(face);
+            if (target.settings().mode(resource, direction) != asked.get()) {
+                target.setSettings(target.settings().withMode(resource, direction, asked.get()));
+            }
+            return true;
+        }
+    }
+
+    /**
      * Collects a definition inside {@link Menus#define}; every method returns a handle for the layout (or nothing).
      * Usable only inside that call; not thread-safe.
      */
@@ -296,11 +389,19 @@ public final class MenuDefinition<H> {
         private final String modId;
         private final String name;
         private final Class<H> hostClass;
+        /** The side tab column beside the panel: gap, tab, gap (the client's {@code SideTabs}). */
+        private static final int SIDE_TAB_COLUMN = 2 + 18 + 2;
+        /** A flyout's padding and title strip (the client's {@code SideTabs.PAD} and {@code TITLE}). */
+        private static final int FLYOUT_PAD = 6;
+        private static final int FLYOUT_TITLE = 14;
+        private static final PortFaceMode[] MODES = PortFaceMode.values();
         private final MenuValues.Builder<H> values = MenuValues.builder();
         private final List<MenuItems<H>> items = new ArrayList<>();
         private final List<MenuSlots> slots = new ArrayList<>();
         private final List<Tank<H, ?>> tanks = new ArrayList<>();
         private final List<Cycle<H, ?>> cycles = new ArrayList<>();
+        private final List<Port<H>> ports = new ArrayList<>();
+        private Layout.@Nullable Faces sideConfig;
         private final List<MenuSlots> shiftOrder = new ArrayList<>();
         private final Set<Object> handles = Collections.newSetFromMap(new IdentityHashMap<>());
         private @Nullable String titleKey;
@@ -427,6 +528,113 @@ public final class MenuDefinition<H> {
         }
 
         /**
+         * The host's transfer port, synced for {@link Layout#faces} and {@link #sideConfig}: per kind of {@code kinds}
+         * its face modes and the modes the kind allows, and the host's facing. The facing is the block state's vanilla
+         * {@code BlockStateProperties.HORIZONTAL_FACING} or {@code FACING} property when the host is a block entity
+         * whose block has one (other facing properties are not detected), and none otherwise (faces are then named
+         * absolutely); {@link #port(Function, Function, ResourceKind...)} takes it from the host instead.
+         * <p>
+         * A click on a face names the mode it asks for, so a click the server sees twice sets the same mode twice. The
+         * server sets it through {@link TransferPort#setSettings} only when the port allows that mode for the kind
+         * ({@link TransferPort#allowed}) and ignores every other click; the port's settings listener runs as for a
+         * wrench. Clicks on a kind that no faces node shows are ignored too. Kinds are fixed here, since the client
+         * menu has no port to ask.
+         *
+         * @throws IllegalArgumentException
+         *             for no kinds, a kind twice or more than {@link PortValue#MAX_KINDS} kinds
+         */
+        @ApiStatus.Experimental
+        public PortValue port(Function<? super H, ? extends TransferPort> port, ResourceKind<?>... kinds) {
+            return addPort(port, Builder::facingOf, kinds);
+        }
+
+        /**
+         * Like {@link #port(Function, ResourceKind...)}, with the facing from {@code facing} (empty for none; must not
+         * return null, and should return a kept {@code Optional}: it is read every tick).
+         */
+        @ApiStatus.Experimental
+        public PortValue port(Function<? super H, ? extends TransferPort> port,
+                Function<? super H, Optional<Direction>> facing, ResourceKind<?>... kinds) {
+            Objects.requireNonNull(facing, "facing");
+            return addPort(port, host -> {
+                Optional<Direction> direction = facing.apply(host);
+                return direction.isPresent() ? direction.get().get3DDataValue() : PortValue.NO_FACING;
+            }, kinds);
+        }
+
+        private PortValue addPort(Function<? super H, ? extends TransferPort> port, ToIntFunction<? super H> facing,
+                ResourceKind<?>[] kinds) {
+            checkOpen();
+            Objects.requireNonNull(port, "port");
+            List<ResourceKind<?>> list = List.of(kinds);
+            if (list.isEmpty() || list.size() > PortValue.MAX_KINDS || Set.copyOf(list).size() != list.size()) {
+                throw new IllegalArgumentException(
+                        "A port value needs 1 to " + PortValue.MAX_KINDS + " distinct kinds, got " + list);
+            }
+            IntValue facingValue = values.intValue(facing);
+            IntValue[] faces = new IntValue[list.size()];
+            IntValue[] allowed = new IntValue[list.size()];
+            for (int i = 0; i < faces.length; i++) {
+                ResourceKind<?> kind = list.get(i);
+                faces[i] = values.intValue(host -> port.apply(host).settings().faces(kind));
+                allowed[i] = values.intValue(host -> allowedMask(port.apply(host).allowed(kind)));
+            }
+            PortValue handle = new PortValue(ports.size(), list, facingValue, faces, allowed);
+            ports.add(new Port<>(handle, port, 0));
+            handles.add(handle);
+            return handle;
+        }
+
+        /**
+         * Adds the standard side config tab: a side tab whose flyout shows {@link Layout#faces} of {@code port} for
+         * {@code kinds} (every kind of {@code port} when none are given). At most one per definition. The screen
+         * centres the panel, the tab column and the flyout together; the three must fit a GUI of
+         * {@link LayoutPlan#FIT_WIDTH} by {@link LayoutPlan#FIT_HEIGHT} side by side (three kinds do beside a 176 wide
+         * panel), and the definition reports a problem otherwise.
+         *
+         * @throws IllegalArgumentException
+         *             for a port value of another definition
+         * @throws IllegalStateException
+         *             when called twice
+         */
+        @ApiStatus.Experimental
+        public void sideConfig(PortValue port, ResourceKind<?>... kinds) {
+            checkOpen();
+            if (!handles.contains(port)) {
+                throw new IllegalArgumentException("Port value from another menu definition");
+            }
+            if (sideConfig != null) {
+                throw new IllegalStateException("Menu " + modId + ":" + name + " has a side config tab already");
+            }
+            sideConfig = (Layout.Faces) Layout.faces(port, kinds);
+        }
+
+        /** The facing of a block entity host, or {@link PortValue#NO_FACING}; read every tick, so no lookups. */
+        private static int facingOf(Object host) {
+            if (host instanceof BlockEntity entity) {
+                BlockState state = entity.getBlockState();
+                if (state.hasProperty(BlockStateProperties.HORIZONTAL_FACING)) {
+                    return state.getValue(BlockStateProperties.HORIZONTAL_FACING).get3DDataValue();
+                }
+                if (state.hasProperty(BlockStateProperties.FACING)) {
+                    return state.getValue(BlockStateProperties.FACING).get3DDataValue();
+                }
+            }
+            return PortValue.NO_FACING;
+        }
+
+        /** {@code allowed} as a bit mask by mode id, without iterating the set (read every tick). */
+        private static int allowedMask(Set<PortFaceMode> allowed) {
+            int mask = 0;
+            for (PortFaceMode mode : MODES) {
+                if (allowed.contains(mode)) {
+                    mask |= 1 << mode.id();
+                }
+            }
+            return mask;
+        }
+
+        /**
          * Where shift-clicked player stacks go: these groups in this order, each filled before the next; a stack none
          * of them takes moves between the main inventory and the hotbar. Groups not named never receive shift-clicked
          * items. Replaces any earlier order.
@@ -467,6 +675,18 @@ public final class MenuDefinition<H> {
         public void layout(Layout root) {
             checkOpen();
             layout = Objects.requireNonNull(root, "root");
+        }
+
+        /** A faces node's kinds must all be its port's. */
+        private static List<String> checkFaces(Layout.Faces node) {
+            List<String> problems = new ArrayList<>();
+            for (ResourceKind<?> kind : node.kinds()) {
+                if (node.port().kindIndex(kind) < 0) {
+                    problems.add("Faces of port " + node.port().index() + " show kind " + kind.id()
+                            + ", which the port value does not declare");
+                }
+            }
+            return problems;
         }
 
         private void checkOpen() {
@@ -521,6 +741,10 @@ public final class MenuDefinition<H> {
                         yield node.value();
                     }
                     case Layout.CycleButton node -> node.action();
+                    case Layout.Faces node -> {
+                        problems.addAll(checkFaces(node));
+                        yield node.port();
+                    }
                     case Layout.PlayerInventory node -> {
                         inventories++;
                         yield null;
@@ -540,6 +764,17 @@ public final class MenuDefinition<H> {
             }
             if (inventories > 1) {
                 problems.add("Player inventory placed " + inventories + " times");
+            }
+            Layout.Faces side = sideConfig;
+            if (side != null) {
+                problems.addAll(checkFaces(side));
+                int outerWidth = side.width() + 2 * FLYOUT_PAD;
+                int outerHeight = side.height() + FLYOUT_TITLE + 2 * FLYOUT_PAD;
+                if (plan.panelWidth() + SIDE_TAB_COLUMN + outerWidth > LayoutPlan.FIT_WIDTH
+                        || outerHeight > LayoutPlan.FIT_HEIGHT) {
+                    problems.add("Side config flyout " + outerWidth + "x" + outerHeight
+                            + " beside the panel does not fit " + LayoutPlan.FIT_WIDTH + "x" + LayoutPlan.FIT_HEIGHT);
+                }
             }
             return problems;
         }

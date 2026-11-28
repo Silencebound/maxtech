@@ -1,6 +1,8 @@
 package dev.silencebound.maxtech.lib.api.menu;
 
+import dev.silencebound.maxtech.lib.api.resource.ResourceKind;
 import java.util.List;
+import java.util.Set;
 import org.jetbrains.annotations.ApiStatus;
 import org.jspecify.annotations.Nullable;
 
@@ -21,7 +23,8 @@ import org.jspecify.annotations.Nullable;
  *         Layout.playerInventory());
  * }</pre>
  *
- * Nodes are immutable records; any thread. Pure Java with no Minecraft types, so layouts can be tested in plain JUnit.
+ * Nodes are immutable records; any thread. Pure Java with no Minecraft types (a faces node names Lib resource kinds),
+ * so layouts can be tested in plain JUnit.
  */
 public sealed interface Layout {
     /** The side of one slot's cell: the 16 pixel item and its 1 pixel frame on each side. */
@@ -47,6 +50,12 @@ public sealed interface Layout {
     int ENERGY_WIDTH = 10;
     /** How far the panel's title tab sticks out above the panel. */
     int TITLE_TAB = 11;
+    /** The side of one face button in a {@link #faces} node. */
+    int FACE = 18;
+    /** The width of a {@link #faces} node: a block net four faces wide. */
+    int FACES_WIDTH = 4 * FACE;
+    /** The height of one kind's block net in a {@link #faces} node: three faces. */
+    int FACES_NET_HEIGHT = 3 * FACE;
 
     /** Children left to right, {@link #GAP} apart. */
     static Layout row(Layout... children) {
@@ -127,6 +136,20 @@ public sealed interface Layout {
      */
     static <E extends Enum<E> & MenuChoice> Layout cycleButton(CycleAction<E> action, String key, int width) {
         return new CycleButton(action, key, width);
+    }
+
+    /**
+     * The side config of {@code port}: for each of {@code kinds} (every kind of {@code port} when none are given) a
+     * block net of {@link #FACE} pixel face buttons (top above front, then left, front, right and back, bottom below),
+     * named relative to the host's facing ({@link dev.silencebound.maxtech.lib.api.transfer.RelativeFace}), or
+     * absolutely for a host without one. A face shows its mode (push orange, pull blue, off untinted); a left click
+     * asks the server for the next allowed mode, a right click for the previous one. The node is {@link #FACES_WIDTH}
+     * wide and one net per kind high, {@link #SMALL_GAP} apart. Every kind must be one of {@code port}'s (the
+     * definition reports a problem otherwise).
+     */
+    @ApiStatus.Experimental
+    static Layout faces(PortValue port, ResourceKind<?>... kinds) {
+        return new Faces(port, kinds.length == 0 ? port.kinds() : List.of(kinds));
     }
 
     /** Empty room, {@code width} by {@code height}. */
@@ -389,6 +412,40 @@ public sealed interface Layout {
         @Override
         public int height() {
             return BUTTON_HEIGHT;
+        }
+    }
+
+    /**
+     * See {@link Layout#faces}.
+     *
+     * @param port
+     *            the port shown
+     * @param kinds
+     *            the kinds shown, one net each, top to bottom
+     */
+    @ApiStatus.Experimental
+    record Faces(PortValue port, List<ResourceKind<?>> kinds) implements Leaf {
+        /** Copies {@code kinds}, which must not be empty or hold a kind twice. */
+        public Faces {
+            kinds = List.copyOf(kinds);
+            if (kinds.isEmpty() || Set.copyOf(kinds).size() != kinds.size()) {
+                throw new IllegalArgumentException("Faces need distinct kinds, got " + kinds);
+            }
+        }
+
+        @Override
+        public int width() {
+            return FACES_WIDTH;
+        }
+
+        @Override
+        public int height() {
+            return kinds.size() * (SMALL_GAP + FACES_NET_HEIGHT) - SMALL_GAP;
+        }
+
+        /** The top of the net of the kind at {@code index}, relative to the node. */
+        public int netY(int index) {
+            return index * (FACES_NET_HEIGHT + SMALL_GAP);
         }
     }
 

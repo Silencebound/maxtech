@@ -84,6 +84,12 @@ until Farms ships.
   and chunk GameTests and an idle perf test; T3 fluids, the generic tank-kind core and the adapter for handlers
   without transactions; T4 energy; T5 documentation and the GUI toolkit's face node. Farms' hub then uses it.
 
+## Amendment (T5, 2026-11-28)
+
+- The GUI toolkit's face node is `Layout.faces` over a `PortValue` (ADR-0016 amendment of the same date); the screen
+  names faces with `RelativeFace` (front, back, left, right, top, bottom for the block's facing, as seen from the
+  front). Clicks set a face through `setSettings` with the asked-for mode, checked against `allowed(kind)`.
+
 ## Amendment (T3, 2026-11-28)
 
 - Tank buffers of any kind move through the kind's `KindBridge`, which common code reaches through Lib's platform;
