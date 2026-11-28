@@ -22,6 +22,7 @@ import dev.silencebound.maxtech.lib.api.schedule.TaskPriority;
 import dev.silencebound.maxtech.lib.inventory.LibItemSlots;
 import dev.silencebound.maxtech.lib.inventory.LibResourceTank;
 import dev.silencebound.maxtech.lib.inventory.MachineMoves;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Consumer;
@@ -45,9 +46,13 @@ import org.jspecify.annotations.Nullable;
 /**
  * Lib's {@link MachineProcess}: one {@link ScheduledTask} that steps a run once per tick while it runs and waits for an
  * event otherwise. The recipe is looked up again only after an input, tank, mode or recipe manager change, and the
- * inputs are matched once more just before a run ends, so the plan the transaction follows is the slots' current one. A
- * finished run is one root transaction: inputs out, every output in, committed only when all of it fit. Events during
- * its own step come from its own moves or redstone pulse and only mark the recipe for a lookup. Server thread only.
+ * inputs are matched once more just before a run ends (which allocates once per run), so the plan the transaction
+ * follows is the slots' current one. A top-up of an input that keeps its resource does not look again while a recipe
+ * runs. A finished run is one root transaction: inputs out, every output in, committed only when all of it fit; a
+ * finish that did not fit rolls the chances again next time, which can only make fewer outputs. Right after a finished
+ * run the next one is looked up in the same step, so the demand the network pays for the next tick is that run's or
+ * none. Events during its own step come from its own moves or redstone pulse and only mark the recipe for a lookup.
+ * Server thread only.
  */
 public final class LibMachineProcess implements MachineProcess {
     /** Lib's factory, installed from Lib's init. */
@@ -96,6 +101,11 @@ public final class LibMachineProcess implements MachineProcess {
      */
     private long demandSince = -1;
     private MachineStatus status = MachineStatus.IDLE;
+    /** Copies of the input and catalyst stacks at the last lookup, to tell a top-up from a change. */
+    private final ItemStack[] heldStacks;
+    /** The input tanks' keys and amounts at the last lookup. */
+    private final @Nullable Object[] heldKeys;
+    private final long[] heldAmounts;
 
     private LibMachineProcess(MachineProcessFactory.Spec spec) {
         this.type = spec.type();
@@ -112,6 +122,10 @@ public final class LibMachineProcess implements MachineProcess {
         this.inputTanks = libTanks(spec.inputTanks());
         this.outputTanks = libTanks(spec.outputTanks());
         this.input = new Input();
+        this.heldStacks = new ItemStack[inputSlots + catalystSlots];
+        Arrays.fill(heldStacks, ItemStack.EMPTY);
+        this.heldKeys = new Object[inputTanks.length];
+        this.heldAmounts = new long[inputTanks.length];
         this.energy = spec.energy();
         this.redstone = spec.redstone();
         this.tasks = spec.tasks();
@@ -153,6 +167,7 @@ public final class LibMachineProcess implements MachineProcess {
             return;
         }
         level = newLevel;
+        MachineTasks.started(this);
         manager = null;
         lookUp = true;
         demandSince = -1;
@@ -165,6 +180,7 @@ public final class LibMachineProcess implements MachineProcess {
             return;
         }
         level = null;
+        MachineTasks.stopped(this);
         TaskGroup group = task.group();
         if (group != null) {
             group.remove(task);
@@ -193,17 +209,85 @@ public final class LibMachineProcess implements MachineProcess {
     @Override
     public void slotChanged(int slot) {
         if (slot >= inputFrom && slot < inputFrom + inputSlots + catalystSlots) {
-            lookUp = true;
-            wake();
+            if (!toppedUp(slot)) {
+                lookUp = true;
+                wake();
+            }
         } else if (slot >= outputFrom && slot < outputTo && status == MachineStatus.OUTPUT_FULL) {
             wake();
         }
     }
 
     @Override
-    public void tankChanged() {
+    @SuppressWarnings("ReferenceEquality") // the tank instance the process was built with
+    public void tankChanged(ResourceTank<?> tank) {
+        for (int i = 0; i < inputTanks.length; i++) {
+            if (inputTanks[i] == tank) {
+                if (!toppedUp(i, inputTanks[i])) {
+                    lookUp = true;
+                    wake();
+                }
+                return;
+            }
+        }
+        for (LibResourceTank<?> output : outputTanks) {
+            if (output == tank) {
+                if (status == MachineStatus.OUTPUT_FULL) {
+                    wake();
+                }
+                return;
+            }
+        }
         lookUp = true;
         wake();
+    }
+
+    /** Wakes the process for a datapack reload, which may add or remove its recipe; Lib calls it. */
+    void reloaded() {
+        wake();
+    }
+
+    /**
+     * Whether input slot {@code slot} only gained more of what it held at the last lookup while a recipe is current:
+     * then the recipe still matches and no lookup is needed. Allocates nothing.
+     */
+    private boolean toppedUp(int slot) {
+        LibItemSlots items = slots;
+        if (items == null || current == null || lookUp) {
+            return false;
+        }
+        int index = slot - inputFrom;
+        ItemStack now = items.stack(slot);
+        ItemStack held = heldStacks[index];
+        if (held.isEmpty() || now.getCount() < held.getCount() || !ItemStack.isSameItemSameComponents(held, now)) {
+            return false;
+        }
+        held.setCount(now.getCount());
+        return true;
+    }
+
+    /** {@link #toppedUp(int)} for input tank {@code index}. */
+    private boolean toppedUp(int index, LibResourceTank<?> tank) {
+        Object key = tank.key();
+        Object held = heldKeys[index];
+        if (current == null || lookUp || held == null || key == null || tank.amount() < heldAmounts[index]
+                || !held.equals(key)) {
+            return false;
+        }
+        heldAmounts[index] = tank.amount();
+        return true;
+    }
+
+    /** Remembers the inputs a lookup saw, for {@link #toppedUp}. Allocates a copy per input slot. */
+    private void rememberInputs() {
+        LibItemSlots items = slots;
+        for (int i = 0; i < heldStacks.length; i++) {
+            heldStacks[i] = items == null ? ItemStack.EMPTY : items.stack(inputFrom + i).copy();
+        }
+        for (int i = 0; i < inputTanks.length; i++) {
+            heldKeys[i] = inputTanks[i].key();
+            heldAmounts[i] = inputTanks[i].amount();
+        }
     }
 
     @Override
@@ -308,6 +392,7 @@ public final class LibMachineProcess implements MachineProcess {
         RedstoneControl control = redstone;
         boolean pulseRun = active && control != null && control.mode() == RedstoneMode.PULSE;
         if (control != null && !pulseRun && !control.allowsRun()) {
+            absorb(recipe, gameTime);
             pause(MachineStatus.REDSTONE_OFF);
             return ScheduledTask.WAIT;
         }
@@ -323,24 +408,27 @@ public final class LibMachineProcess implements MachineProcess {
             onChange.run();
         }
         long total = total(recipe);
+        int cost = recipe.energyPerTick();
+        EnergyEndpoint endpoint = energy;
+        boolean paid = endpoint != null && cost > 0;
         if (progress < total) {
-            int cost = recipe.energyPerTick();
-            EnergyEndpoint endpoint = energy;
-            if (endpoint != null) {
-                demand(cost, gameTime);
-            }
             if (endpoint != null && cost > 0) {
-                if (gameTime == demandSince) {
+                if (endpoint.demand() == 0 || gameTime == demandSince) {
+                    // The flow for a new demand comes with the network's pass at the end of this tick.
+                    demand(Math.min(cost, total - progress), gameTime);
                     setStatus(MachineStatus.RUNNING);
                     return ScheduledTask.NEXT_TICK;
                 }
-                long received = Math.min(endpoint.received(), cost);
+                long received = Math.min(endpoint.received(), total - progress);
                 if (received <= 0) {
                     setStatus(MachineStatus.NO_ENERGY);
                     return ScheduledTask.WAIT;
                 }
-                progress = Math.min(total, progress + received);
+                progress += received;
             } else {
+                if (endpoint != null) {
+                    demand(0, gameTime);
+                }
                 progress++;
             }
             onChange.run();
@@ -359,11 +447,46 @@ public final class LibMachineProcess implements MachineProcess {
             }
             progress = 0;
             active = false;
-            lookUp = true;
             onChange.run();
+            lookUp = false;
+            resolve(at);
+            demand(nextDemand(), gameTime);
+        } else if (paid) {
+            // Only what the run still needs, so the last tick takes no more than the rest.
+            demand(Math.min(cost, total - progress), gameTime);
         }
         setStatus(MachineStatus.RUNNING);
         return ScheduledTask.NEXT_TICK;
+    }
+
+    /**
+     * The demand for the run after a finished one: the next recipe's energy per tick if that run can start (redstone
+     * allows it, its outputs fit), else 0, so the network pays nothing for a run that does not come.
+     */
+    private long nextDemand() {
+        RecipeHolder<MachineRecipe> next = current;
+        if (energy == null || next == null || next.value().energyPerTick() == 0) {
+            return 0;
+        }
+        RedstoneControl control = redstone;
+        if ((control != null && !control.allowsRun()) || !roomFor(next.value())) {
+            return 0;
+        }
+        return Math.min(next.value().energyPerTick(), total(next.value()) - progress);
+    }
+
+    /** Adds the energy received this tick to an active run about to pause, so the flow already paid is not lost. */
+    private void absorb(MachineRecipe recipe, long gameTime) {
+        EnergyEndpoint endpoint = energy;
+        long total = total(recipe);
+        if (active && endpoint != null && recipe.energyPerTick() > 0 && endpoint.demand() > 0 && gameTime != demandSince
+                && progress < total) {
+            long received = Math.min(endpoint.received(), total - progress);
+            if (received > 0) {
+                progress += received;
+                onChange.run();
+            }
+        }
     }
 
     /**
@@ -383,6 +506,7 @@ public final class LibMachineProcess implements MachineProcess {
             current = next;
             outputResources = next == null ? NO_RESOURCES : resources(next.value());
         }
+        rememberInputs();
     }
 
     private static ItemResource[] resources(MachineRecipe recipe) {
@@ -466,7 +590,10 @@ public final class LibMachineProcess implements MachineProcess {
         return true;
     }
 
-    /** Puts {@code amount} of {@code resource} into the output tanks, those holding it first; returns what went in. */
+    /**
+     * Puts {@code amount} of {@code resource} into the output tanks, those holding it first, then the others, split
+     * over several when one has too little room; returns what went in.
+     */
     private long fill(KindKey<?> resource, long amount, TransactionContext transaction) {
         long moved = 0;
         for (int pass = 0; pass < 2 && moved < amount; pass++) {

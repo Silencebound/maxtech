@@ -30,7 +30,7 @@ sits in `lib.neoforge.api.inventory` beside `Handlers` (amended 2026-11-28, PR #
 (owner, 2026-11-28; no release first).
 
 **Machine core**
-- `MachineProcess<R>` is composed into a machine's block entity; there is no base block entity. It runs one
+- `MachineProcess` is composed into a machine's block entity; there is no base block entity. It runs one
   `ScheduledTask`, sleeps when idle, and wakes on an input, output, energy or redstone change.
 - `Handlers.machineItems` and `Handlers.machineTank` (`lib.neoforge.api.inventory`) give role-ignoring transactional
   views of `ItemSlots` and `ResourceTank`, with `insertAll`/`extractAll` that run in a nested transaction, so a recipe

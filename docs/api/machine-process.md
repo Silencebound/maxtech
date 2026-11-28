@@ -8,7 +8,8 @@ tanks, energy endpoint and redstone control. Everything here is experimental unt
 ## What the process does
 
 - Finds the recipe of its `MachineRecipeType` that the inputs and the selected mode match, and looks again only after
-  an input, tank, mode or datapack change.
+  an input, input tank, mode or datapack change (a reload wakes every machine). A pipe topping up an input with more
+  of the same does not look again while a recipe runs.
 - Starts a run only when every output fits, chance outputs counted as made, and when the redstone mode allows it.
 - Moves the run on once per tick: one tick per tick for a recipe without energy, or by the energy its consumer
   endpoint received for one with energy (half the energy, half the speed).
@@ -17,9 +18,9 @@ tanks, energy endpoint and redstone control. Everything here is experimental unt
 - Sleeps otherwise: no recipe, outputs full, no energy, or redstone off. It is one `ScheduledTask` in the level's
   machine group (or the group `tasks` gives) and never ticks while asleep.
 
-Inputs stay in their slots until a run ends, so taking one out mid-run resets the run and loses nothing. In pulse mode
-each rising edge starts one run, which keeps going whatever the signal does; in high, low and never a run pauses while
-the mode does not allow it.
+Inputs stay in their slots until a run ends, so taking one out mid-run resets the run and loses no items (the energy
+paid for it, and in pulse mode its pulse, are gone). In pulse mode each rising edge starts one run, which keeps going
+whatever the signal does; in high, low and never a run pauses while the mode does not allow it.
 
 ## Wiring it
 
@@ -27,7 +28,7 @@ the mode does not allow it.
 public final class MixerBlockEntity extends BlockEntity {
     private final EnergyEndpoint energy = EnergyEndpoint.consumer(EnergyPriority.DEFAULT);
     private final ItemSlots slots = ItemSlots.builder(3).input(0, 1).output(1, 3).build(this::slotChanged);
-    private final FluidTank water = FluidTank.create(4000, this::tankChanged);
+    private final FluidTank water = FluidTank.create(4000, () -> tankChanged(this.water));
     private final RedstoneControl redstone = new RedstoneControl(this::setChanged, this::wake);
     private final MachineProcess process;
 
@@ -44,7 +45,7 @@ public final class MixerBlockEntity extends BlockEntity {
     }
 
     private void slotChanged(int slot) { setChanged(); process.slotChanged(slot); }
-    private void tankChanged() { setChanged(); process.tankChanged(); }
+    private void tankChanged(ResourceTank<?> tank) { setChanged(); process.tankChanged(tank); }
     private void wake() { process.wake(); }
 
     @Override
