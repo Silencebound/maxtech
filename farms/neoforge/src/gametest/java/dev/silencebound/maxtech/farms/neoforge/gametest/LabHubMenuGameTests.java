@@ -273,9 +273,9 @@ public final class LabHubMenuGameTests {
     }
 
     /**
-     * An empty hand opens the hub's screen for that player and that hub; sneaking with an empty hand takes a sampler
-     * out and opens nothing, and with no sampler inside opens the screen too. Lib sends nothing to a mock player, so
-     * the block's opening is recorded instead of run.
+     * An empty hand opens the hub's screen for that player and that hub, also with a sampler inside; sneaking with an
+     * empty hand takes a sampler out and opens nothing, and with no sampler inside opens the screen too. Lib sends
+     * nothing to a mock player, so the block's opening is recorded instead of run.
      */
     @SuppressWarnings("removal") // GameTestHelper's only way to a ServerPlayer with a connection; no replacement yet
     private static void handOpensMenu(GameTestHelper helper) {
@@ -290,14 +290,17 @@ public final class LabHubMenuGameTests {
             use(helper, player);
             helper.assertValueEqual(opened, List.of(hub), "screens opened by an empty hand");
             hub.storage().slots().set(HubStorage.SAMPLER, new ItemStack(FarmsContent.SAMPLER.get()));
+            use(helper, player);
+            helper.assertValueEqual(opened.size(), 2, "screens opened with a sampler inside");
+            helper.assertTrue(player.getMainHandItem().isEmpty(), "no sneak, no sampler taken");
             player.setShiftKeyDown(true);
             use(helper, player);
-            helper.assertValueEqual(opened.size(), 1, "screens opened while taking the sampler");
+            helper.assertValueEqual(opened.size(), 2, "screens opened while taking the sampler");
             helper.assertTrue(player.getMainHandItem().is(FarmsContent.SAMPLER.get()), "sampler in the hand");
             helper.assertTrue(hub.storage().sampler().isEmpty(), "sampler slot empty");
             player.setItemInHand(InteractionHand.MAIN_HAND, ItemStack.EMPTY);
             use(helper, player);
-            helper.assertValueEqual(opened.size(), 2, "screens opened sneaking without a sampler");
+            helper.assertValueEqual(opened.size(), 3, "screens opened sneaking without a sampler");
         } finally {
             LabHubBlock.openScreenWith(null);
             helper.getLevel().getServer().getPlayerList().remove(player);
