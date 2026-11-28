@@ -1,6 +1,6 @@
 # CLAUDE.md — MaxTech Storage
 
-Rules for the Storage addon (`maxtech_storage`). The root `CLAUDE.md` holds the rules for every mod; this file adds Storage's. Storage is a standalone mod on Lib alone; GuideME is bundled inside its jar. Storage's requirements are in `storage/PRD.md` (§7.2, §7.3 and its milestone rows); API facts found while building Storage are in `.claude/skills/neoforge-26-1/storage-facts.md`.
+Rules for the Storage addon (`maxtech_storage`). The root `CLAUDE.md` holds the rules for every mod; this file adds Storage's. Storage is a standalone mod on Lib alone; GuideME is bundled inside Lib's jar. Storage's requirements are in `storage/PRD.md` (§7.2, §7.3 and its milestone rows); API facts found while building Storage are in `.claude/skills/neoforge-26-1/storage-facts.md`.
 
 ## Architecture
 
@@ -28,5 +28,5 @@ Rules for the Storage addon (`maxtech_storage`). The root `CLAUDE.md` holds the 
 
 - Storage's GUI style is the Accent Frame (cyan on graphite, pixel art that fits Minecraft); the look and its widgets
   live in Lib's api (`lib.api.client.gui`, ADR-0016) and Storage uses them.
-- Storage has its own guide book (`maxtech_storage:guide`), drawn by the bundled GuideME; pages are short and concise like AE2's (rules and facts: the `guideme` skill).
+- Storage has its own guide book (`maxtech_storage:guide`), drawn by GuideME through Lib (`Guides.register`); pages are short and concise like AE2's (rules and facts: the `guideme` skill).
 - Every Storage recipe type needs a JEI category (`compat.jei`) and a KubeJS schema (`compat.kubejs`, built on Lib's helpers); GameTests fail when one is missing (#308, #309).

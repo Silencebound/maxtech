@@ -3,8 +3,10 @@ package dev.silencebound.maxtech.lib.menu;
 import dev.silencebound.maxtech.lib.api.inventory.FluidTank;
 import dev.silencebound.maxtech.lib.api.inventory.ItemSlots;
 import dev.silencebound.maxtech.lib.api.inventory.ResourceTank;
+import dev.silencebound.maxtech.lib.api.menu.CycleAction;
 import dev.silencebound.maxtech.lib.api.menu.Layout;
 import dev.silencebound.maxtech.lib.api.menu.LayoutPlan;
+import dev.silencebound.maxtech.lib.api.menu.MenuChoice;
 import dev.silencebound.maxtech.lib.api.menu.MenuDefinition;
 import dev.silencebound.maxtech.lib.api.menu.MenuItems;
 import dev.silencebound.maxtech.lib.api.menu.MenuSlots;
@@ -24,7 +26,9 @@ import org.jspecify.annotations.Nullable;
  * positions come from {@link MenuDefinition#plan()}, pure arithmetic, so they are the same on the server and the
  * client. A group the layout lacks (a problem in dev runs) sits far off the panel. Button ids: fluid tank {@code n} of
  * the definition (declaration order, counting only tanks that take bucket clicks) is {@link ToolkitMenu#TANK_BUTTONS}
- * plus n; ids below that are free for later buttons.
+ * plus n; choice {@code c} (the constant's ordinal) of cycle action {@code a} is {@link ToolkitMenu#ACTION_BUTTONS}
+ * plus {@code a * }{@link CycleAction#MAX_CHOICES}{@code  + c}. Any other id, or an ordinal past the enum's constants,
+ * does nothing.
  */
 public final class DefinedMenu<H> extends ToolkitMenu<H> {
     /** Where slots of a group the layout lacks go: off any screen. */
@@ -110,6 +114,38 @@ public final class DefinedMenu<H> extends ToolkitMenu<H> {
             }
         }
         return -1;
+    }
+
+    /**
+     * The {@code clickMenuButton} id that asks for {@code choice} of {@code action}, or -1 for another definition's.
+     */
+    @SuppressWarnings("EnumOrdinal") // the ordinal only travels to a server of the same build
+    public <E extends Enum<E> & MenuChoice> int cycleButton(CycleAction<E> action, E choice) {
+        List<MenuDefinition.Cycle<H, ?>> cycles = definition.cycles();
+        int index = action.index();
+        if (index >= cycles.size() || cycles.get(index).action() != action) {
+            return -1;
+        }
+        return ACTION_BUTTONS + index * CycleAction.MAX_CHOICES + choice.ordinal();
+    }
+
+    /**
+     * A cycle button (see the class comment) hands its choice to the definition's setter on the server; tank buttons go
+     * to {@link ToolkitMenu}. The client menu has no host and ignores them.
+     */
+    @Override
+    public boolean clickMenuButton(Player player, int id) {
+        if (id < ACTION_BUTTONS) {
+            return super.clickMenuButton(player, id);
+        }
+        H source = host;
+        int offset = id - ACTION_BUTTONS;
+        int index = offset / CycleAction.MAX_CHOICES;
+        List<MenuDefinition.Cycle<H, ?>> cycles = definition.cycles();
+        if (source == null || index >= cycles.size()) {
+            return false;
+        }
+        return cycles.get(index).apply(source, offset % CycleAction.MAX_CHOICES);
     }
 
     @Override

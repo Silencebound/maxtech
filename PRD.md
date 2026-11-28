@@ -151,7 +151,7 @@ Large multiplayer bases with thousands of cables, pipes and machines must not de
   - **JEI first** (categories, recipe transfer to the pattern terminal); EMI best-effort.
   - **KubeJS first-class.** Every Storage recipe type has a KubeJS recipe schema built on Lib's helpers. Builders in common `api` are designed so the KubeJS layer is a thin wrapper, not a second implementation. Recipe JSON format is documented and stable for CraftTweaker/datapack users, but no CraftTweaker plugin in v1.
   - **Jade primary** for block info. All overlay data goes through a common `BlockInfoProvider` interface in Lib's api; the Jade plugin consumes it. WTHIT/TOP adapters can be added later without touching Storage's blocks.
-  - **Guide book:** an in-game guide drawn by GuideME (back since MGM; Lib's own guide from M7G is retired). GuideME is bundled inside the mod jar (jar-in-jar), so players install nothing extra. Pages are short GuideME Markdown in the repo, written as each milestone lands; each mod declares its guide and its own book item. Progression is also taught through JEI, rich tooltips and advancements.
+  - **Guide book:** an in-game guide drawn by GuideME (back since MGM; Lib's own guide from M7G is retired). GuideME is bundled inside Lib's jar (jar-in-jar), so players install nothing extra. Pages are short GuideME Markdown in the repo, written as each milestone lands; each mod declares its guide and its own book item. Progression is also taught through JEI, rich tooltips and advancements.
   - **Advancements grow with each milestone**, not in one pass at the end.
   - **AE2 / Refined Storage bridge: required before 1.0.** Baseline (capability-level) comes free: our interface/bus blocks expose standard item/fluid handlers so their storage buses attach to ours and vice versa. On top of that, Storage ships a **network bridge** block per external mod (`storage.compat.ae2`, `storage.compat.refinedstorage`, optional deps) that mounts the foreign network's contents into ours as a virtual storage cell (and ours into theirs where their API allows), so terminals show a combined inventory. Crafting-request forwarding across the bridge is a stretch goal, not a 1.0 blocker. Bridges are read-through, not copies; no duplication of stored data.
   - **Curios (optional):** carried gadgets (wireless terminal, crafting tablet, logic remote, pocket uplink, portable cell, restock belt) work from Curios slots, found through Lib's carried-item finder (`lib.api.carried`); `storage.compat.curios`.
@@ -173,7 +173,7 @@ Primary: both standalone players and modpack makers, served by the `standalone` 
 
 ## 12. Success criteria
 
-- Storage works standalone with Lib alone; GuideME is bundled inside the Storage jar.
+- Storage works standalone with Lib alone; GuideME is bundled inside the Lib jar.
 - With AE2 or Refined Storage installed, a bridge block shows the foreign network's inventory in our terminals.
 - No cable block entity ticks; all §8.1 budgets pass on a quiet machine.
 - A third party can build a working addon using only the published Lib api jar.
