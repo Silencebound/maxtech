@@ -64,7 +64,7 @@ public sealed interface ConduitLook {
      */
     static Shell shell(Identifier shell) {
         return new Shell(shell, TYPE_COLOUR, Shell.DEFAULT_BORDER, Shell.DEFAULT_RIM, Shell.DEFAULT_INSET,
-                Shell.DEFAULT_LANE_WIDTH);
+                Shell.DEFAULT_LANE_WIDTH, false);
     }
 
     /** {@code colour}, or {@code type}'s base colour for {@link #TYPE_COLOUR}; {@code 0xRRGGBB}. */
@@ -116,8 +116,14 @@ public sealed interface ConduitLook {
      * fluid's surface on horizontal pieces, flowing the other way. The fluid's tint is its default one, not the
      * biome's.
      * <p>
-     * The block state fields are {@code shell}, then {@code border_colour}, {@code border}, {@code rim}, {@code inset}
-     * and {@code lane_width}, each left out at its default; later fields will be optional too, so files stay valid.
+     * With {@code junctionCage} (Lib 0.15.0) a tube that turns or branches (a bend, T, crossing or any junction of two
+     * or more arms that is not one straight run) draws border lines on all twelve edges of its core, so every arm's
+     * lines end on a frame around the core instead of at the crease and the core's glass stays clear between them.
+     * Straight runs, open ends and single tubes look as without it.
+     * <p>
+     * The block state fields are {@code shell}, then {@code border_colour}, {@code border}, {@code rim}, {@code inset},
+     * {@code lane_width} and {@code junction_cage}, each left out at its default; later fields will be optional too, so
+     * files stay valid.
      *
      * @param shell
      *            sprite of the glass (block atlas), usually mostly transparent
@@ -131,9 +137,11 @@ public sealed interface ConduitLook {
      *            how far the contents sit inside the glass, in pixels, 0 to {@value #MAX_WIDTH}
      * @param laneWidth
      *            width of the second lane's strip, in pixels, 0 to {@value #MAX_WIDTH}; 0 draws none
+     * @param junctionCage
+     *            whether bends and branches draw border lines on all twelve edges of the core
      */
-    record Shell(Identifier shell, int borderColour, float border, float rim, float inset,
-            float laneWidth) implements ConduitLook {
+    record Shell(Identifier shell, int borderColour, float border, float rim, float inset, float laneWidth,
+            boolean junctionCage) implements ConduitLook {
         /** Default {@link #border}, in pixels. */
         public static final float DEFAULT_BORDER = 0.5F;
         /** Default {@link #rim}, in pixels. */
@@ -145,15 +153,15 @@ public sealed interface ConduitLook {
         /** The widest {@link #border} or {@link #rim}, in pixels. */
         public static final float MAX_WIDTH = 4.0F;
 
-        static final MapCodec<Shell> CODEC = RecordCodecBuilder
-                .mapCodec(i -> i
-                        .group(Identifier.CODEC.fieldOf("shell").forGetter(Shell::shell),
-                                colourField("border_colour").forGetter(Shell::borderColour),
-                                widthField("border", DEFAULT_BORDER).forGetter(Shell::border),
-                                widthField("rim", DEFAULT_RIM).forGetter(Shell::rim),
-                                widthField("inset", DEFAULT_INSET).forGetter(Shell::inset),
-                                widthField("lane_width", DEFAULT_LANE_WIDTH).forGetter(Shell::laneWidth))
-                        .apply(i, Shell::new));
+        static final MapCodec<Shell> CODEC = RecordCodecBuilder.mapCodec(i -> i
+                .group(Identifier.CODEC.fieldOf("shell").forGetter(Shell::shell),
+                        colourField("border_colour").forGetter(Shell::borderColour),
+                        widthField("border", DEFAULT_BORDER).forGetter(Shell::border),
+                        widthField("rim", DEFAULT_RIM).forGetter(Shell::rim),
+                        widthField("inset", DEFAULT_INSET).forGetter(Shell::inset),
+                        widthField("lane_width", DEFAULT_LANE_WIDTH).forGetter(Shell::laneWidth),
+                        Codec.BOOL.optionalFieldOf("junction_cage", false).forGetter(Shell::junctionCage))
+                .apply(i, Shell::new));
 
         /**
          * Checks the widths.
@@ -168,34 +176,47 @@ public sealed interface ConduitLook {
             requireWidth("lane_width", laneWidth);
         }
 
-        /** A shell with the default {@link #inset} and {@link #laneWidth}, as the first shells had. */
+        /** A shell with the default {@link #inset} and {@link #laneWidth} and no cage, as the first shells had. */
         public Shell(Identifier shell, int borderColour, float border, float rim) {
             this(shell, borderColour, border, rim, DEFAULT_INSET, DEFAULT_LANE_WIDTH);
         }
 
+        /** A shell without a {@link #junctionCage}, as shells before Lib 0.15.0 were. */
+        public Shell(Identifier shell, int borderColour, float border, float rim, float inset, float laneWidth) {
+            this(shell, borderColour, border, rim, inset, laneWidth, false);
+        }
+
         /** This look with its borders and rims in {@code colour} ({@code 0xRRGGBB} or {@link #TYPE_COLOUR}). */
         public Shell withBorderColour(int colour) {
-            return new Shell(shell, colour, border, rim, inset, laneWidth);
+            return new Shell(shell, colour, border, rim, inset, laneWidth, junctionCage);
         }
 
         /** This look with border lines {@code border} px wide. */
         public Shell withBorder(float border) {
-            return new Shell(shell, borderColour, border, rim, inset, laneWidth);
+            return new Shell(shell, borderColour, border, rim, inset, laneWidth, junctionCage);
         }
 
         /** This look with rims {@code rim} px wide. */
         public Shell withRim(float rim) {
-            return new Shell(shell, borderColour, border, rim, inset, laneWidth);
+            return new Shell(shell, borderColour, border, rim, inset, laneWidth, junctionCage);
         }
 
         /** This look with its contents {@code inset} px inside the glass. */
         public Shell withInset(float inset) {
-            return new Shell(shell, borderColour, border, rim, inset, laneWidth);
+            return new Shell(shell, borderColour, border, rim, inset, laneWidth, junctionCage);
         }
 
         /** This look with a second lane {@code laneWidth} px wide. */
         public Shell withLaneWidth(float laneWidth) {
-            return new Shell(shell, borderColour, border, rim, inset, laneWidth);
+            return new Shell(shell, borderColour, border, rim, inset, laneWidth, junctionCage);
+        }
+
+        /**
+         * This look with a junction cage: bends and branches draw border lines on all twelve edges of the core
+         * ({@link #junctionCage}). Lib 0.15.0.
+         */
+        public Shell withJunctionCage() {
+            return new Shell(shell, borderColour, border, rim, inset, laneWidth, true);
         }
 
         @Override

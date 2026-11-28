@@ -29,6 +29,7 @@ import org.junit.jupiter.params.provider.CsvSource;
 class ConduitShellGeometryTest {
     private static final Identifier GLASS = Identifier.fromNamespaceAndPath("test", "block/glass");
     private static final ConduitLook.Shell SHELL = ConduitLook.shell(GLASS);
+    private static final ConduitLook.Shell CAGED = SHELL.withBorder(1).withJunctionCage();
     private static final ConduitType TYPE = new ConduitType(Identifier.fromNamespaceAndPath("test", "net"), "test",
             0x4078D8, 0.375F, () -> (ItemLike) () -> {
                 throw new UnsupportedOperationException();
@@ -40,12 +41,16 @@ class ConduitShellGeometryTest {
      */
     @ParameterizedTest(name = "{0}")
     @CsvSource({
-            // name, arms, rings, glass, strips
-            "isolated, '', '', 6, 24", "cap, e, '', 9, 16", "straight, we, '', 4, 8", "straight y, du, '', 4, 8",
-            "L, es, '', 12, 18", "T, wes, '', 15, 20", "crossing, nswe, '', 18, 32", "six-way, dunswe, '', 24, 48",
-            "ringed straight, we, e, 4, 12", "ringed cap, e, e, 9, 20"})
-    void quadCounts(String name, String arms, String rings, int glass, int strips) {
-        List<ConduitQuad> quads = ConduitGeometry.body(SHELL, new ConduitBodyKey(TYPE, null, mask(arms), mask(rings)));
+            // name, arms, rings, glass, strips, caged
+            "isolated, '', '', 6, 24, false", "cap, e, '', 9, 16, false", "straight, we, '', 4, 8, false",
+            "straight y, du, '', 4, 8, false", "L, es, '', 12, 18, false", "T, wes, '', 15, 20, false",
+            "crossing, nswe, '', 18, 32, false", "six-way, dunswe, '', 24, 48, false",
+            "ringed straight, we, e, 4, 12, false", "ringed cap, e, e, 9, 20, false", "caged L, es, '', 12, 40, true",
+            "caged T, wes, '', 15, 48, true", "caged crossing, nswe, '', 18, 56, true",
+            "caged straight, we, '', 4, 8, true"})
+    void quadCounts(String name, String arms, String rings, int glass, int strips, boolean caged) {
+        List<ConduitQuad> quads = ConduitGeometry.body(caged ? SHELL.withJunctionCage() : SHELL,
+                new ConduitBodyKey(TYPE, null, mask(arms), mask(rings)));
         int glassQuads = 0;
         int stripQuads = 0;
         for (ConduitQuad quad : quads) {
@@ -161,8 +166,123 @@ class ConduitShellGeometryTest {
     @CsvSource({"isolated, '', ''", "cap, e, ''", "straight, we, ''", "L, es, ''", "T, wes, ''", "crossing, nswe, ''",
             "six-way, dunswe, ''", "L up, esu, ''", "ringed cap, e, e", "ringed T, wes, s"})
     void stripsNeverOverlap(String name, String arms, String rings) {
-        List<ConduitQuad> strips = ConduitGeometry.body(SHELL, new ConduitBodyKey(TYPE, null, mask(arms), mask(rings)))
-                .stream().filter(quad -> !isGlass(quad)).toList();
+        assertNoStripOverlaps(name,
+                ConduitGeometry.body(SHELL, new ConduitBodyKey(TYPE, null, mask(arms), mask(rings))));
+    }
+
+    /**
+     * A junction cage frames all six faces of the core of a bend or branch, the faces arms leave from included: the
+     * middle of each of the core's 24 face edges is covered by exactly one strip on that face. Without the cage the
+     * inner creases have none.
+     */
+    @ParameterizedTest(name = "{0}")
+    @CsvSource({"corner, es", "corner up, eu", "T, wes", "crossing, nswe", "3D corner, esu", "six-way, dunswe",
+            "ringed T, wes"})
+    void junctionCageFramesEveryCoreFace(String name, String arms) {
+        AABB core = ConduitShapes.core(TYPE.thickness());
+        int mask = mask(arms);
+        List<ConduitQuad> caged = ConduitGeometry.body(CAGED, new ConduitBodyKey(TYPE, null, mask, 0));
+        List<ConduitQuad> plain = ConduitGeometry.body(SHELL.withBorder(1), new ConduitBodyKey(TYPE, null, mask, 0));
+        int uncovered = 0;
+        for (Direction face : Direction.values()) {
+            for (Direction beside : Direction.values()) {
+                if (beside.getAxis() == face.getAxis()) {
+                    continue;
+                }
+                Direction.Axis across = beside.getAxis();
+                double edge = beside.getAxisDirection() == Direction.AxisDirection.POSITIVE
+                        ? core.max(across) - 0.5
+                        : core.min(across) + 0.5;
+                double[] point = {across == Direction.Axis.X ? edge : 8, across == Direction.Axis.Y ? edge : 8,
+                        across == Direction.Axis.Z ? edge : 8};
+                assertEquals(1, covering(caged, face, point), name + ": " + face + " beside " + beside);
+                if (covering(plain, face, point) == 0) {
+                    uncovered++;
+                }
+            }
+        }
+        assertTrue(uncovered > 0, name + ": without the cage some core edges have no strip");
+    }
+
+    /** The cage leaves straight runs, open ends, single tubes and block attachments alone. */
+    @ParameterizedTest(name = "{0}")
+    @CsvSource({"isolated, '', ''", "cap, e, ''", "straight, we, ''", "straight y, du, ''", "ringed straight, we, e",
+            "ringed cap, e, e", "attached both ends, we, we"})
+    void junctionCageLeavesRunsAlone(String name, String arms, String rings) {
+        ConduitBodyKey key = new ConduitBodyKey(TYPE, null, mask(arms), mask(rings));
+        assertEquals(ConduitGeometry.body(SHELL.withBorder(1), key), ConduitGeometry.body(CAGED, key), name);
+    }
+
+    /**
+     * Caged strips never lie over one another, and an arm's lines meet the frame end to end: the arm's strip starts
+     * exactly where the frame's strip on the same plane ends.
+     */
+    @ParameterizedTest(name = "{0}")
+    @CsvSource({"corner, es, ''", "corner up, eu, ''", "T, wes, ''", "crossing, nswe, ''", "3D corner, esu, ''",
+            "T up, weu, ''", "five-way, unswe, ''", "six-way, dunswe, ''", "ringed T, wes, s", "ringed corner, es, es"})
+    void junctionCageStripsNeverOverlap(String name, String arms, String rings) {
+        assertNoStripOverlaps(name,
+                ConduitGeometry.body(CAGED, new ConduitBodyKey(TYPE, null, mask(arms), mask(rings))));
+    }
+
+    /** No glass or strip of a caged junction lies inside the core, where it would hide the contents' centre. */
+    @ParameterizedTest(name = "{0}")
+    @CsvSource({"corner, es", "T, wes", "crossing, nswe", "3D corner, esu", "six-way, dunswe"})
+    void junctionCageKeepsTheCoreClear(String name, String arms) {
+        AABB core = ConduitShapes.core(TYPE.thickness());
+        for (ConduitQuad quad : ConduitGeometry.body(CAGED, new ConduitBodyKey(TYPE, null, mask(arms), 0))) {
+            // a quad is its box's face on the side it faces
+            Direction.Axis normal = quad.facing().getAxis();
+            double plane = quad.facing().getAxisDirection() == Direction.AxisDirection.POSITIVE
+                    ? quad.box().max(normal)
+                    : quad.box().min(normal);
+            boolean outside = plane <= core.min(normal) + 1.0E-9 || plane >= core.max(normal) - 1.0E-9;
+            for (Direction.Axis axis : Direction.Axis.values()) {
+                if (axis != normal && (quad.box().max(axis) <= core.min(axis) + 1.0E-9
+                        || quad.box().min(axis) >= core.max(axis) - 1.0E-9)) {
+                    outside = true;
+                }
+            }
+            assertTrue(outside, name + ": inside the core: " + quad);
+        }
+    }
+
+    /** Arm strips beside a caged core start where its frame ends, with no gap: the arm's edge is covered once. */
+    @ParameterizedTest(name = "{0}")
+    @CsvSource({
+            // name, arms, face, x, y, z: points on the arm just past the core, on its crease side and its outer side
+            "corner crease, es, u, 11.01, 0, 10.5", "corner outer, es, u, 11.01, 0, 5.5",
+            "corner mouth, es, s, 10.5, 10.5, 0", "corner arm side, es, s, 11.01, 10.5, 0",
+            "T crease, wes, u, 4.99, 0, 10.5", "T core face, wes, u, 8, 0, 10.5"})
+    void junctionCageMeetsArmLines(String name, String arms, String face, double x, double y, double z) {
+        List<ConduitQuad> quads = ConduitGeometry.body(CAGED, new ConduitBodyKey(TYPE, null, mask(arms), 0));
+        assertEquals(1, covering(quads, side(face.charAt(0)), new double[]{x, y, z}), name);
+    }
+
+    /** The strips of {@code quads} on {@code facing}'s plane of the core that cover {@code point}. */
+    private static int covering(List<ConduitQuad> quads, Direction facing, double[] point) {
+        AABB core = ConduitShapes.core(TYPE.thickness());
+        int covering = 0;
+        for (ConduitQuad quad : quads) {
+            if (isGlass(quad) || quad.facing() != facing || Math.abs(plane(quad, core)) > 0.1) {
+                continue;
+            }
+            boolean inside = true;
+            for (Direction.Axis axis : Direction.Axis.values()) {
+                double at = axis.choose(point[0], point[1], point[2]);
+                if (axis != facing.getAxis() && (at <= quad.box().min(axis) || at >= quad.box().max(axis))) {
+                    inside = false;
+                }
+            }
+            if (inside) {
+                covering++;
+            }
+        }
+        return covering;
+    }
+
+    private static void assertNoStripOverlaps(String name, List<ConduitQuad> quads) {
+        List<ConduitQuad> strips = quads.stream().filter(quad -> !isGlass(quad)).toList();
         for (int i = 0; i < strips.size(); i++) {
             for (int j = i + 1; j < strips.size(); j++) {
                 ConduitQuad a = strips.get(i);

@@ -33,7 +33,9 @@ import org.jspecify.annotations.Nullable;
  * A shell conduit's glass is laid out the same way (a straight run is one box), every face translucent and showing the
  * shell sprite projected onto the block ({@link ConduitUvs#projected}), turned so its rows run along the tube. Its
  * border lines and rims ({@link ConduitSilhouette}) are opaque flat strips {@value #STRIP_OFFSET} px outside the glass,
- * one on each face beside an edge.
+ * one on each face beside an edge. With a {@link ConduitLook.Shell#junctionCage junction cage}, a bend or branch also
+ * frames every face of its core, the faces arms leave from included, and its arms' lines start {@value #STRIP_OFFSET}
+ * px past the core, where the frame's strips end.
  */
 public final class ConduitGeometry {
     private static final Direction[] DIRECTIONS = Direction.values();
@@ -209,7 +211,8 @@ public final class ConduitGeometry {
                 }
             }
         }
-        ConduitSilhouette.Outline outline = ConduitSilhouette.of(thickness, arms, rings, look.rim());
+        boolean caged = look.junctionCage() && straight == null && Integer.bitCount(arms) >= 2;
+        ConduitSilhouette.Outline outline = ConduitSilhouette.of(thickness, arms, rings, look.rim(), caged);
         List<ConduitSilhouette.Line> lines = outline.lines();
         double half = ConduitShapes.width(thickness) / 2;
         double[] widths = new double[lines.size()];
@@ -221,8 +224,8 @@ public final class ConduitGeometry {
                 continue;
             }
             ConduitSilhouette.Line line = lines.get(i);
-            addStrip(out, core, arms, lines, widths, i, line.first(), line.second(), borderArgb);
-            addStrip(out, core, arms, lines, widths, i, line.second(), line.first(), borderArgb);
+            addStrip(out, core, arms, caged, lines, widths, i, line.first(), line.second(), borderArgb);
+            addStrip(out, core, arms, caged, lines, widths, i, line.second(), line.first(), borderArgb);
         }
         for (ConduitSilhouette.Band band : outline.bands()) {
             Direction.Axis axis = band.side().getAxis();
@@ -295,19 +298,28 @@ public final class ConduitGeometry {
      * The strip of line {@code index} on face {@code on} beside the edge of {@code on} and {@code beside}: along the
      * line, {@code widths[index]} px in from the edge and reaching {@link #STRIP_OFFSET} past it, where the strip on
      * {@code beside} meets it. Where it meets a strip on the same face at a corner, its end moves by
-     * {@link #cornerShift} so the two cover the corner once.
+     * {@link #cornerShift} so the two cover the corner once. In a {@code caged} outline an arm's line starts
+     * {@link #STRIP_OFFSET} past the core, where the core's frame strips reach to.
      */
     @SuppressWarnings("TooManyParameters") // one strip of a line, picked from the outline; kept primitive
-    private static void addStrip(List<ConduitQuad> out, AABB core, int arms, List<ConduitSilhouette.Line> lines,
-            double[] widths, int index, Direction on, Direction beside, int argb) {
+    private static void addStrip(List<ConduitQuad> out, AABB core, int arms, boolean caged,
+            List<ConduitSilhouette.Line> lines, double[] widths, int index, Direction on, Direction beside, int argb) {
         ConduitSilhouette.Line line = lines.get(index);
         Direction.Axis axis = line.axis();
         Direction.Axis across = beside.getAxis();
         double width = widths[index];
-        double from = line.from() - cornerShift(core, arms, lines, widths, index, on, beside,
+        double from = line.from() - cornerShift(core, arms, caged, lines, widths, index, on, beside,
                 Direction.fromAxisAndDirection(axis, Direction.AxisDirection.NEGATIVE));
-        double to = line.to() + cornerShift(core, arms, lines, widths, index, on, beside,
+        double to = line.to() + cornerShift(core, arms, caged, lines, widths, index, on, beside,
                 Direction.fromAxisAndDirection(axis, Direction.AxisDirection.POSITIVE));
+        if (caged) {
+            if (Math.abs(line.from() - core.max(axis)) < EPSILON) {
+                from += STRIP_OFFSET;
+            }
+            if (Math.abs(line.to() - core.min(axis)) < EPSILON) {
+                to -= STRIP_OFFSET;
+            }
+        }
         double edge = bound(core, beside);
         double inward = beside.getAxisDirection() == Direction.AxisDirection.POSITIVE ? -width : width;
         double outward = beside.getAxisDirection() == Direction.AxisDirection.POSITIVE ? STRIP_OFFSET : -STRIP_OFFSET;
@@ -324,11 +336,12 @@ public final class ConduitGeometry {
      * convex corner (an outer corner of the face) the earlier one reaches {@link #STRIP_OFFSET} further and the later
      * one stops the earlier one's width short; at a concave one (the inner corner of a bend or branch, on the core's
      * face) the earlier one reaches on by the later one's width and the later one stops {@link #STRIP_OFFSET} short, as
-     * it also does where both lines stop at creases beside an arm on {@code on}. 0 where no strip meets the end.
+     * it also does where both lines stop at creases beside an arm on {@code on}. 0 where no strip meets the end. A
+     * {@code caged} outline has no concave corners: its lines only meet at the corners of the core's faces.
      */
     @SuppressWarnings("TooManyParameters") // one end of one strip, looked up in the outline; kept primitive
-    private static double cornerShift(AABB core, int arms, List<ConduitSilhouette.Line> lines, double[] widths,
-            int index, Direction on, Direction beside, Direction end) {
+    private static double cornerShift(AABB core, int arms, boolean caged, List<ConduitSilhouette.Line> lines,
+            double[] widths, int index, Direction on, Direction beside, Direction end) {
         ConduitSilhouette.Line line = lines.get(index);
         double at = end.getAxisDirection() == Direction.AxisDirection.POSITIVE ? line.to() : line.from();
         double edge = bound(core, beside);
@@ -351,6 +364,9 @@ public final class ConduitGeometry {
             // Convex: the other strip lies on the face's edge beyond this end and runs inwards from this strip's edge.
             // Concave: it lies on the far side of this end and runs outwards, along an arm on beside.
             boolean convex = otherBeside == end;
+            if (caged && !convex) {
+                continue;
+            }
             Direction away = convex ? beside.getOpposite() : beside;
             double otherStart = away.getAxisDirection() == Direction.AxisDirection.POSITIVE ? other.from() : other.to();
             if (Math.abs(otherStart - edge) > EPSILON) {

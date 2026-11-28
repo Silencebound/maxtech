@@ -104,6 +104,20 @@ class ConduitLookTest {
         assertEquals(shell, ConduitLook.CODEC.codec().parse(JsonOps.INSTANCE, json).getOrThrow());
     }
 
+    /** The junction cage is off by default, written only when on, and read back. */
+    @Test
+    void shellJunctionCageIsOptional() {
+        Identifier glass = Identifier.fromNamespaceAndPath("farms", "block/lab_tube_glass");
+        assertTrue(!ConduitLook.shell(glass).junctionCage(), "off by default");
+        ConduitLook.Shell caged = ConduitLook.shell(glass).withJunctionCage().withBorder(1);
+        assertTrue(caged.junctionCage(), "kept by later withers");
+        JsonElement json = ConduitLook.CODEC.codec().encodeStart(JsonOps.INSTANCE, caged).getOrThrow();
+        assertEquals(JsonParser.parseString("""
+                {"look": "shell", "shell": "farms:block/lab_tube_glass", "border": 1.0, "junction_cage": true}
+                """), json);
+        assertEquals(caged, ConduitLook.CODEC.codec().parse(JsonOps.INSTANCE, json).getOrThrow());
+    }
+
     /** A shell without its sprite, or with a width out of range, is not read. */
     @Test
     void badShellsAreRejected() {

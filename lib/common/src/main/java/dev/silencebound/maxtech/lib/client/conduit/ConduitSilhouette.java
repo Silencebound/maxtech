@@ -1,6 +1,7 @@
 package dev.silencebound.maxtech.lib.client.conduit;
 
 import dev.silencebound.maxtech.lib.api.conduit.ConduitConnections;
+import dev.silencebound.maxtech.lib.api.conduit.ConduitLook;
 import dev.silencebound.maxtech.lib.api.conduit.ConduitShapes;
 import java.util.ArrayList;
 import java.util.List;
@@ -26,6 +27,10 @@ import org.jspecify.annotations.Nullable;
  * joint. A ringed arm's lines stop {@code rim} px before the ring, where its {@link Band} starts. A conduit with a
  * single arm ends in the open on the far side: the four edges of that end face are {@link Kind#RIM} lines. A conduit
  * with no arms has a border on all twelve edges.
+ * <p>
+ * A caged outline ({@link ConduitLook.Shell#junctionCage}, for bends and branches) gives the core a line on all twelve
+ * edges, inner creases included, and breaks every line at the core's faces: each arm's lines and each of the core's are
+ * separate {@link Line}s that meet end to end there.
  */
 public final class ConduitSilhouette {
     private static final Direction[] DIRECTIONS = Direction.values();
@@ -82,6 +87,14 @@ public final class ConduitSilhouette {
      * {@code rim} is the rim width in pixels, which also sets how far before a ring the lines stop.
      */
     public static Outline of(float thickness, int arms, int rings, double rim) {
+        return of(thickness, arms, rings, rim, false);
+    }
+
+    /**
+     * The outline as {@link #of(float, int, int, double)}; with {@code caged} the core has a line on each of its twelve
+     * edges and no line runs on across a core face. Lib only cages conduits with two or more arms.
+     */
+    public static Outline of(float thickness, int arms, int rings, double rim, boolean caged) {
         arms &= ConduitConnections.ALL_SIDES;
         rings &= arms;
         AABB core = ConduitShapes.core(thickness);
@@ -96,6 +109,10 @@ public final class ConduitSilhouette {
                 for (Direction second : DIRECTIONS) {
                     if (first.getAxis() == axis || second.getAxis() == axis
                             || first.getAxis().compareTo(second.getAxis()) >= 0) {
+                        continue;
+                    }
+                    if (caged) {
+                        addCaged(lines, thickness, axis, first, second, arms, rings, rim, core);
                         continue;
                     }
                     double start = Double.NaN;
@@ -146,6 +163,26 @@ public final class ConduitSilhouette {
             }
         }
         return new Outline(lines, bands);
+    }
+
+    /** Adds the caged lines along one corner: the negative arm's, the core's and the positive arm's, unmerged. */
+    @SuppressWarnings("TooManyParameters") // one corner of the outline; kept primitive like the uncaged loop
+    private static void addCaged(List<Line> lines, float thickness, Direction.Axis axis, Direction first,
+            Direction second, int arms, int rings, double rim, AABB core) {
+        Direction negative = Direction.fromAxisAndDirection(axis, Direction.AxisDirection.NEGATIVE);
+        double @Nullable [] before = ConduitConnections.isConnected(arms, negative)
+                ? armSpan(thickness, negative, rings, rim)
+                : null;
+        if (before != null) {
+            flush(lines, axis, first, second, before[0], before[1], Double.NaN);
+        }
+        lines.add(line(axis, first, second, core.min(axis), core.max(axis), Kind.BORDER));
+        double @Nullable [] after = ConduitConnections.isConnected(arms, negative.getOpposite())
+                ? armSpan(thickness, negative.getOpposite(), rings, rim)
+                : null;
+        if (after != null) {
+            flush(lines, axis, first, second, after[0], after[1], Double.NaN);
+        }
     }
 
     /** Adds the open border line {@code start..end}, if any, and returns {@code next} as the start of the next one. */

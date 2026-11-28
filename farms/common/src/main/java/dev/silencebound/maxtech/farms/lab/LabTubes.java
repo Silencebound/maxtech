@@ -30,7 +30,7 @@ public final class LabTubes {
             .builder(MaxtechFarms.MOD_ID, "lab_tube",
                     item -> new ConduitType(NETWORK_ID, "lab", 0xE4F4F4, 0.375F, item))
             .look(ConduitLook.shell(MaxtechFarms.id("block/lab_tube_glass")).withBorderColour(BORDER_COLOUR)
-                    .withBorder(1.0F))
+                    .withBorder(1.0F).withJunctionCage())
             .attachesToBlocks().register();
 
     private LabTubes() {
