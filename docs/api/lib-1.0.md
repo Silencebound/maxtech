@@ -21,111 +21,32 @@ Labels: **stable** = frozen at 1.0, a breaking change needs a Lib major bump. **
 
 ## Packages and types
 
-| Package / type | Purpose | Label |
-|---|---|---|
-| `lib.api` (package-info) | Names the api and states that the rest of Lib is internal. | stable |
-| **`lib.api.carried`** | Finding items a player carries (inventory, then registered sources such as accessory slots). | experimental |
-| `CarriedItems` | Lookup over the inventory and every registered source; registration of sources. | experimental |
-| `CarriedItemSource` | Extra slots another mod adds (accessories). | experimental |
-| `CarriedItemMatcher` | Allocation-free predicate with a context for lookups. | experimental |
-| `CarriedSlot` | Where a found stack sits, re-read on each use by an open GUI. | experimental |
-| **`lib.api.config`** | Config files with presets for every MaxTech mod. Moved from `lib.config` and `lib.platform` for Farms (FM1). | experimental |
-| `Configs` | Entry point: `presetConfig(modId, anchor)`, and `builder`/`register` for plain files. | experimental |
-| `PresetConfig` | A server config whose defaults come from `<modid>/presets/*.json`. | experimental |
-| `ConfigBuilder`, `ConfigFile`, `ConfigType` | Declaring values, the registered file, which file. | experimental |
-| **`lib.api.client.gui`** | The Accent Frame look and its widgets for MaxTech screens, client only (ADR-0016). Moved from `lib.client.gui`, `lib.client.gui.accent` and `lib.text` in Lib 0.15.0 for Farms (FM1). | experimental |
-| `Accent` | Palette (ARGB) and drawing: panels with a title tab, boxes, slots, bars, button faces, fitted text. | experimental |
-| `AccentButton`, `IconButton`, `Icon` | Text buttons (normal and compact, toggles lit while on); icon buttons (plain, toggle, cycle) and what they show (sprite, glyph, swatch, item). | experimental |
-| `AccentPanel`, `AccentInset`, `AccentRow`, `AccentTabRow` | A panel as a layout with content edges; a dark well; list rows; page tabs with badges. | experimental |
-| `AccentReadout`, `AccentTag`, `AccentStatus`, `AccentToast`, `ScrollBar` | A label and value; a small tag; state colours and dots; an in-screen toast and a notice outside screens; the scroll bar. | experimental |
-| **`lib.api.style`** `AccentTheme` | A mod's accent, gauge and text colours; `LIB` is Lib's cyan, the default everywhere. Pure data, both sides; widgets take it through `theme(...)` or overloads. | experimental |
-| `AccentBar`, `AccentTank`, `AccentEnergyBar`, `AccentProgress` | The bars' shared base type and the bar widgets drawing plain values from suppliers: a tank of any resource kind with quarter ticks (the kind's look and unit; "Unknown" for unknown contents), a segmented energy gauge (MU, FE in the tooltip), an arrow or flame; tooltips and narration give the numbers. | experimental |
-| `FluidLook` | The fluid kind's `ResourceLook` (still and flowing sprite, tint, name, light), with `Fluid` overloads; Lib registers the NeoForge implementation, `FluidLook.get()` returns it. | experimental |
-| **`lib.api.client.resource`** `ResourceLook`, `ResourceLooks` | How a resource kind looks on the client (still sprite, optional flowing sprite, ARGB tint, name, light 0..15) and the registry of one look per kind; conduit contents draw with it, a kind without a look draws nothing. Client only. | experimental |
-| `TextScale`, `LayoutCheck` | The client's text size option for drawing and measuring (`setOptionSource` is Lib's, `@ApiStatus.Internal`); the 320 x 240 layout check and placement math. | experimental |
-| **`lib.api.text`** `TextFit` | Fitting text with an ellipsis; pure Java, both sides. | experimental |
-| **`lib.api.conduit`** | Conduit types (a conduit is Lib's generic framework for blocks that connect to neighbours: cables now, later pipes and wires); each type gets its own block from Lib. Addons register their own through `Conduits` (ADR-0015, see below). | stable |
-| `ConduitType` | One conduit type: network type, tier, base colour, thickness, face modes, per-conduit state. | stable |
-| `ConduitTypes` | The `maxtech_lib:conduit_type` registry key and lookups. | stable |
-| `ConduitFaceMode` | How a conduit face meets a block: both, insert, extract, disabled; stable ids. | stable |
-| `ConduitState` | Server-side state a conduit saves in its block entity (cable parts). | stable |
-| `ConduitLook` | How a conduit block is drawn; its codec is the `look` object of the block state file. Moved from `lib.conduit` for Farms (FM1). | experimental |
-| `ConduitLook.Shell` | The `shell` look: translucent glass with border lines and rims Lib computes from the connections; `shell` sprite, optional `border_colour`, `border`, `rim` (Lib 0.14.0), `frame_bars` (Lib 0.15.0). | experimental |
-| `ConduitShapes`, `ConduitFaceKey` | A conduit's boxes (core, arms, stubs, rings) in pixels and hit shapes; one face decoration. | experimental |
-| `ConduitConnections`, `ConduitFaceModes`, `ConduitColours` | Whether two conduits connect, side masks; six face modes packed in an `int`; body and face colours. `ConduitFaceModes.validateRegistered` is Lib's (`@ApiStatus.Internal`). | experimental |
-| `Conduits` | An addon's entry point: `builder(modId, name, type)` with `look`, `creativeTab`, `onWrench`, `connectionRule` and `register()`; `host`, `blockOf`, `connectivity`, `isChunkPresent`, `place`, `useWrench`. Lib owns the block, its block entity, dyes and facades; with `look` it also supplies the block state file and item model definition, and a conduit without a loot table drops its item, so the addon ships the item model and lang. Added for Farms (FM1); `setFactory` and `Factory` are Lib's (`@ApiStatus.Internal`). | experimental |
-| `ConduitView`, `ConduitHost` | The conduit in a block: type, colour, side masks, face modes, state, facade and render value; plus setting block faces, face modes and the render value, refreshing links and syncing (server only). The render value (Lib 0.14.0) is an addon-defined `int` its client model reads; it is saved and synced only when it changes. Contents (`contents()`, `setContents`) work the same way with a fixed meaning. | experimental |
-| `ConduitEntry`, `ConduitWrenchHook`, `ConduitConnectionRule` | A registered conduit's type, block and item; the builder's hooks for a wrench and for which neighbouring conduits a conduit links with. | experimental |
-| **`lib.api.conduit.model`** | Conduit model geometry for an addon's own conduit model (FM1): quads before baking and Lib's own parts. | experimental |
-| `ConduitQuad`, `ConduitTexture`, `ConduitLayer` | One face of a model part in pixels; its sprite (one of Lib's, or a custom model hook's by atlas id, Lib 0.14.0); its chunk layer (from the sprite, or forced translucent or cutout). Moved from `lib.client.conduit`. | experimental |
-| `ConduitUv` | Which part of its sprite a `ConduitQuad` shows (0 to 16 pixels) and its clockwise quarter turns, as a block model face's `uv` and `rotation`; a quad without one shows the whole sprite unturned (Lib 0.14.0). | experimental |
-| `ConduitContents` | What a conduit shows inside it: a resource of any kind as its draw base (a fluid saved by registry name as before, other kinds as `kind` plus `resource`; a kind that is gone loads empty; drawn with the kind's `ResourceLook`; `ofFluid` and `fluid()` for fluids), fill step 0..4, upstream side, second lane; `EMPTY` for none. The static `pack`/`packed*` helpers give the client render key's int (bits 0-15 the session look index + 1, which Lib's client hands out per kind and draw base, 16-18 fill, 19-21 upstream side + 1, 22 lane), valid only within one session; Lib packs its conduits' contents itself. | experimental |
-| `ConduitBodyKey`, `ConduitParts` | What a conduit body looks like (type, dye, arm and ring masks, render value, packed contents; the 4- and 5-argument constructors give 0 for what they leave out); Lib's default body and face quads, which ignore the render value and contents. | experimental |
-| **`lib.neoforge.api.client.conduit`** | NeoForge-side client api (jar `maxtech_lib-neoforge-api`, Lib 0.14.0, FM1): custom models for conduits marked `Conduits.Builder.customModel(translucent)`. | experimental |
-| `ConduitModelHook` | An addon's model of one conduit: its sprites (resolved at bake time) and the body and face quads per key, Lib's own by default; called lazily on meshing threads. | experimental |
-| `RegisterConduitModelsEvent` | Client mod-bus event, fired once at startup: `register(ConduitEntry, hook)`. A marked conduit without a hook or a hook for an unmarked one stops the client. | experimental |
-| **`lib.api.energy`** | MaxTech energy (MLE): MU amounts and the FE rate, producer, consumer and buffer endpoints, networks with one sleeping pass per tick, per-level schedulers, edges to other mods' FE blocks with export settings (`EnergyEdge`, `EdgeSettings`, Lib 0.11.0), diagnostics (`EnergyNetwork.readout()`, `EnergyReadout`, the endpoint capability `EnergyNetworks.ENDPOINT_CAPABILITY`, Lib 0.12.0). Added in Lib 0.10.0; experimental until Storage's switch-over proves it. | experimental |
-| **`lib.api.guide`** | What stays of Lib's guide, retired in Lib 0.13.0 (MGM item 3; GuideME draws guides now): config values by path. `Guides`, `GuideElements`, `GuideColumns`, `GuideLiveValues` and `GuideScreens` are removed. | experimental |
-| `GuideConfigValues` | A mod's config values by dotted path, for a guide's `<Config>` tag (Storage's GuideME extension). | experimental |
-| **`lib.api.info`** | Block information for the scanner and overlays (Jade). | stable |
-| `BlockInfoProvider` | Sided block capability that describes a block; brief and full detail. | stable |
-| `BlockInfoRequest` | What was asked: level, position, side, hit, detail. | stable |
-| `BlockInfoSink` | Receives lang-keyed lines. | stable |
-| **`lib.api.inventory`** | Lib-owned machine inventories over transaction-aware storage, for Farms (FM1, ADR-0016); the methods here are the machine's own committed steps, outside transfer transactions. | experimental |
-| `ItemSlots`, `SlotRole` | Fixed slots built from a reusable `ItemSlots.Builder` (role, filter and size limit per slot; change listener per slot index; save and load slot by slot, keeping stacks that no longer load as `unknown` and stacks for slots the inventory lost as `overflow` for the owner to hand out; `dropContents`/`contentsToDrop` empty slots and overflow when the block breaks, unknown items vanish with it); roles say what players and automation may do: inputs take (players may take back), outputs give, display slots neither. | experimental |
-| `ResourceTank`, `FluidTank` | One resource of a kind with an amount up to a capacity, optional filter and change listener; `resource()` keeps its `Optional` for menu getters; saved contents that no longer load are kept, saved back and block the tank (`unknown()`, refusing `set`/`clear` until `discardUnknown()`); a save over the capacity loads whole. `FluidTank` is the fluid tank (mB). `InventoryFactory` is Lib's (`@ApiStatus.Internal`). | experimental |
-| **`lib.neoforge.api.inventory`** `Handlers` | The NeoForge item and fluid handlers of `ItemSlots` and `FluidTank` for capability registration, one per inventory, taking part in transactions with the slots' roles applied (every slot reports its real capacity, for comparators; one that takes nothing refuses). `install` and `Bridge` are Lib's (`@ApiStatus.Internal`). | experimental |
-| `Handlers.machineItems`, `machineTank`, `insertAll`, `extractAll`, `Handlers.MachineTank` | A machine's own access inside a NeoForge transfer transaction, where the slots' and tanks' direct methods throw: `machineItems(slots)` (a `ResourceHandler<ItemResource>`, roles not applied, filters and limits kept) and `machineTank(tank)` (`MachineTank`: `insert`/`extract` and all-or-nothing `insertExactly`/`extractExactly`), journaled so a step rolls back exactly and listeners run on the root commit only, once per touched slot or tank; `insertAll`/`extractAll` move a list of stacks into or out of a slot range in a nested transaction, false with nothing moved if any falls short. Unknown items and tanks and overflow are never touched. Here and not in `lib.api.inventory` because they name NeoForge transfer types (ADR-0002, ADR-0019). | experimental |
-| **`lib.api.menu`** | Toolkit menus for MaxTech screens (ADR-0016): values synced to the screen, and menus declared with their layout, so addons write no menu or screen class. | experimental |
-| `MenuValues`, `MenuValueView`, value handles | Values a menu syncs (int, long, enum, energy, progress, tank) by getters over a server-side host, sent in one payload a tick when changed; `read` and `Reader` are Lib's (`@ApiStatus.Internal`). | experimental |
-| `Menus`, `MenuDefinition`, `MenuItems`, `MenuSlots`, `MenuStatus` | `Menus.define(modId, name, hostClass, body)`: slot groups over `ItemSlots`, tanks (`tank(getter)` for a `FluidTank` with bucket clicks, `tank(kind, getter)` for a `ResourceTank` of any kind without; unknown contents show as "Unknown" with their amount), energy (MU), progress, enum and int values, a transfer port's side config (`port(getter, kinds...)` returns a `PortValue` of face modes, allowed modes, facing and block state; `sideConfig(port)` adds the side tab; a face click is applied only when the port allows that mode for the kind), shift-click order, theme, title and layout; `register` (menu type through a `Registrar`, screen bound by Lib) and `open`; `problems()` lists layout problems, which throw in dev runs (checked again at `register` for a definition built before Lib's construction). Layout and inventory shapes must not depend on config or the side. Getters of the definition's parts and `Menus.setBackend` are Lib's (`@ApiStatus.Internal`). How to build a screen: `docs/api/gui-toolkit.md`. | experimental |
-| `Layout`, `LayoutPlan` | Rows, columns and fixed-size leaves (slots, tank, energy, progress, label, value, status, cycle button, faces, spacer, player inventory) in GUI pixels, gaps never negative; `Layout.value` shows a synced int in a lang key's text. `LayoutPlan.of` measures and arranges them with pure int arithmetic and checks fit and overlap. | experimental |
-| **`lib.api.transfer`** | Transfer ports (ADR-0018): a block moves resources of any kind between its buffers and the blocks beside it, face by face, without ticking. Lib 0.15.0 moves items, fluids, other tank kinds and standalone energy buffers (as FE). | experimental |
-| `PortFaceMode`, `PortFaces` | Off, push or pull per face (never both; stable ids, `next` over the allowed modes); six modes packed in two bits per face, per kind. | experimental |
-| `PortFilter` | Allow or deny list of keys and tags for one kind, per port; allocation-free `test`; tag support registered per kind (Lib's for items and fluids); saved keys that no longer load are kept. | experimental |
-| `PortSettings`, `PortStatus` | Per kind: faces, filter, rate cap; codec by kind id, keeping settings of kinds that are gone. What a port last did per kind. | experimental |
-| `TransferPort`, `TransferPorts` | The port handle (start, stop, wake, cycle a face, settings, status, save, load) and `builder()` with `items`, `tank`/`fluids`, `energy` (each repeatable per kind, with the modes that buffer takes part in; `energy` also takes an `onChange` listener), `rate`, `defaults`, `onSettingsChanged` and `tasks` (a group of the owner's per level; Lib's transfer group of the level without); `build()` moves items, tanks of any kind with a bridge (fluids at `transfer.fluidPerOp`, as other tank kinds) and standalone energy buffers as FE at `transfer.energyPerOp` MU, keeping the conversion remainder. All ports of a level share Lib's transfer group and one owner's scheduler budget unless `tasks` gives another group. A port's block must expose each kind's capability on its pulling faces. | experimental |
-| `RelativeFace` | Front, back, left, right, top and bottom of a block for its facing, as a player in front of it sees them (top towards north when facing up or down); `toAbsolute(facing)` and `of(facing, direction)`. Side config screens name faces with it. | experimental |
-| **`lib.neoforge.api.transfer`** `KindBridge`, `KindHandler`, `KindBridges` | A kind's capability as handlers for ports (cached lookup, insert and extract in a transaction, `transactional()`), registered per kind; items and fluids built in, energy goes through FE edges. Ports reach tanks' neighbours through these; a handler without transactions is touched last. | experimental |
-| **`lib.api.network`** | Network topology for every network type: types, their logic, graphs and the per-level manager; addons register their own network types. | stable |
-| `UnloadedChunkMode` | `networks.unloadedChunkMode`: truncate or pause. | stable |
-| `NetworkManager` | The per-level entry point: add, remove and invalidate nodes, anchors, a node's network and a type's graph. Moved from `lib.network` for Farms (FM1); `tickLevel`, `clear`, `setConfigSource` and `existingGraph` (a type's graph or null, for diagnostics) are Lib's (`@ApiStatus.Internal`). | experimental |
-| `NetworkType` | A kind of network, registered with connectivity and logic factories; `byId` returns an `Optional`; `types()` (all registered types, for diagnostics) is Lib's (`@ApiStatus.Internal`). | experimental |
-| `NetworkLogic`, `NodeConnectivity` | A type's transport semantics (topology events and a tick per active network) and how it sees the world. | experimental |
-| `Network`, `NetworkGraph` | One connected set of nodes (a read-only view) and one level's graph of a type; the graph's constructor, `tick`, `setProfiling`, `acquireProfiling`, `releaseProfiling` and `isProfiling` are Lib's (`@ApiStatus.Internal`). | experimental |
-| `RouteTree` | Widest-path routes to a root over one component, built when the component is rebuilt. | experimental |
-| **`lib.api.recipe`** | Machine recipe types, recipes, lookup and datagen; item inputs and outputs shared with the recipe viewer layout and KubeJS. | stable |
-| `ItemInput` | Ingredient, count, consumed or catalyst; codecs. | stable |
-| `ItemOutput` | Output stack and chance in hundredths of a percent; codecs; `roll` rolls each copy on its own. | stable |
-| `MachineRecipeType` | `define(modId, name, shape)` registers a machine's `RecipeType`, serializer (one JSON codec, one stream codec) and recipe book category through the mod's registrars; the codec refuses recipes that do not fit the shape (ADR-0019, Lib 0.15.0). | experimental |
-| `MachineRecipeShape` | Input, catalyst and output slots, input and output tanks, and mode ids of a machine; `check` says why a recipe does not fit. | experimental |
-| `MachineRecipe` | Item inputs, tank inputs of any kind, item outputs with chance, tank outputs, `energy_per_tick`, `duration`, optional `mode`; `matches` fills a `MachineRecipePlan`. Unknown items, fluids or kinds fail decoding, so the game logs and skips the recipe. | experimental |
-| `KindInput`, `KindOutput` | A tank input by exact resource (components included) or by kind and tag, and a tank output by exact resource; amounts in the kind's unit. | experimental |
-| `MachineRecipeInput`, `MachineRecipePlan` | A machine's live view of its input and catalyst slots, input tanks and mode; where a matched run takes each input from. | experimental |
-| `MachineRecipeLookup` | One per machine: finds the matching recipe, checking the last one first without allocating; a datapack reload forgets it. | experimental |
-| `MachineRecipeBuilder` | Datagen: `c:` tag and item inputs, catalysts, fluid tag or exact tank inputs, outputs with chance, tank outputs; `build` checks the shape. | experimental |
-| **`lib.api.registry`** | Registering a mod's game objects through Lib, for Farms (FM1). | experimental |
-| `Registrars` | Entry point: `create(modId, registry)`. | experimental |
-| `Registrar`, `RegistryEntry` | A deferred registrar and its entries (`id`, `key`, `holder`, `get`). Lib's `lib.platform` types extend them. | experimental |
-| **`lib.api.resource`** | Item and fluid keys with components, interned by networks; resource kinds for holders of any kind (ADR-0017). | stable |
-| `StackKey` | Sealed key type with codecs; `Kind`. | stable |
-| `ItemKey` | Item plus component patch, never air. | stable |
-| `FluidKey` | Fluid plus component patch, never empty. | stable |
-| `ResourceKind`, `ResourceKinds` | A kind of resource (id, codecs, draw base, amount unit) and the registry of kinds, filled during mod construction and frozen at Lib's common setup; `register` with a `MapCodec` saves the key's fields next to `kind`, with a `Codec` under `value`; built-in `ITEM`, `FLUID`, `ENERGY`; lookup by id or session index (ADR-0017, Lib 0.15.0). `freeze` is Lib's (`@ApiStatus.Internal`). | experimental |
-| `KindKey` | A key of any kind with its kind; save codec on `kind`, `CLIENTBOUND_STREAM_CODEC` that lets a client skip kinds it lacks, and `SERVERBOUND_STREAM_CODEC` for keys clients send, which refuses unknown resources. | experimental |
-| `UnknownResource` | A saved resource of a kind no loaded mod registers, kept and saved back unchanged. | experimental |
-| `KindTags` | How a kind's tag id becomes a test of its keys, registered per kind during mod construction (Lib's for items and fluids); port filters and recipe tank inputs share it, `PortFilter.registerTags` delegates to it. | experimental |
-| `AmountUnit`, `EnergyKey` | How a kind's amounts are counted and shown (items, mB, MU); the one key of energy. | experimental |
-| **`lib.api.schedule`** | Budgeted per-level work queues: groups with time and operation budgets, priorities, wake-on-event and backoff. Moved from `lib.schedule` for Farms (FM1). | experimental |
-| `TaskSchedulers` | An addon's entry point: `newGroup(level)` with Lib's configured budgets. | experimental |
-| `ScheduledTask`, `TaskGroup`, `TaskPriority` | A task, the group that runs it within its budget, and its queue. | experimental |
-| `TaskScheduler` | The level's scheduler; its constructor, `tick`, `timers`, `setRunListener` and the `RunListener` interface it takes (task run times, for Lib's profiler) are Lib's (`@ApiStatus.Internal`). | experimental |
-| **`lib.api.security`** | Owners, trusted players, teams and the one access check. | stable |
-| `OwnerRecord` | Immutable owner record with codecs. | stable |
-| `Owned` | Something with an owner record. | stable |
-| `OwnerSecurity` | The access check and team resolver registry. | stable |
-| `OwnerSecurity.setOpsBypassSource` | Lib's own hook to its server config. | internal |
-| `TeamResolver` | Team mod adapter (FTB Teams built in). | stable |
+The api is `lib.api` (its package-info names the api and states that the rest of Lib is internal, stable) and
+the packages below, one page each in `docs/api/lib/` with a row per type, so parallel PRs that touch different
+packages don't edit the same file. A new package gets its own page and one line here, in alphabetical order.
+
+- [`lib.api.carried`](lib/carried.md)
+- [`lib.neoforge.api.client.conduit`](lib/client.conduit.md)
+- [`lib.api.client.gui`](lib/client.gui.md)
+- [`lib.api.client.resource`](lib/client.resource.md)
+- [`lib.api.conduit`](lib/conduit.md)
+- [`lib.api.conduit.model`](lib/conduit.model.md)
+- [`lib.api.config`](lib/config.md)
+- [`lib.api.energy`](lib/energy.md)
+- [`lib.api.guide`](lib/guide.md)
+- [`lib.api.info`](lib/info.md)
+- [`lib.api.inventory`, `lib.neoforge.api.inventory`](lib/inventory.md)
+- [`lib.api.machine`](lib/machine.md)
+- [`lib.api.menu`](lib/menu.md)
+- [`lib.api.network`](lib/network.md)
+- [`lib.api.recipe`](lib/recipe.md)
+- [`lib.api.registry`](lib/registry.md)
+- [`lib.api.resource`](lib/resource.md)
+- [`lib.api.schedule`](lib/schedule.md)
+- [`lib.api.security`](lib/security.md)
+- [`lib.api.style`](lib/style.md)
+- [`lib.api.text`](lib/text.md)
+- [`lib.api.transfer`, `lib.neoforge.api.transfer`](lib/transfer.md)
 
 ## Lib internals that Storage uses
 
