@@ -4,7 +4,10 @@ import dev.silencebound.maxtech.farms.config.FarmsServerConfig;
 import dev.silencebound.maxtech.farms.sampler.SamplerItem;
 import dev.silencebound.maxtech.lib.api.inventory.FluidTank;
 import dev.silencebound.maxtech.lib.api.inventory.ItemSlots;
+import com.mojang.serialization.Codec;
+import com.mojang.serialization.Dynamic;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 import net.minecraft.world.item.ItemStack;
@@ -73,10 +76,14 @@ public final class HubStorage {
         void samplerChanged();
     }
 
+    private static final String PENDING_REMAINDER = "pending_remainder";
+
     private final ItemSlots slots;
     private final FluidTank tank;
     private final Listener listener;
     private ItemStack pendingRemainder = ItemStack.EMPTY;
+    /** A saved pending remainder that no longer loads (its mod was removed), kept as saved; null when none. */
+    private @Nullable Dynamic<?> unknownRemainder;
     private @Nullable ResourceHandler<FluidResource> fluidHandler;
     private @Nullable HubItemHandler itemHandler;
 
@@ -152,7 +159,8 @@ public final class HubStorage {
 
     /** Whether tank, slots, the slots' overflow and the pending fuel remainder are all empty. */
     public boolean isEmpty() {
-        if (tank.amount() > 0 || tank.unknown() || !slots.overflow().isEmpty() || !pendingRemainder.isEmpty()) {
+        if (tank.amount() > 0 || tank.unknown() || !slots.overflow().isEmpty() || !pendingRemainder.isEmpty()
+                || unknownRemainder != null) {
             return false;
         }
         for (int slot = 0; slot < SIZE; slot++) {
@@ -237,14 +245,26 @@ public final class HubStorage {
 
     /**
      * A fuel remainder that found no room in the output when its fuel burned (empty when none); read only. It is saved,
-     * travels on the dropped hub and counts for {@link #isEmpty()}.
+     * travels on the dropped hub and counts for {@link #isEmpty()}. One that no longer loads is kept as saved instead
+     * ({@link #pendingRemainderUnknown()}).
      */
     public ItemStack pendingRemainder() {
         return pendingRemainder;
     }
 
+    /**
+     * Whether the save held a pending remainder that no longer loads (its mod was removed): it is saved back as it was,
+     * so it returns with its mod, and like an unknown fuel item it stops further fuel from being taken until then.
+     */
+    public boolean pendingRemainderUnknown() {
+        return unknownRemainder != null;
+    }
+
     /** Moves what it can of the pending remainder into the output; whether none is left. */
     private boolean flushPendingRemainder() {
+        if (unknownRemainder != null) {
+            return false;
+        }
         if (pendingRemainder.isEmpty()) {
             return true;
         }
@@ -289,14 +309,29 @@ public final class HubStorage {
     void save(ValueOutput out) {
         tank.save(out.child("nutrient"));
         slots.save(out.child("items"));
-        if (!pendingRemainder.isEmpty()) {
-            out.store("pending_remainder", ItemStack.CODEC, pendingRemainder);
+        Dynamic<?> unknown = unknownRemainder;
+        if (unknown != null) {
+            out.store(PENDING_REMAINDER, Codec.PASSTHROUGH, unknown);
+        } else if (!pendingRemainder.isEmpty()) {
+            out.store(PENDING_REMAINDER, ItemStack.CODEC, pendingRemainder);
         }
     }
 
     void load(ValueInput in) {
         in.child("nutrient").ifPresent(tank::load);
         in.child("items").ifPresent(slots::load);
-        pendingRemainder = in.read("pending_remainder", ItemStack.CODEC).orElse(ItemStack.EMPTY);
+        // Like Lib's ItemSlots: only a full decode counts (a partial one would drop what did not decode, a removed
+        // mod's component say), anything less is kept as saved.
+        pendingRemainder = ItemStack.EMPTY;
+        unknownRemainder = null;
+        Optional<Dynamic<?>> raw = in.read(PENDING_REMAINDER, Codec.PASSTHROUGH);
+        if (raw.isPresent()) {
+            Optional<ItemStack> stack = ItemStack.CODEC.parse(raw.get()).result();
+            if (stack.isPresent()) {
+                pendingRemainder = stack.get();
+            } else {
+                unknownRemainder = raw.get();
+            }
+        }
     }
 }

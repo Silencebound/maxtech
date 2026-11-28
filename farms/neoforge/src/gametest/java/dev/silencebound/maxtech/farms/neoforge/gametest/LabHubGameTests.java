@@ -95,6 +95,7 @@ public final class LabHubGameTests {
             Map.entry("hub_overflow_kept", LabHubGameTests::overflowKept),
             Map.entry("hub_fuel_restored_when_remainder_short", LabHubGameTests::fuelRestoredWhenRemainderShort),
             Map.entry("hub_pending_remainder_kept", LabHubGameTests::pendingRemainderKept),
+            Map.entry("hub_pending_remainder_unknown_kept", LabHubGameTests::pendingRemainderUnknownKept),
             Map.entry("hub_hand_sampler_unknown_slot", LabHubGameTests::handSamplerUnknownSlot),
             Map.entry("hub_unknown_survives_drop", LabHubGameTests::unknownSurvivesDrop));
 
@@ -593,6 +594,50 @@ public final class LabHubGameTests {
                 ItemStack.matches(dropped.slots().stack(HubStorage.OUTPUT_FIRST), new ItemStack(Items.BUCKET)),
                 "bucket in the output " + dropped.slots().stack(HubStorage.OUTPUT_FIRST));
         helper.assertValueEqual(dropped.slots().stack(HubStorage.FUEL).getCount(), 63, "coal after one burn");
+        helper.succeed();
+    }
+
+    /**
+     * A pending remainder whose mod is gone stays as saved: the hub is not pristine and takes no fuel, the save and the
+     * dropped hub carry it unchanged, and it loads as the item again once its mod is back.
+     */
+    private static void pendingRemainderUnknownKept(GameTestHelper helper) {
+        LabHubBlockEntity hub = hub(helper);
+        var registries = helper.getLevel().registryAccess();
+        HubStorage storage = hub.storage();
+        for (int slot = HubStorage.OUTPUT_FIRST; slot < HubStorage.SAMPLER - 1; slot++) {
+            storage.slots().set(slot, new ItemStack(Items.DIRT, 64));
+        }
+        storage.slots().set(HubStorage.FUEL, new ItemStack(Items.LAVA_BUCKET));
+        storage.takeFuel(helper.getLevel(), () -> {
+            storage.slots().set(HubStorage.SAMPLER - 1, new ItemStack(Items.DIRT, 64));
+            storage.slots().set(HubStorage.FUEL, new ItemStack(Items.COAL, 64));
+        });
+        helper.assertTrue(storage.pendingRemainder().is(Items.BUCKET), "no pending bucket");
+        CompoundTag saved = hub.saveCustomOnly(registries);
+        rename(saved, Map.of("minecraft:bucket", "gone_mod:bucket"));
+        helper.assertTrue(!saved.getCompoundOrEmpty("pending_remainder").isEmpty(), "no pending remainder saved");
+        hub.loadWithComponents(TagValueInput.create(ProblemReporter.DISCARDING, registries, saved));
+        helper.assertTrue(storage.pendingRemainderUnknown(), "the unknown remainder was not kept");
+        helper.assertTrue(storage.pendingRemainder().isEmpty(), "an unknown remainder loaded as an item");
+        helper.assertTrue(!hub.isPristine(), "a hub with an unknown remainder counts as pristine");
+        storage.slots().set(HubStorage.OUTPUT_FIRST, ItemStack.EMPTY);
+        helper.assertValueEqual(storage.takeFuel(helper.getLevel(), () -> {
+        }), 0, "fuel taken past an unknown remainder");
+        helper.assertValueEqual(hub.saveCustomOnly(registries).getCompoundOrEmpty("pending_remainder"),
+                saved.getCompoundOrEmpty("pending_remainder"), "unknown remainder saved back");
+
+        helper.getLevel().destroyBlock(helper.absolutePos(HUB), true);
+        LabHubBlockEntity placed = placeDrop(helper);
+        helper.assertTrue(placed.storage().pendingRemainderUnknown(), "the dropped hub lost the unknown remainder");
+        CompoundTag back = placed.saveCustomOnly(registries);
+        helper.assertValueEqual(back.getCompoundOrEmpty("pending_remainder"),
+                saved.getCompoundOrEmpty("pending_remainder"), "dropped hub's save");
+        rename(back, Map.of("gone_mod:bucket", "minecraft:bucket"));
+        placed.loadWithComponents(TagValueInput.create(ProblemReporter.DISCARDING, registries, back));
+        helper.assertTrue(!placed.storage().pendingRemainderUnknown(), "still unknown with the mod back");
+        helper.assertTrue(ItemStack.matches(placed.storage().pendingRemainder(), new ItemStack(Items.BUCKET)),
+                "remainder with the mod back " + placed.storage().pendingRemainder());
         helper.succeed();
     }
 
