@@ -78,4 +78,12 @@ VANILLA = [
     Rename("ContainerInput", "ClickType", files=_only(f"{_LIB}/menu/MenuTestSession.java")),
 ]
 
-RULES = [*SUPERTYPES, *TINTED_BUTTON, *VANILLA]
+# Jade 15 (1.21.1) builds tooltip rows from IElement, not LayoutElement (InfoElements is an override for the rest).
+_JADE = "lib/neoforge/src/main/java/dev/silencebound/maxtech/lib/neoforge/compat/jade"
+JADE = [
+    ImportMove("net.minecraft.client.gui.layouts.LayoutElement", "snownee.jade.api.ui.IElement",
+               files=_only(f"{_JADE}/BlockInfoComponentProvider.java")),
+    Rename("LayoutElement", "IElement", files=_only(f"{_JADE}/BlockInfoComponentProvider.java")),
+]
+
+RULES = [*SUPERTYPES, *TINTED_BUTTON, *VANILLA, *JADE]
