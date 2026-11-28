@@ -83,7 +83,7 @@ class ConduitGeometrySnapshotTest {
             // Lib's own conduits keep the layer their sprite picks.
             assertEquals(ConduitLayer.AUTO, quad.layer(), quad.toString());
             AABB box = quad.box();
-            dump.append(String.format(Locale.ROOT, "  %s %s %s %s %s %s %s %s %08x %b%n", box.minX, box.minY, box.minZ,
+            dump.append(String.format(Locale.ROOT, "  %s %s %s %s %s %s %s %s %08x %b\n", box.minX, box.minY, box.minZ,
                     box.maxX, box.maxY, box.maxZ, quad.facing(), quad.texture(), quad.argb(), quad.culled()));
         }
     }

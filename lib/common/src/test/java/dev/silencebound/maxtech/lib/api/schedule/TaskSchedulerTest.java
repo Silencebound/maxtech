@@ -74,6 +74,26 @@ class TaskSchedulerTest {
         assertEquals(0, scheduler.activeGroups(), "nothing queued, nothing active");
     }
 
+    /** A run listener gets every run with its clock time; once cleared, runs and their results are unchanged. */
+    @Test
+    void runListenerTimesRunsWithoutChangingThem() {
+        TaskScheduler scheduler = scheduler(100);
+        TaskGroup group = scheduler.newGroup(() -> 1_000_000_000L, () -> 1000);
+        group.add(new Task("slow", TaskPriority.BACKGROUND, 250, ScheduledTask.NEXT_TICK));
+        List<String> heard = new ArrayList<>();
+        try {
+            TaskScheduler.setRunListener((owner, task, nanos) -> heard.add(((Task) task).name + " " + nanos));
+            tick(scheduler);
+            tick(scheduler);
+        } finally {
+            TaskScheduler.setRunListener(null);
+        }
+        tick(scheduler);
+        assertEquals(List.of("slow 250", "slow 250"), heard, "listened runs");
+        assertEquals(List.of("slow", "slow", "slow"), log, "runs with and without the listener");
+        assertEquals(3, group.runs());
+    }
+
     @Test
     void extraOperationsCountAgainstTheBudget() {
         TaskScheduler scheduler = scheduler(100);

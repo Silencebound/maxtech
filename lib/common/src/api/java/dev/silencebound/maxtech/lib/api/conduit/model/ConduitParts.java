@@ -2,6 +2,7 @@ package dev.silencebound.maxtech.lib.api.conduit.model;
 
 import dev.silencebound.maxtech.lib.api.conduit.ConduitFaceKey;
 import dev.silencebound.maxtech.lib.api.conduit.ConduitLook;
+import dev.silencebound.maxtech.lib.api.conduit.ConduitType;
 import java.util.List;
 import org.jetbrains.annotations.ApiStatus;
 
@@ -38,6 +39,16 @@ public final class ConduitParts {
         return factory.face(look, key, labels);
     }
 
+    /**
+     * The faces of {@code type}'s item in {@code look}: a straight east-west piece across the whole block, drawn as the
+     * block model draws a straight run of it, with both ends closed as an open end in the world is and the border
+     * colour undyed; no contents, labels or rings. For an item model, which is static; boxes stay within 0 to 16.
+     * Returns a new list the caller may change. Lib 0.15.0.
+     */
+    public static List<ConduitQuad> itemPiece(ConduitLook.Shell look, ConduitType type) {
+        return factory.itemPiece(look, type);
+    }
+
     /** Sets where the methods above get their quads; Lib calls it once during init. */
     @ApiStatus.Internal
     public static void setFactory(Factory source) {
@@ -52,6 +63,9 @@ public final class ConduitParts {
 
         /** See {@link ConduitParts#face}. */
         List<ConduitQuad> face(ConduitLook look, ConduitFaceKey key, boolean labels);
+
+        /** See {@link ConduitParts#itemPiece}. */
+        List<ConduitQuad> itemPiece(ConduitLook.Shell look, ConduitType type);
     }
 
     private static final class Unset implements Factory {
@@ -66,6 +80,11 @@ public final class ConduitParts {
 
         @Override
         public List<ConduitQuad> face(ConduitLook look, ConduitFaceKey key, boolean labels) {
+            throw unset();
+        }
+
+        @Override
+        public List<ConduitQuad> itemPiece(ConduitLook.Shell look, ConduitType type) {
             throw unset();
         }
     }

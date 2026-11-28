@@ -6,11 +6,15 @@ import dev.silencebound.maxtech.lib.api.menu.MenuDefinition;
 import dev.silencebound.maxtech.lib.api.menu.MenuSlots;
 import dev.silencebound.maxtech.lib.api.menu.MenuTesting;
 import dev.silencebound.maxtech.lib.api.menu.MenuValueView;
+import dev.silencebound.maxtech.lib.api.menu.PortValue;
 import dev.silencebound.maxtech.lib.api.menu.TankValue;
+import dev.silencebound.maxtech.lib.api.resource.ResourceKind;
+import dev.silencebound.maxtech.lib.api.transfer.PortFaceMode;
 import io.netty.channel.Channel;
 import io.netty.channel.embedded.EmbeddedChannel;
 import java.util.ArrayList;
 import java.util.List;
+import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.ContainerInput;
@@ -106,6 +110,15 @@ final class MenuTestSession<H> implements MenuTesting.Session<H> {
         int button = server.cycleButton(action, choice);
         if (button < 0) {
             throw new IllegalArgumentException("Cycle action of another definition than " + definition.name());
+        }
+        return server.clickMenuButton(player, button);
+    }
+
+    @Override
+    public boolean pressFace(PortValue port, ResourceKind<?> kind, Direction face, PortFaceMode mode) {
+        int button = server.faceButton(port, kind, face, mode);
+        if (button < 0) {
+            throw new IllegalArgumentException("Port value or kind of another definition than " + definition.name());
         }
         return server.clickMenuButton(player, button);
     }

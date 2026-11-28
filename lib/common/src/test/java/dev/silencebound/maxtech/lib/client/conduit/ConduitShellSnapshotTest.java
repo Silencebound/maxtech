@@ -29,6 +29,7 @@ import org.junit.jupiter.api.Test;
  */
 class ConduitShellSnapshotTest {
     private static final String SHA256 = "01c13c53aedfb194f12f7109d20d738dab520ca906e4c41099e246de67172899";
+    private static final String FRAME_SHA256 = "0edccc74ebe1cf77e59e1d6c1c3c636ec362b6f97d9640c6dd83125671949316";
     private static final Identifier GLASS = Identifier.fromNamespaceAndPath("test", "block/glass");
     private static final ConduitContentsGeometry.Paint PAINT = new ConduitContentsGeometry.Paint(
             Identifier.fromNamespaceAndPath("test", "block/still"),
@@ -75,6 +76,33 @@ class ConduitShellSnapshotTest {
             Files.write(Path.of("conduit-shell-snapshot.txt"), bytes);
         }
         assertEquals(SHA256, actual, "shell geometry changed; dump in build/test-work/conduit-shell-snapshot.txt");
+    }
+
+    /**
+     * Pins the bodies of frame-bar shells without a tier stripe (flat and textured bars, 1 and 2 px, all arm masks,
+     * some ring masks), so the stripe option cannot change them.
+     */
+    @Test
+    void frameBarShellsWithoutTierStripeAreUnchanged() throws IOException, NoSuchAlgorithmException {
+        StringBuilder dump = new StringBuilder();
+        ConduitLook.Shell framed = ConduitLook.shell(GLASS).withBorderColour(0x2C3238).withBorder(1).withFrameBars();
+        List<ConduitLook.Shell> looks = List.of(framed, framed.withBorder(2),
+                framed.withBarTexture(Identifier.fromNamespaceAndPath("test", "block/bar")));
+        for (float thickness : new float[]{0.375F, 0.5F}) {
+            ConduitType type = type(thickness);
+            for (int l = 0; l < looks.size(); l++) {
+                for (int arms = 0; arms < 64; arms++) {
+                    for (int rings : new int[]{0, arms, arms & 0b010101}) {
+                        dump.append("body ").append(thickness).append(' ').append(l).append(' ').append(arms)
+                                .append(' ').append(rings).append('\n');
+                        append(dump, ConduitGeometry.body(looks.get(l), new ConduitBodyKey(type, null, arms, rings)));
+                    }
+                }
+            }
+        }
+        byte[] bytes = dump.toString().getBytes(StandardCharsets.UTF_8);
+        String actual = HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(bytes));
+        assertEquals(FRAME_SHA256, actual, "frame-bar shell geometry changed");
     }
 
     private static void append(StringBuilder dump, List<ConduitQuad> quads) {
