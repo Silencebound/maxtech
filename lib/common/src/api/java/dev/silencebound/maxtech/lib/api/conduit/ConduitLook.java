@@ -119,7 +119,7 @@ public sealed interface ConduitLook {
      * With {@code junctionCage} (Lib 0.15.0) a tube that turns or branches (a bend, T, crossing or any junction of two
      * or more arms that is not one straight run) frames each face of its core that no arm leaves from with border
      * lines, so every arm's lines end on that frame and the core's glass stays clear inside it, and leaves out the
-     * lines on an arm's side that faces into the crease, which would only be seen through the other arm's glass.
+     * lines on an arm's side that faces into the crease, which from many angles are seen through the other arm's glass.
      * Straight runs, open ends and single tubes look as without it.
      * <p>
      * The block state fields are {@code shell}, then {@code border_colour}, {@code border}, {@code rim}, {@code inset},

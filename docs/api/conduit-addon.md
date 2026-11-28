@@ -148,8 +148,8 @@ Lib works the outline out from the connections and draws it as opaque strips jus
 - a rim band around an arm that meets a block, just inside Lib's connector ring, which stays as on any conduit;
 - with `junction_cage` (Lib 0.15.0), a frame of border lines around each face of the core that no arm leaves from,
   wherever a tube bends or branches (not on straight runs, open ends or single tubes): each arm's lines end on that
-  frame, the core's glass stays clear inside it, and an arm's side facing into the crease has no lines (they would
-  only be seen through the other arm's glass).
+  frame, the core's glass stays clear inside it, and an arm's side facing into the crease has no lines (from many angles
+  they are seen through the other arm's glass, where they looked like floating bars).
 
 ```json
 {

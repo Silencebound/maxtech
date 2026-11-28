@@ -176,13 +176,14 @@ class ConduitShellGeometryTest {
      * the arm's glass. Without the cage some core edges have no strip.
      */
     @ParameterizedTest(name = "{0}")
-    @CsvSource({"corner, es", "corner up, eu", "T, wes", "crossing, nswe", "3D corner, esu", "six-way, dunswe",
-            "ringed T, wes"})
-    void junctionCageFramesFreeCoreFaces(String name, String arms) {
+    @CsvSource({"corner, es, ''", "corner up, eu, ''", "T, wes, ''", "crossing, nswe, ''", "3D corner, esu, ''",
+            "six-way, dunswe, ''", "ringed T, wes, s", "ringed corner, es, es"})
+    void junctionCageFramesFreeCoreFaces(String name, String arms, String rings) {
         AABB core = ConduitShapes.core(TYPE.thickness());
         int mask = mask(arms);
-        List<ConduitQuad> caged = ConduitGeometry.body(CAGED, new ConduitBodyKey(TYPE, null, mask, 0));
-        List<ConduitQuad> plain = ConduitGeometry.body(SHELL.withBorder(1), new ConduitBodyKey(TYPE, null, mask, 0));
+        List<ConduitQuad> caged = ConduitGeometry.body(CAGED, new ConduitBodyKey(TYPE, null, mask, mask(rings)));
+        List<ConduitQuad> plain = ConduitGeometry.body(SHELL.withBorder(1),
+                new ConduitBodyKey(TYPE, null, mask, mask(rings)));
         int uncovered = 0;
         for (Direction face : Direction.values()) {
             for (Direction beside : Direction.values()) {
@@ -293,20 +294,22 @@ class ConduitShellGeometryTest {
     /**
      * No strip of a caged junction is ever seen through its glass: from 144 view directions all round, a ray from
      * points on each strip that faces the camera to the camera crosses no glass face that faces the camera. Lines seen
-     * only through the neighbouring glass are what looked like floating bars in game.
+     * only through the neighbouring glass are what looked like floating bars in game. The rim bands of a ringed arm are
+     * left as on any shell: they sit against the opaque ring, so they never float.
      */
     @ParameterizedTest(name = "{0}")
-    @CsvSource({"corner, es", "corner up, eu", "T, wen", "T sideways, wes", "crossing, nswe", "3D corner, esu",
-            "T up, weu", "five-way, unswe", "six-way, dunswe"})
-    void junctionCageStripsAreNeverSeenThroughGlass(String name, String arms) {
-        List<ConduitQuad> quads = ConduitGeometry.body(CAGED, new ConduitBodyKey(TYPE, null, mask(arms), 0));
+    @CsvSource({"corner, es, ''", "corner up, eu, ''", "T, wen, ''", "T sideways, wes, ''", "crossing, nswe, ''",
+            "3D corner, esu, ''", "T up, weu, ''", "five-way, unswe, ''", "six-way, dunswe, ''", "ringed T, wes, s",
+            "ringed T run, wes, we"})
+    void junctionCageStripsAreNeverSeenThroughGlass(String name, String arms, String rings) {
+        List<ConduitQuad> quads = ConduitGeometry.body(CAGED, new ConduitBodyKey(TYPE, null, mask(arms), mask(rings)));
         for (int elevation = -75; elevation <= 75; elevation += 30) {
             for (int azimuth = 0; azimuth < 360; azimuth += 15) {
                 double e = Math.toRadians(elevation);
                 double a = Math.toRadians(azimuth);
                 double[] view = {Math.cos(e) * Math.cos(a), Math.sin(e), Math.cos(e) * Math.sin(a)};
                 for (ConduitQuad strip : quads) {
-                    if (isGlass(strip) || !facesView(strip, view)) {
+                    if (isGlass(strip) || !facesView(strip, view) || isBand(strip, mask(rings))) {
                         continue;
                     }
                     for (double[] point : samples(strip)) {
@@ -318,6 +321,24 @@ class ConduitShellGeometryTest {
                 }
             }
         }
+    }
+
+    /** Whether {@code quad} lies in the last {@link ConduitLook.Shell#rim} px of a ringed arm, its rim band. */
+    private static boolean isBand(ConduitQuad quad, int rings) {
+        for (Direction side : Direction.values()) {
+            if (!ConduitConnections.isConnected(rings, side)) {
+                continue;
+            }
+            AABB arm = ConduitShapes.armBeforeRing(TYPE.thickness(), side);
+            Direction.Axis axis = side.getAxis();
+            double from = side.getAxisDirection() == Direction.AxisDirection.POSITIVE
+                    ? arm.max(axis) - CAGED.rim()
+                    : arm.min(axis);
+            if (quad.box().min(axis) >= from - 1.0E-9 && quad.box().max(axis) <= from + CAGED.rim() + 1.0E-9) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static boolean facesView(ConduitQuad quad, double[] view) {
