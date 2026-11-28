@@ -49,4 +49,18 @@ out=$(flags docs/y.md)
 expect "docs only" "$out" port=false docs_only=true
 out=$(flags .github/workflows/x.yml port/a)
 expect "workflow and port" "$out" all=true docs_only=false
+out=$(flags portable/x)
+expect "portable is not port" "$out" port=false all=true docs_only=false
+out=$(flags lib/port/x)
+expect "lib/port is lib" "$out" port=false lib=true docs_only=false
+# A file moved from lib/ into port/ must still count as a lib change (git diff detects renames by default).
+mkdir -p lib/common/src/main/java
+seq 1 50 >lib/common/src/main/java/Moved.java
+git add -A
+git commit -q -m add
+mkdir -p port/moved
+git mv lib/common/src/main/java/Moved.java port/moved/Moved.java
+git commit -q -m move
+out=$(GITHUB_EVENT_NAME=pull_request bash "$script" HEAD^1 HEAD)
+expect "rename from lib into port" "$out" lib=true docs_only=false
 echo "changed-areas tests passed"

@@ -29,7 +29,7 @@ case "$event" in
     other=false
     client_classes=()
     if git rev-parse -q --verify "$base^{commit}" > /dev/null; then
-      changed=$(git diff --name-only "$base" "$head")
+      changed=$(git diff --name-only --no-renames "$base" "$head")
     else
       # The repository's first commit has no parent: everything in it is new.
       changed=""
