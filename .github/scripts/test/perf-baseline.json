@@ -2,4 +2,9 @@
  "perf_transfer_idle": {"budget_ns": 200000, "measured_ns": 100000, "outcome": "PASS"},
  "perf_energy_pass_500": {"budget_ns": 1000000, "measured_ns": 790000, "outcome": "PASS"},
  "perf_resource_keys_intern": {"budget_ns": 100000, "measured_ns": 60000, "outcome": "PASS"},
+ "perf_median": {"budget_ns": 500000, "measured_ns": 100000, "outcome": "PASS"},
+ "perf_busy": {"budget_ns": 500000, "measured_ns": 100000, "outcome": "PASS"},
+ "perf_failed": {"budget_ns": 500000, "measured_ns": 100000, "outcome": "PASS"},
+ "perf_was_failed": {"budget_ns": 500000, "measured_ns": 800000, "outcome": "FAIL"},
+ "perf_pipe|tick": {"budget_ns": 500000, "measured_ns": 20000, "outcome": "PASS"},
  "perf_scheduler_idle_tasks": {"budget_ns": 50000, "measured_ns": 11000, "outcome": "PASS"}}}

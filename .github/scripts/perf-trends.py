@@ -18,6 +18,7 @@ import sys
 
 THRESHOLD = 0.20
 MARKER = "<!-- perf-trends -->"
+NOT_COMPARED = ("SKIP_BUSY", "FAIL")
 LINE = re.compile(r"perf-result (\S+) (\d+) (\d+) (\S+)")
 
 
@@ -45,6 +46,11 @@ def extract(out_path, log_paths):
     print(f"{len(results)} perf results written to {out_path}")
 
 
+def cell(name):
+    """A test name as a Markdown table cell: code span with | and backticks escaped."""
+    return "`" + name.replace("`", "'").replace("|", "\\|") + "`"
+
+
 def ms(nanos):
     return f"{nanos / 1e6:.4f}"
 
@@ -60,10 +66,13 @@ def compare(current_path, baseline_path=None):
     current = load(current_path)["results"]
     baseline_doc = load(baseline_path)
     baseline = baseline_doc["results"] if baseline_doc else {}
-    slower, faster, missing = [], [], []
+    slower, faster, missing, skipped = [], [], [], []
     for test, now in sorted(current.items()):
+        if now["outcome"] in NOT_COMPARED:
+            skipped.append(test)
+            continue
         before = baseline.get(test)
-        if not before or before["measured_ns"] <= 0:
+        if not before or before["outcome"] in NOT_COMPARED or before["measured_ns"] <= 0:
             missing.append((test, now))
             continue
         change = (now["measured_ns"] - before["measured_ns"]) / before["measured_ns"]
@@ -89,7 +98,7 @@ def compare(current_path, baseline_path=None):
         lines.extend([f"**{title}**", "", "| Test | Main (ms) | PR (ms) | Change | Budget (ms) | Outcome |",
                       "|---|---:|---:|---:|---:|---|"])
         for test, now, before, change in rows:
-            lines.append(f"| `{test}` | {ms(before['measured_ns'])} | {ms(now['measured_ns'])} | {change:+.0%} "
+            lines.append(f"| {cell(test)} | {ms(before['measured_ns'])} | {ms(now['measured_ns'])} | {change:+.0%} "
                          f"| {ms(now['budget_ns'])} | {now['outcome']} |")
         lines.append("")
 
@@ -103,8 +112,10 @@ def compare(current_path, baseline_path=None):
         lines.extend(["**No baseline on main** (new or renamed tests, or main's run did not reach them)", "",
                       "| Test | PR (ms) | Budget (ms) | Outcome |", "|---|---:|---:|---|"])
         for test, now in missing:
-            lines.append(f"| `{test}` | {ms(now['measured_ns'])} | {ms(now['budget_ns'])} | {now['outcome']} |")
+            lines.append(f"| {cell(test)} | {ms(now['measured_ns'])} | {ms(now['budget_ns'])} | {now['outcome']} |")
         lines.append("")
+    if skipped:
+        lines.extend(["Not compared (busy or failed): " + ", ".join(cell(t) for t in skipped), ""])
     print("\n".join(lines))
 
 

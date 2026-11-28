@@ -4,4 +4,11 @@
 [12:00:03] [Server thread/INFO] [PerfBudget/]: perf-result perf_resource_keys_intern 40000 100000 PASS
 [12:00:04] [Server thread/INFO] [PerfBudget/]: perf-result perf_scheduler_idle_tasks 10000 50000 PASS
 [12:00:05] [Server thread/INFO] [PerfBudget/]: perf-result perf_new_test 5000 9000 PASS
+[12:00:05] [Server thread/INFO] [PerfBudget/]: perf-result perf_median 100000 500000 PASS
+[12:00:05] [Server thread/INFO] [PerfBudget/]: perf-result perf_median 900000 500000 PASS
+[12:00:05] [Server thread/INFO] [PerfBudget/]: perf-result perf_median 200000 500000 PASS
+[12:00:05] [Server thread/INFO] [PerfBudget/]: perf-result perf_busy 900000 500000 SKIP_BUSY
+[12:00:05] [Server thread/INFO] [PerfBudget/]: perf-result perf_failed 900000 500000 FAIL
+[12:00:05] [Server thread/INFO] [PerfBudget/]: perf-result perf_was_failed 90000 500000 PASS
+[12:00:05] [Server thread/INFO] [PerfBudget/]: perf-result perf_pipe|tick 40000 500000 PASS
 [12:00:06] [Server thread/INFO] [GameTestServer/]: All 42 required tests passed :)
