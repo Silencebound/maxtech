@@ -16,7 +16,7 @@ import io.netty.buffer.Unpooled;
  * since the layout comes from its declaration. Registered by Lib's NeoForge entry point.
  */
 public final class MenuValuesPayload implements CustomPacketPayload {
-    /** Bound on one body; a tank's fluid components are the only part that can grow. */
+    /** Bound on one body; a tank's resource (its components) is the only part that can grow. */
     public static final int MAX_BODY = 1 << 20;
     public static final Type<MenuValuesPayload> TYPE = new Type<>(MaxtechLib.id("menu_values"));
     public static final StreamCodec<RegistryFriendlyByteBuf, MenuValuesPayload> CODEC = StreamCodec.composite(

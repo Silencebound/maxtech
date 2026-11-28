@@ -17,6 +17,13 @@ Api changes are marked **Api**.
   fluid contents with `ConduitContents.ofFluid`, read them with `fluid()`. Fluid contents save as before; contents of
   other kinds save their kind and key, are not drawn yet, and load empty when their kind's mod is gone.
   `KindKey.STREAM_CODEC` is now `CLIENTBOUND_STREAM_CODEC`.
+- **Api** Tank menu values and `AccentTank` take any resource kind: `MenuValues.Builder.kindTank` (a `KindKey` of any
+  kind) and `tank(kind, ...)` (one kind, by getters or over a Lib `ResourceTank`) next to the fluid `tank`;
+  `MenuValueView.resource` reads any tank, `fluid` only fluid tanks. Unknown contents arrive as `UnknownResource` and
+  the gauge shows them as "Unknown" with the saved amount. `AccentTank`'s new constructor takes kind keys and draws
+  with the kind's `ResourceLook` (only the well for a kind without one); amounts show in the kind's unit.
+  `MenuValueView.kind(TankValue)` gives the declared kind (null for any kind) so a screen can pick the empty unit;
+  `ResourceTank.unknownAmount()` (default 0) lets the menu show the saved amount of any tank's unknown contents.
 - **Api** Conduit contents of any resource kind are drawn, with the kind's client look: `ResourceLook` and
   `ResourceLooks` (`lib.api.client.resource`, client only, experimental) give a kind its sprites, tint, name and
   light; `FluidLook` is now the fluid kind's look (registered by Lib, `FluidLook.install` is gone). Packed contents
@@ -36,6 +43,13 @@ Api changes are marked **Api**.
 - Lib binds a screen to every declared toolkit menu: the Accent panel in the definition's theme, slot frames, tank,
   energy and progress bars with their tooltips, fitted labels and status lines, and bucket clicks on tanks. Addons
   write no client code for it. **Api** `AccentToast.theme` draws a toast's title and news strip in a mod's theme.
+  from a host's slot groups, tanks of any kind (fluid tanks take bucket clicks; unknown contents show as "Unknown"
+  with their amount), energy, progress and other values, a shift-click order, an `AccentTheme` and a `Layout` of rows
+  and columns in GUI pixels, with `Layout.value` for a live number in a text; `register` adds its menu type, `open`
+  opens it for a player. The layout is checked when defined, or when registered for a definition built before Lib
+  (panel and title tab fit 320x240, every slot group placed once and sharing no slot, status lines over `MenuStatus`
+  enums; dev runs throw), gaps are never negative, and text never moves slots. `ItemSlots.Builder.size()` and
+  `copy()` are new.
 - **Api** Inventories (`lib.api.inventory`, experimental, ADR-0016): `ItemSlots` with per-slot roles (input, output,
   display), filters and limits, and `ResourceTank`/`FluidTank`, both journaled so transfers through their handlers
   roll back with the transaction; `lib.neoforge.api.inventory.Handlers` gives the NeoForge handlers for capabilities.

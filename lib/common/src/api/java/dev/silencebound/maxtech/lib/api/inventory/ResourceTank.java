@@ -85,6 +85,14 @@ public interface ResourceTank<K> {
      */
     boolean unknown();
 
+    /**
+     * The amount saved with {@link #unknown()} contents, for gauges, which show it next to "Unknown"; 0 while the tank
+     * is not unknown (and by default). Not part of {@link #amount()}, which reads 0 then.
+     */
+    default long unknownAmount() {
+        return 0;
+    }
+
     /** Throws away {@link #unknown()} contents for good, leaving the tank empty; does nothing otherwise. */
     void discardUnknown();
 

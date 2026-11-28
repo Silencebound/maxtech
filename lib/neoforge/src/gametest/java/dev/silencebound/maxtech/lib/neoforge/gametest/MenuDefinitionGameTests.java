@@ -4,20 +4,25 @@ import dev.silencebound.maxtech.lib.MaxtechLib;
 import dev.silencebound.maxtech.lib.api.energy.EnergyEndpoint;
 import dev.silencebound.maxtech.lib.api.inventory.FluidTank;
 import dev.silencebound.maxtech.lib.api.inventory.ItemSlots;
+import dev.silencebound.maxtech.lib.api.inventory.ResourceTank;
 import dev.silencebound.maxtech.lib.api.menu.EnergyValue;
 import dev.silencebound.maxtech.lib.api.menu.Layout;
 import dev.silencebound.maxtech.lib.api.menu.LayoutPlan;
 import dev.silencebound.maxtech.lib.api.menu.MenuDefinition;
 import dev.silencebound.maxtech.lib.api.menu.MenuItems;
 import dev.silencebound.maxtech.lib.api.menu.MenuSlots;
+import dev.silencebound.maxtech.lib.api.menu.MenuValueView;
 import dev.silencebound.maxtech.lib.api.menu.Menus;
 import dev.silencebound.maxtech.lib.api.menu.ProgressValue;
 import dev.silencebound.maxtech.lib.api.menu.TankValue;
 import dev.silencebound.maxtech.lib.api.registry.Registrar;
 import dev.silencebound.maxtech.lib.api.registry.Registrars;
 import dev.silencebound.maxtech.lib.api.resource.FluidKey;
+import dev.silencebound.maxtech.lib.api.resource.KindKey;
+import dev.silencebound.maxtech.lib.api.resource.ResourceKinds;
 import dev.silencebound.maxtech.lib.menu.DefinedMenu;
 import dev.silencebound.maxtech.lib.menu.ToolkitMenu;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import net.minecraft.core.Holder;
@@ -26,9 +31,11 @@ import net.minecraft.gametest.framework.FunctionGameTestInstance;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.gametest.framework.TestData;
 import net.minecraft.gametest.framework.TestEnvironmentDefinition;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.util.ProblemReporter;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.ContainerInput;
 import net.minecraft.world.inventory.MenuType;
@@ -37,6 +44,8 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.material.Fluids;
+import net.minecraft.world.level.storage.TagValueInput;
+import net.minecraft.world.level.storage.TagValueOutput;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.RegisterGameTestsEvent;
@@ -49,7 +58,8 @@ import net.neoforged.neoforge.event.RegisterGameTestsEvent;
 @EventBusSubscriber(modid = MaxtechLib.MOD_ID)
 public final class MenuDefinitionGameTests {
     private static final String[] NAMES = {"menu_definition_opens", "menu_definition_slot_positions",
-            "menu_definition_shift_click", "menu_definition_tank_click", "menu_definition_still_valid"};
+            "menu_definition_shift_click", "menu_definition_tank_click", "menu_definition_still_valid",
+            "menu_definition_kind_tanks"};
     private static final Registrar<Consumer<GameTestHelper>> FUNCTIONS = Registrars.create(MaxtechLib.MOD_ID,
             Registries.TEST_FUNCTION);
 
@@ -57,6 +67,7 @@ public final class MenuDefinitionGameTests {
     private static final ItemSlots.Builder SLOTS = ItemSlots.builder(4).input(0, 1, stack -> stack.is(Items.COAL))
             .output(1, 3);
     private static final AtomicReference<TankValue> TANK = new AtomicReference<>();
+    private static final AtomicReference<TankValue> GLOW = new AtomicReference<>();
     private static final MenuDefinition<Host> DEFINITION = Menus.define(MaxtechLib.MOD_ID, "test_definition",
             Host.class, m -> {
                 MenuItems<Host> items = m.items(host -> host.slots, SLOTS);
@@ -64,15 +75,19 @@ public final class MenuDefinitionGameTests {
                 MenuSlots output = m.slots(items, 1, 3);
                 MenuSlots open = m.slots(items, 3, 4);
                 TankValue tank = m.tank(host -> host.tank);
+                TankValue glow = m.tank(ConduitApiGameTests.TEST_KIND, host -> host.glow);
                 EnergyValue energy = m.energy(host -> host.energy);
                 ProgressValue burn = m.progress(host -> host.burn, host -> 200);
                 TANK.set(tank);
+                GLOW.set(glow);
                 m.shiftClick(coal);
                 m.validWhile((host, player) -> host.open);
-                m.layout(Layout.column(Layout.row(Layout.tank(tank, 18, 52),
-                        Layout.column(Layout.SMALL_GAP, Layout.slots(coal, 1, 1),
-                                Layout.progress(burn, Layout.ProgressShape.FLAME)),
-                        Layout.slots(output, 1, 2), Layout.slots(open, 1, 1), Layout.energy(energy, 52)),
+                m.layout(Layout.column(
+                        Layout.row(Layout.tank(tank, 18, 52),
+                                Layout.column(Layout.SMALL_GAP, Layout.slots(coal, 1, 1),
+                                        Layout.progress(burn, Layout.ProgressShape.FLAME)),
+                                Layout.slots(output, 1, 2), Layout.slots(open, 1, 1), Layout.energy(energy, 52),
+                                Layout.tank(glow, 18, 52)),
                         Layout.playerInventory()));
             });
 
@@ -83,6 +98,7 @@ public final class MenuDefinitionGameTests {
         FUNCTIONS.register(NAMES[2], () -> MenuDefinitionGameTests::shiftClick);
         FUNCTIONS.register(NAMES[3], () -> MenuDefinitionGameTests::tankClick);
         FUNCTIONS.register(NAMES[4], () -> MenuDefinitionGameTests::stillValid);
+        FUNCTIONS.register(NAMES[5], () -> MenuDefinitionGameTests::kindTanks);
     }
 
     /** Menu index of the player's first main-inventory slot: after the definition's four slots. */
@@ -106,6 +122,8 @@ public final class MenuDefinitionGameTests {
         final ItemSlots slots = SLOTS.build(slot -> {
         });
         final FluidTank tank = FluidTank.create(4000, () -> {
+        });
+        final ResourceTank<Integer> glow = ResourceTank.create(ConduitApiGameTests.TEST_KIND, 2000, () -> {
         });
         final EnergyEndpoint energy = EnergyEndpoint.buffer(1000, 100, 100, 0);
         long burn;
@@ -216,6 +234,42 @@ public final class MenuDefinitionGameTests {
         helper.assertTrue(menu.getCarried().is(Items.WATER_BUCKET), "carried " + menu.getCarried());
         helper.assertValueEqual(host.tank.amount(), 500L, "tank after filling a bucket");
         helper.assertFalse(menu.clickMenuButton(player, button + 1), "a button no tank has");
+        helper.succeed();
+    }
+
+    /**
+     * A fluid tank whose saved fluid no longer loads shows as unknown with its amount, not as empty; a tank of another
+     * kind syncs its resource and takes no bucket clicks.
+     */
+    private static void kindTanks(GameTestHelper helper) {
+        var registries = helper.getLevel().registryAccess();
+        Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+        Host host = new Host();
+        FluidTank saved = FluidTank.create(4000, () -> {
+        });
+        saved.set(FluidKey.of(Fluids.WATER), 2500);
+        TagValueOutput out = TagValueOutput.createWithContext(ProblemReporter.DISCARDING, registries);
+        saved.save(out);
+        CompoundTag missing = out.buildResult();
+        CompoundTag resource = missing.getCompoundOrEmpty("resource");
+        resource.putString("id", "gone_mod:goo");
+        missing.put("resource", resource);
+        host.tank.load(TagValueInput.create(ProblemReporter.DISCARDING, registries, missing));
+        helper.assertTrue(host.tank.unknown(), "saved fluid still loads");
+        host.glow.set(40, 1500);
+
+        DefinedMenu<Host> menu = serverMenu(player, host);
+        menu.broadcastChanges();
+        MenuValueView view = menu.values();
+        KindKey<?> unknown = view.resource(TANK.get()).orElseThrow();
+        helper.assertTrue(unknown.isUnknown(), "unloaded fluid not unknown: " + unknown);
+        helper.assertValueEqual(unknown.kindId(), ResourceKinds.FLUID.id(), "unknown contents' kind");
+        helper.assertValueEqual(view.amount(TANK.get()), 2500L, "unknown contents' amount");
+        helper.assertValueEqual(view.resource(GLOW.get()),
+                Optional.of(new KindKey<>(ConduitApiGameTests.TEST_KIND, 40)), "glow tank");
+        helper.assertValueEqual(view.amount(GLOW.get()), 1500L, "glow amount");
+        helper.assertValueEqual(menu.tankButton(GLOW.get()), -1, "glow tank button");
+        helper.assertTrue(menu.tankButton(TANK.get()) >= 0, "fluid tank button");
         helper.succeed();
     }
 

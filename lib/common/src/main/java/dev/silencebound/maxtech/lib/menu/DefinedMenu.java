@@ -1,6 +1,8 @@
 package dev.silencebound.maxtech.lib.menu;
 
+import dev.silencebound.maxtech.lib.api.inventory.FluidTank;
 import dev.silencebound.maxtech.lib.api.inventory.ItemSlots;
+import dev.silencebound.maxtech.lib.api.inventory.ResourceTank;
 import dev.silencebound.maxtech.lib.api.menu.Layout;
 import dev.silencebound.maxtech.lib.api.menu.LayoutPlan;
 import dev.silencebound.maxtech.lib.api.menu.MenuDefinition;
@@ -20,8 +22,9 @@ import org.jspecify.annotations.Nullable;
  * The menu of a {@link MenuDefinition}, on both sides: the definition's slot groups at the places its layout gives them
  * (in declaration order, then the player's inventory), its shift-click order and its tanks' bucket clicks. Slot
  * positions come from {@link MenuDefinition#plan()}, pure arithmetic, so they are the same on the server and the
- * client. A group the layout lacks (a problem in dev runs) sits far off the panel. Button ids: tank {@code n} of the
- * definition (declaration order) is {@link ToolkitMenu#TANK_BUTTONS} plus n; ids below that are free for later buttons.
+ * client. A group the layout lacks (a problem in dev runs) sits far off the panel. Button ids: fluid tank {@code n} of
+ * the definition (declaration order, counting only tanks that take bucket clicks) is {@link ToolkitMenu#TANK_BUTTONS}
+ * plus n; ids below that are free for later buttons.
  */
 public final class DefinedMenu<H> extends ToolkitMenu<H> {
     /** Where slots of a group the layout lacks go: off any screen. */
@@ -76,10 +79,17 @@ public final class DefinedMenu<H> extends ToolkitMenu<H> {
             shift[i] = added[order.get(i).index()];
         }
         shiftClick(shift);
-        List<MenuDefinition.Tank<H>> tanks = definition.tanks();
+        List<MenuDefinition.Tank<H, ?>> tanks = definition.tanks();
         tankButtons = new int[tanks.size()];
         for (int i = 0; i < tankButtons.length; i++) {
-            tankButtons[i] = addTank(host != null ? tanks.get(i).tank().apply(host) : null);
+            MenuDefinition.Tank<H, ?> tank = tanks.get(i);
+            if (!tank.buckets()) {
+                tankButtons[i] = -1;
+                continue;
+            }
+            // Only Builder.tank(Function) sets buckets, and its getter returns a FluidTank.
+            ResourceTank<?> held = host != null ? tank.tank().apply(host) : null;
+            tankButtons[i] = addTank((FluidTank) held);
         }
     }
 
@@ -88,9 +98,12 @@ public final class DefinedMenu<H> extends ToolkitMenu<H> {
         return definition;
     }
 
-    /** The {@code clickMenuButton} id of {@code tank}'s bucket clicks, or -1 for a tank of another definition. */
+    /**
+     * The {@code clickMenuButton} id of {@code tank}'s bucket clicks, or -1 for a tank that takes none (not a fluid
+     * tank) or of another definition.
+     */
     public int tankButton(TankValue tank) {
-        List<MenuDefinition.Tank<H>> tanks = definition.tanks();
+        List<MenuDefinition.Tank<H, ?>> tanks = definition.tanks();
         for (int i = 0; i < tanks.size(); i++) {
             if (tanks.get(i).value() == tank) {
                 return tankButtons[i];

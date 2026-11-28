@@ -3,7 +3,10 @@ package dev.silencebound.maxtech.lib.api.menu;
 import dev.silencebound.maxtech.lib.api.energy.EnergyEndpoint;
 import dev.silencebound.maxtech.lib.api.inventory.FluidTank;
 import dev.silencebound.maxtech.lib.api.inventory.ItemSlots;
+import dev.silencebound.maxtech.lib.api.inventory.ResourceTank;
 import dev.silencebound.maxtech.lib.api.registry.Registrar;
+import dev.silencebound.maxtech.lib.api.resource.ResourceKind;
+import dev.silencebound.maxtech.lib.api.resource.ResourceKinds;
 import dev.silencebound.maxtech.lib.api.style.AccentTheme;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -53,10 +56,15 @@ import org.jspecify.annotations.Nullable;
  *
  * The layout is checked when the definition is built ({@link #problems}): the panel and its title tab must fit a GUI of
  * {@link LayoutPlan#FIT_WIDTH} by {@link LayoutPlan#FIT_HEIGHT}, no boxes may overlap, every slot group must be placed
- * exactly once in cells enough for it, the player's inventory at most once, and every handle must come from this
- * definition. In dev runs a problem throws {@link IllegalStateException} at once; in a built game the definition keeps
- * working with the problem logged. Text never moves anything (see {@link Layout}), so a layout that passes in dev
- * passes on every client.
+ * exactly once in cells enough for it, no two groups may share a slot of their inventory, the player's inventory at
+ * most once, status lines must show an enum that implements {@link MenuStatus}, and every handle must come from this
+ * definition. In dev runs a problem throws {@link IllegalStateException} at once (or in {@link #register}, for a
+ * definition built before Lib's construction); in a built game the definition keeps working with the problem logged.
+ * Text never moves anything (see {@link Layout}), so a layout that passes in dev passes on every client.
+ * <p>
+ * The server and the client build the menu from the same definition and must place the same slots at the same
+ * positions, so the layout and the inventory shapes must be the same on both sides: build them from constants only,
+ * never from config, the side or other state that can differ between a server and its clients.
  * <p>
  * Immutable once built; any thread. Getters run on the server thread (see {@link MenuValues}).
  *
@@ -72,13 +80,15 @@ public final class MenuDefinition<H> {
     private final MenuValues<H> values;
     private final List<MenuItems<H>> items;
     private final List<MenuSlots> slots;
-    private final List<Tank<H>> tanks;
+    private final List<Tank<H, ?>> tanks;
     private final List<MenuSlots> shiftOrder;
     private final @Nullable BiPredicate<? super H, Player> validWhile;
     private final Layout layout;
     private final LayoutPlan plan;
     private final List<String> problems;
     private @Nullable Supplier<? extends MenuType<?>> type;
+    /** Whether Lib's backend has seen the problems; false for a definition built before Lib's construction. */
+    private volatile boolean checked;
 
     private MenuDefinition(Builder<H> builder, Layout layout) {
         this.modId = builder.modId;
@@ -109,20 +119,24 @@ public final class MenuDefinition<H> {
             throw new IllegalStateException("Menu " + modId + ":" + name + " has no layout");
         }
         MenuDefinition<H> definition = new MenuDefinition<>(builder, layout);
-        Menus.checked(definition);
+        definition.checked = Menus.checked(definition);
         return definition;
     }
 
     /**
      * Registers the menu type as {@code modId:name} with {@code registrar} (from
      * {@code Registrars.create(modId, Registries.MENU)}) and, on a client, the screen. Once, during mod construction.
+     * Checks the layout first when the definition was built before Lib's construction (see the class comment).
      *
      * @throws IllegalStateException
-     *             when called twice
+     *             when called twice, or in a dev run for a layout with problems
      */
     public void register(Registrar<MenuType<?>> registrar) {
         if (type != null) {
             throw new IllegalStateException("Menu " + modId + ":" + name + " registered twice");
+        }
+        if (!checked) {
+            checked = Menus.checked(this);
         }
         type = Menus.backend().register(this, registrar);
     }
@@ -204,9 +218,9 @@ public final class MenuDefinition<H> {
         return slots;
     }
 
-    /** The tanks, in declaration order (their bucket click ids follow it). */
+    /** The tanks, in declaration order (the bucket click ids of the fluid tanks follow it). */
     @ApiStatus.Internal
-    public List<Tank<H>> tanks() {
+    public List<Tank<H, ?>> tanks() {
         return tanks;
     }
 
@@ -223,15 +237,21 @@ public final class MenuDefinition<H> {
     }
 
     /**
-     * A declared tank: its value handle and the getter of the host's tank.
+     * A declared tank: its value handle, kind and the getter of the host's tank.
      *
      * @param value
      *            the synced value
+     * @param kind
+     *            the tank's resource kind
      * @param tank
      *            the host's tank
+     * @param buckets
+     *            whether clicks with a fluid container fill or drain it: fluid tanks declared with
+     *            {@link Builder#tank(Function)}, whose getter returns a {@link FluidTank}
      */
     @ApiStatus.Internal
-    public record Tank<H>(TankValue value, Function<? super H, FluidTank> tank) {
+    public record Tank<H, K>(TankValue value, ResourceKind<K> kind, Function<? super H, ? extends ResourceTank<K>> tank,
+            boolean buckets) {
     }
 
     /**
@@ -245,7 +265,7 @@ public final class MenuDefinition<H> {
         private final MenuValues.Builder<H> values = MenuValues.builder();
         private final List<MenuItems<H>> items = new ArrayList<>();
         private final List<MenuSlots> slots = new ArrayList<>();
-        private final List<Tank<H>> tanks = new ArrayList<>();
+        private final List<Tank<H, ?>> tanks = new ArrayList<>();
         private final List<MenuSlots> shiftOrder = new ArrayList<>();
         private final Set<Object> handles = Collections.newSetFromMap(new IdentityHashMap<>());
         private @Nullable String titleKey;
@@ -262,11 +282,11 @@ public final class MenuDefinition<H> {
 
         /**
          * An inventory of the host: {@code getter} returns its {@link ItemSlots}, built from {@code shape}, which the
-         * client menu builds its empty copy from.
+         * client menu builds its empty copy from. The definition keeps a copy of {@code shape} as it is now.
          */
         public MenuItems<H> items(Function<? super H, ItemSlots> getter, ItemSlots.Builder shape) {
             checkOpen();
-            MenuItems<H> handle = new MenuItems<>(items.size(), getter, shape);
+            MenuItems<H> handle = new MenuItems<>(items.size(), getter, shape.copy());
             items.add(handle);
             return handle;
         }
@@ -291,13 +311,26 @@ public final class MenuDefinition<H> {
 
         /**
          * A fluid tank of the host, synced and clickable: a click with a fluid container fills the container from the
-         * tank or empties it into the tank.
+         * tank or empties it into the tank. A fluid that no longer loads shows as unknown with its amount.
          */
         public TankValue tank(Function<? super H, FluidTank> getter) {
+            return addTank(ResourceKinds.FLUID, getter, true);
+        }
+
+        /**
+         * A tank of the host holding resources of {@code kind}, synced; unknown contents show as unknown with their
+         * amount. Clicks on it do nothing (only fluid tanks take container clicks); the host's tank must be of
+         * {@code kind}, checked when the menu first reads it.
+         */
+        public <K> TankValue tank(ResourceKind<K> kind, Function<? super H, ? extends ResourceTank<K>> getter) {
+            return addTank(Objects.requireNonNull(kind, "kind"), getter, false);
+        }
+
+        private <K> TankValue addTank(ResourceKind<K> kind, Function<? super H, ? extends ResourceTank<K>> getter,
+                boolean buckets) {
             checkOpen();
-            TankValue handle = values.tank(host -> getter.apply(host).resource(), host -> getter.apply(host).amount(),
-                    host -> getter.apply(host).capacity());
-            tanks.add(new Tank<>(handle, getter));
+            TankValue handle = values.tank(kind, getter);
+            tanks.add(new Tank<>(handle, kind, getter, buckets));
             handles.add(handle);
             return handle;
         }
@@ -327,7 +360,7 @@ public final class MenuDefinition<H> {
             return handle;
         }
 
-        /** A whole number, synced for the screen. */
+        /** A whole number, synced for the screen; {@link Layout#value} shows it in a text. */
         public IntValue intValue(ToIntFunction<? super H> getter) {
             checkOpen();
             IntValue handle = values.intValue(getter);
@@ -384,9 +417,22 @@ public final class MenuDefinition<H> {
             }
         }
 
-        /** The definition's own checks of {@code plan}: groups placed once with room, handles from here. */
+        /**
+         * The definition's own checks of {@code plan}: groups placed once with room and sharing no slot, status lines
+         * over {@link MenuStatus} enums, handles from here.
+         */
         private List<String> checkLayout(LayoutPlan plan) {
             List<String> problems = new ArrayList<>();
+            for (int i = 0; i < slots.size(); i++) {
+                MenuSlots a = slots.get(i);
+                for (int j = i + 1; j < slots.size(); j++) {
+                    MenuSlots b = slots.get(j);
+                    if (a.items() == b.items() && a.from() < b.to() && b.from() < a.to()) {
+                        problems.add("Slots " + a.index() + " and " + b.index() + " share slots of inventory "
+                                + a.items().index());
+                    }
+                }
+            }
             IdentityHashMap<MenuSlots, Integer> placed = new IdentityHashMap<>();
             int inventories = 0;
             for (LayoutPlan.Box box : plan.boxes()) {
@@ -402,7 +448,14 @@ public final class MenuDefinition<H> {
                     case Layout.Tank node -> node.value();
                     case Layout.Energy node -> node.value();
                     case Layout.Progress node -> node.value();
-                    case Layout.Status node -> node.value();
+                    case Layout.Status node -> {
+                        if (!MenuStatus.class.isAssignableFrom(node.value().type())) {
+                            problems.add("Status " + node.value().index() + ": " + node.value().type().getName()
+                                    + " does not implement MenuStatus");
+                        }
+                        yield node.value();
+                    }
+                    case Layout.Value node -> node.value();
                     case Layout.PlayerInventory node -> {
                         inventories++;
                         yield null;

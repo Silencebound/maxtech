@@ -19,6 +19,7 @@ class LayoutPlanTest {
     private static final TankValue TANK = VALUES.tank(host -> java.util.Optional.empty(), host -> 0, host -> 0);
     private static final EnergyValue ENERGY = VALUES.energy(host -> 0, host -> 0);
     private static final ProgressValue BURN = VALUES.progress(host -> 0, host -> 0);
+    private static final IntValue SAMPLES = VALUES.intValue(host -> 0);
     private static final MenuItems<Object> ITEMS = new MenuItems<>(0, host -> {
         throw new UnsupportedOperationException();
     }, ItemSlots.builder(12));
@@ -43,8 +44,8 @@ class LayoutPlanTest {
                 new Case(Layout.energy(ENERGY, 40), 10, 40),
                 new Case(Layout.progress(BURN, Layout.ProgressShape.ARROW), 22, 15),
                 new Case(Layout.progress(BURN, Layout.ProgressShape.FLAME), 13, 14),
-                new Case(Layout.label("a.key", 60), 60, 10), new Case(Layout.spacer(5, 0), 5, 0),
-                new Case(Layout.playerInventory(), 162, 76))) {
+                new Case(Layout.label("a.key", 60), 60, 10), new Case(Layout.value(SAMPLES, "a.count", 40), 40, 10),
+                new Case(Layout.spacer(5, 0), 5, 0), new Case(Layout.playerInventory(), 162, 76))) {
             LayoutPlan plan = LayoutPlan.of(c.node());
             assertEquals(List.of(List.of(7, 7, c.width(), c.height())), boxes(plan), c.toString());
             assertEquals(c.width() + 14, plan.panelWidth(), c.toString());
@@ -130,16 +131,18 @@ class LayoutPlanTest {
 
     @Test
     void overlapIsReported() {
-        Layout shared = Layout.row(-1, Layout.slots(FUEL, 1, 1), Layout.tank(TANK, 18, 18));
-        List<String> problems = LayoutPlan.of(shared).problems();
+        Layout.Leaf slots = (Layout.Leaf) Layout.slots(FUEL, 1, 1);
+        Layout.Leaf tank = (Layout.Leaf) Layout.tank(TANK, 18, 18);
+        List<String> problems = LayoutPlan.check(50, 50,
+                List.of(new LayoutPlan.Box(slots, 7, 7, 18, 18), new LayoutPlan.Box(tank, 24, 7, 18, 18)));
         assertEquals(1, problems.size(), problems.toString());
         assertTrue(problems.getFirst().startsWith("slots 0") && problems.getFirst().contains("overlaps tank"),
                 problems.getFirst());
         // Touching edges are no overlap, and spacers never count.
         assertEquals(List.of(),
                 LayoutPlan.of(Layout.row(0, Layout.slots(FUEL, 1, 1), Layout.tank(TANK, 18, 18))).problems());
-        assertEquals(List.of(),
-                LayoutPlan.of(Layout.row(-5, Layout.spacer(10, 10), Layout.tank(TANK, 18, 18))).problems());
+        assertEquals(List.of(), LayoutPlan.check(50, 50, List.of(new LayoutPlan.Box(tank, 7, 7, 18, 18),
+                new LayoutPlan.Box((Layout.Leaf) Layout.spacer(10, 10), 10, 10, 10, 10))));
     }
 
     @Test
@@ -163,5 +166,8 @@ class LayoutPlanTest {
         assertThrows(IllegalArgumentException.class, () -> Layout.label("k", 0));
         assertThrows(IllegalArgumentException.class, () -> Layout.spacer(-1, 0));
         assertThrows(IllegalArgumentException.class, Layout::row);
+        assertThrows(IllegalArgumentException.class, () -> Layout.row(-1, Layout.spacer(1, 1)));
+        assertThrows(IllegalArgumentException.class, () -> Layout.column(-1, Layout.spacer(1, 1)));
+        assertThrows(IllegalArgumentException.class, () -> Layout.value(SAMPLES, "k", 0));
     }
 }

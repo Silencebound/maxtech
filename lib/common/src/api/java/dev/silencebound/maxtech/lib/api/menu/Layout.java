@@ -9,8 +9,8 @@ import java.util.List;
  * every slot, the same on the server and on every client whatever their text size.
  * <p>
  * Rows place their children left to right and centre them vertically; columns place them top to bottom and centre them
- * horizontally; odd leftovers go to the right or bottom. Gaps default to {@link #GAP}; a negative gap lets neighbours
- * share their edges (the plan then reports any boxes that overlap).
+ * horizontally; odd leftovers go to the right or bottom. Gaps default to {@link #GAP} and are never negative, so boxes
+ * never overlap.
  *
  * <pre>{@code
  * Layout.column(
@@ -34,7 +34,10 @@ public sealed interface Layout {
     int GAP = 4;
     /** A small gap, for parts that belong together (a bar beside its slot). */
     int SMALL_GAP = 2;
-    /** The height of a label or status line. */
+    /**
+     * The height of a label, value or status line. The box never grows with the client's text size: larger text is
+     * drawn smaller to fit it, with the whole text as a tooltip.
+     */
     int TEXT_HEIGHT = 10;
     /** The width of an energy bar. */
     int ENERGY_WIDTH = 10;
@@ -84,6 +87,14 @@ public sealed interface Layout {
     /** The text of lang key {@code key}, fitted into {@code width} pixels. */
     static Layout label(String key, int width) {
         return new Label(key, width);
+    }
+
+    /**
+     * The text of lang key {@code key} with the current {@code value} as its argument ({@code %s} in the text), fitted
+     * into {@code width} pixels: live numbers such as a growth percentage.
+     */
+    static Layout value(IntValue value, String key, int width) {
+        return new Value(value, key, width);
     }
 
     /** A status dot and the text of the current constant of {@code value}, fitted into {@code width} pixels. */
@@ -140,13 +151,14 @@ public sealed interface Layout {
      * See {@link Layout#row}.
      *
      * @param gap
-     *            pixels between children; negative lets them share edges
+     *            pixels between children, not negative
      * @param children
      *            the children, left to right
      */
     record Row(int gap, List<Layout> children) implements Layout {
-        /** Copies {@code children}, which must not be empty. */
+        /** Copies {@code children}, which must not be empty; {@code gap} must not be negative. */
         public Row {
+            notNegative(gap, "gap");
             children = List.copyOf(children);
             if (children.isEmpty()) {
                 throw new IllegalArgumentException("A row needs children");
@@ -158,13 +170,14 @@ public sealed interface Layout {
      * See {@link Layout#column}.
      *
      * @param gap
-     *            pixels between children; negative lets them share edges
+     *            pixels between children, not negative
      * @param children
      *            the children, top to bottom
      */
     record Column(int gap, List<Layout> children) implements Layout {
-        /** Copies {@code children}, which must not be empty. */
+        /** Copies {@code children}, which must not be empty; {@code gap} must not be negative. */
         public Column {
+            notNegative(gap, "gap");
             children = List.copyOf(children);
             if (children.isEmpty()) {
                 throw new IllegalArgumentException("A column needs children");
@@ -279,10 +292,33 @@ public sealed interface Layout {
     }
 
     /**
+     * See {@link Layout#value}.
+     *
+     * @param value
+     *            the number shown
+     * @param key
+     *            the lang key of the text, with one {@code %s} for the number
+     * @param width
+     *            width in pixels the text is fitted into
+     */
+    record Value(IntValue value, String key, int width) implements Leaf {
+        /** Width must be at least 1. */
+        public Value {
+            positive(width, "width");
+        }
+
+        @Override
+        public int height() {
+            return TEXT_HEIGHT;
+        }
+    }
+
+    /**
      * See {@link Layout#status}.
      *
      * @param value
-     *            the enum value shown; its constants implement MenuStatus
+     *            the enum value shown; its constants must implement MenuStatus (the definition reports a problem
+     *            otherwise)
      * @param width
      *            width in pixels the text is fitted into
      */
@@ -328,6 +364,12 @@ public sealed interface Layout {
         @Override
         public int height() {
             return PLAYER_INVENTORY_HEIGHT;
+        }
+    }
+
+    private static void notNegative(int value, String what) {
+        if (value < 0) {
+            throw new IllegalArgumentException("Layout " + what + " must not be negative, got " + value);
         }
     }
 

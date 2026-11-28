@@ -23,12 +23,12 @@ class AccentDemoLayoutTest {
         Box tabs = new Box("side tabs", left + AccentDemoScreen.WIDTH + SideTabs.GAP, top + SideTabs.TOP, SideTabs.TAB,
                 4 * (SideTabs.TAB + SideTabs.SPACING));
         List<Box> widgets = new ArrayList<>(LayoutCheck.widgets(AccentDemoScreen.bars(left, top)));
-        assertEquals(6, widgets.size());
+        assertEquals(8, widgets.size());
         widgets.add(
                 new Box("widget column", left + 8, top + 8, AccentDemoScreen.MAIN - 16, AccentDemoScreen.HEIGHT - 16));
         widgets.add(tabs);
         assertEquals(List.of(), LayoutCheck.problems(screenWidth, screenHeight, List.of(panel), widgets));
-        for (Box bar : widgets.subList(0, 6)) {
+        for (Box bar : widgets.subList(0, 8)) {
             assertTrue(
                     bar.right() <= left + AccentDemoScreen.WIDTH - 8
                             && bar.bottom() <= top + AccentDemoScreen.HEIGHT - 8,
