@@ -94,6 +94,7 @@ public final class LabHubGameTests {
             Map.entry("hub_sampler_stops_when_full", LabHubGameTests::samplerStopsWhenFull),
             Map.entry("hub_overflow_kept", LabHubGameTests::overflowKept),
             Map.entry("hub_fuel_restored_when_remainder_short", LabHubGameTests::fuelRestoredWhenRemainderShort),
+            Map.entry("hub_pending_remainder_kept", LabHubGameTests::pendingRemainderKept),
             Map.entry("hub_hand_sampler_unknown_slot", LabHubGameTests::handSamplerUnknownSlot),
             Map.entry("hub_unknown_survives_drop", LabHubGameTests::unknownSurvivesDrop));
 
@@ -540,12 +541,67 @@ public final class LabHubGameTests {
         helper.succeed();
     }
 
+    /**
+     * The output and the fuel slot both fill up between the simulated and the real remainder insert, so the fuel cannot
+     * go back: it burns and its bucket waits as the pending remainder. The bucket stays across save and load and on the
+     * dropped hub, blocks further fuel while the output is full, and goes into the output before the next fuel.
+     */
+    private static void pendingRemainderKept(GameTestHelper helper) {
+        LabHubBlockEntity hub = hub(helper);
+        var registries = helper.getLevel().registryAccess();
+        HubStorage storage = hub.storage();
+        for (int slot = HubStorage.OUTPUT_FIRST; slot < HubStorage.SAMPLER - 1; slot++) {
+            storage.slots().set(slot, new ItemStack(Items.DIRT, 64));
+        }
+        storage.slots().set(HubStorage.FUEL, new ItemStack(Items.LAVA_BUCKET));
+        int time = storage.takeFuel(helper.getLevel(), () -> {
+            storage.slots().set(HubStorage.SAMPLER - 1, new ItemStack(Items.DIRT, 64));
+            storage.slots().set(HubStorage.FUEL, new ItemStack(Items.COAL, 64));
+        });
+        helper.assertTrue(time > 0, "the fuel did not burn");
+        helper.assertTrue(ItemStack.matches(storage.pendingRemainder(), new ItemStack(Items.BUCKET)),
+                "pending remainder " + storage.pendingRemainder());
+        helper.assertTrue(!hub.isPristine(), "a hub with a pending remainder counts as pristine");
+        helper.assertValueEqual(storage.takeFuel(helper.getLevel(), () -> {
+        }), 0, "fuel taken with a pending remainder");
+        helper.assertValueEqual(storage.slots().stack(HubStorage.FUEL).getCount(), 64, "fuel after a refused take");
+
+        CompoundTag saved = hub.saveCustomOnly(registries);
+        BlockPos other = new BlockPos(2, 1, 1);
+        helper.setBlock(other, FarmsContent.LAB_HUB.get());
+        LabHubBlockEntity loaded = helper.getBlockEntity(other, LabHubBlockEntity.class);
+        loaded.loadWithComponents(TagValueInput.create(ProblemReporter.DISCARDING, registries, saved));
+        helper.assertTrue(ItemStack.matches(loaded.storage().pendingRemainder(), new ItemStack(Items.BUCKET)),
+                "pending remainder after loading " + loaded.storage().pendingRemainder());
+        helper.setBlock(other, Blocks.AIR);
+
+        helper.getLevel().destroyBlock(helper.absolutePos(HUB), true);
+        LabHubBlockEntity placed = placeDrop(helper);
+        HubStorage dropped = placed.storage();
+        helper.assertTrue(ItemStack.matches(dropped.pendingRemainder(), new ItemStack(Items.BUCKET)),
+                "pending remainder on the dropped hub " + dropped.pendingRemainder());
+        helper.assertValueEqual(dropped.slots().stack(HubStorage.FUEL).getCount(), 64, "fuel on the dropped hub");
+        for (int slot = HubStorage.OUTPUT_FIRST; slot < HubStorage.SAMPLER; slot++) {
+            helper.assertTrue(ItemStack.matches(dropped.slots().stack(slot), new ItemStack(Items.DIRT, 64)),
+                    "output slot " + slot + " on the dropped hub");
+        }
+        dropped.slots().set(HubStorage.OUTPUT_FIRST, ItemStack.EMPTY);
+        helper.assertTrue(dropped.takeFuel(helper.getLevel(), () -> {
+        }) > 0, "coal did not burn once the bucket found room");
+        helper.assertTrue(dropped.pendingRemainder().isEmpty(), "pending remainder left " + dropped.pendingRemainder());
+        helper.assertTrue(
+                ItemStack.matches(dropped.slots().stack(HubStorage.OUTPUT_FIRST), new ItemStack(Items.BUCKET)),
+                "bucket in the output " + dropped.slots().stack(HubStorage.OUTPUT_FIRST));
+        helper.assertValueEqual(dropped.slots().stack(HubStorage.FUEL).getCount(), 63, "coal after one burn");
+        helper.succeed();
+    }
+
     /** A hand click with a sampler on a sampler slot that holds an unknown item neither throws nor replaces it. */
     private static void handSamplerUnknownSlot(GameTestHelper helper) {
         LabHubBlockEntity hub = unknownHub(helper);
         helper.assertTrue(hub.storage().slots().unknown(HubStorage.SAMPLER), "sampler slot not unknown");
         ServerPlayer player = player(helper, GameType.SURVIVAL);
-        // The refused sampler falls through to the empty-hand use, which opens the screen.
+        // The refused sampler stays in the hand and opens nothing: only an empty hand opens the screen.
         int[] opened = new int[1];
         LabHubBlock.openScreenWith((who, which) -> opened[0]++);
         try {
@@ -553,7 +609,7 @@ public final class LabHubGameTests {
         } finally {
             LabHubBlock.openScreenWith(null);
         }
-        helper.assertValueEqual(opened[0], 1, "screens opened");
+        helper.assertValueEqual(opened[0], 0, "screens opened");
         helper.assertValueEqual(player.getMainHandItem().getCount(), 1, "the sampler left the hand");
         helper.assertTrue(hub.storage().slots().unknown(HubStorage.SAMPLER), "the unknown item is gone");
         helper.getLevel().getServer().getPlayerList().remove(player);

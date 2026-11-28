@@ -27,8 +27,9 @@ import org.jspecify.annotations.Nullable;
 /**
  * The lab hub block. Registers no ticker. A click with a sampler puts it in the charging slot, a click with a fluid
  * container fills or empties the tank (a lava bucket too), a click with furnace fuel puts it in the fuel slot, an empty
- * hand while sneaking takes the sampler out, and any other click opens the hub's screen ({@link HubMenu}). Drops itself
- * with everything it holds, creative breaking and explosions included.
+ * hand while sneaking takes the sampler out, and an empty hand otherwise opens the hub's screen ({@link HubMenu}); any
+ * other held item is placed or used as usual. Drops itself with everything it holds, creative breaking and explosions
+ * included.
  */
 public final class LabHubBlock extends Block implements EntityBlock {
     private static final MapCodec<LabHubBlock> CODEC = simpleCodec(LabHubBlock::new);
@@ -93,6 +94,11 @@ public final class LabHubBlock extends Block implements EntityBlock {
     @Override
     protected InteractionResult useWithoutItem(BlockState state, Level level, BlockPos pos, Player player,
             BlockHitResult hit) {
+        // Only an empty hand opens the screen: a held item the hub did not take (lab tubes, any block) is placed or
+        // used as usual.
+        if (!player.getMainHandItem().isEmpty()) {
+            return InteractionResult.PASS;
+        }
         if (level.isClientSide() || !(level.getBlockEntity(pos) instanceof LabHubBlockEntity hub)) {
             return InteractionResult.SUCCESS;
         }

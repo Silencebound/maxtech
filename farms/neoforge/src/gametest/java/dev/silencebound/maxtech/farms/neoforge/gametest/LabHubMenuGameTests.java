@@ -35,6 +35,7 @@ import net.minecraft.world.inventory.ContainerInput;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.material.Fluids;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
@@ -61,8 +62,13 @@ public final class LabHubMenuGameTests {
             Map.entry("hub_menu_status_precedence", LabHubMenuGameTests::statusPrecedence),
             Map.entry("hub_menu_shift_click", LabHubMenuGameTests::shiftClick),
             Map.entry("hub_menu_output_take_only", LabHubMenuGameTests::outputTakeOnly),
+            Map.entry("hub_menu_output_refuses_swap_and_drag", LabHubMenuGameTests::outputRefusesSwapAndDrag),
+            Map.entry("hub_menu_shift_click_fuel_out", LabHubMenuGameTests::shiftClickFuelOut),
+            Map.entry("hub_menu_shift_click_lava_bucket", LabHubMenuGameTests::shiftClickLavaBucket),
             Map.entry("hub_menu_bucket_click", LabHubMenuGameTests::bucketClick),
-            Map.entry("hub_hand_opens_menu", LabHubMenuGameTests::handOpensMenu));
+            Map.entry("hub_menu_bucket_stack_click", LabHubMenuGameTests::bucketStackClick),
+            Map.entry("hub_hand_opens_menu", LabHubMenuGameTests::handOpensMenu),
+            Map.entry("hub_held_block_places", LabHubMenuGameTests::heldBlockPlaces));
 
     private LabHubMenuGameTests() {
     }
@@ -140,6 +146,13 @@ public final class LabHubMenuGameTests {
             helper.assertValueEqual(view.current(HubMenu.BURN), 400L, "burn left");
             helper.assertValueEqual(view.total(HubMenu.BURN), 1600L, "burn total");
             helper.assertValueEqual(view.get(HubMenu.SAMPLER_PERCENT), 25, "sampler charge");
+            helper.assertValueEqual(view.get(HubMenu.SAMPLER_PRESENT), 1, "sampler line shown");
+            SamplerItem.setCharge(sampler, 0);
+            hub.storage().slots().set(HubStorage.SAMPLER, sampler);
+            session.tick();
+            helper.assertValueEqual(session.clientValues().get(HubMenu.SAMPLER_PERCENT), 0, "empty sampler");
+            helper.assertValueEqual(session.clientValues().get(HubMenu.SAMPLER_PRESENT), 1,
+                    "sampler line shown for an empty sampler");
             SamplerItem.setCharge(sampler, SamplerItem.capacity());
             hub.storage().slots().set(HubStorage.SAMPLER, sampler);
             session.tick();
@@ -147,6 +160,7 @@ public final class LabHubMenuGameTests {
             hub.storage().slots().set(HubStorage.SAMPLER, ItemStack.EMPTY);
             session.tick();
             helper.assertValueEqual(session.clientValues().get(HubMenu.SAMPLER_PERCENT), 0, "no sampler");
+            helper.assertValueEqual(session.clientValues().get(HubMenu.SAMPLER_PRESENT), 0, "sampler line hidden");
         });
         helper.succeed();
     }
@@ -255,6 +269,95 @@ public final class LabHubMenuGameTests {
         helper.succeed();
     }
 
+    /**
+     * A number key (swap with a hotbar slot) and a drag (quick craft) put nothing on the output: the hotbar's and the
+     * carried coal stay where they were, the output's bones too, and nothing is duplicated or lost.
+     */
+    private static void outputRefusesSwapAndDrag(GameTestHelper helper) {
+        LabHubBlockEntity hub = hub(helper, HUB);
+        withMenu(helper, hub, (player, session) -> {
+            AbstractContainerMenu menu = session.menu();
+            int empty = HubStorage.OUTPUT_FIRST;
+            int bones = HubStorage.OUTPUT_FIRST + 1;
+            hub.storage().slots().set(bones, new ItemStack(Items.BONE, 4));
+            player.getInventory().setItem(0, new ItemStack(Items.COAL, 5));
+            menu.clicked(empty, 0, ContainerInput.SWAP, player);
+            helper.assertTrue(hub.storage().slots().stack(empty).isEmpty(), "swapped into an empty output");
+            helper.assertTrue(ItemStack.matches(player.getInventory().getItem(0), new ItemStack(Items.COAL, 5)),
+                    "hotbar after a swap onto an empty output: " + player.getInventory().getItem(0));
+            menu.clicked(bones, 0, ContainerInput.SWAP, player);
+            helper.assertTrue(ItemStack.matches(hub.storage().slots().stack(bones), new ItemStack(Items.BONE, 4)),
+                    "output after a swap: " + hub.storage().slots().stack(bones));
+            helper.assertTrue(ItemStack.matches(player.getInventory().getItem(0), new ItemStack(Items.COAL, 5)),
+                    "hotbar after a swap onto bones: " + player.getInventory().getItem(0));
+
+            player.getInventory().setItem(0, ItemStack.EMPTY);
+            menu.setCarried(new ItemStack(Items.COAL, 6));
+            int playerSlot = HubStorage.SIZE; // the first slot of the player's main inventory
+            menu.clicked(-999, AbstractContainerMenu.getQuickcraftMask(0, 0), ContainerInput.QUICK_CRAFT, player);
+            menu.clicked(empty, AbstractContainerMenu.getQuickcraftMask(1, 0), ContainerInput.QUICK_CRAFT, player);
+            menu.clicked(bones, AbstractContainerMenu.getQuickcraftMask(1, 0), ContainerInput.QUICK_CRAFT, player);
+            menu.clicked(playerSlot, AbstractContainerMenu.getQuickcraftMask(1, 0), ContainerInput.QUICK_CRAFT, player);
+            menu.clicked(-999, AbstractContainerMenu.getQuickcraftMask(2, 0), ContainerInput.QUICK_CRAFT, player);
+            helper.assertTrue(hub.storage().slots().stack(empty).isEmpty(), "dragged into an empty output");
+            helper.assertTrue(ItemStack.matches(hub.storage().slots().stack(bones), new ItemStack(Items.BONE, 4)),
+                    "output after a drag: " + hub.storage().slots().stack(bones));
+            int coal = menu.getCarried().is(Items.COAL) ? menu.getCarried().getCount() : 0;
+            coal += player.getInventory().countItem(Items.COAL);
+            helper.assertValueEqual(coal, 6, "coal after the drag (carried and inventory)");
+            helper.assertTrue(menu.getSlot(playerSlot).getItem().is(Items.COAL), "the drag skipped the player slot");
+        });
+        helper.succeed();
+    }
+
+    /** A shift-click on the fuel slot moves its whole stack to the player. */
+    private static void shiftClickFuelOut(GameTestHelper helper) {
+        LabHubBlockEntity hub = hub(helper, HUB);
+        withMenu(helper, hub, (player, session) -> {
+            hub.storage().slots().set(HubStorage.FUEL, new ItemStack(Items.COAL, 5));
+            session.shiftClick(HubMenu.FUEL, 0);
+            helper.assertTrue(hub.storage().slots().stack(HubStorage.FUEL).isEmpty(), "fuel left in the slot");
+            helper.assertValueEqual(player.getInventory().countItem(Items.COAL), 5, "coal with the player");
+        });
+        helper.succeed();
+    }
+
+    /**
+     * Pinned default: a shift-clicked lava bucket goes to the fuel slot (it is furnace fuel), unlike a hand use on the
+     * hub, which pours it into the tank.
+     */
+    private static void shiftClickLavaBucket(GameTestHelper helper) {
+        LabHubBlockEntity hub = hub(helper, HUB);
+        withMenu(helper, hub, (player, session) -> {
+            player.getInventory().setItem(9, new ItemStack(Items.LAVA_BUCKET));
+            session.shiftClickPlayerSlot(0);
+            helper.assertTrue(hub.storage().slots().stack(HubStorage.FUEL).is(Items.LAVA_BUCKET),
+                    "lava bucket in the fuel slot");
+            helper.assertValueEqual(hub.storage().tank().amount(), 0L, "tank after the shift-click");
+            helper.assertValueEqual(player.getInventory().countItem(Items.LAVA_BUCKET), 0, "lava bucket kept");
+        });
+        helper.succeed();
+    }
+
+    /**
+     * A carried stack of two buckets on the gauge fills one: the filled bucket goes into the inventory, the other stays
+     * on the cursor, and the tank loses one bucket.
+     */
+    private static void bucketStackClick(GameTestHelper helper) {
+        LabHubBlockEntity hub = hub(helper, HUB);
+        withMenu(helper, hub, (player, session) -> {
+            AbstractContainerMenu menu = session.menu();
+            hub.storage().tank().set(FluidKey.of(Fluids.WATER), 1500);
+            menu.setCarried(new ItemStack(Items.BUCKET, 2));
+            helper.assertTrue(session.pressTankButton(HubMenu.TANK), "bucket filled");
+            helper.assertTrue(ItemStack.matches(menu.getCarried(), new ItemStack(Items.BUCKET)),
+                    "carried " + menu.getCarried());
+            helper.assertValueEqual(player.getInventory().countItem(Items.WATER_BUCKET), 1, "water bucket");
+            helper.assertValueEqual(hub.storage().tank().amount(), 500L, "tank after filling one bucket");
+        });
+        helper.succeed();
+    }
+
     /** A carried bucket on the gauge takes a bucket of nutrient; the filled bucket puts it back. */
     private static void bucketClick(GameTestHelper helper) {
         LabHubBlockEntity hub = hub(helper, HUB);
@@ -301,6 +404,44 @@ public final class LabHubMenuGameTests {
             player.setItemInHand(InteractionHand.MAIN_HAND, ItemStack.EMPTY);
             use(helper, player);
             helper.assertValueEqual(opened.size(), 3, "screens opened sneaking without a sampler");
+        } finally {
+            LabHubBlock.openScreenWith(null);
+            helper.getLevel().getServer().getPlayerList().remove(player);
+        }
+        helper.succeed();
+    }
+
+    /**
+     * A held block (lab tubes, a fluid port, stone) is placed against the hub and opens nothing, with and without a
+     * sampler inside.
+     */
+    @SuppressWarnings("removal") // GameTestHelper's only way to a ServerPlayer with a connection; no replacement yet
+    private static void heldBlockPlaces(GameTestHelper helper) {
+        LabHubBlockEntity hub = hub(helper, HUB);
+        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        player.setGameMode(GameType.SURVIVAL);
+        Vec3 away = helper.absoluteVec(new Vec3(5.5, 1, 2.5)); // clear of every block placed here
+        player.setPos(away.x, away.y, away.z);
+        int[] opened = new int[1];
+        LabHubBlock.openScreenWith((who, which) -> opened[0]++);
+        try {
+            List<ItemStack> held = List.of(new ItemStack(Items.STONE, 2),
+                    new ItemStack(FarmsContent.FLUID_PORT_ITEM.get(), 2), new ItemStack(LabTubes.TUBE.item().get(), 2));
+            Direction[] faces = {Direction.EAST, Direction.SOUTH, Direction.NORTH};
+            for (int i = 0; i < held.size(); i++) {
+                if (i == 1) {
+                    hub.storage().slots().set(HubStorage.SAMPLER, new ItemStack(FarmsContent.SAMPLER.get()));
+                }
+                ItemStack stack = held.get(i);
+                player.setItemInHand(InteractionHand.MAIN_HAND, stack);
+                BlockPos pos = helper.absolutePos(HUB);
+                player.gameMode.useItemOn(player, helper.getLevel(), stack, InteractionHand.MAIN_HAND,
+                        new BlockHitResult(Vec3.atCenterOf(pos).relative(faces[i], 0.5), faces[i], pos, false));
+                helper.assertValueEqual(player.getMainHandItem().getCount(), 1, "held items after placing " + i);
+                helper.assertFalse(helper.getLevel().isEmptyBlock(pos.relative(faces[i])), "nothing placed " + i);
+            }
+            helper.assertValueEqual(opened[0], 0, "screens opened by a held block");
+            helper.assertTrue(hub.storage().sampler().is(FarmsContent.SAMPLER.get()), "sampler still inside");
         } finally {
             LabHubBlock.openScreenWith(null);
             helper.getLevel().getServer().getPlayerList().remove(player);

@@ -41,6 +41,8 @@ public final class HubMenu {
     public static final EnergyValue ENERGY;
     public static final ProgressValue BURN;
     public static final IntValue SAMPLER_PERCENT;
+    /** 1 while a sampler is in its slot, else 0: the "Sampler: N%" line shows only then. */
+    public static final IntValue SAMPLER_PRESENT;
     public static final EnumValue<HubStatus> STATUS;
     public static final MenuSlots FUEL;
     public static final MenuSlots OUTPUT;
@@ -58,6 +60,7 @@ public final class HubMenu {
             handles.energy = m.energy(LabHubBlockEntity::energy);
             handles.burn = m.progress(hub -> hub.burner().burnLeft(), hub -> hub.burner().burnTotal());
             handles.samplerPercent = m.intValue(hub -> samplerPercent(hub.storage().sampler()));
+            handles.samplerPresent = m.intValue(hub -> hub.storage().sampler().isEmpty() ? 0 : 1);
             handles.status = m.enumValue(HubStatus.class, HubStatus::of);
             m.shiftClick(handles.fuel, handles.sampler);
             m.theme(THEME);
@@ -70,8 +73,8 @@ public final class HubMenu {
                                     Layout.column(Layout.SMALL_GAP, Layout.slots(handles.fuel, 1, 1),
                                             Layout.progress(handles.burn, Layout.ProgressShape.FLAME)),
                                     Layout.slots(handles.sampler, 1, 1), Layout.slots(handles.output, 9, 3))),
-                    Layout.row(Layout.status(handles.status, 176),
-                            Layout.value(handles.samplerPercent, SAMPLER_KEY, 66)),
+                    Layout.row(Layout.status(handles.status, 172),
+                            Layout.value(handles.samplerPercent, SAMPLER_KEY, 66, handles.samplerPresent)),
                     Layout.column(Layout.SMALL_GAP, Layout.label(INVENTORY_KEY, Layout.PLAYER_INVENTORY_WIDTH),
                             Layout.playerInventory())));
         });
@@ -79,6 +82,7 @@ public final class HubMenu {
         ENERGY = handles.energy;
         BURN = handles.burn;
         SAMPLER_PERCENT = handles.samplerPercent;
+        SAMPLER_PRESENT = handles.samplerPresent;
         STATUS = handles.status;
         FUEL = handles.fuel;
         OUTPUT = handles.output;
@@ -89,8 +93,8 @@ public final class HubMenu {
     }
 
     /**
-     * The sampler's charge in whole percent, rounded down so 100 means full; 0 without a sampler (the line keeps its
-     * text, and the empty slot beside it shows there is none).
+     * The sampler's charge in whole percent, rounded down so 100 means full; 0 without a sampler (the line is hidden
+     * then, by {@link #SAMPLER_PRESENT}).
      */
     static int samplerPercent(ItemStack sampler) {
         long capacity = SamplerItem.capacity();
@@ -107,6 +111,7 @@ public final class HubMenu {
         EnergyValue energy;
         ProgressValue burn;
         IntValue samplerPercent;
+        IntValue samplerPresent;
         EnumValue<HubStatus> status;
         MenuSlots fuel;
         MenuSlots output;

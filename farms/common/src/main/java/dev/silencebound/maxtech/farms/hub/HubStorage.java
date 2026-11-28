@@ -75,12 +75,15 @@ public final class HubStorage {
 
     private final ItemSlots slots;
     private final FluidTank tank;
+    private final Listener listener;
+    private ItemStack pendingRemainder = ItemStack.EMPTY;
     private @Nullable ResourceHandler<FluidResource> fluidHandler;
     private @Nullable HubItemHandler itemHandler;
 
     /** Storage for a hub in {@code level} (null while the block entity has none); public for GameTests. */
     @VisibleForTesting
     public HubStorage(Supplier<@Nullable Level> level, Listener listener) {
+        this.listener = listener;
         slots = shape(stack -> {
             Level current = level.get();
             return current != null && burnTime(current.fuelValues(), stack) > 0;
@@ -147,9 +150,9 @@ public final class HubStorage {
         return handler;
     }
 
-    /** Whether tank, slots and the slots' overflow are all empty. */
+    /** Whether tank, slots, the slots' overflow and the pending fuel remainder are all empty. */
     public boolean isEmpty() {
-        if (tank.amount() > 0 || tank.unknown() || !slots.overflow().isEmpty()) {
+        if (tank.amount() > 0 || tank.unknown() || !slots.overflow().isEmpty() || !pendingRemainder.isEmpty()) {
             return false;
         }
         for (int slot = 0; slot < SIZE; slot++) {
@@ -179,8 +182,10 @@ public final class HubStorage {
 
     /**
      * Takes one fuel item out of the fuel slot and returns its burn time, or 0 when nothing burns. Its remainder (an
-     * empty bucket) goes into the output buffer, so pipes can take it; when it does not fit, nothing is taken: if the
-     * buffer changed under the extraction and the remainder no longer fits, the fuel is put back and nothing is lost.
+     * empty bucket) goes into the output buffer, so pipes can take it; when it does not fit, nothing is taken. If the
+     * buffer changed under the extraction and the remainder no longer fits, the fuel is put back; if that fails too,
+     * the fuel burns and the part of the remainder that did not fit becomes the {@link #pendingRemainder()}, which is
+     * saved and goes into the output before any further fuel is taken.
      */
     int takeFuel(Level current) {
         return takeFuel(current, () -> {
@@ -193,6 +198,9 @@ public final class HubStorage {
      */
     @VisibleForTesting
     public int takeFuel(Level current, Runnable afterExtract) {
+        if (!flushPendingRemainder()) {
+            return 0;
+        }
         ItemStack stack = slots.stack(FUEL);
         int time = stack.isEmpty() ? 0 : burnTime(current.fuelValues(), stack);
         if (time <= 0) {
@@ -218,10 +226,34 @@ public final class HubStorage {
                     return 0;
                 }
                 // The fuel slot filled up or changed item meanwhile too: the fuel burns after all and the part of its
-                // remainder that did not fit is lost. Only a test hook changes both inside this call.
+                // remainder that did not fit waits as the pending remainder. Only a test hook changes both inside this
+                // call.
+                pendingRemainder = left.copyWithCount(left.getCount() - inserted);
+                listener.changed();
             }
         }
         return time;
+    }
+
+    /**
+     * A fuel remainder that found no room in the output when its fuel burned (empty when none); read only. It is saved,
+     * travels on the dropped hub and counts for {@link #isEmpty()}.
+     */
+    public ItemStack pendingRemainder() {
+        return pendingRemainder;
+    }
+
+    /** Moves what it can of the pending remainder into the output; whether none is left. */
+    private boolean flushPendingRemainder() {
+        if (pendingRemainder.isEmpty()) {
+            return true;
+        }
+        int inserted = insertOutput(pendingRemainder, false);
+        if (inserted > 0) {
+            pendingRemainder = pendingRemainder.copyWithCount(pendingRemainder.getCount() - inserted);
+            listener.changed();
+        }
+        return pendingRemainder.isEmpty();
     }
 
     private void extractOutput(ItemStack stack, int amount) {
@@ -257,10 +289,14 @@ public final class HubStorage {
     void save(ValueOutput out) {
         tank.save(out.child("nutrient"));
         slots.save(out.child("items"));
+        if (!pendingRemainder.isEmpty()) {
+            out.store("pending_remainder", ItemStack.CODEC, pendingRemainder);
+        }
     }
 
     void load(ValueInput in) {
         in.child("nutrient").ifPresent(tank::load);
         in.child("items").ifPresent(slots::load);
+        pendingRemainder = in.read("pending_remainder", ItemStack.CODEC).orElse(ItemStack.EMPTY);
     }
 }
