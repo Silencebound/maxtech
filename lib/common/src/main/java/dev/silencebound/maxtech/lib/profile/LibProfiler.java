@@ -33,8 +33,8 @@ import org.jspecify.annotations.Nullable;
  * which costs each task run one static read, and the end-of-tick check here is one static read per server tick. During
  * a session each task run reads the clock twice and adds to its class's tally, found in an identity map (a tally is
  * allocated once per task class); at the end of each server tick the scheduler and network tick times Lib already keeps
- * while profiling ({@link LevelTasks#setProfiling}, {@link NetworkGraph#setProfiling}) are summed. The report is built
- * once at the end. Server thread only.
+ * while profiling ({@link LevelTasks#acquireProfiling}, {@link NetworkGraph#acquireProfiling}) are summed. The report
+ * is built once at the end. Server thread only.
  */
 public final class LibProfiler implements TaskScheduler.RunListener {
     /** Seconds a session runs when the command names none. */
@@ -45,6 +45,10 @@ public final class LibProfiler implements TaskScheduler.RunListener {
     public static final int TOP_KINDS = 10;
     /** Rows in the list of the largest networks. */
     public static final int TOP_NETWORKS = 5;
+    /** Rows in the list of the mods with the most scheduler time. */
+    public static final int TOP_OWNERS = 5;
+    /** Ticks between drops of dead networks from the per-network tally. */
+    private static final int PRUNE_EVERY = 100;
 
     private static @Nullable LibProfiler running;
     private static boolean registered;
@@ -52,8 +56,6 @@ public final class LibProfiler implements TaskScheduler.RunListener {
     private final long startTick;
     private final long endTick;
     private final Consumer<Report> done;
-    private final boolean startedTaskTiming;
-    private final boolean startedNetworkTiming;
     private final List<NetworkType> types = NetworkType.types();
     private final long[] typeNanos = new long[types.size()];
     private final long[] typeTicks = new long[types.size()];
@@ -61,6 +63,7 @@ public final class LibProfiler implements TaskScheduler.RunListener {
     private final Reference2LongOpenHashMap<Network> networkNanos = new Reference2LongOpenHashMap<>(256);
     private long schedulerNanos;
     private long runs;
+    private int samples;
 
     /** What one kind of work cost; {@code kind} tells a task class from a network type. */
     public record KindRow(Kind kind, String name, String owner, long nanos, long runs) {
@@ -125,8 +128,6 @@ public final class LibProfiler implements TaskScheduler.RunListener {
         this.startTick = startTick;
         this.endTick = endTick;
         this.done = done;
-        this.startedTaskTiming = !LevelTasks.isProfiling();
-        this.startedNetworkTiming = !NetworkGraph.isProfiling();
     }
 
     /** Registers the end-of-tick hook and the reset on server stop; once, from Lib's init. */
@@ -159,12 +160,8 @@ public final class LibProfiler implements TaskScheduler.RunListener {
         }
         long now = server.getTickCount();
         LibProfiler session = new LibProfiler(now, now + Math.max(1, ticks), done);
-        if (session.startedTaskTiming) {
-            LevelTasks.setProfiling(true);
-        }
-        if (session.startedNetworkTiming) {
-            NetworkGraph.setProfiling(true);
-        }
+        LevelTasks.acquireProfiling();
+        NetworkGraph.acquireProfiling();
         running = session;
         TaskScheduler.setRunListener(session);
         return true;
@@ -200,12 +197,8 @@ public final class LibProfiler implements TaskScheduler.RunListener {
     private void switchOff() {
         TaskScheduler.setRunListener(null);
         running = null;
-        if (startedTaskTiming) {
-            LevelTasks.setProfiling(false);
-        }
-        if (startedNetworkTiming) {
-            NetworkGraph.setProfiling(false);
-        }
+        LevelTasks.releaseProfiling();
+        NetworkGraph.releaseProfiling();
     }
 
     private static void tickEnd(MinecraftServer server) {
@@ -221,6 +214,9 @@ public final class LibProfiler implements TaskScheduler.RunListener {
 
     /** Adds this tick's scheduler and network times, which Lib keeps while profiling. */
     private void sample(MinecraftServer server) {
+        if (++samples % PRUNE_EVERY == 0) {
+            networkNanos.keySet().removeIf(network -> !network.isAlive());
+        }
         for (ServerLevel level : server.getAllLevels()) {
             long nanos = LevelTasks.lastTickNanos(level);
             if (nanos > 0) {
@@ -228,16 +224,16 @@ public final class LibProfiler implements TaskScheduler.RunListener {
             }
             NetworkManager manager = NetworkManager.get(level);
             for (int t = 0; t < types.size(); t++) {
-                Optional<NetworkGraph> graph = manager.existingGraph(types.get(t));
-                if (graph.isEmpty()) {
+                NetworkGraph graph = manager.existingGraph(types.get(t));
+                if (graph == null) {
                     continue;
                 }
-                long graphNanos = graph.get().lastTickNanos();
+                long graphNanos = graph.lastTickNanos();
                 if (graphNanos > 0) {
                     typeNanos[t] += graphNanos;
                     typeTicks[t]++;
                 }
-                List<Network> networks = graph.get().networks();
+                List<Network> networks = graph.networks();
                 for (int i = 0; i < networks.size(); i++) {
                     Network network = networks.get(i);
                     long networkTick = network.lastTickNanos();
@@ -278,11 +274,11 @@ public final class LibProfiler implements TaskScheduler.RunListener {
             NetworkManager manager = NetworkManager.get(level);
             String dimension = level.dimension().identifier().toString();
             for (NetworkType type : types) {
-                Optional<NetworkGraph> graph = manager.existingGraph(type);
-                if (graph.isEmpty()) {
+                NetworkGraph graph = manager.existingGraph(type);
+                if (graph == null) {
                     continue;
                 }
-                for (Network network : graph.get().networks()) {
+                for (Network network : graph.networks()) {
                     if (!network.isAlive() || network.size() == 0) {
                         continue;
                     }
@@ -295,7 +291,8 @@ public final class LibProfiler implements TaskScheduler.RunListener {
             }
         }
         largest.sort(Comparator.comparingInt(NetworkRow::nodes).reversed());
-        return new Report(ticks, schedulerNanos, networkTotal, runs, count, ownerRows,
+        return new Report(ticks, schedulerNanos, networkTotal, runs, count,
+                ownerRows.subList(0, Math.min(TOP_OWNERS, ownerRows.size())),
                 kinds.subList(0, Math.min(TOP_KINDS, kinds.size())),
                 largest.subList(0, Math.min(TOP_NETWORKS, largest.size())));
     }

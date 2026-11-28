@@ -7,6 +7,7 @@ import dev.silencebound.maxtech.lib.info.InfoFormat;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
 import net.minecraft.ChatFormatting;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
@@ -23,6 +24,7 @@ public final class ProfileCommand {
     public static final String STARTED_KEY = key("started");
     public static final String RUNNING_KEY = key("running");
     public static final String NOT_RUNNING_KEY = key("not_running");
+    public static final String STOPPED_KEY = key("stopped");
     public static final String HEADER_KEY = key("header");
     public static final String EMPTY_KEY = key("empty");
     public static final String OWNERS_KEY = key("owners");
@@ -33,6 +35,9 @@ public final class ProfileCommand {
     public static final String KIND_NETWORK_KEY = key("kind.network");
     public static final String NETWORKS_KEY = key("networks");
     public static final String NETWORK_ROW_KEY = key("network_row");
+
+    /** Who started the running session, to tell a stop by someone else. */
+    private static String starter = "";
 
     private ProfileCommand() {
     }
@@ -55,15 +60,25 @@ public final class ProfileCommand {
             source.sendFailure(Component.translatable(RUNNING_KEY));
             return 0;
         }
+        starter = source.getTextName();
         source.sendSuccess(() -> Component.translatable(STARTED_KEY, seconds), false);
         return 1;
     }
 
-    /** Ends the running session now; its report goes to whoever started it. Returns 1, or 0 when none ran. */
+    /**
+     * Ends the running session now; its report goes to whoever started it, and to the stopper too when that is someone
+     * else. Returns 1, or 0 when none ran.
+     */
     static int stop(CommandSourceStack source) {
-        if (LibProfiler.stop(source.getServer()).isEmpty()) {
+        String startedBy = starter;
+        Optional<LibProfiler.Report> report = LibProfiler.stop(source.getServer());
+        if (report.isEmpty()) {
             source.sendFailure(Component.translatable(NOT_RUNNING_KEY));
             return 0;
+        }
+        if (!source.getTextName().equals(startedBy)) {
+            source.sendSuccess(() -> Component.translatable(STOPPED_KEY, startedBy), false);
+            report(source, report.get());
         }
         return 1;
     }

@@ -40,7 +40,7 @@ public final class ProfilerPerfGameTests {
      * Mean level scheduler tick for 5,000 runs of a trivial task with the profiler off; before the run hook the scene
      * measured 71 to 84 µs on an M3 Pro (median 72 µs over three runs; 69 to 82 µs with the hook, 2026-11-28).
      */
-    private static final long BUDGET_NANOS = 120_000;
+    private static final long BUDGET_NANOS = 90_000;
 
     private static final RegistryHelper.Registrar<Consumer<GameTestHelper>> FUNCTIONS = Platform.get().registry()
             .registrar(MaxtechLib.MOD_ID, Registries.TEST_FUNCTION);

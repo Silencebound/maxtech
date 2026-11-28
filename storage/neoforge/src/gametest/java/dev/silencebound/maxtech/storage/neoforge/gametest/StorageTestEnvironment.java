@@ -221,8 +221,8 @@ record StorageTestEnvironment(String option, String value,
     @Override
     public Object setup(ServerLevel level) {
         if (profiling) {
-            NetworkGraph.setProfiling(true);
-            LevelTasks.setProfiling(true);
+            NetworkGraph.acquireProfiling();
+            LevelTasks.acquireProfiling();
         }
         if (option.isEmpty()) {
             return "";
@@ -257,8 +257,8 @@ record StorageTestEnvironment(String option, String value,
     @Override
     public void teardown(ServerLevel level, Object previous) {
         if (profiling) {
-            NetworkGraph.setProfiling(false);
-            LevelTasks.setProfiling(false);
+            NetworkGraph.releaseProfiling();
+            LevelTasks.releaseProfiling();
         }
         if (!option.isEmpty() && previous instanceof List<?> values) {
             List<String> paths = paths();

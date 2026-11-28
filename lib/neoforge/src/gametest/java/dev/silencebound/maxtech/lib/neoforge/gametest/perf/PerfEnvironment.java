@@ -42,15 +42,15 @@ record PerfEnvironment() implements TestEnvironmentDefinition<Unit> {
 
     @Override
     public Unit setup(ServerLevel level) {
-        NetworkGraph.setProfiling(true);
-        LevelTasks.setProfiling(true);
+        NetworkGraph.acquireProfiling();
+        LevelTasks.acquireProfiling();
         return Unit.INSTANCE;
     }
 
     @Override
     public void teardown(ServerLevel level, Unit unused) {
-        NetworkGraph.setProfiling(false);
-        LevelTasks.setProfiling(false);
+        NetworkGraph.releaseProfiling();
+        LevelTasks.releaseProfiling();
         for (int i = 0; i < CLEANUPS.size(); i++) {
             CLEANUPS.get(i).run();
         }

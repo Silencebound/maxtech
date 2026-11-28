@@ -49,6 +49,7 @@ final class LibLanguageProvider extends LanguageProvider {
                         + " early.");
         add(ProfileCommand.RUNNING_KEY, "A Lib profile is running already; /maxtech_lib profile stop ends it");
         add(ProfileCommand.NOT_RUNNING_KEY, "No Lib profile is running");
+        add(ProfileCommand.STOPPED_KEY, "Stopped the Lib profile started by %s; its report follows");
         add(ProfileCommand.HEADER_KEY,
                 "Lib profile over %s ticks: scheduler %s µs/tick, networks %s µs/tick (%s of a tick), %s task runs");
         add(ProfileCommand.EMPTY_KEY, "Nothing ran on Lib's scheduler or networks while profiling");

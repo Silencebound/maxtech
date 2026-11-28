@@ -1,7 +1,6 @@
 package dev.silencebound.maxtech.lib.api.network;
 
 import it.unimi.dsi.fastutil.objects.Reference2ObjectOpenHashMap;
-import java.util.Optional;
 import java.util.function.BooleanSupplier;
 import java.util.function.Supplier;
 import net.minecraft.core.BlockPos;
@@ -110,13 +109,13 @@ public final class NetworkManager {
     }
 
     /**
-     * The level's graph of {@code type} if a node of that type was ever added here, without making one; for diagnostics
-     * such as Lib's profiler.
+     * The level's graph of {@code type} if a node of that type was ever added here, without making one, null if none;
+     * for diagnostics such as Lib's profiler.
      */
     @ApiStatus.Internal
-    public Optional<NetworkGraph> existingGraph(NetworkType type) {
+    public @Nullable NetworkGraph existingGraph(NetworkType type) {
         int index = type.index();
-        return index < graphs.length ? Optional.ofNullable(graphs[index]) : Optional.empty();
+        return index < graphs.length ? graphs[index] : null;
     }
 
     private void tick() {

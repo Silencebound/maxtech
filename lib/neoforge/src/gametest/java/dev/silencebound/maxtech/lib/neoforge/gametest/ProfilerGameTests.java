@@ -91,50 +91,66 @@ public final class ProfilerGameTests {
         helper.startSequence().thenIdle(2).thenExecute(() -> phase[0] = helper.getLevel().getGameTime())
                 .thenIdle(PHASE_TICKS).thenExecute(() -> {
                     phase[1] = helper.getLevel().getGameTime();
-                    helper.assertTrue(LibProfiler.start(server, 1000, done -> {
-                    }), "the profiler did not start");
-                    helper.assertFalse(LibProfiler.start(server, 1000, done -> {
-                    }), "a second profile started");
+                    try {
+                        helper.assertTrue(LibProfiler.start(server, 1000, done -> {
+                        }), "the profiler did not start");
+                        helper.assertFalse(LibProfiler.start(server, 1000, done -> {
+                        }), "a second profile started");
+                    } catch (RuntimeException failure) {
+                        cleanUp(server, group);
+                        throw failure;
+                    }
                     phase[2] = helper.getLevel().getGameTime();
                 }).thenIdle(PHASE_TICKS).thenExecute(() -> {
                     phase[3] = helper.getLevel().getGameTime();
                     report[0] = LibProfiler.stop(server);
-                    group.close();
-                    helper.assertFalse(LibProfiler.isRunning(), "the profile still runs after stop");
-                    helper.assertTrue(report[0].isPresent(), "stop gave no report");
-                    LibProfiler.Report done = report[0].orElseThrow();
+                    try {
+                        helper.assertFalse(LibProfiler.isRunning(), "the profile still runs after stop");
+                        helper.assertTrue(report[0].isPresent(), "stop gave no report");
+                        LibProfiler.Report done = report[0].orElseThrow();
 
-                    // Same runs on the same ticks, relative to each phase's start.
-                    LongArrayList off = relative(everyTick.ranAt, phase[0], phase[1]);
-                    LongArrayList on = relative(everyTick.ranAt, phase[2], phase[3]);
-                    helper.assertValueEqual(on, off, "every-tick runs with the profiler on and off");
-                    helper.assertValueEqual(phase[3] - phase[2], phase[1] - phase[0], "phase lengths");
-                    helper.assertValueEqual((long) off.size(), phase[1] - phase[0], "every-tick runs per phase");
-                    for (long[] window : new long[][]{{phase[0], phase[1]}, {phase[2], phase[3]}}) {
-                        LongArrayList gaps = gaps(cadence.ranAt, window[0], window[1]);
-                        helper.assertTrue(
-                                gaps.size() >= PHASE_TICKS / CADENCE - 1
-                                        && gaps.longStream().allMatch(gap -> gap == CADENCE),
-                                "cadence runs " + cadence.ranAt + " are not every " + CADENCE + " ticks");
+                        // Same runs on the same ticks, relative to each phase's start.
+                        LongArrayList off = relative(everyTick.ranAt, phase[0], phase[1]);
+                        LongArrayList on = relative(everyTick.ranAt, phase[2], phase[3]);
+                        helper.assertValueEqual(on, off, "every-tick runs with the profiler on and off");
+                        helper.assertValueEqual(phase[3] - phase[2], phase[1] - phase[0], "phase lengths");
+                        helper.assertValueEqual((long) off.size(), phase[1] - phase[0], "every-tick runs per phase");
+                        for (long[] window : new long[][]{{phase[0], phase[1]}, {phase[2], phase[3]}}) {
+                            LongArrayList gaps = gaps(cadence.ranAt, window[0], window[1]);
+                            helper.assertTrue(
+                                    gaps.size() >= PHASE_TICKS / CADENCE - 1
+                                            && gaps.longStream().allMatch(gap -> gap == CADENCE),
+                                    "cadence runs " + cadence.ranAt + " are not every " + CADENCE + " ticks");
+                        }
+
+                        String name = "ProfilerGameTests.DemoTask";
+                        Optional<LibProfiler.KindRow> row = done.kind(name);
+                        helper.assertTrue(row.isPresent(), "the report does not list " + name + ": " + done.kinds());
+                        long runsOn = (long) on.size() + relative(cadence.ranAt, phase[2], phase[3]).size();
+                        row.ifPresent(kind -> {
+                            helper.assertValueEqual(kind.runs(), runsOn, "profiled runs of " + name);
+                            helper.assertValueEqual(kind.owner(), MaxtechLib.MOD_ID, "owner of " + name);
+                            helper.assertValueEqual(kind.kind(), LibProfiler.Kind.TASK, "kind of " + name);
+                        });
+                        helper.assertTrue(done.runs() >= runsOn, "total runs " + done.runs() + " below " + runsOn);
+                        helper.assertTrue(done.schedulerNanos() > 0, "no scheduler time was sampled");
+                        List<Component> lines = ProfileCommand.lines(done);
+                        helper.assertTrue(lines.stream().anyMatch(line -> line.getString().contains(name)),
+                                "the chat report does not name " + name);
+                        helper.assertFalse(lines.stream().anyMatch(line -> line.getString().contains("commands.")),
+                                "the chat report has a missing lang key");
+                    } finally {
+                        cleanUp(server, group);
                     }
-
-                    String name = "ProfilerGameTests.DemoTask";
-                    Optional<LibProfiler.KindRow> row = done.kind(name);
-                    helper.assertTrue(row.isPresent(), "the report does not list " + name + ": " + done.kinds());
-                    long runsOn = (long) on.size() + relative(cadence.ranAt, phase[2], phase[3]).size();
-                    row.ifPresent(kind -> {
-                        helper.assertValueEqual(kind.runs(), runsOn, "profiled runs of " + name);
-                        helper.assertValueEqual(kind.owner(), MaxtechLib.MOD_ID, "owner of " + name);
-                        helper.assertValueEqual(kind.kind(), LibProfiler.Kind.TASK, "kind of " + name);
-                    });
-                    helper.assertTrue(done.runs() >= runsOn, "total runs " + done.runs() + " below " + runsOn);
-                    helper.assertTrue(done.schedulerNanos() > 0, "no scheduler time was sampled");
-                    List<Component> lines = ProfileCommand.lines(done);
-                    helper.assertTrue(lines.stream().anyMatch(line -> line.getString().contains(name)),
-                            "the chat report does not name " + name);
-                    helper.assertFalse(lines.stream().anyMatch(line -> line.getString().contains("commands.")),
-                            "the chat report has a missing lang key");
                 }).thenSucceed();
+    }
+
+    /** Ends a session a failed assertion left running and closes the task group. */
+    private static void cleanUp(MinecraftServer server, TaskGroup group) {
+        if (LibProfiler.isRunning()) {
+            LibProfiler.stop(server);
+        }
+        group.close();
     }
 
     /** Ticks between consecutive runs in {@code [from, to)}; a cadence task gives its period each time. */

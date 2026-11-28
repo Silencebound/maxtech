@@ -12,6 +12,7 @@
   "commands.maxtech_lib.profile.owners": "Scheduler by mod:",
   "commands.maxtech_lib.profile.running": "A Lib profile is running already; /maxtech_lib profile stop ends it",
   "commands.maxtech_lib.profile.started": "Profiling Lib's scheduler and networks for %s s; the report follows. /maxtech_lib profile stop ends it early.",
+  "commands.maxtech_lib.profile.stopped": "Stopped the Lib profile started by %s; its report follows",
   "config.jade.plugin_maxtech_lib.block_info": "Block Info",
   "gui.maxtech.off": "off",
   "gui.maxtech.on": "on",
