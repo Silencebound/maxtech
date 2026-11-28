@@ -155,14 +155,16 @@ m.sideConfig(port);                        // one side tab; or Layout.faces(port
 The node (`Layout.FACES_WIDTH` wide) has a block preview on top and one block net of 18 pixel faces per kind below it:
 top above front, then left, front, right and back, bottom below. Faces are named relative to the host's facing as a
 player in front of the block sees them, with top towards north for a block facing up or down (`RelativeFace`, owner
-2026-11-28); a host without a facing gets absolute names. Pushing faces are orange, pulling faces blue, off faces
+2026-11-28). The facing is the block's vanilla `HORIZONTAL_FACING` or `FACING` property (other properties need the
+getter overload); a host without one gets absolute names. Pushing faces are orange, pulling faces blue, off faces
 untinted; a kind that allows only off is greyed. A left click asks for the next mode the kind allows, a right click
 for the previous one. The preview turns with a left drag, shows the modes of the kind last hovered, and a click on one
 of its faces works like that face's button.
 
 The server sets the asked-for mode with `TransferPort.setSettings` only when `port.allowed(kind)` holds it, so the
-port's settings listener runs as for a wrench; every other click is ignored. The side tab fits three kinds beside a
-176 wide panel on a 320 by 240 GUI; a fourth is a layout problem. Name a compat kind with the lang key
+port's settings listener runs as for a wrench; every other click, and any click on a kind no faces node shows, is
+ignored. With a side config the screen centres the panel, the tab column and the flyout together, so they fit side by
+side: three kinds beside a 176 wide panel fit a 320 by 240 GUI, and a fourth is a layout problem. Name a compat kind with the lang key
 `kind.<namespace>.<path>` (Lib ships items, fluids and energy); without one the screen shows the id's path.
 
 ## Testing menus
