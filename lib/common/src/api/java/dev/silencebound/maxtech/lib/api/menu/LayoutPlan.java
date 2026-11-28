@@ -96,6 +96,7 @@ public record LayoutPlan(int panelWidth, int panelHeight, List<Box> boxes, List<
             case Layout.Label label -> "label " + label.key();
             case Layout.Value value -> "value " + value.value().index();
             case Layout.Status status -> "status " + status.value().index();
+            case Layout.CycleButton button -> "cycle button " + button.action().index();
             case Layout.Spacer spacer -> "spacer";
             case Layout.PlayerInventory inventory -> "player inventory";
         };

@@ -1,13 +1,13 @@
 package dev.silencebound.maxtech.storage.neoforge.gametest;
 
+import dev.silencebound.maxtech.lib.neoforge.guide.GuideConfigText;
+import dev.silencebound.maxtech.lib.neoforge.guide.GuideWebExport;
+import dev.silencebound.maxtech.lib.neoforge.guide.LibGuides;
 import dev.silencebound.maxtech.lib.platform.Platform;
 import dev.silencebound.maxtech.lib.platform.RegistryHelper;
 import dev.silencebound.maxtech.storage.MaxtechStorage;
 import dev.silencebound.maxtech.storage.dev.GuideScenes;
-import dev.silencebound.maxtech.storage.guide.GuideConfigText;
 import dev.silencebound.maxtech.storage.guide.GuideContent;
-import dev.silencebound.maxtech.storage.neoforge.guide.GuideWebExport;
-import dev.silencebound.maxtech.storage.neoforge.guide.StorageGuide;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
@@ -66,10 +66,11 @@ import net.neoforged.neoforgespi.language.IModFileInfo;
 
 /**
  * Storage's pages through GuideME's own Markdown parser ({@code PageCompiler.parse}), on the server: every page parses,
- * every tag is one GuideME or Storage ({@link StorageGuide#tagCompilers()}) draws, scene elements sit only in a
- * {@code <GameScene>}, every {@code <Config>} names a Storage server config value, every scene {@code <Block>} names a
- * block with the properties written, and every {@code <ImportStructure>} file ships and holds its blocks. GuideME
- * compiles pages only on a client, where it draws an unknown tag as red text instead of failing; this catches it in CI.
+ * every tag is one GuideME or Lib ({@link LibGuides#tagCompilers()}) draws, scene elements sit only in a
+ * {@code <GameScene>}, every {@code <Config>} names a config value (Storage's server config, or another mod's with its
+ * namespace), every scene {@code <Block>} names a block with the properties written, and every
+ * {@code <ImportStructure>} file ships and holds its blocks. GuideME compiles pages only on a client, where it draws an
+ * unknown tag as red text instead of failing; this catches it in CI.
  */
 @EventBusSubscriber(modid = MaxtechStorage.MOD_ID)
 public final class GuideMeGameTests {
@@ -123,7 +124,7 @@ public final class GuideMeGameTests {
     private static void tags(GameTestHelper helper) {
         ExtensionCollection.Builder builder = ExtensionCollection.builder();
         DefaultExtensions.addAll(builder, Set.of());
-        for (TagCompiler tag : StorageGuide.tagCompilers()) {
+        for (TagCompiler tag : LibGuides.tagCompilers()) {
             builder.add(TagCompiler.EXTENSION_POINT, tag);
         }
         ExtensionCollection extensions = builder.build();
@@ -174,7 +175,7 @@ public final class GuideMeGameTests {
         helper.assertValueEqual(List.of(), problems, "tags the guide website cannot draw");
 
         String key = "network.channels.tier1";
-        String expected = GuideWebExport.configText(key, "channels").orElseThrow();
+        String expected = GuideWebExport.configText(key, MaxtechStorage.MOD_ID, "channels").orElseThrow();
         String config = "<Config key=\"" + key + "\" unit=\"channels\" />";
         // The bare "interactive" attribute: GuideME's export writes it without a value, which its reader rejects;
         // the annotation is dropped.
@@ -185,8 +186,8 @@ public final class GuideMeGameTests {
         Gson gson = new GsonBuilder().registerTypeHierarchyAdapter(MdAstNode.class, new MdAstNodeAdapter()).create();
         JsonObject root = new JsonObject();
         root.add("astRoot", gson.toJsonTree(parsed.getAstRoot(), MdAstNode.class));
-        new GuideWebExport(id -> id.equals("key.guideme.guide") ? Optional.of("G") : Optional.empty())
-                .postProcess(root);
+        new GuideWebExport(MaxtechStorage.MOD_ID,
+                id -> id.equals("key.guideme.guide") ? Optional.of("G") : Optional.empty()).postProcess(root);
         String json = root.toString();
         helper.assertFalse(
                 json.contains("\"Config\"") || json.contains("\"KeyBind\"") || json.contains("\"DiamondAnnotation\""),
@@ -232,7 +233,7 @@ public final class GuideMeGameTests {
                     }
                     sceneElement(el);
                 } else if (!tags.contains(name)) {
-                    problems.add(id + ": <" + name + "> is no tag GuideME or Storage draws");
+                    problems.add(id + ": <" + name + "> is no tag GuideME or Lib draws");
                 } else if (name.equals("Config")) {
                     config(el);
                 }
@@ -255,8 +256,8 @@ public final class GuideMeGameTests {
 
         private void config(MdxJsxElementFields el) {
             String key = el.getAttributeString("key", "");
-            if (GuideConfigText.path(key).flatMap(GuideConfigText::value).isEmpty()) {
-                problems.add(id + ": <Config> " + key + " is no Storage server config value");
+            if (GuideConfigText.value(key, id.getNamespace()).isEmpty()) {
+                problems.add(id + ": <Config> " + key + " is no config value");
             }
             attributesOnly(el, Set.of("key", "unit"));
         }

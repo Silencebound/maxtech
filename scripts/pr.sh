@@ -3,10 +3,10 @@
 #
 #   scripts/pr.sh status <pr>   one line: state, head, CI, auto-merge, mergeable, base
 #   scripts/pr.sh wait <pr>     block until CI on the current head finishes; exit 0 if green, 1 if not
-#   scripts/pr.sh merge <pr>    bring the PR up to date with its base, wait for green CI, squash-merge, then fix up any
+#   scripts/pr.sh merge <pr>    merge its base in only on a conflict, wait for green CI, squash-merge, then fix up any
 #                               PR stacked on it
 #   scripts/pr.sh merge-all <pr>...  merge several PRs in order (one background job for a whole wave)
-#   scripts/pr.sh auto <pr>     bring the PR up to date with its base and turn on GitHub auto-merge (squash), then
+#   scripts/pr.sh auto <pr>     merge its base in only on a conflict and turn on GitHub auto-merge (squash), then
 #                               return; GitHub merges it once CI and the review-gate status are green
 #
 # Merge gate (owner decision 2026-10-19): branch protection requires the build check and the review-gate status
@@ -213,6 +213,12 @@ update_branch() {
     git -C "$root" fetch -q origin "$base" "$branch" || { echo "#$pr: fetching $base and $branch failed"; return 1; }
     if git -C "$root" merge-base --is-ancestor "origin/$base" "origin/$branch"; then
         echo "#$pr: $branch contains origin/$base"
+        return 0
+    fi
+    # A branch that is only behind merges as it is (owner 2026-11-28): main is not required to be up to date, and the
+    # build on main after the squash catches a clash. Only a conflict needs the base merged in here.
+    if [ "$(gh pr view "$pr" --json mergeable --jq .mergeable)" != CONFLICTING ]; then
+        echo "#$pr: $branch is behind origin/$base but merges cleanly; not updating it"
         return 0
     fi
     echo "#$pr: $branch is behind origin/$base; merging it in"

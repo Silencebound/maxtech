@@ -9,6 +9,7 @@ import dev.silencebound.maxtech.lib.client.menu.ToolkitScreen;
 import dev.silencebound.maxtech.lib.config.ClientConfig;
 import dev.silencebound.maxtech.lib.conduit.ContentsPacking;
 import dev.silencebound.maxtech.lib.menu.LibMenus;
+import dev.silencebound.maxtech.lib.neoforge.guide.LibGuides;
 import java.util.List;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.fml.ModContainer;
@@ -31,5 +32,7 @@ public final class MaxtechLibClient {
         ContentsPacking.install(ConduitLooks::pack);
         // Before any addon's construction, where toolkit menus register.
         LibMenus.bindScreensWith(ToolkitScreen::bind);
+        // Before any addon's construction too, where mods declare their guides (Guides.register).
+        LibGuides.install();
     }
 }

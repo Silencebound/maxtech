@@ -1,6 +1,7 @@
 package dev.silencebound.maxtech.lib.api.menu;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -238,6 +239,79 @@ class MenuDefinitionTest {
         });
         assertEquals(1, other.problems().size(), other.problems().toString());
         assertTrue(other.problems().getFirst().startsWith("Layout uses a handle from another"));
+    }
+
+    /** Three choices for a cycle button. */
+    private enum Speed implements MenuChoice {
+        SLOW, NORMAL, FAST;
+
+        @Override
+        public String translationKey() {
+            return "test.speed." + name();
+        }
+    }
+
+    @Test
+    void cycleButtonIsPlacedAndSteps() {
+        AtomicReference<CycleAction<Speed>> handle = new AtomicReference<>();
+        MenuDefinition<Hub> definition = Menus.define("test", "cycle", Hub.class, m -> {
+            CycleAction<Speed> speed = m.cycle(m.enumValue(Speed.class, hub -> Speed.SLOW), (hub, next) -> {
+            });
+            handle.set(speed);
+            m.layout(Layout.cycleButton(speed, "test.speed", 48));
+        });
+        assertEquals(List.of(), definition.problems());
+        LayoutPlan.Box box = definition.plan().boxes().getFirst();
+        assertEquals(List.of(48, Layout.BUTTON_HEIGHT), List.of(box.width(), box.height()));
+        CycleAction<Speed> speed = handle.get();
+        assertEquals(List.of(Speed.SLOW, Speed.NORMAL, Speed.FAST), speed.choices());
+        assertEquals(Speed.NORMAL, speed.next(Speed.SLOW));
+        assertEquals(Speed.SLOW, speed.next(Speed.FAST));
+        assertEquals(Speed.FAST, speed.previous(Speed.SLOW));
+        assertEquals(Speed.NORMAL, speed.previous(Speed.FAST));
+        assertEquals(1, definition.cycles().size());
+        assertEquals("test.speed.SLOW.hint", Speed.SLOW.hintKey());
+    }
+
+    @Test
+    void cycleSetterGetsOnlyConstants() {
+        AtomicReference<Speed> set = new AtomicReference<>();
+        MenuDefinition<Object> definition = Menus.define("test", "cycle_set", Object.class, m -> {
+            CycleAction<Speed> speed = m.cycle(m.enumValue(Speed.class, hub -> Speed.SLOW),
+                    (hub, next) -> set.set(next));
+            m.layout(Layout.cycleButton(speed, "test.speed", 48));
+        });
+        MenuDefinition.Cycle<Object, ?> cycle = definition.cycles().getFirst();
+        Object host = new Object();
+        assertTrue(cycle.apply(host, 2));
+        assertEquals(Speed.FAST, set.get());
+        assertFalse(cycle.apply(host, 3));
+        assertFalse(cycle.apply(host, -1));
+        assertEquals(Speed.FAST, set.get());
+    }
+
+    @Test
+    void cycleMisuseIsCaught() {
+        AtomicReference<CycleAction<Speed>> foreign = new AtomicReference<>();
+        AtomicReference<EnumValue<Speed>> foreignValue = new AtomicReference<>();
+        Menus.define("test", "cycle_owner", Hub.class, m -> {
+            EnumValue<Speed> value = m.enumValue(Speed.class, hub -> Speed.SLOW);
+            foreignValue.set(value);
+            CycleAction<Speed> speed = m.cycle(value, (hub, next) -> {
+            });
+            foreign.set(speed);
+            m.layout(Layout.cycleButton(speed, "test.speed", 48));
+        });
+        MenuDefinition<Hub> other = Menus.define("test", "cycle_user", Hub.class, m -> {
+            m.layout(Layout.cycleButton(foreign.get(), "test.speed", 48));
+        });
+        assertEquals(1, other.problems().size(), other.problems().toString());
+        assertTrue(other.problems().getFirst().startsWith("Layout uses a handle from another"));
+        assertThrows(IllegalArgumentException.class, () -> Menus.define("test", "cycle_foreign", Hub.class, m -> {
+            m.cycle(foreignValue.get(), (hub, next) -> {
+            });
+        }));
+        assertThrows(IllegalArgumentException.class, () -> Layout.cycleButton(foreign.get(), "test.speed", 0));
     }
 
     @Test

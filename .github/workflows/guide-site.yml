@@ -1,7 +1,8 @@
 name: Guide site
 
 # Builds the guide website and publishes it on GitHub Pages (https://silencebound.github.io/maxtech/).
-# How the site is built: the guide website section of storage/neoforge/build.gradle.kts. Never runs for pull requests.
+# How the site is built: the guides section of build-logic/src/main/kotlin/maxtech.neoforge.gradle.kts. Never runs for
+# pull requests.
 # Runs on GitHub-hosted Ubuntu, which ships xvfb and Mesa; the job installs them if an image lacks them.
 on:
   push:

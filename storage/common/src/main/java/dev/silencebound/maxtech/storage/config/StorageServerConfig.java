@@ -1303,8 +1303,7 @@ public final class StorageServerConfig {
     }
 
     /**
-     * The registered server config file, empty before {@link #register()}. The guide's {@code <Config>} tag reads its
-     * paths and values through it ({@code guide.GuideConfigText}). Any thread.
+     * The registered server config file, empty before {@link #register()}. Any thread.
      */
     public static Optional<ConfigFile> configFile() {
         return Optional.ofNullable(file);
