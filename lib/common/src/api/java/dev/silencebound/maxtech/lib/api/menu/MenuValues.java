@@ -133,7 +133,7 @@ public final class MenuValues<H> {
             if (constants.length == 0) {
                 throw new IllegalArgumentException("Enum without constants: " + type.getName());
             }
-            EnumValue<E> handle = new EnumValue<>(next());
+            EnumValue<E> handle = new EnumValue<>(next(), type);
             ToIntFunction<H> ordinal = host -> getter.apply(host).ordinal();
             values.add(reader -> reader.enumValue(handle, constants, ordinal));
             return handle;

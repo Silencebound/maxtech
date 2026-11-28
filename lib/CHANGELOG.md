@@ -35,6 +35,14 @@ Api changes are marked **Api**.
   facade tint extension was registered with no blocks, which NeoForge refuses.
 
 ### Added
+- **Api** Declared toolkit menus (`lib.api.menu`, experimental, ADR-0016): `Menus.define` builds a `MenuDefinition`
+  from a host's slot groups, tanks of any kind (fluid tanks take bucket clicks; unknown contents show as "Unknown"
+  with their amount), energy, progress and other values, a shift-click order, an `AccentTheme` and a `Layout` of rows
+  and columns in GUI pixels, with `Layout.value` for a live number in a text; `register` adds its menu type, `open`
+  opens it for a player. The layout is checked when defined, or when registered for a definition built before Lib
+  (panel and title tab fit 320x240, every slot group placed once and sharing no slot, status lines over `MenuStatus`
+  enums; dev runs throw), gaps are never negative, and text never moves slots. `ItemSlots.Builder.size()` and
+  `copy()` are new.
 - **Api** Transfer port types (`lib.api.transfer` and `lib.neoforge.api.transfer`, experimental, ADR-0018): face
   modes (off, push, pull) packed per resource kind, allow and deny filters of keys and tags per port and kind, port
   settings saved by kind id (settings of a removed mod's kind are kept), the `TransferPort` handle and its builder
