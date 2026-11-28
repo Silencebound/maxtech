@@ -27,6 +27,7 @@ final class FarmsLanguageProvider extends LanguageProvider {
         add("item.maxtech_farms.sampler", "Sampler");
         add("item.maxtech_farms.specimen", "Specimen");
         add("item.maxtech_farms.specimen.named", "%s Specimen");
+        add("itemGroup.maxtech_farms", "MaxTech Farms");
         add("maxtech_farms.configuration.hub", "Lab hub");
         add("maxtech_farms.configuration.hub.energyCapacity", "Energy capacity (MU)");
         add("maxtech_farms.configuration.hub.energyCapacity.tooltip", "MU the lab hub stores.");

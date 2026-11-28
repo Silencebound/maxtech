@@ -9,13 +9,11 @@ import dev.silencebound.maxtech.lib.api.inventory.FluidTank;
 import dev.silencebound.maxtech.lib.api.inventory.ItemSlots;
 import dev.silencebound.maxtech.lib.neoforge.api.inventory.Handlers;
 import net.minecraft.core.Direction;
-import net.minecraft.world.item.CreativeModeTabs;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.capabilities.BlockCapability;
 import net.neoforged.neoforge.capabilities.Capabilities;
 import net.neoforged.neoforge.capabilities.RegisterCapabilitiesEvent;
-import net.neoforged.neoforge.event.BuildCreativeModeTabContentsEvent;
 import net.neoforged.neoforge.transfer.ResourceHandler;
 import net.neoforged.neoforge.transfer.fluid.FluidResource;
 import net.neoforged.neoforge.transfer.item.ItemResource;
@@ -61,13 +59,5 @@ final class LabHubSetup {
         event.registerBlockEntity(ENDPOINT, FarmsContent.LAB_HUB_ENTITY.get(), (hub, side) -> hub.energy());
         event.registerBlockEntity(Capabilities.Fluid.BLOCK, FarmsContent.FLUID_PORT_ENTITY.get(),
                 (port, side) -> port.fluidHandler());
-    }
-
-    @SubscribeEvent
-    static void buildCreativeTabs(BuildCreativeModeTabContentsEvent event) {
-        if (event.getTabKey().equals(CreativeModeTabs.FUNCTIONAL_BLOCKS)) {
-            event.accept(FarmsContent.LAB_HUB_ITEM.get());
-            event.accept(FarmsContent.FLUID_PORT_ITEM.get());
-        }
     }
 }

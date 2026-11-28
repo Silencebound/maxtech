@@ -14,6 +14,7 @@
   "item.maxtech_farms.sampler": "Sampler",
   "item.maxtech_farms.specimen": "Specimen",
   "item.maxtech_farms.specimen.named": "%s Specimen",
+  "itemGroup.maxtech_farms": "MaxTech Farms",
   "maxtech_farms.configuration.hub": "Lab hub",
   "maxtech_farms.configuration.hub.energyCapacity": "Energy capacity (MU)",
   "maxtech_farms.configuration.hub.energyCapacity.tooltip": "MU the lab hub stores.",

@@ -33,3 +33,5 @@ Api changes are marked **Api**.
   level (in quarters) flowing from the hub along the tubes.
 - Lab fluid port (`maxtech_farms:fluid_port`): pipes and pumps push fluid into the lab hub's tank through it; it never
   pulls or gives fluid back.
+- Creative tab "MaxTech Farms" with the lab hub, fluid port, lab tube and sampler; they are no longer listed in the
+  vanilla tabs.

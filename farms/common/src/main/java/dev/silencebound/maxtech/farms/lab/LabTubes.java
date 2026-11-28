@@ -11,7 +11,6 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.world.item.CreativeModeTabs;
 import net.minecraft.world.level.Level;
 
 /**
@@ -32,7 +31,7 @@ public final class LabTubes {
                     item -> new ConduitType(NETWORK_ID, "lab", 0xE4F4F4, 0.375F, item))
             .look(ConduitLook.shell(MaxtechFarms.id("block/lab_tube_glass")).withBorderColour(BORDER_COLOUR)
                     .withBorder(1.0F))
-            .attachesToBlocks().creativeTab(CreativeModeTabs.FUNCTIONAL_BLOCKS).register();
+            .attachesToBlocks().register();
 
     private LabTubes() {
     }
