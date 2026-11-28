@@ -1,9 +1,8 @@
-package dev.silencebound.maxtech.lib.shim.transfer.bridge;
+package dev.silencebound.maxtech.lib.shim.transfer.bridge.legacy;
 
 import com.google.common.primitives.Ints;
 import dev.silencebound.maxtech.lib.neoforge.api.transfer.KindHandler;
 import dev.silencebound.maxtech.lib.shim.transfer.ResourceHandler;
-import dev.silencebound.maxtech.lib.shim.transfer.bridge.legacy.LegacyDirect;
 import dev.silencebound.maxtech.lib.shim.transfer.resource.Resource;
 import dev.silencebound.maxtech.lib.shim.transfer.transaction.TransactionContext;
 import java.util.Optional;
@@ -15,7 +14,9 @@ import org.jspecify.annotations.Nullable;
  * {@link KindHandler} that is not {@linkplain KindHandler#transactional() transactional}, so Lib's ports move through
  * it foreign side last ({@code KindMoves}): simulate it, move Lib's side in a nested transaction, carry it out at once
  * and keep only what it really moved. Its moves skip the deferred {@code LegacyLedger}, whose commit could no longer
- * match what the other side already counted. Reads go to the bridge's own wrapper. Server thread only.
+ * match what the other side already counted. Reads go to the bridge's own wrapper. The foreign side's moves cannot be
+ * undone: a root transaction aborted after one loses or duplicates what moved, so callers commit at once (as
+ * {@code TankChannel} does). Server thread only.
  */
 public final class ForeignKinds {
     private ForeignKinds() {
@@ -25,13 +26,10 @@ public final class ForeignKinds {
      * {@return a non-transactional handler over {@code handler} when it is a {@link LegacyDirect} that wants direct
      * moves, else {@code wrapped}}
      */
-    @SuppressWarnings("unchecked") // a ResourceHandler<R> that is a LegacyDirect is one of the same resource type
     public static <K, R extends Resource> KindHandler<K> wrap(ResourceHandler<R> handler, KindHandler<K> wrapped,
             Function<K, R> toResource) {
-        if (handler instanceof LegacyDirect<?> direct && direct.direct()) {
-            return new Foreign<>((LegacyDirect<R>) direct, wrapped, toResource);
-        }
-        return wrapped;
+        LegacyDirect<R> direct = LegacyDirect.of(handler);
+        return direct == null ? wrapped : new Foreign<>(direct, wrapped, toResource);
     }
 
     private static final class Foreign<K, R> implements KindHandler<K> {

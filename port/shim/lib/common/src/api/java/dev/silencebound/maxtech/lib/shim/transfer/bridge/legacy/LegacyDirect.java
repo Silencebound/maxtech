@@ -1,5 +1,9 @@
 package dev.silencebound.maxtech.lib.shim.transfer.bridge.legacy;
 
+import dev.silencebound.maxtech.lib.shim.transfer.ResourceHandler;
+import dev.silencebound.maxtech.lib.shim.transfer.resource.Resource;
+import org.jspecify.annotations.Nullable;
+
 /**
  * Moves on a 1.21.1 handler that happen at once, without a transaction and without the {@link LegacyLedger}: the
  * "foreign side" of Lib's foreign-last moves ({@code KindMoves}, {@link LegacyForeignLast}). The caller simulates,
@@ -14,6 +18,12 @@ package dev.silencebound.maxtech.lib.shim.transfer.bridge.legacy;
  * @param <R> the resource type
  */
 public interface LegacyDirect<R> {
+    /** {@return {@code handler} as direct moves when it is a 1.21.1 wrapper that wants them, else null} */
+    @SuppressWarnings("unchecked") // a ResourceHandler<R> that is a LegacyDirect is one over the same resource type
+    static <R extends Resource> @Nullable LegacyDirect<R> of(@Nullable ResourceHandler<R> handler) {
+        return handler instanceof LegacyDirect<?> direct && direct.direct() ? (LegacyDirect<R>) direct : null;
+    }
+
     /** {@return whether moves on this handler should go through this interface rather than the ledger} */
     boolean direct();
 

@@ -28,7 +28,9 @@ import org.slf4j.Logger;
  * transaction state lives in a {@link LegacyLedger} shared by all wrappers over the same inventory: insertion is
  * simulated (combined per slot) and applied on the root commit; extraction is real and restored with
  * {@code setStackInSlot} on rollback for an {@link IItemHandlerModifiable}, else simulated and applied on commit too.
- * Items the handler no longer accepts on commit go into its other slots, then drop at the block.
+ * Items the handler no longer accepts on commit go into its other slots, then drop at the block. That ledger serves
+ * raw callers of the capability only: Lib's own ports move through {@link LegacyDirect} foreign side last
+ * ({@code ItemChannel}, {@code ForeignKinds}), so nothing they move is promised first or dropped.
  *
  * <p>Wrappers over one inventory share a ledger: an {@link InvWrapper} or {@link SidedInvWrapper} (NeoForge makes a
  * new one per query) by its real container and container slot, a double chest's {@link CompoundContainer} by each
@@ -168,24 +170,34 @@ public final class LegacyItemHandler implements ResourceHandler<ItemResource>, L
     }
 
     /**
-     * {@inheritDoc} Only for a handler that is not an {@link IItemHandlerModifiable}: its extraction cannot be put back
-     * on rollback, so the ledger would defer it. A modifiable handler's extraction is real and restorable already.
+     * {@inheritDoc} Always, for every item handler (owner, 2026-11-28): Lib's own moves through it run foreign side
+     * last and never promise an insert or extract that a commit applies later.
      */
     @Override
     public boolean direct() {
-        return !(handler instanceof IItemHandlerModifiable);
+        return true;
     }
 
+    /** Same slot order as {@link #insertNow}: slots holding the item first, then the others. */
     @Override
     public int simulateInsertNow(ItemResource resource, int amount) {
         if (refuses(resource, amount)) {
             return 0;
         }
         int accepted = 0;
-        for (int slot = 0, n = handler.getSlots(); slot < n && accepted < amount; slot++) {
-            accepted += LegacyMath.clamp(real.simulateInsert(slot, resource, amount - accepted), amount - accepted);
+        for (int pass = 0; pass < 2; pass++) {
+            for (int slot = 0, n = handler.getSlots(); slot < n && accepted < amount; slot++) {
+                if (holds(slot, resource) == (pass == 0)) {
+                    accepted += LegacyMath.clamp(real.simulateInsert(slot, resource, amount - accepted),
+                            amount - accepted);
+                }
+            }
         }
         return accepted;
+    }
+
+    private boolean holds(int slot, ItemResource resource) {
+        return resource.matches(handler.getStackInSlot(slot));
     }
 
     @Override
@@ -200,9 +212,21 @@ public final class LegacyItemHandler implements ResourceHandler<ItemResource>, L
         return given;
     }
 
+    /** Stacks onto slots holding the item first, then fills the others, like {@code insertStacking}. */
     @Override
     public int insertNow(ItemResource resource, int amount) {
-        return refuses(resource, amount) ? 0 : LegacyMath.clamp(real.insertAnywhere(resource, amount), amount);
+        if (refuses(resource, amount)) {
+            return 0;
+        }
+        int accepted = 0;
+        for (int pass = 0; pass < 2; pass++) {
+            for (int slot = 0, n = handler.getSlots(); slot < n && accepted < amount; slot++) {
+                if (holds(slot, resource) == (pass == 0)) {
+                    accepted += LegacyMath.clamp(real.insert(slot, resource, amount - accepted), amount - accepted);
+                }
+            }
+        }
+        return accepted;
     }
 
     @Override
