@@ -9,15 +9,17 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import net.minecraft.core.Direction;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.state.BlockState;
 import org.jetbrains.annotations.ApiStatus;
 
 /**
  * Handle of a host's {@link TransferPort} in a menu, declared with {@link MenuDefinition.Builder#port}: per declared
  * kind the packed face modes ({@link PortFaces}, two bits per face) and the modes the kind allows, plus the host's
- * facing for the side config screen. {@link Layout#faces} and {@link MenuDefinition.Builder#sideConfig} show it; a
- * click on a face asks the server for one mode of that face and kind, which the server sets on the port only when the
- * port allows that mode for the kind (see {@link MenuDefinition.Builder#port}). Every part travels as a plain int
- * value, so reads never allocate apart from {@link #allowed}. Immutable; any thread.
+ * facing and block state for the side config screen. {@link Layout#faces} and {@link MenuDefinition.Builder#sideConfig}
+ * show it; a click on a face asks the server for one mode of that face and kind, which the server sets on the port only
+ * when the port allows that mode for the kind (see {@link MenuDefinition.Builder#port}). Every part travels as a plain
+ * int value, so reads never allocate apart from {@link #allowed}. Immutable; any thread.
  */
 @ApiStatus.Experimental
 public final class PortValue {
@@ -25,17 +27,22 @@ public final class PortValue {
     public static final int MAX_KINDS = 16;
     /** The facing value of a host without a facing. */
     static final int NO_FACING = -1;
+    /** The block value of a host that is not a block entity. */
+    static final int NO_BLOCK = -1;
 
     private final int index;
     private final List<ResourceKind<?>> kinds;
     private final IntValue facing;
+    private final IntValue block;
     private final IntValue[] faces;
     private final IntValue[] allowed;
 
-    PortValue(int index, List<ResourceKind<?>> kinds, IntValue facing, IntValue[] faces, IntValue[] allowed) {
+    PortValue(int index, List<ResourceKind<?>> kinds, IntValue facing, IntValue block, IntValue[] faces,
+            IntValue[] allowed) {
         this.index = index;
         this.kinds = List.copyOf(kinds);
         this.facing = facing;
+        this.block = block;
         this.faces = faces.clone();
         this.allowed = allowed.clone();
     }
@@ -54,6 +61,12 @@ public final class PortValue {
     public Optional<Direction> facing(MenuValueView values) {
         int id = values.get(facing);
         return id < 0 || id > 5 ? Optional.empty() : Optional.of(Direction.from3DDataValue(id));
+    }
+
+    /** The host's block state in {@code values}, for the preview; empty for a host that is not a block entity. */
+    public Optional<BlockState> blockState(MenuValueView values) {
+        int id = values.get(block);
+        return id == NO_BLOCK ? Optional.empty() : Optional.of(Block.stateById(id));
     }
 
     /** The packed face modes of {@code kind} ({@link PortFaces}); {@link PortFaces#NONE} for a kind not shown. */

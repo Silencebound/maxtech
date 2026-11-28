@@ -56,6 +56,8 @@ public sealed interface Layout {
     int FACES_WIDTH = 4 * FACE;
     /** The height of one kind's block net in a {@link #faces} node: three faces. */
     int FACES_NET_HEIGHT = 3 * FACE;
+    /** The height of the rotatable block preview at the top of a {@link #faces} node. */
+    int FACES_PREVIEW = 44;
 
     /** Children left to right, {@link #GAP} apart. */
     static Layout row(Layout... children) {
@@ -139,13 +141,15 @@ public sealed interface Layout {
     }
 
     /**
-     * The side config of {@code port}: for each of {@code kinds} (every kind of {@code port} when none are given) a
-     * block net of {@link #FACE} pixel face buttons (top above front, then left, front, right and back, bottom below),
-     * named relative to the host's facing ({@link dev.silencebound.maxtech.lib.api.transfer.RelativeFace}), or
-     * absolutely for a host without one. A face shows its mode (push orange, pull blue, off untinted); a left click
-     * asks the server for the next allowed mode, a right click for the previous one. The node is {@link #FACES_WIDTH}
-     * wide and one net per kind high, {@link #SMALL_GAP} apart. Every kind must be one of {@code port}'s (the
-     * definition reports a problem otherwise).
+     * The side config of {@code port}: a rotatable 3D preview of the host's block on top, then for each of
+     * {@code kinds} (every kind of {@code port} when none are given) a block net of {@link #FACE} pixel face buttons
+     * (top above front, then left, front, right and back, bottom below) named relative to the host's facing
+     * ({@link dev.silencebound.maxtech.lib.api.transfer.RelativeFace}), or absolutely for a host without one. A face
+     * shows its mode (push orange, pull blue, off untinted); a left click asks the server for the next allowed mode, a
+     * right click for the previous one. The preview turns with a drag, tints its faces in the modes of the kind last
+     * hovered (the first at the start), and a click on one of its faces works like that face's button. The node is
+     * {@link #FACES_WIDTH} wide and {@link #FACES_PREVIEW} plus one net and {@link #SMALL_GAP} per kind high. Every
+     * kind must be one of {@code port}'s (the definition reports a problem otherwise).
      */
     @ApiStatus.Experimental
     static Layout faces(PortValue port, ResourceKind<?>... kinds) {
@@ -440,12 +444,12 @@ public sealed interface Layout {
 
         @Override
         public int height() {
-            return kinds.size() * (SMALL_GAP + FACES_NET_HEIGHT) - SMALL_GAP;
+            return FACES_PREVIEW + kinds.size() * (SMALL_GAP + FACES_NET_HEIGHT);
         }
 
         /** The top of the net of the kind at {@code index}, relative to the node. */
         public int netY(int index) {
-            return index * (FACES_NET_HEIGHT + SMALL_GAP);
+            return FACES_PREVIEW + SMALL_GAP + index * (FACES_NET_HEIGHT + SMALL_GAP);
         }
     }
 

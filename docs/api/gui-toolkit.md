@@ -37,7 +37,7 @@ below, and the `toolkit_api_*` GameTests open it through the api only. In a dev 
   the setter on the server thread; the setter saves the host and wakes what the value controls.
 - **Side config**: `PortValue port = m.port(host -> host.port, ResourceKinds.ITEM, ResourceKinds.FLUID)` syncs the
   host's `TransferPort` for those kinds (face modes, allowed modes), its facing (the block's `HORIZONTAL_FACING` or
-  `FACING`, or `m.port(getter, host -> facing, kinds...)`). `m.sideConfig(port)` adds the standard
+  `FACING`, or `m.port(getter, host -> facing, kinds...)`) and its block state. `m.sideConfig(port)` adds the standard
   side tab; `Layout.faces(port, kinds...)` puts the same node in the panel instead. See "Side config" below.
 - **Open and close rules**: by default a block entity host keeps the menu open while the block stands and the player is
   in reach; `m.validWhile((host, player) -> ...)` replaces that.
@@ -152,11 +152,13 @@ PortValue port = m.port(host -> host.port, ResourceKinds.ITEM, ResourceKinds.FLU
 m.sideConfig(port);                        // one side tab; or Layout.faces(port) inside the layout
 ```
 
-The node (`Layout.FACES_WIDTH` wide) has one block net of 18 pixel faces per kind: top above front, then left, front, right and back, bottom below. Faces are named relative to the host's facing as a
+The node (`Layout.FACES_WIDTH` wide) has a block preview on top and one block net of 18 pixel faces per kind below it:
+top above front, then left, front, right and back, bottom below. Faces are named relative to the host's facing as a
 player in front of the block sees them, with top towards north for a block facing up or down (`RelativeFace`, owner
 2026-11-28); a host without a facing gets absolute names. Pushing faces are orange, pulling faces blue, off faces
 untinted; a kind that allows only off is greyed. A left click asks for the next mode the kind allows, a right click
-for the previous one.
+for the previous one. The preview turns with a left drag, shows the modes of the kind last hovered, and a click on one
+of its faces works like that face's button.
 
 The server sets the asked-for mode with `TransferPort.setSettings` only when `port.allowed(kind)` holds it, so the
 port's settings listener runs as for a wrench; every other click is ignored. The side tab fits three kinds beside a
