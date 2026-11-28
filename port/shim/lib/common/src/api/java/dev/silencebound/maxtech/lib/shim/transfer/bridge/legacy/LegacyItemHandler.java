@@ -37,7 +37,7 @@ import org.slf4j.Logger;
  *
  * <p>Server or client thread only, like the wrapped handler.
  */
-public final class LegacyItemHandler implements ResourceHandler<ItemResource> {
+public final class LegacyItemHandler implements ResourceHandler<ItemResource>, LegacyDirect<ItemResource> {
     private static final Logger LOGGER = LogUtils.getLogger();
     static final LegacyLedger.Registry<ItemResource> LEDGERS = new LegacyLedger.Registry<>();
     private static final @Nullable VarHandle SIDED_INV = field(SidedInvWrapper.class, "inv", WorldlyContainer.class);
@@ -165,6 +165,62 @@ public final class LegacyItemHandler implements ResourceHandler<ItemResource> {
     public int extract(int index, ItemResource resource, int amount, TransactionContext transaction) {
         TransferPreconditions.checkNonEmptyNonNegative(resource, amount);
         return ledger(index).extract(real, index, key(index), resource, amount, transaction);
+    }
+
+    /**
+     * {@inheritDoc} Only for a handler that is not an {@link IItemHandlerModifiable}: its extraction cannot be put back
+     * on rollback, so the ledger would defer it. A modifiable handler's extraction is real and restorable already.
+     */
+    @Override
+    public boolean direct() {
+        return !(handler instanceof IItemHandlerModifiable);
+    }
+
+    @Override
+    public int simulateInsertNow(ItemResource resource, int amount) {
+        if (refuses(resource, amount)) {
+            return 0;
+        }
+        int accepted = 0;
+        for (int slot = 0, n = handler.getSlots(); slot < n && accepted < amount; slot++) {
+            accepted += LegacyMath.clamp(real.simulateInsert(slot, resource, amount - accepted), amount - accepted);
+        }
+        return accepted;
+    }
+
+    @Override
+    public int simulateExtractNow(ItemResource resource, int amount) {
+        if (refuses(resource, amount)) {
+            return 0;
+        }
+        int given = 0;
+        for (int slot = 0, n = handler.getSlots(); slot < n && given < amount; slot++) {
+            given += LegacyMath.clamp(real.simulateExtract(slot, resource, amount - given), amount - given);
+        }
+        return given;
+    }
+
+    @Override
+    public int insertNow(ItemResource resource, int amount) {
+        return refuses(resource, amount) ? 0 : LegacyMath.clamp(real.insertAnywhere(resource, amount), amount);
+    }
+
+    @Override
+    public int extractNow(ItemResource resource, int amount) {
+        if (refuses(resource, amount)) {
+            return 0;
+        }
+        int taken = 0;
+        for (int slot = 0, n = handler.getSlots(); slot < n && taken < amount; slot++) {
+            taken += LegacyMath.clamp(real.extract(slot, resource, amount - taken), amount - taken);
+        }
+        return taken;
+    }
+
+    /** Direct moves wait while a ledger move on this inventory is pending in the current transaction. */
+    private boolean refuses(ItemResource resource, int amount) {
+        return amount <= 0 || resource.isEmpty() || ledger.hasPending()
+                || (secondLedger != null && secondLedger.hasPending());
     }
 
     /** Real, non-transactional moves on the handler, called by the ledger. */

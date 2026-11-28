@@ -4,7 +4,8 @@
  */
 /*
  * Modified for MaxTech Lib's 1.21.1 build (port/NOTICE-transfer.md): vendored from NeoForge 26.1.2, package
- * relocated to dev.silencebound.maxtech.lib.shim.transfer, adapted to Minecraft 1.21.1.
+ * relocated to dev.silencebound.maxtech.lib.shim.transfer, adapted to Minecraft 1.21.1; move() runs foreign side
+ * last for 1.21.1 storages.
  */
 
 package dev.silencebound.maxtech.lib.shim.transfer.energy;
@@ -16,6 +17,7 @@ import net.minecraft.world.Container;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.level.redstone.Redstone;
 import dev.silencebound.maxtech.lib.shim.transfer.TransferPreconditions;
+import dev.silencebound.maxtech.lib.shim.transfer.bridge.legacy.LegacyForeignLast;
 import dev.silencebound.maxtech.lib.shim.transfer.transaction.Transaction;
 import dev.silencebound.maxtech.lib.shim.transfer.transaction.TransactionContext;
 import org.jspecify.annotations.Nullable;
@@ -61,6 +63,10 @@ public final class EnergyHandlerUtil {
 
     /**
      * Moves energy between two handlers, and return the amount that was successfully transferred.
+     * <p>
+     * MaxTech 1.21.1: when exactly one side is a 1.21.1 storage without transactions ({@code LegacyDirectEnergy}) and
+     * {@code transaction} is a root or null, the move runs foreign side last ({@code LegacyForeignLast}): that side
+     * changes at once and cannot roll back, so the caller must commit the root right after.
      *
      * @param from        The source handler. Will no-op if null.
      * @param to          The target handler. Will no-op if null.
@@ -76,6 +82,8 @@ public final class EnergyHandlerUtil {
             @Nullable TransactionContext transaction) {
         TransferPreconditions.checkNonNegative(amount);
         if (from == null || to == null || amount == 0) return 0;
+        int foreignLast = LegacyForeignLast.energy(from, to, amount, transaction);
+        if (foreignLast != LegacyForeignLast.NOT_FOREIGN) return foreignLast;
 
         try (Transaction subTransaction = Transaction.open(transaction)) {
             int maxExtracted;

@@ -9,4 +9,9 @@ final class LegacyMath {
     static int add(int a, int b) {
         return (int) Math.min(Integer.MAX_VALUE, (long) a + b);
     }
+
+    /** {@return {@code reported} clamped to {@code 0..amount}: a handler never counts as moving more than asked} */
+    static int clamp(int reported, int amount) {
+        return Math.max(0, Math.min(amount, reported));
+    }
 }

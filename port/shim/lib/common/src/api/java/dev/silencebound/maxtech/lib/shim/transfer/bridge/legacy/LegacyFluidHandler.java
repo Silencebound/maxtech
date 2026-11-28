@@ -25,7 +25,7 @@ import org.slf4j.Logger;
  *
  * <p>Server or client thread only, like the wrapped handler.
  */
-public final class LegacyFluidHandler implements ResourceHandler<FluidResource> {
+public final class LegacyFluidHandler implements ResourceHandler<FluidResource>, LegacyDirect<FluidResource> {
     private static final Logger LOGGER = LogUtils.getLogger();
     static final LegacyLedger.Registry<FluidResource> LEDGERS = new LegacyLedger.Registry<>();
     private static final int KEY = 0;
@@ -140,6 +140,36 @@ public final class LegacyFluidHandler implements ResourceHandler<FluidResource> 
     public int extract(FluidResource resource, int amount, TransactionContext transaction) {
         TransferPreconditions.checkNonEmptyNonNegative(resource, amount);
         return ledger.extract(real, KEY, KEY, resource, amount, transaction);
+    }
+
+    @Override
+    public boolean direct() {
+        return true;
+    }
+
+    @Override
+    public int simulateInsertNow(FluidResource resource, int amount) {
+        return refuses(resource, amount) ? 0 : LegacyMath.clamp(real.simulateInsert(KEY, resource, amount), amount);
+    }
+
+    @Override
+    public int simulateExtractNow(FluidResource resource, int amount) {
+        return refuses(resource, amount) ? 0 : LegacyMath.clamp(real.simulateExtract(KEY, resource, amount), amount);
+    }
+
+    @Override
+    public int insertNow(FluidResource resource, int amount) {
+        return refuses(resource, amount) ? 0 : LegacyMath.clamp(real.insert(KEY, resource, amount), amount);
+    }
+
+    @Override
+    public int extractNow(FluidResource resource, int amount) {
+        return refuses(resource, amount) ? 0 : LegacyMath.clamp(real.extract(KEY, resource, amount), amount);
+    }
+
+    /** Direct moves wait while a ledger move on this block is pending in the current transaction. */
+    private boolean refuses(FluidResource resource, int amount) {
+        return amount <= 0 || resource.isEmpty() || ledger.hasPending();
     }
 
     @Override
