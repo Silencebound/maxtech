@@ -85,3 +85,19 @@ experimental until Farms ships.
   skipping one. Left click (or Enter) asks for the constant after the one the client shows, right click for the one
   before; the new value comes back with the next values payload.
 - `MenuTesting.Session.pressCycleButton` clicks one in GameTests.
+
+## Amendment (2026-11-28): side config (machine core PR 3, ADR-0018 T5)
+
+- `MenuDefinition.Builder.port(getter, kinds...)` syncs a host's `TransferPort` as plain int values: per declared kind
+  its packed faces and allowed modes, plus the host's facing (block state `HORIZONTAL_FACING` or `FACING`, or a getter)
+  Kinds are declared, since the client menu has no port to ask.
+- `Layout.faces(port, kinds...)` is a fixed-size node (one 72 by 54 block net per kind), and
+  `Builder.sideConfig(port, kinds...)` puts it in the one standard side tab. The tab is declared in the common
+  definition and drawn by Lib's internal `SideTabs`, so `SideTabs` and `SidePanel` stay internal and addons write no
+  client code. The definition checks that the flyout fits beside the panel on the 320 by 240 GUI (three kinds do).
+- A face click goes through the container button packet like cycle actions: ids from `ToolkitMenu.PORT_BUTTONS`
+  (3,000,000; cycle actions now end below it) carry the port value, kind, face and the asked-for mode. The server sets
+  that mode through `TransferPort.setSettings` only when the port allows it for the kind, so a repeated packet sets
+  the same mode again rather than stepping on; `cycleFace` only steps forward and is not used.
+- Owner choices (2026-11-28): faces are named relative to the facing as seen from the front, top towards north for
+  blocks facing up or down; kinds are stacked, one net each; push is orange, pull blue, off untinted.

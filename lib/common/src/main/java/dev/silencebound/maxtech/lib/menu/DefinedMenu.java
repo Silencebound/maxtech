@@ -10,10 +10,14 @@ import dev.silencebound.maxtech.lib.api.menu.MenuChoice;
 import dev.silencebound.maxtech.lib.api.menu.MenuDefinition;
 import dev.silencebound.maxtech.lib.api.menu.MenuItems;
 import dev.silencebound.maxtech.lib.api.menu.MenuSlots;
+import dev.silencebound.maxtech.lib.api.menu.PortValue;
 import dev.silencebound.maxtech.lib.api.menu.TankValue;
+import dev.silencebound.maxtech.lib.api.resource.ResourceKind;
+import dev.silencebound.maxtech.lib.api.transfer.PortFaceMode;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.function.BiPredicate;
+import net.minecraft.core.Direction;
 import net.minecraft.world.Container;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
@@ -27,8 +31,10 @@ import org.jspecify.annotations.Nullable;
  * client. A group the layout lacks (a problem in dev runs) sits far off the panel. Button ids: fluid tank {@code n} of
  * the definition (declaration order, counting only tanks that take bucket clicks) is {@link ToolkitMenu#TANK_BUTTONS}
  * plus n; choice {@code c} (the constant's ordinal) of cycle action {@code a} is {@link ToolkitMenu#ACTION_BUTTONS}
- * plus {@code a * }{@link CycleAction#MAX_CHOICES}{@code  + c}. Any other id, or an ordinal past the enum's constants,
- * does nothing.
+ * plus {@code a * }{@link CycleAction#MAX_CHOICES}{@code  + c}. Mode {@code m} ({@link PortFaceMode#id()}) of face
+ * {@code f} ({@code get3DDataValue}) of kind {@code k} (its position in the value's kinds) of port value {@code p} is
+ * {@link ToolkitMenu#PORT_BUTTONS} plus {@code ((p * }{@link PortValue#MAX_KINDS}{@code  + k) * 6 + f) * 3 + m}. Any
+ * other id, an ordinal past the enum's constants, or a mode the port does not allow for the kind does nothing.
  */
 public final class DefinedMenu<H> extends ToolkitMenu<H> {
     /** Where slots of a group the layout lacks go: off any screen. */
@@ -36,6 +42,9 @@ public final class DefinedMenu<H> extends ToolkitMenu<H> {
 
     private final MenuDefinition<H> definition;
     private final @Nullable H host;
+    private static final int FACES = 6;
+    private static final int MODES = 3;
+
     private final int[] tankButtons;
 
     /** The server menu over {@code host}, or with a null host the client menu over empty copies of the slots. */
@@ -130,6 +139,21 @@ public final class DefinedMenu<H> extends ToolkitMenu<H> {
     }
 
     /**
+     * The {@code clickMenuButton} id that asks for {@code mode} on {@code face} of {@code kind} of {@code port}, or -1
+     * for another definition's port value or a kind it does not show.
+     */
+    public int faceButton(PortValue port, ResourceKind<?> kind, Direction face, PortFaceMode mode) {
+        List<MenuDefinition.Port<H>> ports = definition.ports();
+        int index = port.index();
+        int kindIndex = port.kindIndex(kind);
+        if (index >= ports.size() || ports.get(index).value() != port || kindIndex < 0) {
+            return -1;
+        }
+        return PORT_BUTTONS + ((index * PortValue.MAX_KINDS + kindIndex) * FACES + face.get3DDataValue()) * MODES
+                + mode.id();
+    }
+
+    /**
      * A cycle button (see the class comment) hands its choice to the definition's setter on the server; tank buttons go
      * to {@link ToolkitMenu}. The client menu has no host and ignores them.
      */
@@ -139,6 +163,9 @@ public final class DefinedMenu<H> extends ToolkitMenu<H> {
             return super.clickMenuButton(player, id);
         }
         H source = host;
+        if (id >= PORT_BUTTONS) {
+            return source != null && clickFace(source, id - PORT_BUTTONS);
+        }
         int offset = id - ACTION_BUTTONS;
         int index = offset / CycleAction.MAX_CHOICES;
         List<MenuDefinition.Cycle<H, ?>> cycles = definition.cycles();
@@ -146,6 +173,15 @@ public final class DefinedMenu<H> extends ToolkitMenu<H> {
             return false;
         }
         return cycles.get(index).apply(source, offset % CycleAction.MAX_CHOICES);
+    }
+
+    private boolean clickFace(H source, int offset) {
+        int mode = offset % MODES;
+        int face = offset / MODES % FACES;
+        int kind = offset / (MODES * FACES) % PortValue.MAX_KINDS;
+        int index = offset / (MODES * FACES * PortValue.MAX_KINDS);
+        List<MenuDefinition.Port<H>> ports = definition.ports();
+        return index < ports.size() && ports.get(index).apply(source, kind, face, mode);
     }
 
     @Override

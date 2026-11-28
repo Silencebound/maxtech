@@ -1,5 +1,14 @@
 package dev.silencebound.maxtech.lib.neoforge.gametest;
 
+import dev.silencebound.maxtech.lib.api.menu.PortValue;
+import dev.silencebound.maxtech.lib.api.resource.ResourceKinds;
+import dev.silencebound.maxtech.lib.api.transfer.PortFaceMode;
+import dev.silencebound.maxtech.lib.api.transfer.TransferPort;
+import dev.silencebound.maxtech.lib.api.transfer.TransferPorts;
+import net.minecraft.core.Direction;
+import net.minecraft.world.item.context.BlockPlaceContext;
+import net.minecraft.world.level.block.state.StateDefinition;
+import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import com.mojang.serialization.MapCodec;
 import dev.silencebound.maxtech.lib.MaxtechLib;
 import dev.silencebound.maxtech.lib.api.energy.EnergyEndpoint;
@@ -137,10 +146,11 @@ public final class ToolkitDemo {
         final IntValue cycles;
         final EnumValue<RedstoneMode> mode;
         final CycleAction<RedstoneMode> redstone;
+        final PortValue port;
 
         Handles(MenuSlots input, MenuSlots fuel, MenuSlots output, TankValue tank, EnergyValue energy,
                 ProgressValue arrow, ProgressValue flame, EnumValue<Status> status, IntValue cycles,
-                EnumValue<RedstoneMode> mode, CycleAction<RedstoneMode> redstone) {
+                EnumValue<RedstoneMode> mode, CycleAction<RedstoneMode> redstone, PortValue port) {
             this.input = input;
             this.fuel = fuel;
             this.output = output;
@@ -152,6 +162,7 @@ public final class ToolkitDemo {
             this.cycles = cycles;
             this.mode = mode;
             this.redstone = redstone;
+            this.port = port;
         }
     }
 
@@ -171,7 +182,10 @@ public final class ToolkitDemo {
                 IntValue ran = m.intValue(host -> host.cycles > 0 ? 1 : 0);
                 EnumValue<RedstoneMode> mode = m.enumValue(RedstoneMode.class, host -> host.redstone.mode());
                 CycleAction<RedstoneMode> redstone = m.cycle(mode, (host, next) -> host.redstone.setMode(next));
-                handles = new Handles(input, fuel, output, tank, energy, arrow, flame, status, cycles, mode, redstone);
+                PortValue port = m.port(host -> host.port, ResourceKinds.ITEM, ResourceKinds.FLUID);
+                m.sideConfig(port);
+                handles = new Handles(input, fuel, output, tank, energy, arrow, flame, status, cycles, mode, redstone,
+                        port);
                 m.title("maxtech_lib_demo.toolkit.title");
                 m.theme(MINT);
                 m.shiftClick(input, fuel);
@@ -219,12 +233,25 @@ public final class ToolkitDemo {
                 (entity, side) -> Handlers.fluids(entity.tank));
     }
 
-    /** Opens {@link #DEFINITION} on right click. */
+    /** Opens {@link #DEFINITION} on right click; placed facing the player, for the side config's relative names. */
     static final class MachineBlock extends Block implements EntityBlock {
         static final MapCodec<MachineBlock> CODEC = simpleCodec(MachineBlock::new);
 
         MachineBlock(Properties properties) {
             super(properties);
+            registerDefaultState(
+                    stateDefinition.any().setValue(BlockStateProperties.HORIZONTAL_FACING, Direction.NORTH));
+        }
+
+        @Override
+        protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
+            builder.add(BlockStateProperties.HORIZONTAL_FACING);
+        }
+
+        @Override
+        public BlockState getStateForPlacement(BlockPlaceContext context) {
+            return defaultBlockState().setValue(BlockStateProperties.HORIZONTAL_FACING,
+                    context.getHorizontalDirection().getOpposite());
         }
 
         @Override
@@ -251,6 +278,7 @@ public final class ToolkitDemo {
                 @Nullable Orientation orientation, boolean movedByPiston) {
             if (level instanceof ServerLevel && level.getBlockEntity(pos) instanceof MachineEntity machine) {
                 machine.redstone.neighbourChanged(level, pos);
+                machine.port.neighbourChanged();
             }
         }
     }
@@ -262,8 +290,13 @@ public final class ToolkitDemo {
      * per pulse in pulse mode) and, outside pulse mode, pauses while it does not. Saved with the block.
      */
     static final class MachineEntity extends BlockEntity {
-        final ItemSlots slots = SLOTS.build(slot -> setChanged());
-        final FluidTank tank = FluidTank.create(TANK_CAPACITY, this::setChanged);
+        final ItemSlots slots = SLOTS.build(slot -> bufferChanged());
+        final FluidTank tank = FluidTank.create(TANK_CAPACITY, this::bufferChanged);
+        /**
+         * Items both ways, fluids pulled in only (so the side config shows a kind with fewer modes); faces start off.
+         */
+        final TransferPort port = TransferPorts.builder().items(slots, Set.of(PortFaceMode.PUSH, PortFaceMode.PULL))
+                .fluids(tank, Set.of(PortFaceMode.PULL)).onSettingsChanged(this::setChanged).build();
         final EnergyEndpoint energy = EnergyEndpoint.buffer(ENERGY_CAPACITY, 0, 0, EnergyPriority.LEFTOVERS);
         int progress;
         int burn;
@@ -275,6 +308,14 @@ public final class ToolkitDemo {
 
         MachineEntity(BlockPos pos, BlockState state) {
             super(ENTITY.get(), pos, state);
+        }
+
+        private void bufferChanged() {
+            setChanged();
+            // The buffers are built before the port and may report a change before it exists.
+            if (port != null) {
+                port.bufferChanged();
+            }
         }
 
         Status status() {
@@ -309,6 +350,7 @@ public final class ToolkitDemo {
             super.onLoad();
             if (level instanceof ServerLevel server) {
                 redstone.start(server, worldPosition);
+                port.start(server, worldPosition);
                 group(server).add(task);
                 task.wake();
             }
@@ -316,6 +358,7 @@ public final class ToolkitDemo {
 
         @Override
         public void setRemoved() {
+            port.stop();
             TaskGroup group = task.group();
             if (group != null) {
                 group.remove(task);
@@ -340,6 +383,7 @@ public final class ToolkitDemo {
             out.putInt("burn", burn);
             out.putInt("cycles", cycles);
             redstone.save(out.child("redstone"));
+            port.save(out.child("port"));
         }
 
         @Override
@@ -352,6 +396,7 @@ public final class ToolkitDemo {
             burn = in.getIntOr("burn", 0);
             cycles = in.getIntOr("cycles", 0);
             in.child("redstone").ifPresent(redstone::load);
+            in.child("port").ifPresent(port::load);
         }
 
         /** One step of the demo loop; every {@link #STEP} ticks. */
