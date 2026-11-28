@@ -383,7 +383,10 @@ public final class ConduitModel implements DynamicBlockStateModel {
                 }
                 case ConduitLook.Shell shell -> {
                     end = sprite(baker, shell.shell());
-                    named = Map.of(shell.shell(), end);
+                    Identifier barTexture = shell.barTexture();
+                    named = barTexture == null || barTexture.equals(shell.shell())
+                            ? Map.of(shell.shell(), end)
+                            : Map.of(shell.shell(), end, barTexture, sprite(baker, barTexture));
                 }
             }
             return new ConduitModel(look, new Sprites(flat, end, overlay, named));

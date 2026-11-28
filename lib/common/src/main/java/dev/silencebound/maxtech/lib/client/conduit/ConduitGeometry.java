@@ -13,6 +13,7 @@ import dev.silencebound.maxtech.lib.api.conduit.model.ConduitTexture;
 import java.util.ArrayList;
 import java.util.List;
 import net.minecraft.core.Direction;
+import net.minecraft.resources.Identifier;
 import net.minecraft.util.ARGB;
 import net.minecraft.world.item.DyeColor;
 import net.minecraft.world.phys.AABB;
@@ -214,10 +215,23 @@ public final class ConduitGeometry {
                 }
             }
         }
+        int borders = out.size();
         if (look.frameBars()) {
             ConduitFrameGeometry.addFrame(out, look, thickness, arms, rings, borderArgb);
-            return;
+        } else {
+            borderLines(out, look, core, thickness, arms, rings, borderArgb);
         }
+        Identifier barTexture = look.barTexture();
+        if (barTexture != null) {
+            for (int i = borders; i < out.size(); i++) {
+                out.set(i, textured(out.get(i), barTexture));
+            }
+        }
+    }
+
+    @SuppressWarnings("TooManyParameters") // the body key's parts, unpacked; kept primitive
+    private static void borderLines(List<ConduitQuad> out, ConduitLook.Shell look, AABB core, float thickness, int arms,
+            int rings, int borderArgb) {
         ConduitSilhouette.Outline outline = ConduitSilhouette.of(thickness, arms, rings, look.rim());
         List<ConduitSilhouette.Line> lines = outline.lines();
         double half = ConduitShapes.width(thickness) / 2;
@@ -283,6 +297,25 @@ public final class ConduitGeometry {
             }
         }
         return oneSided;
+    }
+
+    /**
+     * {@code flat}, a border quad, drawn with {@code texture} instead, projected like the glass and turned so that the
+     * sprite's rows (its u axis) run along the longer side of the face.
+     */
+    static ConduitQuad textured(ConduitQuad flat, Identifier texture) {
+        AABB box = flat.box();
+        Direction face = flat.facing();
+        Direction.Axis along = face.getAxis() == Direction.Axis.X ? Direction.Axis.Y : Direction.Axis.X;
+        for (Direction.Axis axis : Direction.Axis.values()) {
+            if (axis != face.getAxis() && box.max(axis) - box.min(axis) > box.max(along) - box.min(along) + EPSILON) {
+                along = axis;
+            }
+        }
+        int turns = (ConduitUvs.flowTurns(face, Direction.fromAxisAndDirection(along, Direction.AxisDirection.POSITIVE))
+                .orElse(3) + 1) % 4;
+        return new ConduitQuad(box, face, ConduitTexture.FLAT, flat.argb(), flat.culled(), flat.layer(), texture,
+                ConduitUvs.projected(box, face, turns), flat.lightEmission());
     }
 
     /**

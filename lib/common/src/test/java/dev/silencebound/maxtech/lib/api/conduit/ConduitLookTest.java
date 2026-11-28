@@ -121,6 +121,26 @@ class ConduitLookTest {
         assertEquals(framed, ConduitLook.CODEC.codec().parse(JsonOps.INSTANCE, json).getOrThrow());
     }
 
+    /** A bar texture is unset by default, kept by later withers, written only when set and read back. */
+    @Test
+    void shellBarTextureIsOptional() {
+        Identifier glass = Identifier.fromNamespaceAndPath("farms", "block/lab_tube_glass");
+        Identifier bar = Identifier.fromNamespaceAndPath("farms", "block/pipe_bar");
+        assertEquals(null, ConduitLook.shell(glass).withFrameBars().barTexture(), "unset by default");
+        assertEquals(null, new ConduitLook.Shell(glass, 0, 1, 1, 1, 1, true).barTexture(), "old constructor");
+        ConduitLook.Shell textured = ConduitLook.shell(glass).withBarTexture(bar).withFrameBars().withBorder(2);
+        assertEquals(bar, textured.barTexture(), "kept by later withers");
+        JsonElement json = ConduitLook.CODEC.codec().encodeStart(JsonOps.INSTANCE, textured).getOrThrow();
+        assertEquals(JsonParser.parseString("""
+                {"look": "shell", "shell": "farms:block/lab_tube_glass", "border": 2.0, "frame_bars": true,
+                 "bar_texture": "farms:block/pipe_bar"}
+                """), json);
+        assertEquals(textured, ConduitLook.CODEC.codec().parse(JsonOps.INSTANCE, json).getOrThrow());
+        assertTrue(ConduitLook.CODEC.codec().parse(JsonOps.INSTANCE, JsonParser.parseString("""
+                {"look": "shell", "shell": "a:b", "bar_texture": "A B"}
+                """)).isError(), "a bad id is not read");
+    }
+
     /** A shell without its sprite, or with a width out of range, is not read. */
     @Test
     void badShellsAreRejected() {

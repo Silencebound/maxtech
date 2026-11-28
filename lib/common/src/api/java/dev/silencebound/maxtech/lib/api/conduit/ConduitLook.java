@@ -124,9 +124,15 @@ public sealed interface ConduitLook {
      * open end's edges are bars too (no rim), a rim band becomes a collar one bar deep, and the contents sit
      * {@code inset} px inside the inset glass.
      * <p>
+     * With a {@code barTexture} (Lib 0.15.0) the border lines, rims, bars and collars show that sprite instead of a
+     * flat colour, still tinted with {@code borderColour} (white, {@code 0xFFFFFF}, shows the sprite's own colours).
+     * Like the glass it is projected onto the block, turned so that the sprite's rows (its u axis) run along each bar,
+     * so a pattern runs on from one tube to the next. A bar shows only a slice of the sprite as wide as the bar, so a
+     * bar sprite should change along its rows only (stripes, rivets, bands across the bar), with every row alike.
+     * <p>
      * The block state fields are {@code shell}, then {@code border_colour}, {@code border}, {@code rim}, {@code inset},
-     * {@code lane_width} and {@code frame_bars}, each left out at its default; later fields will be optional too, so
-     * files stay valid.
+     * {@code lane_width}, {@code frame_bars} and {@code bar_texture}, each left out at its default; later fields will
+     * be optional too, so files stay valid.
      *
      * @param shell
      *            sprite of the glass (block atlas), usually mostly transparent
@@ -142,9 +148,12 @@ public sealed interface ConduitLook {
      *            width of the second lane's strip, in pixels, 0 to {@value #MAX_WIDTH}; 0 draws none
      * @param frameBars
      *            whether the borders are solid bars on every edge, with the glass set in between them
+     * @param barTexture
+     *            sprite of the borders, rims and bars (block atlas), or {@code null} to draw them flat in
+     *            {@code borderColour}
      */
     record Shell(Identifier shell, int borderColour, float border, float rim, float inset, float laneWidth,
-            boolean frameBars) implements ConduitLook {
+            boolean frameBars, @Nullable Identifier barTexture) implements ConduitLook {
         /** Default {@link #border}, in pixels. */
         public static final float DEFAULT_BORDER = 0.5F;
         /** Default {@link #rim}, in pixels. */
@@ -163,8 +172,11 @@ public sealed interface ConduitLook {
                         widthField("rim", DEFAULT_RIM).forGetter(Shell::rim),
                         widthField("inset", DEFAULT_INSET).forGetter(Shell::inset),
                         widthField("lane_width", DEFAULT_LANE_WIDTH).forGetter(Shell::laneWidth),
-                        Codec.BOOL.optionalFieldOf("frame_bars", false).forGetter(Shell::frameBars))
-                .apply(i, Shell::new));
+                        Codec.BOOL.optionalFieldOf("frame_bars", false).forGetter(Shell::frameBars),
+                        Identifier.CODEC.optionalFieldOf("bar_texture")
+                                .forGetter(s -> Optional.ofNullable(s.barTexture())))
+                .apply(i, (shell, colour, border, rim, inset, laneWidth, frameBars, barTexture) -> new Shell(shell,
+                        colour, border, rim, inset, laneWidth, frameBars, barTexture.orElse(null))));
 
         /**
          * Checks the widths.
@@ -189,34 +201,48 @@ public sealed interface ConduitLook {
             this(shell, borderColour, border, rim, inset, laneWidth, false);
         }
 
+        /** A shell with flat borders, as shells before {@link #barTexture} were. */
+        public Shell(Identifier shell, int borderColour, float border, float rim, float inset, float laneWidth,
+                boolean frameBars) {
+            this(shell, borderColour, border, rim, inset, laneWidth, frameBars, null);
+        }
+
         /** This look with its borders and rims in {@code colour} ({@code 0xRRGGBB} or {@link #TYPE_COLOUR}). */
         public Shell withBorderColour(int colour) {
-            return new Shell(shell, colour, border, rim, inset, laneWidth, frameBars);
+            return new Shell(shell, colour, border, rim, inset, laneWidth, frameBars, barTexture);
         }
 
         /** This look with border lines {@code border} px wide. */
         public Shell withBorder(float border) {
-            return new Shell(shell, borderColour, border, rim, inset, laneWidth, frameBars);
+            return new Shell(shell, borderColour, border, rim, inset, laneWidth, frameBars, barTexture);
         }
 
         /** This look with rims {@code rim} px wide. */
         public Shell withRim(float rim) {
-            return new Shell(shell, borderColour, border, rim, inset, laneWidth, frameBars);
+            return new Shell(shell, borderColour, border, rim, inset, laneWidth, frameBars, barTexture);
         }
 
         /** This look with its contents {@code inset} px inside the glass. */
         public Shell withInset(float inset) {
-            return new Shell(shell, borderColour, border, rim, inset, laneWidth, frameBars);
+            return new Shell(shell, borderColour, border, rim, inset, laneWidth, frameBars, barTexture);
         }
 
         /** This look with a second lane {@code laneWidth} px wide. */
         public Shell withLaneWidth(float laneWidth) {
-            return new Shell(shell, borderColour, border, rim, inset, laneWidth, frameBars);
+            return new Shell(shell, borderColour, border, rim, inset, laneWidth, frameBars, barTexture);
         }
 
         /** This look with its borders as solid frame bars and the glass set in between them ({@link #frameBars}). */
         public Shell withFrameBars() {
-            return new Shell(shell, borderColour, border, rim, inset, laneWidth, true);
+            return new Shell(shell, borderColour, border, rim, inset, laneWidth, true, barTexture);
+        }
+
+        /**
+         * This look with its borders, rims and bars showing {@code texture} (a block atlas sprite id, e.g.
+         * {@code farms:block/pipe_bar}) tinted with {@link #borderColour}, instead of flat ({@link #barTexture}).
+         */
+        public Shell withBarTexture(Identifier texture) {
+            return new Shell(shell, borderColour, border, rim, inset, laneWidth, frameBars, texture);
         }
 
         @Override
