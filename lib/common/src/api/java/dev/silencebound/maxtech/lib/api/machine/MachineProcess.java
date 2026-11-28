@@ -42,7 +42,9 @@ import org.jspecify.annotations.Nullable;
  * one out mid-run only resets the run. A recipe with energy declares its {@code energy_per_tick} as the endpoint's
  * demand while it runs and moves on by what it receives (half the energy, half the speed); a process without an
  * endpoint ignores recipe energy. When the run is over and the outputs no longer fit, it holds at the end, draws
- * nothing, and finishes once room is made.
+ * nothing, and finishes once room is made; its chance outputs are rolled again then, so a held run never makes more. A
+ * run that resets (an input taken out, another recipe, a datapack change) loses the energy it was paid and, in
+ * {@link RedstoneMode#PULSE}, the pulse that started it; its items are never taken.
  * <p>
  * Saves keep the progress, the run's recipe id and the mode. After a load, or a datapack reload, the run keeps its
  * progress only if the inputs still match the same recipe; otherwise the progress resets and the items stay where they
@@ -78,13 +80,18 @@ public interface MachineProcess {
     void wake();
 
     /**
-     * Slot {@code slot} of its {@link ItemSlots} changed: an input change looks the recipe up again, an output change
-     * may make room. Call from the slots' change listener; cheap.
+     * Slot {@code slot} of its {@link ItemSlots} changed: an input change looks the recipe up again (not while a recipe
+     * runs and the slot only gained more of the same), an output change may make room. Call from the slots' change
+     * listener; cheap.
      */
     void slotChanged(int slot);
 
-    /** One of its tanks changed; call from the tanks' change listeners. Cheap. */
-    void tankChanged();
+    /**
+     * {@code tank}, one of its tanks, changed: an input tank change looks the recipe up again (not while a recipe runs
+     * and the tank only gained more of the same), an output tank change may make room. Call from each tank's change
+     * listener with that tank; cheap.
+     */
+    void tankChanged(ResourceTank<?> tank);
 
     /** What it is doing; {@link MachineStatus#IDLE} until its first step. */
     MachineStatus status();
@@ -158,8 +165,8 @@ public interface MachineProcess {
         }
 
         /**
-         * Adds the next output tank; the shape's {@code tankOutputs} of them. A tank output goes into the first output
-         * tank already holding it, else the first empty one that takes it.
+         * Adds the next output tank; the shape's {@code tankOutputs} of them. A tank output goes into the output tanks
+         * already holding it first, then into the others that take it, split over several when one lacks room.
          */
         public Builder outputTank(ResourceTank<?> tank) {
             outputTanks.add(Objects.requireNonNull(tank, "tank"));
