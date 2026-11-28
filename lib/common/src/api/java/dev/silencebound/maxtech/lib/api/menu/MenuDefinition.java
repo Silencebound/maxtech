@@ -455,7 +455,13 @@ public final class MenuDefinition<H> {
                         }
                         yield node.value();
                     }
-                    case Layout.Value node -> node.value();
+                    case Layout.Value node -> {
+                        IntValue condition = node.shownWhenNonZero();
+                        if (condition != null && !handles.contains(condition)) {
+                            problems.add("Layout uses a handle from another menu definition: " + node);
+                        }
+                        yield node.value();
+                    }
                     case Layout.PlayerInventory node -> {
                         inventories++;
                         yield null;

@@ -168,7 +168,8 @@ public final class ToolkitDemo {
                                         Layout.progress(flame, Layout.ProgressShape.FLAME)),
                                 Layout.progress(arrow, Layout.ProgressShape.ARROW), Layout.slots(output, 3, 3),
                                 Layout.energy(energy, 54)),
-                        Layout.row(Layout.status(status, 90), Layout.value(cycles, "maxtech_lib_demo.cycles", 90)),
+                        Layout.row(Layout.status(status, 90),
+                                Layout.value(cycles, "maxtech_lib_demo.cycles", 90, cycles)),
                         Layout.playerInventory()));
             });
 
