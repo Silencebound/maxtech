@@ -1,0 +1,9 @@
+{
+  "block.maxtech_lib.test_toolkit_machine": "Toolkit Demo Machine",
+  "maxtech_lib_demo.toolkit.title": "Toolkit Demo",
+  "maxtech_lib_demo.cycles": "Cycles: %s",
+  "maxtech_lib_demo.status.idle": "Idle",
+  "maxtech_lib_demo.status.working": "Working",
+  "maxtech_lib_demo.status.no_fuel": "Needs fuel",
+  "maxtech_lib_demo.status.full": "Output full"
+}
