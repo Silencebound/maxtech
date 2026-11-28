@@ -25,6 +25,7 @@ import dev.silencebound.maxtech.lib.neoforge.client.ConfigScreens;
 import dev.silencebound.maxtech.lib.neoforge.compat.jade.BlockInfoLines;
 import dev.silencebound.maxtech.lib.neoforge.guide.GuideConfigText;
 import dev.silencebound.maxtech.lib.neoforge.platform.ConfigTranslations;
+import dev.silencebound.maxtech.lib.profile.ProfileCommand;
 import dev.silencebound.maxtech.lib.viewer.RecipeViewText;
 import java.util.Locale;
 import net.minecraft.core.Direction;
@@ -44,6 +45,23 @@ final class LibLanguageProvider extends LanguageProvider {
         add(ScannerItem.DESCRIPTION_KEY, "Use on a block to print its stats and network to chat.");
         add(ScannerItem.HEADER_KEY, "Scan: %s");
         add(ScannerItem.NOTHING_KEY, "Nothing to report.");
+        add(ProfileCommand.STARTED_KEY,
+                "Profiling Lib's scheduler and networks for %s s; the report follows. /maxtech_lib profile stop ends it"
+                        + " early.");
+        add(ProfileCommand.RUNNING_KEY, "A Lib profile is running already; /maxtech_lib profile stop ends it");
+        add(ProfileCommand.NOT_RUNNING_KEY, "No Lib profile is running");
+        add(ProfileCommand.STOPPED_KEY, "Stopped the Lib profile started by %s; its report follows");
+        add(ProfileCommand.HEADER_KEY,
+                "Lib profile over %s ticks: scheduler %s µs/tick, networks %s µs/tick (%s of a tick), %s task runs");
+        add(ProfileCommand.EMPTY_KEY, "Nothing ran on Lib's scheduler or networks while profiling");
+        add(ProfileCommand.OWNERS_KEY, "Scheduler by mod:");
+        add(ProfileCommand.OWNER_ROW_KEY, "%s: %s µs/tick, %s runs");
+        add(ProfileCommand.KINDS_KEY, "Most expensive:");
+        add(ProfileCommand.KIND_ROW_KEY, "%s. %s (%s, %s): %s µs/tick, %s runs");
+        add(ProfileCommand.KIND_TASK_KEY, "task");
+        add(ProfileCommand.KIND_NETWORK_KEY, "network type");
+        add(ProfileCommand.NETWORKS_KEY, "Largest of %s networks:");
+        add(ProfileCommand.NETWORK_ROW_KEY, "%s. %s, %s nodes, %s %s: %s µs/tick");
         add(BlockInfoLines.CONFIG_KEY, "Block Info");
         add(BlockInfoLines.MORE_KEY, "...and %s more; use a scanner for the rest");
         add(EnergyInfo.PRODUCING_KEY, "Producing: %s / %s MU/t");

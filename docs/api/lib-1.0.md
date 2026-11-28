@@ -92,10 +92,10 @@ Labels: **stable** = frozen at 1.0, a breaking change needs a Lib major bump. **
 | **`lib.neoforge.api.transfer`** `KindBridge`, `KindHandler`, `KindBridges` | A kind's capability as handlers for ports (cached lookup, insert and extract in a transaction, `transactional()`), registered per kind; items and fluids built in, energy goes through FE edges. Ports reach tanks' neighbours through these; a handler without transactions is touched last. | experimental |
 | **`lib.api.network`** | Network topology for every network type: types, their logic, graphs and the per-level manager; addons register their own network types. | stable |
 | `UnloadedChunkMode` | `networks.unloadedChunkMode`: truncate or pause. | stable |
-| `NetworkManager` | The per-level entry point: add, remove and invalidate nodes, anchors, a node's network and a type's graph. Moved from `lib.network` for Farms (FM1); `tickLevel`, `clear` and `setConfigSource` are Lib's (`@ApiStatus.Internal`). | experimental |
-| `NetworkType` | A kind of network, registered with connectivity and logic factories; `byId` returns an `Optional`. | experimental |
+| `NetworkManager` | The per-level entry point: add, remove and invalidate nodes, anchors, a node's network and a type's graph. Moved from `lib.network` for Farms (FM1); `tickLevel`, `clear`, `setConfigSource` and `existingGraph` (a type's graph or null, for diagnostics) are Lib's (`@ApiStatus.Internal`). | experimental |
+| `NetworkType` | A kind of network, registered with connectivity and logic factories; `byId` returns an `Optional`; `types()` (all registered types, for diagnostics) is Lib's (`@ApiStatus.Internal`). | experimental |
 | `NetworkLogic`, `NodeConnectivity` | A type's transport semantics (topology events and a tick per active network) and how it sees the world. | experimental |
-| `Network`, `NetworkGraph` | One connected set of nodes (a read-only view) and one level's graph of a type; the graph's constructor, `tick` and `setProfiling` are Lib's (`@ApiStatus.Internal`). | experimental |
+| `Network`, `NetworkGraph` | One connected set of nodes (a read-only view) and one level's graph of a type; the graph's constructor, `tick`, `setProfiling`, `acquireProfiling`, `releaseProfiling` and `isProfiling` are Lib's (`@ApiStatus.Internal`). | experimental |
 | `RouteTree` | Widest-path routes to a root over one component, built when the component is rebuilt. | experimental |
 | **`lib.api.recipe`** | Machine recipe types, recipes, lookup and datagen; item inputs and outputs shared with the recipe viewer layout and KubeJS. | stable |
 | `ItemInput` | Ingredient, count, consumed or catalyst; codecs. | stable |
@@ -122,7 +122,7 @@ Labels: **stable** = frozen at 1.0, a breaking change needs a Lib major bump. **
 | **`lib.api.schedule`** | Budgeted per-level work queues: groups with time and operation budgets, priorities, wake-on-event and backoff. Moved from `lib.schedule` for Farms (FM1). | experimental |
 | `TaskSchedulers` | An addon's entry point: `newGroup(level)` with Lib's configured budgets. | experimental |
 | `ScheduledTask`, `TaskGroup`, `TaskPriority` | A task, the group that runs it within its budget, and its queue. | experimental |
-| `TaskScheduler` | The level's scheduler; its constructor, `tick` and `timers` are Lib's (`@ApiStatus.Internal`). | experimental |
+| `TaskScheduler` | The level's scheduler; its constructor, `tick`, `timers`, `setRunListener` and the `RunListener` interface it takes (task run times, for Lib's profiler) are Lib's (`@ApiStatus.Internal`). | experimental |
 | **`lib.api.security`** | Owners, trusted players, teams and the one access check. | stable |
 | `OwnerRecord` | Immutable owner record with codecs. | stable |
 | `Owned` | Something with an owner record. | stable |

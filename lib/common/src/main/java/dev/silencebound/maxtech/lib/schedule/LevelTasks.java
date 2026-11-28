@@ -20,6 +20,7 @@ import net.minecraft.server.level.ServerLevel;
 public final class LevelTasks {
     private static final Reference2ObjectOpenHashMap<ServerLevel, LevelTasks> LEVELS = new Reference2ObjectOpenHashMap<>();
     private static boolean profiling;
+    private static int profilingUsers;
 
     private final TaskScheduler tasks = new TaskScheduler(System::nanoTime, ServerConfig.SCHEDULER_MAX_BACKOFF_TICKS);
     private long lastTickNanos = -1;
@@ -56,6 +57,28 @@ public final class LevelTasks {
         for (LevelTasks level : LEVELS.values()) {
             level.lastTickNanos = -1;
         }
+    }
+
+    /**
+     * Counted {@link #setProfiling}: timing turns on with the first user and off when the last releases it, so users
+     * such as a profile session and a perf environment do not cut each other off. Server thread only.
+     */
+    public static void acquireProfiling() {
+        if (profilingUsers++ == 0) {
+            setProfiling(true);
+        }
+    }
+
+    /** Ends one {@link #acquireProfiling}. */
+    public static void releaseProfiling() {
+        if (profilingUsers > 0 && --profilingUsers == 0) {
+            setProfiling(false);
+        }
+    }
+
+    /** Whether tick timing is on; see {@link #setProfiling}. */
+    public static boolean isProfiling() {
+        return profiling;
     }
 
     /**
