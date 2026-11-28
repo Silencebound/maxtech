@@ -45,8 +45,8 @@ below, and the `toolkit_api_*` GameTests open it through the api only. In a dev 
 `value(intValue, key, width)` (the lang text gets the number as `%s`; experimental
 `value(intValue, key, width, shownWhenNonZero)`, see below), `status(enumValue, width)` (the enum implements
 `MenuStatus`: a lang key and a tone, which colours the dot), `cycleButton(action, key, width)` (16 tall), `spacer` and
-`playerInventory()`. Lib places everything,
-slots included, from the layout; text is fitted into its box and never moves anything.
+`playerInventory()`. Lib places everything, slots included, from the layout; text is fitted into its box and never
+moves anything.
 
 **Hiding a value line.** `Layout.value(value, key, width, shownWhenNonZero)` (experimental) shows the line only while
 another `IntValue` of the same definition (or the line's own) is not 0, e.g. a hub's "Sampler: N%" while a sampler is in.

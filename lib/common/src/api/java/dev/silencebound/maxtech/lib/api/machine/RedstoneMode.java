@@ -24,7 +24,7 @@ public enum RedstoneMode implements MenuChoice {
      * The lang key of a redstone cycle button's tooltip line, with the mode's name as its {@code %s}: pass it to
      * {@code Layout.cycleButton}.
      */
-    public static final String BUTTON_KEY = "gui.maxtech_lib.redstone";
+    public static final String BUTTON_KEY = "maxtech_lib.gui.redstone";
 
     private final String name;
 
@@ -47,7 +47,7 @@ public enum RedstoneMode implements MenuChoice {
         return ALWAYS;
     }
 
-    /** {@code gui.maxtech_lib.redstone.<name>}; the hint is that plus ".hint". */
+    /** {@code maxtech_lib.gui.redstone.<name>}; the hint is that plus ".hint". */
     @Override
     public String translationKey() {
         return BUTTON_KEY + "." + name;

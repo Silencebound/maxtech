@@ -75,7 +75,9 @@ experimental until Farms ships.
   action over a synced `EnumValue` whose enum implements `MenuChoice` (a name key and a hint key), and
   `Layout.cycleButton(action, key, width)` places an Accent button for it.
 - The click goes through vanilla's container button packet, like the tank clicks: no payload of our own, and vanilla
-  already drops clicks for another container, from spectators or on a menu that is no longer valid. Ids from
+  already drops clicks for another container, from spectators or on a menu that is no longer valid. Spoofed and
+  closed-menu clicks rely on those vanilla checks (`containerId`, spectator, `stillValid`); our tests call
+  `clickMenuButton` directly and do not exercise them. Ids from
   `ToolkitMenu.ACTION_BUTTONS` (2,000,000) carry the action's index times `CycleAction.MAX_CHOICES` (256) plus the
   ordinal of the asked-for constant; the server ignores ids of no action and ordinals past the enum, and the setter
   decides the rest.

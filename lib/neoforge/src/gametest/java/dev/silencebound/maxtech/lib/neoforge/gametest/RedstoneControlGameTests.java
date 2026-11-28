@@ -49,7 +49,7 @@ import org.jspecify.annotations.Nullable;
 @EventBusSubscriber(modid = MaxtechLib.MOD_ID)
 public final class RedstoneControlGameTests {
     private static final String[] NAMES = {"redstone_control_modes", "redstone_control_pulse", "redstone_control_save",
-            "redstone_control_wakes"};
+            "redstone_control_wakes", "redstone_control_build_limit", "redstone_control_unloaded"};
     private static final Registrar<Consumer<GameTestHelper>> FUNCTIONS = Registrars.create(MaxtechLib.MOD_ID,
             Registries.TEST_FUNCTION);
     private static final Registrar<Block> BLOCKS = Registrars.create(MaxtechLib.MOD_ID, Registries.BLOCK);
@@ -71,6 +71,8 @@ public final class RedstoneControlGameTests {
         FUNCTIONS.register(NAMES[1], () -> RedstoneControlGameTests::pulse);
         FUNCTIONS.register(NAMES[2], () -> RedstoneControlGameTests::save);
         FUNCTIONS.register(NAMES[3], () -> RedstoneControlGameTests::wakes);
+        FUNCTIONS.register(NAMES[4], () -> RedstoneControlGameTests::buildLimit);
+        FUNCTIONS.register(NAMES[5], () -> RedstoneControlGameTests::unloaded);
     }
 
     private RedstoneControlGameTests() {
@@ -182,6 +184,12 @@ public final class RedstoneControlGameTests {
         helper.assertValueEqual(loaded.pendingPulses(), 2, "pulses after starting with the lever on");
         loaded.neighbourChanged(helper.getLevel(), helper.absolutePos(MACHINE));
         helper.assertValueEqual(loaded.pendingPulses(), 2, "pulses after an update with the lever on");
+        helper.pullLever(LEVER);
+        loaded.neighbourChanged(helper.getLevel(), helper.absolutePos(MACHINE));
+        helper.assertFalse(loaded.powered(), "reading after the lever went off");
+        helper.pullLever(LEVER);
+        loaded.neighbourChanged(helper.getLevel(), helper.absolutePos(MACHINE));
+        helper.assertValueEqual(loaded.pendingPulses(), 3, "pulses after the next rising edge");
 
         TagValueOutput defaults = TagValueOutput.createWithContext(ProblemReporter.DISCARDING, registries);
         new RedstoneControl(() -> {
@@ -206,6 +214,72 @@ public final class RedstoneControlGameTests {
         helper.pullLever(LEVER);
         helper.assertValueEqual(machine.wakes, woken + 1, "wakes for a pulse");
         helper.assertTrue(machine.saves > saved, "saves for a pulse");
+        helper.succeed();
+    }
+
+    /**
+     * A machine on the top layer of the world, whose upward neighbour is outside the build height (where vanilla's
+     * {@code isLoaded} is false): the signal falling is still read, so high mode stops and pulse mode counts the next
+     * rising edge.
+     */
+    private static void buildLimit(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        int top = level.getMaxY() - helper.absolutePos(BlockPos.ZERO).getY();
+        BlockPos machineRelative = new BlockPos(MACHINE.getX(), top, MACHINE.getZ());
+        BlockPos leverRelative = machineRelative.east();
+        helper.setBlock(machineRelative, BLOCK.get().defaultBlockState());
+        helper.setBlock(leverRelative, Blocks.LEVER.defaultBlockState().setValue(LeverBlock.FACE, AttachFace.WALL)
+                .setValue(LeverBlock.FACING, Direction.EAST));
+        try {
+            if (!(level.getBlockEntity(helper.absolutePos(machineRelative)) instanceof MachineEntity machine)) {
+                throw helper.assertionException("No machine block entity at the build limit");
+            }
+            helper.assertValueEqual(helper.absolutePos(machineRelative).getY(), level.getMaxY(), "machine height");
+            RedstoneControl control = machine.redstone;
+            control.setMode(RedstoneMode.HIGH);
+            helper.pullLever(leverRelative);
+            helper.assertTrue(control.powered(), "powered at the build limit");
+            helper.assertTrue(control.allowsRun(), "high, powered at the build limit");
+            helper.pullLever(leverRelative);
+            helper.assertFalse(control.powered(), "lever off at the build limit");
+            helper.assertFalse(control.allowsRun(), "high stops at the build limit");
+            control.setMode(RedstoneMode.PULSE);
+            helper.pullLever(leverRelative);
+            helper.assertValueEqual(control.pendingPulses(), 1, "pulses after a rising edge at the build limit");
+            helper.pullLever(leverRelative);
+            helper.pullLever(leverRelative);
+            helper.assertValueEqual(control.pendingPulses(), 2, "pulses re-armed at the build limit");
+        } finally {
+            helper.setBlock(leverRelative, Blocks.AIR);
+            helper.setBlock(machineRelative, Blocks.AIR);
+        }
+        helper.succeed();
+    }
+
+    /** A neighbour in a chunk that is not loaded gives no new reading: the last one stays, and no edge is counted. */
+    private static void unloaded(GameTestHelper helper) {
+        MachineEntity machine = place(helper);
+        ServerLevel level = helper.getLevel();
+        BlockPos far = new BlockPos(1_000_000, 64, 1_000_000);
+        helper.assertFalse(level.isLoaded(far), "the far position is loaded");
+        RedstoneControl control = new RedstoneControl(() -> {
+        }, () -> {
+        });
+        control.setMode(RedstoneMode.PULSE);
+        control.neighbourChanged(level, far);
+        helper.assertFalse(control.powered(), "unpowered stays with unloaded neighbours");
+        helper.assertValueEqual(control.pendingPulses(), 0, "no pulse from unloaded neighbours");
+        control.start(level, far);
+        helper.assertFalse(control.powered(), "unpowered stays at the start");
+        // Powered: read once beside the lever, then update at the unloaded position.
+        helper.pullLever(LEVER);
+        control.neighbourChanged(level, helper.absolutePos(MACHINE));
+        helper.assertTrue(control.powered(), "powered by the lever");
+        helper.assertValueEqual(control.pendingPulses(), 1, "pulse for the lever");
+        control.neighbourChanged(level, far);
+        helper.assertTrue(control.powered(), "powered stays with unloaded neighbours");
+        helper.assertValueEqual(control.pendingPulses(), 1, "no new pulse from unloaded neighbours");
+        helper.assertTrue(machine.redstone.powered(), "the machine itself read the lever");
         helper.succeed();
     }
 

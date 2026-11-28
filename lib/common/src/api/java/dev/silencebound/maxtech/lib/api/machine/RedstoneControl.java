@@ -13,7 +13,7 @@ import net.minecraft.world.level.storage.ValueOutput;
  * {@link #start} once in {@code onLoad}, and the machine's process asks {@link #allowsRun()} before it runs and calls
  * {@link #consumePulse()} when it starts a run. The signal is read the way vanilla's {@code hasNeighborSignal} reads it
  * (a neighbour's weak signal, or a strong signal into a conducting neighbour), except that a block in a chunk that is
- * not loaded is never loaded: then the last reading stays.
+ * not loaded is never loaded: then the last reading stays. Positions outside the build height give no signal.
  * <p>
  * In {@link RedstoneMode#PULSE} every rising edge of the signal counts one run, up to {@link #MAX_PENDING} waiting runs
  * (more are dropped); a signal that stays on counts nothing more, and an edge seen while the machine starts or loads is
@@ -176,6 +176,9 @@ public final class RedstoneControl {
         boolean unknown = false;
         for (Direction direction : DIRECTIONS) {
             BlockPos neighbour = pos.relative(direction);
+            if (level.isOutsideBuildHeight(neighbour)) {
+                continue;
+            }
             if (!level.isLoaded(neighbour)) {
                 unknown = true;
                 continue;
@@ -187,6 +190,9 @@ public final class RedstoneControl {
             if (state.isRedstoneConductor(level, neighbour)) {
                 for (Direction into : DIRECTIONS) {
                     BlockPos source = neighbour.relative(into);
+                    if (level.isOutsideBuildHeight(source)) {
+                        continue;
+                    }
                     if (!level.isLoaded(source)) {
                         unknown = true;
                     } else if (level.getDirectSignal(source, into) > 0) {
