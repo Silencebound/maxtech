@@ -1,0 +1,2 @@
+// port-override: base=ea6231b97157e459
+// 1.21.1 has no RegisterPictureInPictureRenderersEvent; rendering draws the faces preview directly.
