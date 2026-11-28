@@ -10,13 +10,11 @@ import dev.silencebound.maxtech.lib.api.transfer.TransferPorts;
 import dev.silencebound.maxtech.lib.platform.Platform;
 import dev.silencebound.maxtech.lib.platform.RegistryEntry;
 import dev.silencebound.maxtech.lib.platform.RegistryHelper;
-import dev.silencebound.maxtech.lib.schedule.LevelTasks;
 import java.util.Objects;
 import java.util.Set;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
-import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.level.Level;
@@ -34,15 +32,15 @@ import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.capabilities.Capabilities;
 import net.neoforged.neoforge.capabilities.RegisterCapabilitiesEvent;
-import net.neoforged.neoforge.server.ServerLifecycleHooks;
 import net.neoforged.neoforge.transfer.item.ItemResource;
 import net.neoforged.neoforge.transfer.item.ItemStacksResourceHandler;
+import net.neoforged.neoforge.transfer.transaction.TransactionContext;
 import org.jspecify.annotations.Nullable;
 
 /**
  * Blocks for the transfer port GameTests: a port with a pulling input buffer, a pushing output buffer and a plain item
- * capability of its own (which the port never uses, so a test can tell port-to-port moves from capability moves), and a
- * sink that takes at most 7 items.
+ * capability of its own (which the port never uses, so a test can tell port-to-port moves from capability moves), a
+ * sink that takes at most 7 items, and a stingy source that gives at most 3 items per extract.
  */
 @EventBusSubscriber(modid = MaxtechLib.MOD_ID)
 public final class TestPorts {
@@ -52,17 +50,19 @@ public final class TestPorts {
             id -> new PortBlock(BlockBehaviour.Properties.of().setId(ResourceKey.create(Registries.BLOCK, id))));
     public static final RegistryEntry<Block, SinkBlock> SINK = BLOCKS.register("test_port_sink",
             id -> new SinkBlock(BlockBehaviour.Properties.of().setId(ResourceKey.create(Registries.BLOCK, id))));
+    public static final RegistryEntry<Block, StingyBlock> STINGY = BLOCKS.register("test_port_stingy_source",
+            id -> new StingyBlock(BlockBehaviour.Properties.of().setId(ResourceKey.create(Registries.BLOCK, id))));
     private static final RegistryHelper.Registrar<BlockEntityType<?>> BLOCK_ENTITIES = Platform.get().registry()
             .registrar(MaxtechLib.MOD_ID, Registries.BLOCK_ENTITY_TYPE);
     private static final RegistryEntry<BlockEntityType<?>, BlockEntityType<PortEntity>> PORT_ENTITY = BLOCK_ENTITIES
             .register("test_port", () -> new BlockEntityType<>(PortEntity::new, Set.of(PORT.get())));
     private static final RegistryEntry<BlockEntityType<?>, BlockEntityType<SinkEntity>> SINK_ENTITY = BLOCK_ENTITIES
             .register("test_port_sink", () -> new BlockEntityType<>(SinkEntity::new, Set.of(SINK.get())));
+    private static final RegistryEntry<BlockEntityType<?>, BlockEntityType<StingyEntity>> STINGY_ENTITY = BLOCK_ENTITIES
+            .register("test_port_stingy_source", () -> new BlockEntityType<>(StingyEntity::new, Set.of(STINGY.get())));
 
-    /** The group the next port block entity made joins; a shared one when null. */
+    /** The group the next port block entity made joins; Lib's transfer group when null. */
     private static @Nullable TaskGroup nextGroup;
-    private static @Nullable TaskGroup shared;
-    private static @Nullable MinecraftServer sharedServer;
 
     private TestPorts() {
     }
@@ -71,6 +71,13 @@ public final class TestPorts {
     static void registerCapabilities(RegisterCapabilitiesEvent event) {
         event.registerBlockEntity(Capabilities.Item.BLOCK, PORT_ENTITY.get(), (entity, side) -> entity.plain);
         event.registerBlockEntity(Capabilities.Item.BLOCK, SINK_ENTITY.get(), (entity, side) -> entity.handler);
+        event.registerBlockEntity(Capabilities.Item.BLOCK, STINGY_ENTITY.get(), (entity, side) -> entity.handler);
+    }
+
+    /** Places a port at {@code pos} that runs in Lib's transfer group. */
+    public static PortEntity place(ServerLevel level, BlockPos pos, int flags) {
+        level.setBlock(pos, PORT.get().defaultBlockState(), flags);
+        return (PortEntity) Objects.requireNonNull(level.getBlockEntity(pos), "no port block entity");
     }
 
     /** Places a port at {@code pos} whose task joins {@code group}, so a test can count its runs. */
@@ -82,21 +89,6 @@ public final class TestPorts {
             nextGroup = null;
         }
         return (PortEntity) Objects.requireNonNull(level.getBlockEntity(pos), "no port block entity");
-    }
-
-    private static TaskGroup groupForNewPort() {
-        TaskGroup group = nextGroup;
-        if (group != null) {
-            return group;
-        }
-        MinecraftServer server = ServerLifecycleHooks.getCurrentServer();
-        TaskGroup current = shared;
-        if (current == null || !Objects.equals(sharedServer, server)) {
-            current = LevelTasks.newGroup(Objects.requireNonNull(server, "no server").overworld());
-            shared = current;
-            sharedServer = server;
-        }
-        return current;
     }
 
     /** Counts {@code item} in the first {@code size} slots of {@code slots}. */
@@ -166,14 +158,28 @@ public final class TestPorts {
         public final ItemStacksResourceHandler plain = new ItemStacksResourceHandler(3);
         public final TransferPort port;
         public int settingsChanges;
+        /**
+         * Saves settings changes with {@code Level.blockEntityChanged} instead of {@code setChanged}, which would send
+         * every neighbour an update, as an owner may.
+         */
+        public boolean quietSettings;
 
         PortEntity(BlockPos pos, BlockState state) {
             super(PORT_ENTITY.get(), pos, state);
-            port = TransferPorts.builder(groupForNewPort()).items(input, Set.of(PortFaceMode.PULL))
+            TransferPorts.Builder builder = TransferPorts.builder().items(input, Set.of(PortFaceMode.PULL))
                     .items(output, Set.of(PortFaceMode.PUSH)).onSettingsChanged(() -> {
                         settingsChanges++;
-                        setChanged();
-                    }).build();
+                        if (quietSettings && level != null) {
+                            level.blockEntityChanged(worldPosition);
+                        } else {
+                            setChanged();
+                        }
+                    });
+            TaskGroup group = nextGroup;
+            if (group != null) {
+                builder.tasks(level -> group);
+            }
+            port = builder.build();
         }
 
         private void changed() {
@@ -242,6 +248,39 @@ public final class TestPorts {
 
         SinkEntity(BlockPos pos, BlockState state) {
             super(SINK_ENTITY.get(), pos, state);
+        }
+    }
+
+    /** A source that reports what it holds but gives at most 3 items per extract. */
+    public static final class StingyBlock extends Block implements EntityBlock {
+        static final MapCodec<StingyBlock> CODEC = simpleCodec(StingyBlock::new);
+
+        StingyBlock(Properties properties) {
+            super(properties);
+        }
+
+        @Override
+        protected MapCodec<? extends Block> codec() {
+            return CODEC;
+        }
+
+        @Override
+        public BlockEntity newBlockEntity(BlockPos pos, BlockState state) {
+            return new StingyEntity(pos, state);
+        }
+    }
+
+    /** The stingy source's one slot. */
+    public static final class StingyEntity extends BlockEntity {
+        public final ItemStacksResourceHandler handler = new ItemStacksResourceHandler(1) {
+            @Override
+            public int extract(int index, ItemResource resource, int amount, TransactionContext transaction) {
+                return super.extract(index, resource, Math.min(amount, 3), transaction);
+            }
+        };
+
+        StingyEntity(BlockPos pos, BlockState state) {
+            super(STINGY_ENTITY.get(), pos, state);
         }
     }
 }

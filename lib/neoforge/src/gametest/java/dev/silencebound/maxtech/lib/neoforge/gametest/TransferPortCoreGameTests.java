@@ -20,6 +20,7 @@ import dev.silencebound.maxtech.lib.neoforge.gametest.TestPorts.PortEntity;
 import dev.silencebound.maxtech.lib.platform.Platform;
 import dev.silencebound.maxtech.lib.platform.RegistryHelper;
 import dev.silencebound.maxtech.lib.schedule.LevelTasks;
+import dev.silencebound.maxtech.lib.transfer.LibTransferPort;
 import dev.silencebound.maxtech.lib.transfer.PortRegistry;
 import java.util.List;
 import java.util.Objects;
@@ -55,8 +56,9 @@ import net.neoforged.neoforge.transfer.item.ItemResource;
 
 /**
  * Lib's transfer port core with items (ADR-0018) on real blocks: pushing and pulling, round-robin, filters, buffer
- * roles, the rules between two ports, exact counts against full, partly full and stingy targets, sleeping and waking,
- * and chunk unloads of a target and of the port itself.
+ * roles, the rules between two ports, exact counts against full, partly full and stingy targets and sources, sleeping
+ * and waking (a neighbouring port's settings change included), task groups, and chunk unloads of a target, of a
+ * neighbouring port and of the port itself.
  */
 @EventBusSubscriber(modid = MaxtechLib.MOD_ID)
 public final class TransferPortCoreGameTests {
@@ -71,7 +73,11 @@ public final class TransferPortCoreGameTests {
             new Test("transfer_port_between_ports", 100, false), new Test("transfer_port_full_target", 100, false),
             new Test("transfer_port_partial_room", 100, false), new Test("transfer_port_stingy_target", 100, false),
             new Test("transfer_port_settings", 20, false), new Test("transfer_port_sleeps", 1600, false),
-            new Test("transfer_port_target_unload", 400, true), new Test("transfer_port_unload_reload", 600, true));
+            new Test("transfer_port_target_unload", 400, true), new Test("transfer_port_unload_reload", 600, true),
+            new Test("transfer_port_neighbour_filter", 100, false),
+            new Test("transfer_port_neighbour_full", 100, false), new Test("transfer_port_stingy_source", 200, false),
+            new Test("transfer_port_pull_filter", 100, false), new Test("transfer_port_vertical_wake", 100, false),
+            new Test("transfer_port_groups", 100, false), new Test("transfer_port_neighbour_port_unload", 400, true));
 
     static {
         FUNCTIONS.register("transfer_port_push_chest", () -> TransferPortCoreGameTests::pushChest);
@@ -87,6 +93,13 @@ public final class TransferPortCoreGameTests {
         FUNCTIONS.register("transfer_port_sleeps", () -> TransferPortCoreGameTests::sleeps);
         FUNCTIONS.register("transfer_port_target_unload", () -> TransferPortCoreGameTests::targetUnload);
         FUNCTIONS.register("transfer_port_unload_reload", () -> TransferPortCoreGameTests::unloadReload);
+        FUNCTIONS.register("transfer_port_neighbour_filter", () -> TransferPortCoreGameTests::neighbourFilter);
+        FUNCTIONS.register("transfer_port_neighbour_full", () -> TransferPortCoreGameTests::neighbourFull);
+        FUNCTIONS.register("transfer_port_stingy_source", () -> TransferPortCoreGameTests::stingySource);
+        FUNCTIONS.register("transfer_port_pull_filter", () -> TransferPortCoreGameTests::pullFilter);
+        FUNCTIONS.register("transfer_port_vertical_wake", () -> TransferPortCoreGameTests::verticalWake);
+        FUNCTIONS.register("transfer_port_groups", () -> TransferPortCoreGameTests::groups);
+        FUNCTIONS.register("transfer_port_neighbour_port_unload", () -> TransferPortCoreGameTests::neighbourPortUnload);
     }
 
     private record Test(String name, int maxTicks, boolean far) {
@@ -115,8 +128,14 @@ public final class TransferPortCoreGameTests {
         return TestPorts.place(helper.getLevel(), helper.absolutePos(pos), group, Block.UPDATE_ALL);
     }
 
+    /** A port in Lib's transfer group. */
     private static PortEntity port(GameTestHelper helper, BlockPos pos) {
-        return port(helper, pos, LevelTasks.newGroup(helper.getLevel()));
+        return TestPorts.place(helper.getLevel(), helper.absolutePos(pos), Block.UPDATE_ALL);
+    }
+
+    private static PortSettings denyStone(PortSettings settings) {
+        return settings.withFilter(ResourceKinds.ITEM, Optional.of(
+                PortFilter.of(ResourceKinds.ITEM, PortFilter.Mode.DENY, List.of(ItemKey.of(Items.STONE)), List.of())));
     }
 
     private static ChestBlockEntity chest(GameTestHelper helper, BlockPos pos) {
@@ -325,8 +344,9 @@ public final class TransferPortCoreGameTests {
     }
 
     /**
-     * Settings outside the buffers' modes are put back, the defaults are not saved and load back for data without
-     * settings, changed settings save and load, and a wrench cycles through the allowed modes.
+     * Settings outside the buffers' modes are put back, the defaults are saved too (a port built with other defaults
+     * loads them unchanged) and load back for data without settings, changed settings save and load, and a wrench
+     * cycles through the allowed modes.
      */
     private static void settings(GameTestHelper helper) {
         HolderLookup.Provider registries = helper.getLevel().registryAccess();
@@ -335,8 +355,8 @@ public final class TransferPortCoreGameTests {
         PortSettings defaults = faces(Direction.WEST, PULL).withMode(ResourceKinds.ITEM, Direction.UP, PUSH);
         PortSettings pullOnly = faces(Direction.WEST, PULL);
         int[] changes = new int[1];
-        TransferPort port = TransferPorts.builder(LevelTasks.newGroup(helper.getLevel())).items(slots, Set.of(PULL))
-                .defaults(defaults).onSettingsChanged(() -> changes[0]++).build();
+        TransferPort port = TransferPorts.builder().items(slots, Set.of(PULL)).defaults(defaults)
+                .onSettingsChanged(() -> changes[0]++).build();
         helper.assertValueEqual(port.settings(), pullOnly, "defaults within the allowed modes");
         helper.assertValueEqual(port.allowed(ResourceKinds.ITEM), Set.of(OFF, PULL), "allowed modes");
         helper.assertValueEqual(port.kinds(), List.of(ResourceKinds.ITEM), "kinds");
@@ -345,7 +365,10 @@ public final class TransferPortCoreGameTests {
         TagValueOutput unchanged = TagValueOutput.createWithContext(ProblemReporter.DISCARDING, registries);
         port.save(unchanged);
         CompoundTag unchangedTag = unchanged.buildResult();
-        helper.assertTrue(unchangedTag.isEmpty(), "defaults saved: " + unchangedTag);
+        TransferPort otherDefaults = TransferPorts.builder().items(slots, Set.of(PULL))
+                .defaults(faces(Direction.NORTH, PULL)).build();
+        otherDefaults.load(TagValueInput.create(ProblemReporter.DISCARDING, registries, unchangedTag));
+        helper.assertValueEqual(otherDefaults.settings(), pullOnly, "saved defaults under changed builder defaults");
 
         helper.assertValueEqual(port.cycleFace(ResourceKinds.ITEM, Direction.WEST), OFF, "pull to off");
         helper.assertValueEqual(port.cycleFace(ResourceKinds.ITEM, Direction.EAST), PULL, "off to pull");
@@ -357,8 +380,8 @@ public final class TransferPortCoreGameTests {
         TagValueOutput out = TagValueOutput.createWithContext(ProblemReporter.DISCARDING, registries);
         port.save(out);
         CompoundTag saved = out.buildResult();
-        TransferPort loaded = TransferPorts.builder(LevelTasks.newGroup(helper.getLevel())).items(slots, Set.of(PULL))
-                .defaults(defaults).onSettingsChanged(() -> changes[0]++).build();
+        TransferPort loaded = TransferPorts.builder().items(slots, Set.of(PULL)).defaults(defaults)
+                .onSettingsChanged(() -> changes[0]++).build();
         loaded.load(TagValueInput.create(ProblemReporter.DISCARDING, registries, saved));
         helper.assertValueEqual(loaded.settings(), changed, "loaded settings");
         loaded.load(TagValueInput.create(ProblemReporter.DISCARDING, registries, new CompoundTag()));
@@ -510,5 +533,199 @@ public final class TransferPortCoreGameTests {
 
     private static int chestStone(ServerLevel level, BlockPos pos) {
         return level.getBlockEntity(pos) instanceof ChestBlockEntity chest ? count(chest, Items.STONE) : -1;
+    }
+
+    /** A neighbouring port's filter refuses stone: only the dirt goes into its pulling buffer, the stone stays. */
+    private static void neighbourFilter(GameTestHelper helper) {
+        PortEntity a = port(helper, PORT);
+        PortEntity b = port(helper, PORT.east());
+        a.output.set(0, new ItemStack(Items.STONE, 10));
+        a.output.set(1, new ItemStack(Items.DIRT, 10));
+        b.port.setSettings(denyStone(faces(Direction.WEST, PULL)));
+        a.port.setSettings(faces(Direction.EAST, PUSH));
+        helper.startSequence().thenExecuteAfter(40, () -> {
+            helper.assertValueEqual(TestPorts.count(b.input, Items.DIRT), 10, "dirt in B");
+            helper.assertValueEqual(TestPorts.count(b.input, Items.STONE), 0, "denied stone in B");
+            helper.assertValueEqual(TestPorts.count(b.plain, Items.STONE), 0, "stone at B's capability");
+            helper.assertValueEqual(TestPorts.count(a.output, Items.STONE), 10, "stone kept in A");
+        }).thenSucceed();
+    }
+
+    /**
+     * A neighbouring port whose pulling slots are full takes nothing, neither into its pushing buffer's input slot nor
+     * through its capability, and the pusher reports blocked; once a slot is free the stone goes in.
+     */
+    private static void neighbourFull(GameTestHelper helper) {
+        PortEntity a = port(helper, PORT);
+        PortEntity b = port(helper, PORT.east());
+        b.input.set(0, new ItemStack(Items.DIRT, 64));
+        b.input.set(1, new ItemStack(Items.DIRT, 64));
+        a.output.set(0, new ItemStack(Items.STONE, 10));
+        b.port.setSettings(faces(Direction.WEST, PULL));
+        a.port.setSettings(faces(Direction.EAST, PUSH));
+        helper.startSequence().thenExecuteAfter(30, () -> {
+            helper.assertValueEqual(TestPorts.count(a.output, Items.STONE), 10, "stone kept in A");
+            helper.assertValueEqual(TestPorts.count(b.input, Items.STONE), 0, "stone in B's pulling buffer");
+            helper.assertValueEqual(TestPorts.count(b.output, Items.STONE), 0, "stone in B's pushing buffer");
+            helper.assertValueEqual(TestPorts.count(b.plain, Items.STONE), 0, "stone at B's capability");
+            helper.assertValueEqual(TestPorts.count(b.input, Items.DIRT), 128, "dirt in B");
+            helper.assertValueEqual(a.port.status(ResourceKinds.ITEM), PortStatus.BLOCKED, "status");
+            b.input.set(1, ItemStack.EMPTY);
+        }).thenWaitUntil(() -> {
+            helper.assertValueEqual(TestPorts.count(b.input, Items.STONE), 10, "stone in B once there is room");
+            helper.assertValueEqual(TestPorts.count(a.output, Items.STONE), 0, "stone left in A");
+        }).thenSucceed();
+    }
+
+    /**
+     * A source that gives less than the port's slots took: the nested transaction rolls the pull back, nothing moves
+     * and the port reports blocked. With a rate of 3, what the source gives, all of it arrives.
+     */
+    private static void stingySource(GameTestHelper helper) {
+        PortEntity port = port(helper, PORT);
+        helper.setBlock(PORT.west(), TestPorts.STINGY.get());
+        TestPorts.StingyEntity source = helper.getBlockEntity(PORT.west(), TestPorts.StingyEntity.class);
+        source.handler.set(0, ItemResource.of(Items.COAL), 20);
+        port.port.setSettings(faces(Direction.WEST, PULL));
+        helper.startSequence().thenExecuteAfter(30, () -> {
+            helper.assertValueEqual(TestPorts.count(port.input, Items.COAL), 0, "coal in the port");
+            helper.assertValueEqual(TestPorts.count(source.handler, Items.COAL), 20, "coal at the source");
+            helper.assertValueEqual(port.port.status(ResourceKinds.ITEM), PortStatus.BLOCKED, "status");
+            port.port.setSettings(faces(Direction.WEST, PULL).withRate(ResourceKinds.ITEM, 3));
+        }).thenWaitUntil(() -> helper.assertValueEqual(TestPorts.count(port.input, Items.COAL), 20, "coal pulled"))
+                .thenExecute(() -> helper.assertValueEqual(TestPorts.count(source.handler, Items.COAL), 0,
+                        "coal left at the source"))
+                .thenSucceed();
+    }
+
+    /** An allow filter on a pulling face takes only coal from the chest. */
+    private static void pullFilter(GameTestHelper helper) {
+        PortEntity port = port(helper, PORT);
+        ChestBlockEntity chest = chest(helper, PORT.west());
+        chest.setItem(0, new ItemStack(Items.DIRT, 20));
+        chest.setItem(1, new ItemStack(Items.COAL, 20));
+        port.port.setSettings(faces(Direction.WEST, PULL).withFilter(ResourceKinds.ITEM, Optional.of(
+                PortFilter.of(ResourceKinds.ITEM, PortFilter.Mode.ALLOW, List.of(ItemKey.of(Items.COAL)), List.of()))));
+        helper.startSequence().thenExecuteAfter(40, () -> {
+            helper.assertValueEqual(TestPorts.count(port.input, Items.COAL), 20, "coal pulled");
+            helper.assertValueEqual(TestPorts.count(port.input, Items.DIRT), 0, "dirt pulled");
+            helper.assertValueEqual(count(chest, Items.DIRT), 20, "dirt left in the chest");
+        }).thenSucceed();
+    }
+
+    /**
+     * Port B above port A, whose owner saves settings changes without neighbour updates: A pushes up into B once B's
+     * face turns from pushing to pulling and once B's filter stops refusing the stone, each time woken by B's settings
+     * change alone.
+     */
+    private static void verticalWake(GameTestHelper helper) {
+        PortEntity a = port(helper, PORT);
+        PortEntity b = port(helper, PORT.above());
+        b.quietSettings = true;
+        a.output.set(0, new ItemStack(Items.STONE, 10));
+        a.output.set(1, new ItemStack(Items.DIRT, 10));
+        b.port.setSettings(faces(Direction.DOWN, PUSH));
+        a.port.setSettings(faces(Direction.UP, PUSH));
+        helper.startSequence().thenExecuteAfter(30, () -> {
+            helper.assertValueEqual(TestPorts.count(b.input, Items.DIRT), 0, "dirt into a pushing face");
+            b.port.setSettings(denyStone(faces(Direction.DOWN, PULL)));
+        }).thenWaitUntil(() -> helper.assertValueEqual(TestPorts.count(b.input, Items.DIRT), 10, "dirt in B"))
+                .thenIdle(20).thenExecute(() -> {
+                    helper.assertValueEqual(TestPorts.count(b.input, Items.STONE), 0, "denied stone in B");
+                    b.port.setSettings(faces(Direction.DOWN, PULL));
+                }).thenWaitUntil(() -> helper.assertValueEqual(TestPorts.count(b.input, Items.STONE), 10, "stone in B"))
+                .thenSucceed();
+    }
+
+    /**
+     * A port runs in its owner's group; when that group closes, the next event puts it in Lib's transfer group while
+     * the owner's function still gives the closed group, and a later start asks again. A port without a group of its
+     * owner's runs in Lib's.
+     */
+    private static void groups(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        ChestBlockEntity chest = chest(helper, PORT.east());
+        ItemSlots slots = ItemSlots.builder(1).output(0, 1).build(slot -> {
+        });
+        TaskGroup[] owner = {LevelTasks.newGroup(level)};
+        TransferPort built = TransferPorts.builder().items(slots, Set.of(PUSH)).tasks(l -> owner[0]).build();
+        LibTransferPort port = (LibTransferPort) built;
+        BlockPos pos = helper.absolutePos(PORT);
+        port.setSettings(faces(Direction.EAST, PUSH));
+        slots.set(0, new ItemStack(Items.STONE, 5));
+        port.start(level, pos);
+        helper.assertTrue(port.tasks() == owner[0], "in the owner's group");
+        helper.startSequence().thenWaitUntil(() -> helper.assertValueEqual(count(chest, Items.STONE), 5, "first"))
+                .thenExecute(() -> {
+                    owner[0].close();
+                    slots.set(0, new ItemStack(Items.STONE, 5));
+                    port.bufferChanged();
+                    helper.assertTrue(port.tasks() == PortRegistry.group(level), "in Lib's group");
+                }).thenWaitUntil(() -> helper.assertValueEqual(count(chest, Items.STONE), 10, "after the close"))
+                .thenExecute(() -> {
+                    port.stop();
+                    helper.assertTrue(port.tasks() == null, "stopped in a group");
+                    owner[0] = LevelTasks.newGroup(level);
+                    port.start(level, pos);
+                    helper.assertTrue(port.tasks() == owner[0], "in the new owner group");
+                    port.stop();
+                    TransferPort plain = TransferPorts.builder().items(slots, Set.of(PUSH)).build();
+                    plain.start(level, pos);
+                    helper.assertTrue(((LibTransferPort) plain).tasks() == PortRegistry.group(level),
+                            "a port without an owner group");
+                    plain.stop();
+                    owner[0].close();
+                }).thenSucceed();
+    }
+
+    /**
+     * Like {@link #targetUnload} with a neighbouring port instead of a chest: while the port's chunk is below full
+     * status the pusher moves nothing into it (its block entity stays in memory and in the registry); once it is back
+     * the stone goes into its pulling buffer.
+     */
+    private static void neighbourPortUnload(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        int anchorX = 6500;
+        int chunkZ = 6500;
+        int portChunkX = anchorX + 2;
+        int otherChunkX = anchorX + 3;
+        int y = helper.absolutePos(BlockPos.ZERO).getY();
+        BlockPos portPos = new BlockPos(portChunkX * 16 + 15, y, chunkZ * 16 + 8);
+        BlockPos otherPos = portPos.east();
+        PortEntity[] ports = new PortEntity[2];
+        helper.startSequence().thenExecute(() -> {
+            level.setChunkForced(anchorX, chunkZ, true);
+            level.setChunkForced(otherChunkX, chunkZ, true);
+            level.getChunk(portChunkX, chunkZ);
+            level.getChunk(otherChunkX, chunkZ);
+        }).thenWaitUntil(() -> {
+            helper.assertTrue(level.getChunkSource().getChunkNow(portChunkX, chunkZ) != null, "port chunk not full");
+            helper.assertTrue(level.getChunkSource().getChunkNow(otherChunkX, chunkZ) != null, "other not full");
+        }).thenExecute(() -> {
+            ports[1] = TestPorts.place(level, otherPos, QUIET);
+            ports[1].port.setSettings(faces(Direction.WEST, PULL));
+            ports[0] = TestPorts.place(level, portPos, QUIET);
+            ports[0].output.set(0, new ItemStack(Items.STONE, 64));
+            level.setChunkForced(otherChunkX, chunkZ, false);
+        }).thenWaitUntil(() -> helper.assertTrue(level.getChunkSource().getChunkNow(otherChunkX, chunkZ) == null,
+                "the other port's chunk is still at full status"))
+                .thenExecute(() -> ports[0].port.setSettings(faces(Direction.EAST, PUSH))).thenIdle(40)
+                .thenExecute(() -> {
+                    helper.assertTrue(level.getChunkSource().getChunkNow(otherChunkX, chunkZ) == null,
+                            "the port loaded the other port's chunk");
+                    helper.assertValueEqual(TestPorts.count(ports[0].output, Items.STONE), 64, "stone moved");
+                    helper.assertValueEqual(TestPorts.count(ports[1].input, Items.STONE), 0, "stone in the other");
+                    level.setChunkForced(otherChunkX, chunkZ, true);
+                    level.getChunk(otherChunkX, chunkZ);
+                }).thenWaitUntil(() -> helper.assertValueEqual(TestPorts.count(ports[0].output, Items.STONE), 0,
+                        "stone left after the other port's chunk came back"))
+                .thenExecute(() -> {
+                    helper.assertTrue(level.getBlockEntity(otherPos) instanceof PortEntity other
+                            && TestPorts.count(other.input, Items.STONE) == 64, "stone in the other port");
+                    level.setBlock(portPos, Blocks.AIR.defaultBlockState(), QUIET);
+                    level.setBlock(otherPos, Blocks.AIR.defaultBlockState(), QUIET);
+                    level.setChunkForced(otherChunkX, chunkZ, false);
+                    level.setChunkForced(anchorX, chunkZ, false);
+                }).thenSucceed();
     }
 }
