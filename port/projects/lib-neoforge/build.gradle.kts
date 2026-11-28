@@ -110,6 +110,12 @@ neoForge {
             gameDirectory = rootProject.file("run/$name")
         }
     }
+
+    // JUnit inside FML (ModDevGradle's unit test support), so tests can bootstrap the game's registries.
+    unitTest {
+        enable()
+        testedMod = mods[modId]
+    }
 }
 
 evaluationDependsOn(common.path)
@@ -121,6 +127,19 @@ tasks.withType<JavaCompile>().configureEach {
 
 tasks.withType<Test>().configureEach {
     useJUnitPlatform()
+}
+
+// Common's tests that need the game's registries (the legacy transfer bridge's) skip themselves in common's plain JUnit
+// run and run here, inside FML. Common's test classes join this test source set's output, which ModDevGradle adds to
+// the tested mod, so FML loads them in the game layer next to the code they test. Common's test resources stay out:
+// their Platform service (the config outline) would replace NeoForge's in the mod.
+val commonTest = common.the<SourceSetContainer>()["test"]
+sourceSets.test {
+    output.dir(mapOf("builtBy" to common.tasks.named(commonTest.classesTaskName)), commonTest.java.destinationDirectory)
+}
+tasks.test {
+    testClassesDirs += commonTest.output.classesDirs
+    include("dev/silencebound/maxtech/lib/neoforge/**", "dev/silencebound/maxtech/lib/shim/transfer/bridge/legacy/**")
 }
 
 tasks.jar {

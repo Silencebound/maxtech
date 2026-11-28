@@ -373,4 +373,12 @@ RULES = [
     # 26.1's CompoundTag.getString returns an Optional; only where every getString call is on a CompoundTag
     Transform(receiver_calls(("getString",), f"{_SAVING}.Nbt"), name="CompoundTag.getString -> Nbt shim",
               files=("lib/common/src/test/java/dev/silencebound/maxtech/lib/save/SaveFormatTest.java",)),
+    # 1.21.1's ListTag holds one element type; NbtOps saves a mixed list as {"": value} wrappers, so the test builds
+    # its saved form through NbtOps too.
+    Regex(r"ListTag keys = new ListTag\(\);\s*keys\.add\(IntTag\.valueOf\(7\)\);\s*"
+          r"keys\.add\(StringTag\.valueOf\(\"not a number\"\)\);\s*saved\.put\(\"keys\", keys\);",
+          "saved.put(\"keys\", NbtOps.INSTANCE.createList(\n"
+          "                java.util.stream.Stream.of(IntTag.valueOf(7), StringTag.valueOf(\"not a number\"))));",
+          scope="all",
+          files=("lib/common/src/test/java/dev/silencebound/maxtech/lib/api/transfer/PortFilterTest.java",)),
 ]

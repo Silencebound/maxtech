@@ -328,6 +328,23 @@ KUBEJS_RULES = [
           files=(NEO + "compat/kubejs/LibKubeJSPlugin.java",)),
 ]
 
+# --- mods.toml: the optional and bundled mods' 1.21.1 lines (port/gradle/libs.versions.toml) ------------------------
+_DEPENDENCY_RANGES = {"guideme": "[21.1.22,21.2)", "jade": "[15.10.6,)", "ftbteams": "[2101.1.12,)"}
+
+
+def _mods_toml(text: str, rel: str) -> str:
+    def repl(m: re.Match[str]) -> str:
+        return m.group(1) + '"' + _DEPENDENCY_RANGES[m.group(2)] + '"'
+
+    pattern = r'(modId = "(' + "|".join(_DEPENDENCY_RANGES) + r')"\n(?:(?!\[\[)[^\n]*\n)*?versionRange = )"[^"]*"'
+    return re.sub(pattern, repl, text)
+
+
+MODS_TOML_RULES = [
+    Transform(_mods_toml, "mods.toml dependency ranges",
+              files=("lib/neoforge/src/main/resources/META-INF/neoforge.mods.toml",)),
+]
+
 RULES = [
     # --- misc: types 1.21.1 lacks ------------------------------------------------------------------------------------
     *[ImportMove("net.minecraft.world.item.ItemStackTemplate", f"{SHIM}.ItemStackTemplate", files=(f,))
@@ -369,4 +386,5 @@ RULES = [
     *LOOKUP_RULES,
     *NEOFORGE_RULES,
     *KUBEJS_RULES,
+    *MODS_TOML_RULES,
 ]
