@@ -1,11 +1,12 @@
 ---
 name: guideme
-description: Writing and checking MaxTech guide pages with GuideME (the AE2 guide library, bundled in Storage) — page style and length, tags, scenes and annotations, frontmatter, links and anchors, live preview, Storage's own tags and tests, and verified GuideME facts. Use for any guide page, guide tag, scene, or GuideME build question.
+description: Writing and checking MaxTech guide pages with GuideME (the AE2 guide library, bundled in Lib) — page style and length, tags, scenes and annotations, frontmatter, links and anchors, live preview, MaxTech's own tags (Lib) and Storage's tests, and verified GuideME facts. Use for any guide page, guide tag, scene, or GuideME build question.
 ---
 
 # GuideME for MaxTech guides
 
-Storage's guide is drawn by GuideME (bundled jar-in-jar since MGM). Read this before writing or editing a guide page,
+Storage's guide is drawn by GuideME (bundled jar-in-jar in Storage since MGM, in Lib since Lib 0.15.0; every MaxTech
+mod declares its guide through Lib). Read this before writing or editing a guide page,
 adding a tag or scene, or touching GuideME wiring. Search it with `rg -n '<topic>' .claude/skills/guideme/` rather
 than reading it whole. Add or correct facts here when you verify or disprove something (same PR).
 
@@ -41,12 +42,15 @@ than reading it whole. Add or correct facts here when you verify or disprove som
 
 - Pages: `storage/common/src/main/resources/assets/maxtech_storage/guides/maxtech_storage/guide/` (every `.md` there
   is a page; nothing else belongs there except page assets such as structures). Start page `index.md`.
-- Guide id `maxtech_storage:guide`, declared in code in the client constructor (`StorageGuide`); opened by the Storage
-  manual (book + lumen quartz), by holding G over an item, or `/guideme open @s maxtech_storage:guide`.
-- Own tag: `<Config key="..." unit="..." />` shows a Storage server config value (synced in a world, default outside),
-  registered in `StorageGuide.tagCompilers()`. Other mods' configs are not readable.
+- Guide id `maxtech_storage:guide`, declared with `Guides.register(MOD_ID)` (`lib.neoforge.api.guide`, no GuideME
+  types) in Storage's client constructor; Lib's `LibGuides` builds the GuideME guide. Opened by the Storage manual
+  (book + lumen quartz, a `lib.api.guide.GuideBook`), by holding G over an item, or
+  `/guideme open @s maxtech_storage:guide`.
+- Own tag (Lib, `LibGuides.tagCompilers()`): `<Config key="..." unit="..." />` shows a config value from
+  `GuideConfigValues` (synced in a world, default outside); a key without a namespace is the page's mod,
+  `maxtech_lib:...` another mod's.
 - Live preview: `./gradlew :storage:neoforge:runClient` sets `-Dguideme.maxtech_storage.guide.sources` to the page
-  folder; saved pages reload while the guide is open.
+  folder (`maxtech.neoforge` does this for any mod with pages); saved pages reload while the guide is open.
 - Tests (`./gradlew :storage:neoforge:runGameTestServer -Pgametest='maxtech_storage:guide_*'`): GuideME's own parser
   over every page; fail on unknown tags, bad `<Config>` keys, bad item ids, broken links **including `#anchors`**, scene
   block/state errors, and items without a page. GuideME itself only shows such errors as red text in the client.
@@ -92,14 +96,16 @@ GuideME is back as Storage's required guide (MGM item 1, 26.1.15-beta, bundled j
   strictly("[26.1.15-beta,26.2-)"); prefer(...) } }` puts `META-INF/jarjar/guideme-26.1.15-beta.jar` and a
   `metadata.json` (group, artifact, `range`, `artifactVersion`, `isObfuscated: false`) into the mod jar. A production
   NeoForge 26.1.2.109 server (installer `--installServer`) with only Lib's and Storage's jars in `mods/` lists
-  `guideme (jar(mods/maxtech_storage-0.7.0.jar > guideme-26.1.15-beta.jar))` and starts. In dev runs the nested jar is
+  `guideme (jar(mods/maxtech_storage-0.7.0.jar > guideme-26.1.15-beta.jar))` and starts. Since Lib 0.15.0 the
+  nested jar is in Lib's jar instead (Storage's has none); mods above Lib get GuideME on their dev runtime classpath
+  from `maxtech.neoforge`. In dev runs the nested jar is
   not used; the `implementation` jar is the one mod, and with `-PwithAe2=true` AE2's POM asks for 26.1.14-beta, which
   Gradle resolves to 26.1.15-beta, so one GuideME loads.
 - **Own guide item instead of `guideme:guide`** (AE2's pattern, `appeng.items.tools.GuideItem`): an ordinary item whose
   use calls `GuidesCommon.openGuide(player, guideId)` on the client. On a client the proxy opens the screen only for
   `Minecraft.getInstance().player`; on a server it sends `OpenGuideRequest` to a `ServerPlayer`. GuideME's javadoc on
-  `GuideBuilder.itemSettings` says code-route guides should register their own item. Storage's common module cannot
-  import GuideME, so `StorageGuide` opens the manual from `PlayerInteractEvent.RightClickItem` on the client side:
+  `GuideBuilder.itemSettings` says code-route guides should register their own item. A common module cannot
+  import GuideME, so Lib's `LibGuides` opens any `GuideBook` item from `PlayerInteractEvent.RightClickItem` on the client side:
   `MultiPlayerGameMode.useItem` fires it (`CommonHooks.onItemRightClick`) before `itemStack.use` (patched sources).
 - **Code route at client construction**: `Guide.builder(id).build()` in the `Dist.CLIENT` mod constructor, as AE2 does
   in `AppEngClient`'s constructor. The default folder is `guides/<ns>/<path>`, the start page `<ns>:index.md`; the

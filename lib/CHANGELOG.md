@@ -7,6 +7,13 @@ Api changes are marked **Api**.
 ## [Unreleased]
 
 ### Added
+- **Api** Guides for every MaxTech mod (experimental): `Guides.register(modId)` (`lib.neoforge.api.guide`) declares
+  the mod's GuideME guide `<modid>:guide` with Lib's `<Config>` tag and the website export's rewrite, and an item
+  implementing `GuideBook` (`lib.api.guide`) opens its guide when used. Neither names a GuideME type. GuideME
+  (26.1.15-beta, LGPLv3/MIT/Apache 2.0) is now a required dependency bundled in Lib's jar (jar-in-jar); it moved here
+  from Storage (ADR-0014 amendment). `<Config>` reads any mod's `GuideConfigValues` (a key without a namespace names
+  the page's mod). Mods with guide pages get hot reload in `runClient` and `runExportGuide`, `createGuideWebsite` and
+  `serveGuideWebsite` from the build.
 - **Api** `ConduitLook.Shell.withFrameBars()` (block state field `frame_bars`, experimental): a shell's borders become solid bars on every edge of the tube's outer box, all twelve of a bend's or branch's core included, with the glass set in one bar width between them. Flat border lines seen through clear glass looked like they floated; bars on the far side read as the back of the frame. `Shell` gained a seventh record component, `frameBars`; the four- and six-argument constructors stay.
 - **Api** `Layout.value(value, key, width, shownWhenNonZero)` (`lib.api.menu`, experimental): a value line that is drawn and narrated only while a synced `IntValue` is not 0; its box stays in place when hidden. See `docs/api/gui-toolkit.md`.
 - **Api** `MenuTesting` (`lib.api.menu`, experimental, GameTests only): opens a `MenuDefinition` for a mock server player with its values payloads captured, reads the server's and the client's `MenuValueView`, presses a tank's bucket button and shift-clicks slots, so addons can test their menus; `toolkit_api_*` GameTests use it. See `docs/api/gui-toolkit.md`.

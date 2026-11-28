@@ -1,5 +1,6 @@
 package dev.silencebound.maxtech.storage.guide;
 
+import dev.silencebound.maxtech.lib.api.guide.GuideBook;
 import java.util.function.Consumer;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
@@ -14,15 +15,16 @@ import net.minecraft.world.item.component.TooltipDisplay;
 import net.minecraft.world.level.Level;
 
 /**
- * The Storage manual, the book for Storage's GuideME guide. GuideME is a loader mod, so this class does not open the
- * guide itself: the neoforge module's {@code StorageGuide} opens {@link #guide()} on the using client.
+ * The Storage manual, the book for Storage's GuideME guide. As a {@link GuideBook}, Lib opens {@link #guide()} on the
+ * using client; the server only sees the use succeed.
  */
-public final class StorageManualItem extends Item {
+public final class StorageManualItem extends Item implements GuideBook {
     StorageManualItem(Properties properties) {
         super(properties);
     }
 
     /** The guide this book opens: Storage's guide. */
+    @Override
     public Identifier guide() {
         return GuideContent.GUIDE;
     }

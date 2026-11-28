@@ -66,7 +66,9 @@ Labels: **stable** = frozen at 1.0, a breaking change needs a Lib major bump. **
 | `RegisterConduitModelsEvent` | Client mod-bus event, fired once at startup: `register(ConduitEntry, hook)`. A marked conduit without a hook or a hook for an unmarked one stops the client. | experimental |
 | **`lib.api.energy`** | MaxTech energy (MLE): MU amounts and the FE rate, producer, consumer and buffer endpoints, networks with one sleeping pass per tick, per-level schedulers, edges to other mods' FE blocks with export settings (`EnergyEdge`, `EdgeSettings`, Lib 0.11.0), diagnostics (`EnergyNetwork.readout()`, `EnergyReadout`, the endpoint capability `EnergyNetworks.ENDPOINT_CAPABILITY`, Lib 0.12.0). Added in Lib 0.10.0; experimental until Storage's switch-over proves it. | experimental |
 | **`lib.api.guide`** | What stays of Lib's guide, retired in Lib 0.13.0 (MGM item 3; GuideME draws guides now): config values by path. `Guides`, `GuideElements`, `GuideColumns`, `GuideLiveValues` and `GuideScreens` are removed. | experimental |
-| `GuideConfigValues` | A mod's config values by dotted path, for a guide's `<Config>` tag (Storage's GuideME extension). | experimental |
+| `GuideConfigValues` | A mod's config values by dotted path, for a guide's `<Config>` tag (Lib's GuideME extension). | experimental |
+| `GuideBook` | An item that opens a guide when used (Lib 0.15.0); Lib opens it on the client. | experimental |
+| **`lib.neoforge.api.guide`** `Guides` | Declares a mod's GuideME guide `<modid>:guide` (Lib 0.15.0) without naming a GuideME type; GuideME is bundled in Lib's jar (ADR-0014 amendment). `declareWith` is Lib's (`@ApiStatus.Internal`). | experimental |
 | **`lib.api.info`** | Block information for the scanner and overlays (Jade). | stable |
 | `BlockInfoProvider` | Sided block capability that describes a block; brief and full detail. | stable |
 | `BlockInfoRequest` | What was asked: level, position, side, hit, detail. | stable |
