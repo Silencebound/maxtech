@@ -27,6 +27,8 @@ OUTCOMES = ("pass", "failed_then_passed", "failed")
 ID = r"[a-z0-9_.-]+:[a-z0-9_./-]+"
 ENTRY = re.compile(rf"^({ID})\s+(#\d+|https://\S+)\s+(\S.*)$")
 SUMMARY = re.compile(r"GameTestServer\]: (\d+) required tests failed")
+# Deliberately matches only plain "- <id>: ..." or "- <id>" lines. NeoForge logs a rotated test as "- <id> with rotation
+# <r>: ...", which does not match, so the names then fall short of the count and failed_tests() returns None: no retry.
 FAILED = re.compile(rf"GameTestServer\]:\s+- ({ID})(?::|\s*$)")
 PASSED = re.compile(r"GameTestServer\]: All (\d+) required tests passed")
 PERF_FAIL = re.compile(r"perf-result (\S+) \d+ \d+ FAIL\b")
@@ -158,14 +160,41 @@ def rates(docs):
     print("\n".join(lines))
 
 
+def gh(path, *args):
+    return subprocess.run(["gh", "api", path, *args], check=True, capture_output=True, text=True).stdout
+
+
+def trusted_main_run(run_id, runs):
+    """Whether a run was a push, schedule or manual run (not a PR from a fork that happens to use a branch named main)."""
+    if run_id not in runs:
+        runs[run_id] = gh(f"repos/{{owner}}/{{repo}}/actions/runs/{run_id}", "--jq", ".event").strip() in (
+            "push", "schedule", "workflow_dispatch")
+    return runs[run_id]
+
+
+def artifact_ids(name, limit, main_only):
+    """The ids of the newest `limit` unexpired artifacts called `name`, page by page; for main only those of main runs."""
+    ids, runs, page = [], {}, 1
+    while len(ids) < limit:
+        listing = json.loads(gh(f"repos/{{owner}}/{{repo}}/actions/artifacts?name={name}&per_page=100&page={page}"))
+        for artifact in listing["artifacts"]:
+            run = artifact.get("workflow_run") or {}
+            if artifact["expired"]:
+                continue
+            if main_only and not (run.get("head_branch") == "main" and trusted_main_run(run.get("id"), runs)):
+                continue
+            ids.append(artifact["id"])
+        if len(listing["artifacts"]) < 100:
+            break
+        page += 1
+    return ids[:limit]
+
+
 def fetch(limit):
     """The newest `limit` results artifacts of main and of PRs, read straight from their zips."""
     docs = []
-    for name in ("flaky-results-main", "flaky-results"):
-        query = f"repos/{{owner}}/{{repo}}/actions/artifacts?name={name}&per_page={limit}"
-        listing = subprocess.run(["gh", "api", query, "--jq", ".artifacts[] | select(.expired | not) | .id"],
-                                 check=True, capture_output=True, text=True).stdout.split()
-        for artifact in listing:
+    for name, main_only in (("flaky-results-main", True), ("flaky-results", False)):
+        for artifact in artifact_ids(name, limit, main_only):
             data = subprocess.run(["gh", "api", f"repos/{{owner}}/{{repo}}/actions/artifacts/{artifact}/zip"],
                                   check=True, capture_output=True).stdout
             with zipfile.ZipFile(io.BytesIO(data)) as archive:

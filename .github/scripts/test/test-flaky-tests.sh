@@ -112,12 +112,19 @@ grep -q 'maxtech_lib:flaky_one failed again on retry (#80)' "$tmp/twice/out.txt"
 # A retry that ran nothing (exit 0 without a pass line) is no pass.
 run_case empty lib "$(summary 1 maxtech_lib:flaky_one)" 1 "[12:00:00] no tests" 0
 [ "$status" = 1 ] || fail "empty retry: status $status"
+[ "$calls" = 2 ] || fail "empty retry: $calls calls"
+grep -q 'maxtech_lib:flaky_one failed again on retry (#80)' "$tmp/empty/out.txt" || fail "empty retry: reason"
+! grep -q 'Flaky test retried' "$tmp/empty/out.txt" || fail "empty retry: warned of a pass"
+[ "$(outcome empty maxtech_lib:flaky_one)" = failed ] || fail "empty retry: outcome"
 
 # A perf budget failure is never retried: PerfBudget already measured twice.
 run_case budget lib "[12:00:00] [Server thread/INFO] [PerfBudget/]: perf-result flaky_one 300 200 FAIL
 $(summary 1 maxtech_lib:flaky_one)" 1
 [ "$status" = 1 ] || fail "budget: status $status"
 [ "$calls" = 1 ] || fail "budget: retried ($calls calls)"
+grep -q 'perf budget failed (PerfBudget measured twice already), no retry: maxtech_lib:flaky_one' "$tmp/budget/out.txt" ||
+    fail "budget: reason"
+[ "$(outcome budget maxtech_lib:flaky_one)" = failed ] || fail "budget: outcome"
 
 # A failure without a complete summary (a crash, or fewer names than the count) is no retry and records nothing.
 run_case crash lib "Execution failed for task ':lib:neoforge:runGameTestServer'" 1
@@ -125,7 +132,38 @@ run_case crash lib "Execution failed for task ':lib:neoforge:runGameTestServer'"
 [ "$calls" = 1 ] || fail "crash: retried"
 [ "$(outcome crash maxtech_lib:flaky_one)" = absent ] || fail "crash: outcome recorded"
 run_case short lib "$(summary 2 maxtech_lib:flaky_one)" 1
+[ "$status" = 1 ] || fail "short summary: status $status"
 [ "$calls" = 1 ] || fail "short summary: retried"
+grep -q 'no complete failure summary in the log: no retry' "$tmp/short/out.txt" || fail "short summary: reason"
+[ "$(outcome short maxtech_lib:flaky_one)" = absent ] || fail "short summary: outcome recorded"
+
+# A name that only starts like a listed one, or lives in another namespace, is not listed.
+run_case prefix lib "$(summary 1 maxtech_lib:flaky_one_extra)" 1
+[ "$status" = 1 ] || fail "prefix: status $status"
+[ "$calls" = 1 ] || fail "prefix: retried"
+grep -q 'not on the flaky list, no retry: maxtech_lib:flaky_one_extra' "$tmp/prefix/out.txt" || fail "prefix: reason"
+run_case namespace lib "$(summary 1 maxtech_storage:flaky_one)" 1
+[ "$status" = 1 ] || fail "namespace: status $status"
+[ "$calls" = 1 ] || fail "namespace: retried"
+grep -q 'not on the flaky list, no retry: maxtech_storage:flaky_one' "$tmp/namespace/out.txt" || fail "namespace: reason"
+
+# NeoForge logs a rotated test as "- <id> with rotation <r>: ..."; the names then fall short of the count: no retry.
+run_case rotation lib "$(summary 1 'maxtech_lib:flaky_one with rotation 90')" 1
+[ "$status" = 1 ] || fail "rotation: status $status"
+[ "$calls" = 1 ] || fail "rotation: retried"
+grep -q 'no complete failure summary in the log: no retry' "$tmp/rotation/out.txt" || fail "rotation: reason"
+
+# More listed failures than FLAKY_MAX_RETRIES: no retries, Gradle's status, and the reason.
+export FLAKY_MAX_RETRIES=1
+run_case cap lib "$(summary 2 maxtech_lib:flaky_one maxtech_lib:flaky_two)" 1
+[ "$status" = 1 ] || fail "cap: status $status"
+[ "$calls" = 1 ] || fail "cap: retried ($calls calls)"
+grep -q 'more than 1: no retries' "$tmp/cap/out.txt" || fail "cap: reason"
+export FLAKY_MAX_RETRIES=2
+run_case capok lib "$(summary 2 maxtech_lib:flaky_one maxtech_lib:flaky_two)" 1 "$(passed)" 0 "$(passed)" 0
+[ "$status" = 0 ] || fail "cap at the limit: status $status"
+[ "$calls" = 3 ] || fail "cap at the limit: $calls calls"
+unset FLAKY_MAX_RETRIES
 
 # The retry keeps other arguments and drops the original pattern; a pattern limits what counts as run.
 extra=(-PwithAe2=true "-Pgametest=maxtech_storage:flaky_*")

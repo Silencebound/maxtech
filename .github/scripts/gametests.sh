@@ -3,7 +3,8 @@
 # The log goes to the step and to $RUNNER_TEMP/gametests.log (perf trends). When the run fails and every failed test is
 # on .github/flaky-tests.txt, each is run once more on its own (-Pgametest takes one pattern); green on all retries
 # passes with a "Flaky test retried" warning. Anything else exits with the run's status. The listed tests' outcomes go
-# to $RUNNER_TEMP/flaky-results.json (flaky-tests.py). GRADLEW and FLAKY_LIST override the defaults for the tests.
+# to $RUNNER_TEMP/flaky-results.json (flaky-tests.py). More than FLAKY_MAX_RETRIES (default 3) listed failures in one
+# step is no flake but a broken run: no retries. GRADLEW and FLAKY_LIST override the defaults for the tests.
 set -euo pipefail
 mod="$1"
 shift
@@ -40,6 +41,13 @@ if ! retry=$(flaky first "$results" "$list" "$tmp/gametests-$mod.log" "maxtech_$
     exit "$status"
 fi
 if [ "$status" -eq 0 ] || [ -z "$retry" ]; then
+    exit "$status"
+fi
+
+max="${FLAKY_MAX_RETRIES:-3}"
+count=$(printf '%s\n' "$retry" | grep -c . || true)
+if [ "$count" -gt "$max" ]; then
+    echo "::warning title=Flaky tests::$count listed tests failed, more than $max: no retries, Gradle's status stands"
     exit "$status"
 fi
 
