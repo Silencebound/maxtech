@@ -8,8 +8,11 @@ import dev.silencebound.maxtech.farms.registry.FarmsContent;
 import dev.silencebound.maxtech.farms.sampler.SamplerItem;
 import dev.silencebound.maxtech.lib.api.energy.EnergyNetworks;
 import dev.silencebound.maxtech.lib.api.energy.FeRate;
+import dev.silencebound.maxtech.lib.api.inventory.ItemSlots;
+import dev.silencebound.maxtech.lib.api.resource.FluidKey;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.function.Consumer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -25,6 +28,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.util.ProblemReporter;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
@@ -35,6 +39,8 @@ import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.material.Fluids;
+import net.minecraft.world.level.storage.TagValueInput;
+import net.minecraft.world.level.storage.TagValueOutput;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
@@ -80,7 +86,8 @@ public final class LabHubGameTests {
             Map.entry("hub_creative_break_drops", LabHubGameTests::creativeBreakDrops),
             Map.entry("hub_survives_explosion", LabHubGameTests::survivesExplosion),
             Map.entry("hub_sampler_charges", LabHubGameTests::samplerCharges),
-            Map.entry("hub_sampler_stops_when_full", LabHubGameTests::samplerStopsWhenFull));
+            Map.entry("hub_sampler_stops_when_full", LabHubGameTests::samplerStopsWhenFull),
+            Map.entry("hub_overflow_kept", LabHubGameTests::overflowKept));
 
     private LabHubGameTests() {
     }
@@ -112,7 +119,7 @@ public final class LabHubGameTests {
             helper.assertValueEqual(tank.insert(water, capacity + 4000, transaction), capacity,
                     "filled up to capacity");
         }
-        helper.assertValueEqual(hub.storage().tank().getAmountAsLong(0), 0L, "aborted fill");
+        helper.assertValueEqual(hub.storage().tank().amount(), 0L, "aborted fill");
         try (Transaction transaction = Transaction.openRoot()) {
             tank.insert(water, 3000, transaction);
             transaction.commit();
@@ -122,7 +129,7 @@ public final class LabHubGameTests {
             helper.assertValueEqual(tank.extract(water, 5000, transaction), 3000, "drained what it held");
             transaction.commit();
         }
-        helper.assertValueEqual(hub.storage().tank().getAmountAsLong(0), 0L, "after draining");
+        helper.assertValueEqual(hub.storage().tank().amount(), 0L, "after draining");
         helper.succeed();
     }
 
@@ -156,7 +163,7 @@ public final class LabHubGameTests {
         long rate = FarmsServerConfig.hubFuelMuPerTick();
         insertItem(helper, new ItemStack(Items.COAL, 2), 2);
         helper.startSequence().thenIdle(45).thenExecute(() -> {
-            helper.assertValueEqual(hub.storage().fuel().getAmountAsInt(0), 1, "coal left");
+            helper.assertValueEqual(hub.storage().slots().stack(HubStorage.FUEL).getCount(), 1, "coal left");
             long stored = hub.energy().stored();
             helper.assertTrue(stored > 0, "nothing burned");
             helper.assertValueEqual(stored, (COAL_TICKS - hub.burner().burnLeft()) * rate,
@@ -190,7 +197,7 @@ public final class LabHubGameTests {
             helper.assertTrue(hub.burner().isBurning(), "lava burns");
             ResourceHandler<ItemResource> items = capability(helper, Capabilities.Item.BLOCK);
             try (Transaction transaction = Transaction.openRoot()) {
-                helper.assertValueEqual(items.extract(0, ItemResource.of(Items.BUCKET), 1, transaction), 1,
+                helper.assertValueEqual(items.extract(ItemResource.of(Items.BUCKET), 1, transaction), 1,
                         "the empty bucket comes out");
                 transaction.commit();
             }
@@ -198,15 +205,15 @@ public final class LabHubGameTests {
     }
 
     /**
-     * Two lava buckets whose remainder fits nowhere (output full) wait; taking something out of the output wakes the
-     * hub, so the burn starts.
+     * A lava bucket whose remainder fits nowhere (output full) waits; taking something out of the output wakes the hub,
+     * so the burn starts and the empty bucket lands in the freed slot.
      */
     private static void fuelResumesWhenOutputFrees(GameTestHelper helper) {
         LabHubBlockEntity hub = hub(helper);
         for (int slot = 0; slot < HubStorage.OUTPUT_SLOTS; slot++) {
-            hub.storage().output().set(slot, ItemResource.of(Items.DIRT), 64);
+            hub.storage().slots().set(HubStorage.OUTPUT_FIRST + slot, new ItemStack(Items.DIRT, 64));
         }
-        hub.storage().fuel().set(0, ItemResource.of(Items.LAVA_BUCKET), 2);
+        hub.storage().slots().set(HubStorage.FUEL, new ItemStack(Items.LAVA_BUCKET));
         helper.startSequence().thenIdle(5).thenExecute(() -> {
             helper.assertTrue(!hub.burner().isBurning(), "burned without room for the bucket");
             ResourceHandler<ItemResource> items = capability(helper, Capabilities.Item.BLOCK);
@@ -216,7 +223,9 @@ public final class LabHubGameTests {
             }
         }).thenIdle(3).thenExecute(() -> {
             helper.assertTrue(hub.burner().isBurning(), "the burn did not start after output room opened");
-            helper.assertValueEqual(hub.storage().fuel().getAmountAsInt(0), 1, "lava left");
+            helper.assertTrue(hub.storage().slots().stack(HubStorage.FUEL).isEmpty(), "lava left the fuel slot");
+            helper.assertTrue(hub.storage().slots().stack(HubStorage.OUTPUT_FIRST).is(Items.BUCKET),
+                    "the bucket in the freed slot");
         }).thenSucceed();
     }
 
@@ -249,7 +258,7 @@ public final class LabHubGameTests {
         }
         sequence.thenExecute(() -> {
             hub.burner().load(0, 0);
-            hub.storage().fuel().set(0, ItemResource.of(Items.BUCKET), 1);
+            hub.storage().slots().set(HubStorage.FUEL, new ItemStack(Items.BUCKET));
         }).thenWaitUntil(() -> helper.assertTrue(!hub.fuelTask().isQueued() && hub.fuelTask().wakeAt() == -1,
                 "the task settles without a timer"));
         for (int i = 0; i < 25; i++) {
@@ -272,7 +281,7 @@ public final class LabHubGameTests {
     private static void itemsInAndOut(GameTestHelper helper) {
         LabHubBlockEntity hub = hub(helper);
         ResourceHandler<ItemResource> items = capability(helper, Capabilities.Item.BLOCK);
-        hub.storage().output().set(3, ItemResource.of(Items.BONE), 10);
+        hub.storage().slots().set(HubStorage.OUTPUT_FIRST + 3, new ItemStack(Items.BONE, 10));
         try (Transaction transaction = Transaction.openRoot()) {
             helper.assertValueEqual(items.insert(ItemResource.of(Items.DIRT), 64, transaction), 0, "dirt is no fuel");
             helper.assertValueEqual(items.insert(4, ItemResource.of(Items.BONE), 1, transaction), 0,
@@ -281,7 +290,8 @@ public final class LabHubGameTests {
                     "empty fuel slot");
             helper.assertValueEqual(items.extract(ItemResource.of(Items.BONE), 64, transaction), 10, "bones out");
         }
-        helper.assertValueEqual(hub.storage().output().getAmountAsInt(3), 10, "aborted extract");
+        helper.assertValueEqual(hub.storage().slots().stack(HubStorage.OUTPUT_FIRST + 3).getCount(), 10,
+                "aborted extract");
         try (Transaction transaction = Transaction.openRoot()) {
             helper.assertValueEqual(items.insert(ItemResource.of(Items.COAL), 100, transaction), 64,
                     "fuel up to a stack");
@@ -314,12 +324,12 @@ public final class LabHubGameTests {
         hub.burner().start(COAL_TICKS, helper.getLevel().getGameTime());
         ItemStack sampler = new ItemStack(FarmsContent.SAMPLER.get());
         SamplerItem.setCharge(sampler, 321);
-        hub.storage().sampler().set(0, ItemResource.of(sampler), 1);
+        hub.storage().slots().set(HubStorage.SAMPLER, sampler);
         helper.getLevel().destroyBlock(helper.absolutePos(HUB), true);
         LabHubBlockEntity placed = placeDrop(helper);
         assertFilled(helper, placed);
         helper.assertValueEqual(placed.burner().burnLeft(), COAL_TICKS, "burn left");
-        helper.assertValueEqual(SamplerItem.charge(placed.storage().sampler().getResource(0)), 321L, "sampler");
+        helper.assertValueEqual(SamplerItem.charge(placed.storage().sampler()), 321L, "sampler");
         helper.succeed();
     }
 
@@ -373,17 +383,17 @@ public final class LabHubGameTests {
         LabHubBlockEntity hub = hub(helper);
         ServerPlayer player = player(helper, GameType.SURVIVAL);
         use(helper, player, new ItemStack(Items.WATER_BUCKET));
-        helper.assertValueEqual(hub.storage().tank().getAmountAsLong(0), 1000L, "water in");
+        helper.assertValueEqual(hub.storage().tank().amount(), 1000L, "water in");
         helper.assertTrue(player.getMainHandItem().is(Items.BUCKET), "hand after filling: " + player.getMainHandItem());
         use(helper, player, player.getMainHandItem());
-        helper.assertValueEqual(hub.storage().tank().getAmountAsLong(0), 0L, "water out");
+        helper.assertValueEqual(hub.storage().tank().amount(), 0L, "water out");
         helper.assertTrue(player.getMainHandItem().is(Items.WATER_BUCKET),
                 "hand after draining: " + player.getMainHandItem());
         use(helper, player, new ItemStack(Items.LAVA_BUCKET));
         helper.getLevel().getServer().getPlayerList().remove(player);
-        helper.assertValueEqual(hub.storage().tank().getAmountAsLong(0), 1000L, "lava in the tank");
-        helper.assertTrue(hub.storage().tank().getResource(0).is(Fluids.LAVA), "lava");
-        helper.assertTrue(hub.storage().fuel().getResource(0).isEmpty(), "lava went into the fuel slot");
+        helper.assertValueEqual(hub.storage().tank().amount(), 1000L, "lava in the tank");
+        helper.assertTrue(hub.storage().tank().resource().equals(Optional.of(FluidKey.of(Fluids.LAVA))), "lava");
+        helper.assertTrue(hub.storage().slots().stack(HubStorage.FUEL).isEmpty(), "lava went into the fuel slot");
         helper.succeed();
     }
 
@@ -399,7 +409,7 @@ public final class LabHubGameTests {
         helper.getLevel().getServer().getPlayerList().remove(survival);
         helper.getLevel().getServer().getPlayerList().remove(creative);
         // One coal may have started burning already.
-        int held = hub.storage().fuel().getAmountAsInt(0) + (hub.burner().isBurning() ? 1 : 0);
+        int held = hub.storage().slots().stack(HubStorage.FUEL).getCount() + (hub.burner().isBurning() ? 1 : 0);
         helper.assertValueEqual(held, 10, "coal in the hub");
         helper.succeed();
     }
@@ -418,7 +428,7 @@ public final class LabHubGameTests {
         helper.assertTrue(player.getMainHandItem().isEmpty(), "the sampler left the hand");
         long step = FarmsServerConfig.hubSamplerChargeMuPerTick() * 20;
         helper.startSequence().thenIdle(45).thenExecute(() -> {
-            long charge = SamplerItem.charge(hub.storage().sampler().getResource(0));
+            long charge = SamplerItem.charge(hub.storage().sampler());
             helper.assertTrue(charge >= 2 * step && charge <= 3 * step, "charged " + charge + " in 45 ticks");
             helper.assertValueEqual(hub.energy().stored(), 50_000 - charge, "MU taken from the store");
             player.setShiftKeyDown(true);
@@ -427,7 +437,7 @@ public final class LabHubGameTests {
             helper.getLevel().getServer().getPlayerList().remove(player);
             helper.assertTrue(player.getMainHandItem().is(FarmsContent.SAMPLER.get()), "taken out");
             helper.assertValueEqual(SamplerItem.charge(player.getMainHandItem()), charge, "charge kept");
-            helper.assertTrue(hub.storage().sampler().getResource(0).isEmpty(), "the slot is empty");
+            helper.assertTrue(hub.storage().sampler().isEmpty(), "the slot is empty");
         }).thenSucceed();
     }
 
@@ -436,14 +446,14 @@ public final class LabHubGameTests {
         LabHubBlockEntity hub = hub(helper);
         hub.energy().setStored(50_000);
         long capacity = SamplerItem.capacity();
-        hub.storage().sampler().set(0, ItemResource.of(sampler(capacity - 100)), 1);
+        hub.storage().slots().set(HubStorage.SAMPLER, sampler(capacity - 100));
         helper.startSequence().thenIdle(30).thenExecute(() -> {
-            helper.assertValueEqual(SamplerItem.charge(hub.storage().sampler().getResource(0)), capacity, "full");
+            helper.assertValueEqual(SamplerItem.charge(hub.storage().sampler()), capacity, "full");
             helper.assertValueEqual(hub.energy().stored(), 50_000L - 100, "took only what fit");
             helper.assertTrue(!hub.fuelTask().isQueued() && hub.fuelTask().wakeAt() == -1,
                     "a full sampler waits without a timer");
             hub.energy().setStored(0);
-            hub.storage().sampler().set(0, ItemResource.of(sampler(0)), 1);
+            hub.storage().slots().set(HubStorage.SAMPLER, sampler(0));
         }).thenIdle(3).thenExecute(() -> {
             helper.assertTrue(!hub.fuelTask().isQueued() && hub.fuelTask().wakeAt() == -1,
                     "an empty store waits without a timer");
@@ -452,10 +462,32 @@ public final class LabHubGameTests {
                 fe.insert((int) EnergyNetworks.feRate().toFe(1000), transaction);
                 transaction.commit();
             }
-        }).thenIdle(25)
-                .thenExecute(() -> helper.assertTrue(SamplerItem.charge(hub.storage().sampler().getResource(0)) > 0,
-                        "energy coming in resumed charging"))
-                .thenSucceed();
+        }).thenIdle(25).thenExecute(() -> helper.assertTrue(SamplerItem.charge(hub.storage().sampler()) > 0,
+                "energy coming in resumed charging")).thenSucceed();
+    }
+
+    /**
+     * A save holding a stack for a slot the hub does not have lands in the slots' overflow: the hub is not pristine, so
+     * its dropped item carries the stack, and handing it out (listener index -1) leaves the hub pristine again.
+     */
+    private static void overflowKept(GameTestHelper helper) {
+        LabHubBlockEntity hub = hub(helper);
+        var registries = helper.getLevel().registryAccess();
+        ItemSlots larger = ItemSlots.builder(HubStorage.SIZE + 1).build(slot -> {
+        });
+        larger.set(HubStorage.SIZE, new ItemStack(Items.BONE, 9));
+        TagValueOutput out = TagValueOutput.createWithContext(ProblemReporter.DISCARDING, registries);
+        larger.save(out.child("items"));
+        hub.loadWithComponents(TagValueInput.create(ProblemReporter.DISCARDING, registries, out.buildResult()));
+        helper.assertValueEqual(hub.storage().slots().overflow().size(), 1, "overflow after loading");
+        helper.assertTrue(!hub.isPristine(), "a hub with overflow counts as pristine");
+        helper.getLevel().destroyBlock(helper.absolutePos(HUB), true);
+        LabHubBlockEntity placed = placeDrop(helper);
+        helper.assertValueEqual(placed.storage().slots().overflow().size(), 1, "overflow on the dropped hub");
+        ItemStack taken = placed.storage().slots().takeOverflow(0);
+        helper.assertTrue(ItemStack.matches(taken, new ItemStack(Items.BONE, 9)), "overflow stack " + taken);
+        helper.assertTrue(placed.isPristine(), "pristine after the overflow was handed out");
+        helper.succeed();
     }
 
     private static ItemStack sampler(long charge) {
@@ -467,17 +499,17 @@ public final class LabHubGameTests {
     /** A hub holding nutrient, output, fuel and MU. */
     private static LabHubBlockEntity filled(GameTestHelper helper) {
         LabHubBlockEntity hub = hub(helper);
-        hub.storage().tank().set(0, FluidResource.of(Fluids.WATER), 4000);
-        hub.storage().output().set(0, ItemResource.of(Items.BONE), 7);
-        hub.storage().fuel().set(0, ItemResource.of(Items.COAL), 3);
+        hub.storage().tank().set(FluidKey.of(Fluids.WATER), 4000);
+        hub.storage().slots().set(HubStorage.OUTPUT_FIRST, new ItemStack(Items.BONE, 7));
+        hub.storage().slots().set(HubStorage.FUEL, new ItemStack(Items.COAL, 3));
         hub.energy().setStored(1234);
         return hub;
     }
 
     private static void assertFilled(GameTestHelper helper, LabHubBlockEntity placed) {
-        helper.assertValueEqual(placed.storage().tank().getAmountAsLong(0), 4000L, "nutrient");
-        helper.assertValueEqual(placed.storage().output().getAmountAsInt(0), 7, "output");
-        helper.assertValueEqual(placed.storage().fuel().getAmountAsInt(0), 3, "fuel");
+        helper.assertValueEqual(placed.storage().tank().amount(), 4000L, "nutrient");
+        helper.assertValueEqual(placed.storage().slots().stack(HubStorage.OUTPUT_FIRST).getCount(), 7, "output");
+        helper.assertValueEqual(placed.storage().slots().stack(HubStorage.FUEL).getCount(), 3, "fuel");
         helper.assertValueEqual(placed.energy().stored(), 1234L, "MU");
     }
 

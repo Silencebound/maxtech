@@ -2,45 +2,58 @@ package dev.silencebound.maxtech.farms.hub;
 
 import dev.silencebound.maxtech.farms.config.FarmsServerConfig;
 import dev.silencebound.maxtech.farms.sampler.SamplerItem;
+import dev.silencebound.maxtech.lib.api.inventory.FluidTank;
+import dev.silencebound.maxtech.lib.api.inventory.ItemSlots;
+import java.util.Objects;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.ItemStackTemplate;
 import net.minecraft.world.item.crafting.RecipeType;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.entity.FuelValues;
 import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.level.storage.ValueOutput;
-// PLATFORM-LEAK: NeoForge's transfer api holds the hub's tank and slots (root CLAUDE.md: transfers).
-import net.neoforged.neoforge.fluids.FluidStack;
-// PLATFORM-LEAK: see above.
-import net.neoforged.neoforge.transfer.ResourceHandlerUtil;
+// PLATFORM-LEAK: NeoForge's transfer types; Lib's handlers of the tank and slots are NeoForge handlers.
+import net.neoforged.neoforge.transfer.ResourceHandler;
 // PLATFORM-LEAK: see above.
 import net.neoforged.neoforge.transfer.fluid.FluidResource;
-// PLATFORM-LEAK: see above.
-import net.neoforged.neoforge.transfer.fluid.FluidStacksResourceHandler;
-// PLATFORM-LEAK: see above.
-import net.neoforged.neoforge.transfer.item.ItemResource;
-// PLATFORM-LEAK: see above.
-import net.neoforged.neoforge.transfer.item.ItemStacksResourceHandler;
-// PLATFORM-LEAK: see above.
-import net.neoforged.neoforge.transfer.transaction.Transaction;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Everything the lab hub holds besides energy: the nutrient tank, the fuel slot, the output buffer and the sampler
- * charging slot, with their save format and the view other mods get ({@link #itemHandler()}). The one place the hub's
- * storage lives, so it can move onto Lib's own slot and tank types later without touching the block entity or the
- * capability glue. Server thread only.
+ * Everything the lab hub holds besides energy, on Lib's inventory api: the nutrient tank ({@link #tank()}) and one
+ * {@link ItemSlots} with the fuel slot ({@link #FUEL}), the output buffer ({@link #OUTPUT_FIRST} on,
+ * {@link #OUTPUT_SLOTS} slots, take-only) and the sampler charging slot ({@link #SAMPLER}), with their save format and
+ * the views other mods get. Server thread only.
  */
 public final class HubStorage {
+    /** The fuel slot: any furnace fuel. */
+    public static final int FUEL = 0;
+    /** The first output slot. */
+    public static final int OUTPUT_FIRST = 1;
     /** Output slots: three rows. */
     public static final int OUTPUT_SLOTS = 27;
+    /** The sampler charging slot: one sampler. */
+    public static final int SAMPLER = OUTPUT_FIRST + OUTPUT_SLOTS;
+    /** All slots. */
+    public static final int SIZE = SAMPLER + 1;
+
+    private static volatile Supplier<@Nullable FuelValues> clientFuels = () -> null;
+    /**
+     * The slots' shape, from which a client menu builds its empty copy; its fuel filter asks the client's furnace fuels
+     * ({@link #setClientFuels}). The hub's own slots replace that filter with one over its level.
+     */
+    public static final ItemSlots.Builder SHAPE = shape(stack -> {
+        FuelValues fuels = clientFuels.get();
+        return fuels != null && burnTime(fuels, stack) > 0;
+    });
 
     /** Told when the contents change; fuel, output and sampler changes separately, since they can start work. */
     public interface Listener {
-        /** Anything changed (after the root transaction committed, or at once for direct sets). */
+        /** Anything changed (after the root transaction committed, or at once for the machine's own changes). */
         void changed();
 
-        /** The tank changed (after the root transaction committed, or at once for direct sets). */
+        /** The tank changed. */
         void tankChanged();
 
         /** The fuel slot changed. */
@@ -53,177 +66,161 @@ public final class HubStorage {
         void samplerChanged();
     }
 
-    private final Supplier<@Nullable Level> level;
-    private final Listener listener;
-    private final Tank tank = new Tank();
-    private final FuelSlot fuel = new FuelSlot();
-    private final Output output = new Output();
-    private final SamplerSlot sampler = new SamplerSlot();
-    private final HubItemHandler itemHandler = new HubItemHandler(fuel, output);
+    private final ItemSlots slots;
+    private final FluidTank tank;
+    private @Nullable ResourceHandler<FluidResource> fluidHandler;
+    private @Nullable HubItemHandler itemHandler;
 
     /** Storage for a hub in {@code level} (null while the block entity has none). */
     HubStorage(Supplier<@Nullable Level> level, Listener listener) {
-        this.level = level;
-        this.listener = listener;
+        slots = shape(stack -> {
+            Level current = level.get();
+            return current != null && burnTime(current.fuelValues(), stack) > 0;
+        }).build(slot -> slotChanged(listener, slot));
+        tank = FluidTank.create(FarmsServerConfig.hubTankCapacity(), () -> {
+            listener.changed();
+            listener.tankChanged();
+        });
     }
 
-    /** The nutrient tank, for any fluid; other mods fill and drain it through the fluid capability. */
-    public FluidStacksResourceHandler tank() {
+    private static ItemSlots.Builder shape(Predicate<ItemStack> fuel) {
+        return ItemSlots.builder(SIZE).input(FUEL, FUEL + 1, fuel).output(OUTPUT_FIRST, SAMPLER)
+                .input(SAMPLER, SIZE, stack -> stack.getItem() instanceof SamplerItem).limit(SAMPLER, SIZE, 1);
+    }
+
+    private static void slotChanged(Listener listener, int slot) {
+        listener.changed();
+        // -1 is the overflow list (stacks a save held for no slot): nothing there starts work.
+        if (slot == FUEL) {
+            listener.fuelChanged();
+        } else if (slot == SAMPLER) {
+            listener.samplerChanged();
+        } else if (slot >= OUTPUT_FIRST) {
+            listener.outputChanged();
+        }
+    }
+
+    /**
+     * Where the fuel filter of {@link #SHAPE} finds the client's furnace fuels; Farms' client glue sets it once. Until
+     * then (and on a dedicated server, where the shape builds no menu) the client copy takes no fuel by itself, which
+     * only costs a click its client-side prediction.
+     */
+    public static void setClientFuels(Supplier<@Nullable FuelValues> source) {
+        clientFuels = Objects.requireNonNull(source, "source");
+    }
+
+    /** The nutrient tank, for any fluid; capacity {@code hub.tankCapacity} when the hub was made. */
+    public FluidTank tank() {
         return tank;
     }
 
-    /** The fuel slot (any furnace fuel); a remainder such as an empty bucket stays in it until taken. */
-    public ItemStacksResourceHandler fuel() {
-        return fuel;
+    /** The fuel slot, output buffer and sampler slot; see the slot constants. */
+    public ItemSlots slots() {
+        return slots;
     }
 
-    /** The output buffer; the lab fills it, others only take out of it ({@link #itemHandler()}). */
-    public ItemStacksResourceHandler output() {
-        return output;
+    /** Lib's handler of the tank: what the fluid capability, hand use and the fluid ports move fluid through. */
+    public ResourceHandler<FluidResource> fluidHandler() {
+        ResourceHandler<FluidResource> handler = fluidHandler;
+        if (handler == null) {
+            handler = HubHandlers.fluids(tank);
+            fluidHandler = handler;
+        }
+        return handler;
     }
 
-    /** The sampler charging slot: one sampler, put in and taken out by hand; not part of {@link #itemHandler()}. */
-    public ItemStacksResourceHandler sampler() {
-        return sampler;
-    }
-
-    /** The item capability: fuel goes in, output (and a spent fuel remainder) comes out. */
+    /** The item capability: fuel goes in, output comes out; the sampler slot is not part of it. */
     public HubItemHandler itemHandler() {
-        return itemHandler;
+        HubItemHandler handler = itemHandler;
+        if (handler == null) {
+            handler = new HubItemHandler(HubHandlers.items(slots));
+            itemHandler = handler;
+        }
+        return handler;
     }
 
-    /** Whether tank, fuel slot, output and sampler slot are all empty. */
+    /** Whether tank, slots and the slots' overflow are all empty. */
     public boolean isEmpty() {
-        return tank.getAmountAsLong(0) == 0 && ResourceHandlerUtil.isEmpty(fuel) && ResourceHandlerUtil.isEmpty(output)
-                && sampler.getResource(0).isEmpty();
+        if (tank.amount() > 0 || tank.unknown() || !slots.overflow().isEmpty()) {
+            return false;
+        }
+        for (int slot = 0; slot < SIZE; slot++) {
+            if (!slots.stack(slot).isEmpty() || slots.unknown(slot)) {
+                return false;
+            }
+        }
+        return true;
     }
 
-    /** Whether the fuel slot holds something that burns (not just a spent remainder). */
+    /** The sampler in the charging slot, possibly empty; live, read only. */
+    public ItemStack sampler() {
+        return slots.stack(SAMPLER);
+    }
+
+    /** Whether the fuel slot holds something that burns. */
     boolean hasFuel(Level current) {
-        ItemResource resource = fuel.getResource(0);
-        return !resource.isEmpty() && burnTime(current, resource.toStack(1)) > 0;
+        ItemStack stack = slots.stack(FUEL);
+        return !stack.isEmpty() && burnTime(current.fuelValues(), stack) > 0;
     }
 
     /** Ticks {@code stack} burns in a furnace, from NeoForge's burn time hook (data map and item overrides). */
-    static int burnTime(Level level, ItemStack stack) {
+    static int burnTime(FuelValues fuels, ItemStack stack) {
         // PLATFORM-LEAK: NeoForge's patched ItemStack#getBurnTime, which vanilla's deprecated FuelValues lookup skips.
-        return stack.getBurnTime(RecipeType.SMELTING, level.fuelValues());
+        return stack.getBurnTime(RecipeType.SMELTING, fuels);
     }
 
     /**
      * Takes one fuel item out of the fuel slot and returns its burn time, or 0 when nothing burns. Its remainder (an
-     * empty bucket) replaces the last item in the slot, or goes into the output; when it fits nowhere nothing is taken.
+     * empty bucket) goes into the output buffer, so pipes can take it; when it does not fit, nothing is taken.
      */
     int takeFuel(Level current) {
-        ItemStack stack = fuel.getResource(0).toStack(fuel.getAmountAsInt(0));
-        int time = stack.isEmpty() ? 0 : burnTime(current, stack);
+        ItemStack stack = slots.stack(FUEL);
+        int time = stack.isEmpty() ? 0 : burnTime(current.fuelValues(), stack);
         if (time <= 0) {
             return 0;
         }
         ItemStackTemplate remainder = stack.getCraftingRemainder();
         ItemStack left = remainder == null ? ItemStack.EMPTY : remainder.create();
-        int count = stack.getCount();
-        if (count == 1) {
-            fuel.set(0, left.isEmpty() ? ItemResource.EMPTY : ItemResource.of(left), left.getCount());
-            return time;
+        if (!left.isEmpty() && insertOutput(left, true) < left.getCount()) {
+            return 0;
+        }
+        if (slots.extract(FUEL, 1, false) != 1) {
+            return 0;
         }
         if (!left.isEmpty()) {
-            try (Transaction transaction = Transaction.openRoot()) {
-                int moved = ResourceHandlerUtil.insertStacking(output, ItemResource.of(left), left.getCount(),
-                        transaction);
-                if (moved < left.getCount()) {
-                    return 0;
-                }
-                transaction.commit();
-            }
+            insertOutput(left, false);
         }
-        fuel.set(0, fuel.getResource(0), count - 1);
         return time;
     }
 
+    /**
+     * Puts up to {@code stack.getCount()} of {@code stack} into the output buffer, onto matching stacks first, then
+     * into empty slots; returns how many went in (would go in, when simulating). The machine's own access: never inside
+     * a transfer transaction. {@code stack} is not changed.
+     */
+    public int insertOutput(ItemStack stack, boolean simulate) {
+        int left = stack.getCount();
+        for (int pass = 0; pass < 2 && left > 0; pass++) {
+            for (int slot = OUTPUT_FIRST; slot < SAMPLER && left > 0; slot++) {
+                ItemStack here = slots.stack(slot);
+                boolean fits = pass == 0
+                        ? !here.isEmpty() && ItemStack.isSameItemSameComponents(here, stack)
+                        : here.isEmpty() && !slots.unknown(slot);
+                if (fits) {
+                    left -= slots.insert(slot, stack.copyWithCount(left), simulate);
+                }
+            }
+        }
+        return stack.getCount() - left;
+    }
+
     void save(ValueOutput out) {
-        tank.serialize(out.child("tank"));
-        fuel.serialize(out.child("fuel"));
-        output.serialize(out.child("output"));
-        sampler.serialize(out.child("sampler"));
+        tank.save(out.child("nutrient"));
+        slots.save(out.child("items"));
     }
 
     void load(ValueInput in) {
-        in.child("tank").ifPresent(tank::deserialize);
-        in.child("fuel").ifPresent(fuel::deserialize);
-        in.child("output").ifPresent(output::deserialize);
-        in.child("sampler").ifPresent(sampler::deserialize);
-    }
-
-    /** One tank for any fluid; its capacity follows the config, and contents above a lowered capacity are kept. */
-    private final class Tank extends FluidStacksResourceHandler {
-        Tank() {
-            super(1, FarmsServerConfig.hubTankCapacity());
-        }
-
-        @Override
-        protected int getCapacity(int index, FluidResource resource) {
-            return FarmsServerConfig.hubTankCapacity();
-        }
-
-        @Override
-        protected void onContentsChanged(int index, FluidStack previousContents) {
-            listener.changed();
-            listener.tankChanged();
-        }
-    }
-
-    /** Takes only furnace fuel; what a burnt fuel leaves (an empty bucket) is set here by {@link #takeFuel}. */
-    private final class FuelSlot extends ItemStacksResourceHandler {
-        FuelSlot() {
-            super(1);
-        }
-
-        @Override
-        public boolean isValid(int index, ItemResource resource) {
-            Level current = level.get();
-            return current != null && burnTime(current, resource.toStack(1)) > 0;
-        }
-
-        @Override
-        protected void onContentsChanged(int index, ItemStack previousContents) {
-            listener.changed();
-            listener.fuelChanged();
-        }
-    }
-
-    private final class Output extends ItemStacksResourceHandler {
-        Output() {
-            super(OUTPUT_SLOTS);
-        }
-
-        @Override
-        protected void onContentsChanged(int index, ItemStack previousContents) {
-            listener.changed();
-            listener.outputChanged();
-        }
-    }
-
-    /** Holds one sampler. */
-    private final class SamplerSlot extends ItemStacksResourceHandler {
-        SamplerSlot() {
-            super(1);
-        }
-
-        @Override
-        public boolean isValid(int index, ItemResource resource) {
-            return resource.getItem() instanceof SamplerItem;
-        }
-
-        @Override
-        protected int getCapacity(int index, ItemResource resource) {
-            return 1;
-        }
-
-        @Override
-        protected void onContentsChanged(int index, ItemStack previousContents) {
-            listener.changed();
-            listener.samplerChanged();
-        }
+        in.child("nutrient").ifPresent(tank::load);
+        in.child("items").ifPresent(slots::load);
     }
 }

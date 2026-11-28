@@ -3,6 +3,9 @@ package dev.silencebound.maxtech.farms.hub;
 import com.mojang.serialization.MapCodec;
 import dev.silencebound.maxtech.farms.lab.LabNetwork;
 import dev.silencebound.maxtech.farms.sampler.SamplerItem;
+import dev.silencebound.maxtech.lib.api.inventory.FluidTank;
+import dev.silencebound.maxtech.lib.api.inventory.ItemSlots;
+import dev.silencebound.maxtech.lib.api.resource.FluidKey;
 import java.util.List;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
@@ -20,10 +23,6 @@ import net.minecraft.world.level.storage.loot.parameters.LootContextParams;
 import net.minecraft.world.phys.BlockHitResult;
 // PLATFORM-LEAK: NeoForge's fluid transfer helper fills and empties buckets and canisters against the tank.
 import net.neoforged.neoforge.transfer.fluid.FluidUtil;
-// PLATFORM-LEAK: NeoForge's item transfer type for the fuel and the sampler put in by hand.
-import net.neoforged.neoforge.transfer.item.ItemResource;
-// PLATFORM-LEAK: see above.
-import net.neoforged.neoforge.transfer.transaction.Transaction;
 
 /**
  * The lab hub block. Registers no ticker. Until the hub has a screen, a click with a sampler puts it in the charging
@@ -57,27 +56,23 @@ public final class LabHubBlock extends Block implements EntityBlock {
         if (level.isClientSide()) {
             return InteractionResult.SUCCESS;
         }
+        ItemSlots slots = hub.storage().slots();
         if (stack.getItem() instanceof SamplerItem) {
-            if (!hub.storage().sampler().getResource(0).isEmpty()) {
+            if (!slots.stack(HubStorage.SAMPLER).isEmpty()) {
                 return InteractionResult.TRY_WITH_EMPTY_HAND;
             }
             // The sampler moves into the hub, in creative too: it is one tool, not a material.
-            hub.storage().sampler().set(0, ItemResource.of(stack), 1);
+            slots.set(HubStorage.SAMPLER, stack.copyWithCount(1));
             stack.shrink(1);
             return InteractionResult.SUCCESS;
         }
-        if (FluidUtil.interactWithFluidHandler(player, hand, pos, hub.storage().tank(), null)) {
+        if (FluidUtil.interactWithFluidHandler(player, hand, pos, hub.storage().fluidHandler(), null)) {
             return InteractionResult.SUCCESS;
         }
-        ItemResource resource = ItemResource.of(stack);
-        if (!hub.storage().fuel().isValid(0, resource)) {
+        if (!slots.accepts(HubStorage.FUEL, stack)) {
             return InteractionResult.TRY_WITH_EMPTY_HAND;
         }
-        int inserted;
-        try (Transaction transaction = Transaction.openRoot()) {
-            inserted = hub.storage().fuel().insert(0, resource, stack.getCount(), transaction);
-            transaction.commit();
-        }
+        int inserted = slots.insert(HubStorage.FUEL, stack, false);
         if (inserted > 0 && !player.hasInfiniteMaterials()) {
             stack.shrink(inserted);
         }
@@ -90,10 +85,10 @@ public final class LabHubBlock extends Block implements EntityBlock {
         if (level.isClientSide() || !(level.getBlockEntity(pos) instanceof LabHubBlockEntity hub)) {
             return InteractionResult.SUCCESS;
         }
-        ItemResource sampler = hub.storage().sampler().getResource(0);
+        ItemStack sampler = hub.storage().sampler();
         if (player.isSecondaryUseActive() && !sampler.isEmpty()) {
-            hub.storage().sampler().set(0, ItemResource.EMPTY, 0);
-            ItemStack taken = sampler.toStack(1);
+            ItemStack taken = sampler.copy();
+            hub.storage().slots().set(HubStorage.SAMPLER, ItemStack.EMPTY);
             if (player.getMainHandItem().isEmpty()) {
                 player.setItemInHand(InteractionHand.MAIN_HAND, taken);
             } else if (!player.getInventory().add(taken)) {
@@ -108,17 +103,18 @@ public final class LabHubBlock extends Block implements EntityBlock {
     }
 
     private static Component status(LabHubBlockEntity hub) {
-        long fluid = hub.storage().tank().getAmountAsLong(0);
-        Component medium = fluid > 0
-                ? hub.storage().tank().getResource(0).toStack(1).getHoverName()
+        FluidTank tank = hub.storage().tank();
+        long fluid = tank.amount();
+        FluidKey key = tank.resource().orElse(null);
+        Component medium = fluid > 0 && key != null
+                ? key.fluid().getFluidType().getDescription()
                 : Component.translatable("message.maxtech_farms.lab_hub.empty");
-        long capacity = hub.storage().tank().getCapacityAsLong(0, hub.storage().tank().getResource(0));
-        ItemResource sampler = hub.storage().sampler().getResource(0);
+        ItemStack sampler = hub.storage().sampler();
         if (sampler.isEmpty()) {
-            return Component.translatable("message.maxtech_farms.lab_hub.status", medium, fluid, capacity,
+            return Component.translatable("message.maxtech_farms.lab_hub.status", medium, fluid, tank.capacity(),
                     hub.energy().stored(), hub.energy().capacity());
         }
-        return Component.translatable("message.maxtech_farms.lab_hub.status_sampler", medium, fluid, capacity,
+        return Component.translatable("message.maxtech_farms.lab_hub.status_sampler", medium, fluid, tank.capacity(),
                 hub.energy().stored(), hub.energy().capacity(), SamplerItem.charge(sampler), SamplerItem.capacity());
     }
 
