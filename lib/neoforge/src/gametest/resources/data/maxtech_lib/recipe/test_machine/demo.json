@@ -1,0 +1,50 @@
+{
+  "type": "maxtech_lib:test_machine",
+  "mode": "fine",
+  "inputs": [
+    {
+      "ingredient": "#c:ingots/iron",
+      "count": 2
+    },
+    {
+      "ingredient": "#c:gems/diamond",
+      "consumed": false
+    }
+  ],
+  "tank_inputs": [
+    {
+      "kind": "maxtech_lib:fluid",
+      "tag": "c:water",
+      "amount": 1000
+    },
+    {
+      "resource": {
+        "kind": "maxtech_lib:fluid",
+        "id": "minecraft:water",
+        "components": {
+          "minecraft:custom_name": "Holy"
+        }
+      },
+      "amount": 100
+    }
+  ],
+  "outputs": [
+    {
+      "item": {
+        "id": "minecraft:gold_ingot"
+      },
+      "chance": 5000
+    }
+  ],
+  "tank_outputs": [
+    {
+      "resource": {
+        "kind": "maxtech_lib:fluid",
+        "id": "minecraft:lava"
+      },
+      "amount": 250
+    }
+  ],
+  "energy_per_tick": 20,
+  "duration": 100
+}
