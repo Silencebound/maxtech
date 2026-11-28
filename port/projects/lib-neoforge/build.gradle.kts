@@ -63,6 +63,8 @@ dependencies {
             prefer(libs.versions.guideme.get())
         }
     }
+    // The vendored transfer api's own LGPL-2.1 jar (lib-common's transferJar, port/NOTICE-transfer.md).
+    jarJar(project(common.path, "transferElements"))
     compileOnly(libs.kubejs)
     compileOnly(libs.rhino)
     compileOnly(libs.jade.neoforge)
@@ -144,7 +146,12 @@ tasks.test {
 
 tasks.jar {
     from(common.the<SourceSetContainer>()["main"].output)
-    from(common.the<SourceSetContainer>()["api"].output)
+    // The vendored transfer api is common's transferJar, nested below; only Lib's legacy bridge stays here.
+    val transferRoot = "dev/silencebound/maxtech/lib/shim/transfer/"
+    from(common.the<SourceSetContainer>()["api"].output) {
+        exclude { !it.isDirectory && it.path.startsWith(transferRoot) && !it.path.startsWith("${transferRoot}bridge/legacy/") }
+    }
+    includeEmptyDirs = false
     from(apiSourceSet.output)
     from(rootProject.files("../LICENSE", "../COPYING", "../COPYING.LESSER", "NOTICE-transfer.md")) { into("META-INF") }
 }
