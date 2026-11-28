@@ -3,6 +3,7 @@ package dev.silencebound.maxtech.lib.neoforge.datagen;
 import dev.silencebound.maxtech.lib.api.client.gui.AccentEnergyBar;
 import dev.silencebound.maxtech.lib.api.client.gui.AccentProgress;
 import dev.silencebound.maxtech.lib.api.client.gui.AccentTank;
+import dev.silencebound.maxtech.lib.api.machine.MachineStatus;
 import dev.silencebound.maxtech.lib.api.machine.RedstoneMode;
 import dev.silencebound.maxtech.lib.facade.FacadeContent;
 import dev.silencebound.maxtech.lib.facade.FacadeItem;
@@ -106,6 +107,12 @@ final class LibLanguageProvider extends LanguageProvider {
         addRedstoneMode(RedstoneMode.LOW, "Low", "Runs only without a redstone signal");
         addRedstoneMode(RedstoneMode.PULSE, "Pulse", "Runs once for each redstone pulse");
         addRedstoneMode(RedstoneMode.NEVER, "Never", "Never runs, whatever the redstone signal");
+        add(MachineStatus.IDLE.translationKey(), "Idle");
+        add(MachineStatus.RUNNING.translationKey(), "Running");
+        add(MachineStatus.NO_RECIPE.translationKey(), "No matching recipe");
+        add(MachineStatus.NO_ENERGY.translationKey(), "No energy");
+        add(MachineStatus.OUTPUT_FULL.translationKey(), "Output full");
+        add(MachineStatus.REDSTONE_OFF.translationKey(), "Off by redstone");
     }
 
     private void addRedstoneMode(RedstoneMode mode, String name, String hint) {

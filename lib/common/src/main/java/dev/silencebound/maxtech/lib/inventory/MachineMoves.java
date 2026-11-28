@@ -69,6 +69,16 @@ public final class MachineMoves {
         }
     }
 
+    /**
+     * Puts up to {@code amount} of {@code resource} into the slots {@code from} to {@code to}, first onto slots holding
+     * it, then into empty ones; returns how much went in. Part of {@code transaction}, not nested. Allocates nothing.
+     */
+    public static int insert(ResourceHandler<ItemResource> handler, int from, int to, ItemResource resource, int amount,
+            TransactionContext transaction) {
+        int moved = insertInto(handler, from, to, resource, amount, true, transaction);
+        return moved + insertInto(handler, from, to, resource, amount - moved, false, transaction);
+    }
+
     /** Inserts into the range's slots that already hold {@code resource} ({@code stacking}) or are empty. */
     private static int insertInto(ResourceHandler<ItemResource> handler, int from, int to, ItemResource resource,
             int amount, boolean stacking, TransactionContext transaction) {
