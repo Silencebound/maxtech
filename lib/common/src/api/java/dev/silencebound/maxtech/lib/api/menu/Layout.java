@@ -41,6 +41,8 @@ public sealed interface Layout {
      * drawn smaller to fit it, with the whole text as a tooltip.
      */
     int TEXT_HEIGHT = 10;
+    /** The height of a button: the client's {@code AccentButton.HEIGHT}. */
+    int BUTTON_HEIGHT = 16;
     /** The width of an energy bar. */
     int ENERGY_WIDTH = 10;
     /** How far the panel's title tab sticks out above the panel. */
@@ -114,6 +116,17 @@ public sealed interface Layout {
     /** A status dot and the text of the current constant of {@code value}, fitted into {@code width} pixels. */
     static <E extends Enum<E> & MenuStatus> Layout status(EnumValue<E> value, int width) {
         return new Status(value, width);
+    }
+
+    /**
+     * A button {@code width} by {@link #BUTTON_HEIGHT} that shows the current choice of {@code action} and asks the
+     * server for the next one on a left click (or Enter), the previous one on a right click (see {@link CycleAction}).
+     * Its tooltip is the text of lang key {@code key} with the choice's name as its argument ({@code %s}, e.g.
+     * "Redstone: %s") over the choice's hint line; the button narrates that first line. The label is fitted into the
+     * width, so the box never moves with the text size.
+     */
+    static <E extends Enum<E> & MenuChoice> Layout cycleButton(CycleAction<E> action, String key, int width) {
+        return new CycleButton(action, key, width);
     }
 
     /** Empty room, {@code width} by {@code height}. */
@@ -354,6 +367,28 @@ public sealed interface Layout {
         @Override
         public int height() {
             return TEXT_HEIGHT;
+        }
+    }
+
+    /**
+     * See {@link Layout#cycleButton}.
+     *
+     * @param action
+     *            the server action the button asks for
+     * @param key
+     *            the lang key of the tooltip's and narration's first line, with one {@code %s} for the choice
+     * @param width
+     *            width in pixels
+     */
+    record CycleButton(CycleAction<?> action, String key, int width) implements Leaf {
+        /** Width must be at least 1. */
+        public CycleButton {
+            positive(width, "width");
+        }
+
+        @Override
+        public int height() {
+            return BUTTON_HEIGHT;
         }
     }
 

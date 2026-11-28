@@ -92,9 +92,14 @@ public abstract class ToolkitMenu<H> extends AbstractContainerMenu {
 
     /**
      * The {@code clickMenuButton} id of the first tank; tank {@code n} (in {@link #addTank} order) is this plus n. Ids
-     * from here on belong to tanks, so a subclass's own buttons use ids below it.
+     * from here to {@link #ACTION_BUTTONS} belong to tanks, so a subclass's own buttons use ids below it.
      */
     public static final int TANK_BUTTONS = 1_000_000;
+    /**
+     * The first {@code clickMenuButton} id of a {@link DefinedMenu}'s cycle actions; ids from here on belong to them.
+     * The button ids travel as var-ints, so they need not fit a byte.
+     */
+    public static final int ACTION_BUTTONS = 2_000_000;
 
     /**
      * Adds menu slots for slots {@code from} (inclusive) to {@code to} (exclusive) of {@code slots}, in rows of

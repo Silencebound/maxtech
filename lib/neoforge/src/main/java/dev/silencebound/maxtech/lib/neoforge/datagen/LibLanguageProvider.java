@@ -3,6 +3,7 @@ package dev.silencebound.maxtech.lib.neoforge.datagen;
 import dev.silencebound.maxtech.lib.api.client.gui.AccentEnergyBar;
 import dev.silencebound.maxtech.lib.api.client.gui.AccentProgress;
 import dev.silencebound.maxtech.lib.api.client.gui.AccentTank;
+import dev.silencebound.maxtech.lib.api.machine.RedstoneMode;
 import dev.silencebound.maxtech.lib.facade.FacadeContent;
 import dev.silencebound.maxtech.lib.facade.FacadeItem;
 import dev.silencebound.maxtech.lib.api.conduit.ConduitFaceMode;
@@ -98,6 +99,17 @@ final class LibLanguageProvider extends LanguageProvider {
         add(AccentEnergyBar.FE_KEY, "%s / %s FE");
         add(AccentProgress.PERCENT_KEY, "%s%%");
         add(AccentProgress.LEFT_KEY, "%s s left");
+        add(RedstoneMode.BUTTON_KEY, "Redstone: %s");
+        addRedstoneMode(RedstoneMode.ALWAYS, "Always", "Runs whatever the redstone signal");
+        addRedstoneMode(RedstoneMode.HIGH, "High", "Runs only with a redstone signal");
+        addRedstoneMode(RedstoneMode.LOW, "Low", "Runs only without a redstone signal");
+        addRedstoneMode(RedstoneMode.PULSE, "Pulse", "Runs once for each redstone pulse");
+        addRedstoneMode(RedstoneMode.NEVER, "Never", "Never runs, whatever the redstone signal");
+    }
+
+    private void addRedstoneMode(RedstoneMode mode, String name, String hint) {
+        add(mode.translationKey(), name);
+        add(mode.hintKey(), hint);
     }
 
     /** Names and tooltips of every config value and section, and the config screen's own lines. */
