@@ -116,6 +116,7 @@ final class LibLanguageProvider extends LanguageProvider {
 
     private void addFaceTranslations() {
         add(FaceTexts.TAB_KEY, "Side config");
+        add(FaceTexts.PREVIEW_KEY, "Block preview: drag to turn, click a face to change it");
         add(FaceTexts.FACE_KEY, "%s (%s)");
         add(FaceTexts.MODE_KEY, "%s: %s");
         add(FaceTexts.HINT_KEY, "Left click: next mode, right click: previous");

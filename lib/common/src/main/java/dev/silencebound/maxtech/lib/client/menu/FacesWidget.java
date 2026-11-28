@@ -25,16 +25,22 @@ import net.minecraft.network.chat.Component;
 import org.jspecify.annotations.Nullable;
 
 /**
- * A {@link Layout.Faces} node on screen: one block net of face buttons per kind, named relative to the host's facing
- * ({@link RelativeFace}) or absolutely without one. Faces show their mode in colour (push orange, pull blue, off
- * untinted); a left click asks the server for the next mode the kind allows, a right click for the previous one. Every
- * face's tooltip names it, its kind and mode. Client thread.
+ * A {@link Layout.Faces} node on screen: the block preview on top, then one block net of face buttons per kind, named
+ * relative to the host's facing ({@link RelativeFace}) or absolutely without one. Faces show their mode in colour (push
+ * orange, pull blue, off untinted); a left click asks the server for the next mode the kind allows, a right click for
+ * the previous one. The preview turns with a left drag, shows the modes of the kind last hovered (the first at the
+ * start), and a click on one of its faces works like that face's button. Every face's tooltip names it, its kind and
+ * mode; the widget narrates the hovered face. Client thread.
  */
 final class FacesWidget extends AbstractWidget {
     /** The colour of a pushing face. */
     static final int PUSH = 0xFFE0802A;
     /** The colour of a pulling face. */
     static final int PULL = 0xFF2F82D8;
+    /** Pixels a press may move and still count as a click on the preview, not a drag. */
+    private static final double CLICK_SLOP = 3.0;
+    /** GUI pixels per block in the preview: its diagonal fits the preview's height. */
+    private static final float PREVIEW_SCALE = Layout.FACES_PREVIEW / 1.8F;
     /** Where each relative face sits in a net, in cells: top above front, then left, front, right, back, bottom. */
     private static final int[][] CELLS = {{1, 1}, {3, 1}, {0, 1}, {2, 1}, {1, 0}, {1, 2}};
     private static final RelativeFace[] FACES = RelativeFace.values();
@@ -43,9 +49,16 @@ final class FacesWidget extends AbstractWidget {
     private final PortValue port;
     private final DefinedMenu<?> menu;
     private final AccentTheme theme;
+    private float yaw;
+    private float pitch;
+    private int shownKind;
+    private boolean turned;
+    private double pressX;
+    private double pressY;
+    private boolean pressedPreview;
 
     FacesWidget(int x, int y, Layout.Faces node, DefinedMenu<?> menu, AccentTheme theme) {
-        super(x, y, node.width(), node.height(), Component.translatable(FaceTexts.TAB_KEY));
+        super(x, y, node.width(), node.height(), Component.translatable(FaceTexts.PREVIEW_KEY));
         this.node = node;
         this.port = node.port();
         this.menu = menu;
@@ -73,13 +86,36 @@ final class FacesWidget extends AbstractWidget {
     @Override
     protected void extractWidgetRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float a) {
         Minecraft minecraft = Minecraft.getInstance();
+        if (!turned) {
+            Direction facing = reference();
+            yaw = FacePick.startYaw(facing);
+            pitch = FacePick.startPitch(facing);
+            turned = true;
+        }
         Hit hit = hit(mouseX, mouseY);
+        if (hit != null) {
+            shownKind = hit.kind();
+        }
+        extractPreview(graphics, hit);
         for (int k = 0; k < node.kinds().size(); k++) {
             extractNet(graphics, k, hit, mouseX, mouseY);
         }
         if (hit != null) {
             graphics.setComponentTooltipForNextFrame(minecraft.font, tooltip(hit), mouseX, mouseY);
         }
+    }
+
+    private void extractPreview(GuiGraphicsExtractor graphics, @Nullable Hit hit) {
+        int x = getX();
+        int y = getY();
+        graphics.fill(x, y, x + width, y + Layout.FACES_PREVIEW, Accent.SLOT_EDGE);
+        graphics.fill(x + 1, y + 1, x + width - 1, y + Layout.FACES_PREVIEW - 1, Accent.SLOT);
+        ResourceKind<?> kind = node.kinds().get(shownKind);
+        int blockId = port.blockState(values()).map(net.minecraft.world.level.block.Block::getId).orElse(-1);
+        int hovered = hit != null && hit.kind() == shownKind ? hit.face().get3DDataValue() : -1;
+        graphics.submitPictureInPictureRenderState(
+                new FacePreviewState(blockId, port.faces(values(), kind), hovered, yaw, pitch, x + 1, y + 1,
+                        x + width - 1, y + Layout.FACES_PREVIEW - 1, PREVIEW_SCALE, graphics.peekScissorStack()));
     }
 
     private void extractNet(GuiGraphicsExtractor graphics, int k, @Nullable Hit hit, int mouseX, int mouseY) {
@@ -95,7 +131,7 @@ final class FacesWidget extends AbstractWidget {
             Direction face = FACES[f].toAbsolute(facing);
             int cx = getX() + CELLS[f][0] * Layout.FACE;
             int cy = top + CELLS[f][1] * Layout.FACE;
-            boolean over = hit != null && hit.kind() == k && hit.face() == face;
+            boolean over = hit != null && hit.kind() == k && hit.face() == face && !hit.preview();
             PortFaceMode mode = port.mode(values(), kind, face);
             int colour = tint(mode);
             if (allowed.size() <= 1) {
@@ -135,12 +171,17 @@ final class FacesWidget extends AbstractWidget {
         return lines;
     }
 
-    /** What the mouse is over: a face of a kind; null for nothing. */
+    /** What the mouse is over: a face of a kind, in a net or on the preview; null for nothing. */
     private @Nullable Hit hit(double mouseX, double mouseY) {
         double rx = mouseX - getX();
         double ry = mouseY - getY();
         if (rx < 0 || rx >= width || ry < 0 || ry >= height) {
             return null;
+        }
+        if (ry < Layout.FACES_PREVIEW) {
+            Direction face = FacePick.pick(yaw, pitch, PREVIEW_SCALE, rx - width / 2.0,
+                    ry - Layout.FACES_PREVIEW / 2.0);
+            return face == null ? null : new Hit(shownKind, face, true);
         }
         Direction facing = reference();
         for (int k = 0; k < node.kinds().size(); k++) {
@@ -152,7 +193,7 @@ final class FacesWidget extends AbstractWidget {
             int row = (int) (ny / Layout.FACE);
             for (int f = 0; f < FACES.length; f++) {
                 if (CELLS[f][0] == column && CELLS[f][1] == row) {
-                    return new Hit(k, FACES[f].toAbsolute(facing));
+                    return new Hit(k, FACES[f].toAbsolute(facing), false);
                 }
             }
         }
@@ -166,12 +207,36 @@ final class FacesWidget extends AbstractWidget {
 
     @Override
     public void playDownSound(net.minecraft.client.sounds.SoundManager sounds) {
-        // Played on a face click instead, so a click beside the faces makes none.
+        // Played on a face click instead: a press that turns the preview makes no sound.
     }
 
     @Override
     public void onClick(MouseButtonEvent event, boolean doubleClick) {
-        ask(hit(event.x(), event.y()), event.button() == 1);
+        pressX = event.x();
+        pressY = event.y();
+        pressedPreview = event.y() - getY() < Layout.FACES_PREVIEW;
+        if (event.button() == 1 || !pressedPreview) {
+            ask(hit(event.x(), event.y()), event.button() == 1);
+            pressedPreview = false;
+        }
+    }
+
+    @Override
+    protected void onDrag(MouseButtonEvent event, double dx, double dy) {
+        if (pressedPreview && event.button() == 0) {
+            yaw += (float) dx * FacePick.DEGREES_PER_PIXEL;
+            pitch = Math.clamp(pitch + (float) dy * FacePick.DEGREES_PER_PIXEL, -FacePick.MAX_PITCH,
+                    FacePick.MAX_PITCH);
+        }
+    }
+
+    @Override
+    public void onRelease(MouseButtonEvent event) {
+        if (pressedPreview && event.button() == 0 && Math.abs(event.x() - pressX) <= CLICK_SLOP
+                && Math.abs(event.y() - pressY) <= CLICK_SLOP) {
+            ask(hit(event.x(), event.y()), false);
+        }
+        pressedPreview = false;
     }
 
     /** Asks the server for the next (or previous) allowed mode of the hit face. */
@@ -213,7 +278,7 @@ final class FacesWidget extends AbstractWidget {
         output.add(NarratedElementType.TITLE, getMessage());
     }
 
-    /** A face under the mouse: the kind's position and the absolute face. */
-    private record Hit(int kind, Direction face) {
+    /** A face under the mouse: the kind's position, the absolute face, and whether it is on the preview. */
+    private record Hit(int kind, Direction face, boolean preview) {
     }
 }

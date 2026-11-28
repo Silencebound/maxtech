@@ -10,6 +10,8 @@ import net.minecraft.core.Direction;
 public final class FaceTexts {
     /** The side config tab's title. */
     public static final String TAB_KEY = "gui.maxtech_lib.faces.tab";
+    /** The preview's narration. */
+    public static final String PREVIEW_KEY = "gui.maxtech_lib.faces.preview";
     /** A relative face with its absolute direction: {@code %s (%s)}. */
     public static final String FACE_KEY = "gui.maxtech_lib.faces.face";
     /** A kind with its mode: {@code %s: %s}. */
