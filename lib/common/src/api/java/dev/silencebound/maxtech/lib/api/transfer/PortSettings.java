@@ -28,10 +28,11 @@ import org.jspecify.annotations.Nullable;
 
 /**
  * A {@link TransferPort}'s player settings (ADR-0018), per resource kind: the six face modes ({@link PortFaces}), an
- * optional {@link PortFilter} for the whole port, and a rate cap per operation (0 for none; the port then moves up to
- * its owner's cap and the {@code transfer.*PerOp} config). A kind with no settings has every face off, no filter and no
- * cap. Which modes a face may take is the port owner's ({@link TransferPorts.Builder#allowed}); the port puts loaded
- * settings back within them.
+ * optional {@link PortFilter} for the whole port, and a rate cap per operation (0 for no player cap; the port then
+ * moves up to its owner's cap and the {@code transfer.*PerOp} config). A kind with no settings has every face off, no
+ * filter and no cap. Which modes a face may take follows from the buffers the port owner added
+ * ({@link TransferPorts.Builder}); those buffer roles are code, not saved here, and the port puts loaded settings back
+ * within them.
  * <p>
  * Saved by kind id ({@link #CODEC}). Settings of a kind no loaded mod registers, or that no longer load, are kept as
  * saved and saved back unchanged ({@link #unknownKinds()}), like {@code UnknownResource}, until settings of that kind
@@ -83,7 +84,7 @@ public final class PortSettings {
         return PortFaces.get(faces(kind), face);
     }
 
-    /** The rate cap per operation of {@code kind} in its unit, or 0 for none. */
+    /** The player's rate cap per operation of {@code kind} in its unit, or 0 for no player cap. */
     public long rate(ResourceKind<?> kind) {
         int index = indexOf(kind);
         return index < 0 ? 0 : rates[index];

@@ -21,9 +21,8 @@ import org.jetbrains.annotations.ApiStatus;
  * every port keeps:
  * <ul>
  * <li>A face pushes or pulls, never both ({@link PortFaceMode}).</li>
- * <li>A port skips a face whose neighbour is another Lib port with the facing face ({@code face.getOpposite()}) in the
- * same mode for that kind (push against push, pull against pull), so two ports never move the same resource back and
- * forth.</li>
+ * <li>A port never pulls from a neighbouring Lib port's pushing face; that port's push does the move
+ * ({@link PortFaceMode#movesAgainst}). Two pushing or two pulling faces treat each other as plain neighbours.</li>
  * <li>A move between two handlers that both lack transactions is refused; with one such side, Lib touches it last
  * (simulate it, move on the transactional side, carry out the foreign side, keep only what it took).</li>
  * </ul>
@@ -45,10 +44,13 @@ public interface TransferPort {
     /** A buffer changed outside the port's own moves (the machine produced or used something): the port wakes. */
     void bufferChanged();
 
-    /** The kinds this port moves, one per buffer, in the order the builder added them. */
+    /** The kinds this port moves, each once, in the order the builder first added a buffer of it. */
     List<ResourceKind<?>> kinds();
 
-    /** The modes faces of {@code kind} may take; empty for a kind the port does not move. */
+    /**
+     * The modes faces of {@code kind} may take: {@link PortFaceMode#OFF} and every mode one of the kind's buffers takes
+     * part in; empty for a kind the port does not move.
+     */
     Set<PortFaceMode> allowed(ResourceKind<?> kind);
 
     /**

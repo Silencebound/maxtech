@@ -29,16 +29,23 @@ Ars Nouveau Source) must work without changing the port.
 Option 3, in the common api `lib.api.transfer` and the NeoForge-side api `lib.neoforge.api.transfer`, experimental
 until Farms ships.
 
-- `TransferPorts.builder(TaskGroup)` takes one buffer per kind (`items(ItemSlots)`, `tank(ResourceTank<K>)` with
-  `fluids(FluidTank)`, `energy(EnergyEndpoint)`), the allowed face modes and a rate cap per kind, and a settings
-  listener. A `TransferPort` runs one scheduled task in the owner's group, sleeps until a buffer or neighbour changes,
+- `TransferPorts.builder(TaskGroup)` takes buffers (`items(ItemSlots, modes)`, `tank(ResourceTank<K>, modes)` with
+  `fluids(FluidTank, modes)`, `energy(EnergyEndpoint, modes)`), a rate cap per kind and a settings listener. A port
+  can drive several buffers of one kind, each taking part in `PUSH`, `PULL` or both (owner): an input tank it pulls
+  into and an output tank it pushes from, an input and an output slot group. Per face and kind the face's mode picks
+  the buffers (`PULL` fills those allowing `PULL`, `PUSH` empties those allowing `PUSH`), first-fit in the order
+  they were added. A face of a kind may take `OFF` and the modes of the kind's buffers. Buffer roles are code and not
+  saved; settings stay per face and kind. A `TransferPort` runs one scheduled task in the owner's group, sleeps until a buffer or neighbour changes,
   and is started and stopped by its block entity.
 - A face pushes or pulls, never both: `PortFaceMode` is `OFF`, `PUSH` or `PULL` (owner). `PortFaces` packs six modes
   into two bits per face, per kind.
 - Filters are per port and per kind, not per face (owner): `PortFilter` is an allow or deny list of keys and tags,
   up to `transfer.filterSize` entries from the screen. Tags go through tag support registered per kind.
-- Ports skip a face whose neighbour is another Lib port with the facing face in the same mode, so two ports never
-  move a resource back and forth (owner).
+- A port never pulls from a neighbouring Lib port's pushing face, and one side does each move (owner,
+  `PortFaceMode.movesAgainst`): a `PULL` face facing a `PUSH` face skips it and the pushing port moves the resource;
+  a `PUSH` face facing a `PULL` face pushes. Two `PUSH` faces facing each other each push into the other port's
+  buffers as into any target, and two `PULL` faces each pull from the other's; a resource can then go back and forth
+  between two machines whose buffers allow it, which the player sets up.
 - A move between two handlers without transactions is refused (owner, ADR-0017); with one such side Lib touches it
   last: simulate it, move on the transactional side in a nested transaction, carry out the foreign side, keep only
   what it took.
