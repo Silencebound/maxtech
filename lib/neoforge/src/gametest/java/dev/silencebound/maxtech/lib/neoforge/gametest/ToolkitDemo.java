@@ -158,6 +158,7 @@ public final class ToolkitDemo {
                 ProgressValue flame = m.progress(host -> host.burn, host -> BURN_TICKS);
                 EnumValue<Status> status = m.enumValue(Status.class, MachineEntity::status);
                 IntValue cycles = m.intValue(host -> host.cycles);
+                IntValue ran = m.intValue(host -> host.cycles > 0 ? 1 : 0);
                 handles = new Handles(input, fuel, output, tank, energy, arrow, flame, status, cycles);
                 m.title("maxtech_lib_demo.toolkit.title");
                 m.theme(MINT);
@@ -168,8 +169,7 @@ public final class ToolkitDemo {
                                         Layout.progress(flame, Layout.ProgressShape.FLAME)),
                                 Layout.progress(arrow, Layout.ProgressShape.ARROW), Layout.slots(output, 3, 3),
                                 Layout.energy(energy, 54)),
-                        Layout.row(Layout.status(status, 90),
-                                Layout.value(cycles, "maxtech_lib_demo.cycles", 90, cycles)),
+                        Layout.row(Layout.status(status, 90), Layout.value(cycles, "maxtech_lib_demo.cycles", 90, ran)),
                         Layout.playerInventory()));
             });
 

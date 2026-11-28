@@ -2,6 +2,7 @@ package dev.silencebound.maxtech.lib.neoforge.gametest.perf;
 
 import com.mojang.logging.LogUtils;
 import dev.silencebound.maxtech.lib.MaxtechLib;
+import dev.silencebound.maxtech.lib.api.resource.FluidKey;
 import dev.silencebound.maxtech.lib.api.resource.ResourceKinds;
 import dev.silencebound.maxtech.lib.api.schedule.TaskGroup;
 import dev.silencebound.maxtech.lib.api.transfer.PortFaceMode;
@@ -10,6 +11,7 @@ import dev.silencebound.maxtech.lib.api.transfer.PortStatus;
 import dev.silencebound.maxtech.lib.config.ServerConfig;
 import dev.silencebound.maxtech.lib.neoforge.gametest.LibGameTests;
 import dev.silencebound.maxtech.lib.neoforge.gametest.TestPorts;
+import dev.silencebound.maxtech.lib.neoforge.gametest.TestTanks;
 import dev.silencebound.maxtech.lib.neoforge.perf.PerfBudget;
 import dev.silencebound.maxtech.lib.platform.Platform;
 import dev.silencebound.maxtech.lib.platform.RegistryHelper;
@@ -31,24 +33,29 @@ import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.ChestBlockEntity;
+import net.minecraft.world.level.material.Fluids;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.RegisterGameTestsEvent;
+import net.neoforged.neoforge.transfer.fluid.FluidResource;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 
 /**
  * The cost of transfer ports that cannot move (PRD 8.1), 200 ports each: pushing a full output slot into a full chest
- * once they backed off to the scheduler's maximum; beside a chunk below full status, half of them with something to
- * push; and blocked while their buffers report a change every tick. The mean time the level's task scheduler takes per
- * tick must stay under budget, and the ports must run only as often as backoff or the minimum interval allow. Each runs
- * in its own batch.
+ * once they backed off to the scheduler's maximum, and the same with tank ports pushing water into a tank of lava;
+ * beside a chunk below full status, half of them with something to push; and blocked while their buffers report a
+ * change every tick. The mean time the level's task scheduler takes per tick must stay under budget, and the ports must
+ * run only as often as backoff or the minimum interval allow. Only the scheduler's time is measured: the wake storm's
+ * {@code bufferChanged} calls, made from the test's tick hook, are outside the measure, as a machine's own change
+ * listener would be. Each runs in its own batch.
  */
 @EventBusSubscriber(modid = MaxtechLib.MOD_ID)
 public final class TransferPerfGameTests {
     private static final Logger LOGGER = LogUtils.getLogger();
     private static final Identifier STRUCTURE = MaxtechLib.id("empty_42x4x27");
     private static final String IDLE = "perf_transfer_idle";
+    private static final String IDLE_FLUIDS = "perf_transfer_idle_fluids";
     private static final String UNLOADED = "perf_transfer_unloaded_neighbour";
     private static final String STORM = "perf_transfer_wake_storm";
     private static final int PORTS = 200;
@@ -56,6 +63,11 @@ public final class TransferPerfGameTests {
     private static final int QUIET = Block.UPDATE_CLIENTS | Block.UPDATE_KNOWN_SHAPE;
     /** Mean scheduler time per tick for 200 blocked ports at full backoff; PRD 8.1 gives 500 idle machines 0.1 ms. */
     private static final long IDLE_BUDGET_NANOS = 20_000;
+    /**
+     * Mean scheduler time per tick for 200 tank ports at full backoff whose water a tank of lava refuses; each poll
+     * simulates the insert inside a transaction, since a foreign tank's room cannot be read without one.
+     */
+    private static final long IDLE_FLUIDS_BUDGET_NANOS = 20_000;
     /**
      * Mean scheduler time per tick for 200 ports beside a chunk below full status, 100 of them with stone to push at
      * full backoff and 100 with nothing to push, which must not run at all.
@@ -73,6 +85,7 @@ public final class TransferPerfGameTests {
     static {
         PerfEnvironment.init();
         FUNCTIONS.register(IDLE, () -> TransferPerfGameTests::idle);
+        FUNCTIONS.register(IDLE_FLUIDS, () -> TransferPerfGameTests::idleFluids);
         FUNCTIONS.register(UNLOADED, () -> TransferPerfGameTests::unloadedNeighbour);
         FUNCTIONS.register(STORM, () -> TransferPerfGameTests::wakeStorm);
     }
@@ -84,6 +97,7 @@ public final class TransferPerfGameTests {
     static void register(RegisterGameTestsEvent event) {
         int measuring = 2 * (MEASURED_TICKS + 1) + 200;
         register(event, IDLE, STRUCTURE, warmupTicks() + measuring);
+        register(event, IDLE_FLUIDS, STRUCTURE, warmupTicks() + measuring);
         register(event, UNLOADED, LibGameTests.EMPTY_STRUCTURE, warmupTicks() + measuring + 100);
         register(event, STORM, STRUCTURE, 100 + measuring);
     }
@@ -138,6 +152,41 @@ public final class TransferPerfGameTests {
                 + millis(IDLE_BUDGET_NANOS) + " ms budget")).thenExecute(() -> {
                     for (TestPorts.PortEntity port : ports) {
                         helper.assertValueEqual(TestPorts.count(port.output, Items.STONE), 64, "stone in a port");
+                    }
+                }).thenSucceed();
+    }
+
+    private static void idleFluids(GameTestHelper helper) {
+        TaskGroup group = LevelTasks.newGroup(helper.getLevel());
+        PerfEnvironment.onTeardown(group::close);
+        PortSettings push = PortSettings.EMPTY.withMode(ResourceKinds.FLUID, Direction.EAST, PortFaceMode.PUSH);
+        TestTanks.PortEntity[] ports = new TestTanks.PortEntity[PORTS];
+        for (int i = 0; i < PORTS; i++) {
+            BlockPos pos = new BlockPos((i % 14) * 3, 0, i / 14);
+            TestTanks.TankEntity tank = TestTanks.tank(helper.getLevel(), helper.absolutePos(pos.east()), 1000,
+                    Block.UPDATE_ALL);
+            tank.handler.set(0, FluidResource.of(Fluids.LAVA), 1000);
+            ports[i] = TestTanks.place(helper.getLevel(), helper.absolutePos(pos), group, Block.UPDATE_ALL);
+            ports[i].output.set(FluidKey.of(Fluids.WATER), 4000);
+            ports[i].port.setSettings(push);
+        }
+        int maxBackoff = ServerConfig.SCHEDULER_MAX_BACKOFF_TICKS.getAsInt();
+        Timing timing = new Timing(helper, IDLE_FLUIDS, group, null, IDLE_FLUIDS_BUDGET_NANOS, () -> {
+        });
+        helper.startSequence().thenIdle(2 * maxBackoff + 100).thenExecute(() -> {
+            for (TestTanks.PortEntity port : ports) {
+                helper.assertValueEqual(port.port.status(ResourceKinds.FLUID), PortStatus.BLOCKED, "status");
+            }
+        }).thenWaitUntil(PerfBudget.measureTicks(helper, IDLE_FLUIDS, MEASURED_TICKS, IDLE_FLUIDS_BUDGET_NANOS,
+                timing.with(ran -> {
+                    long allowed = (long) PORTS * (MEASURED_TICKS / (maxBackoff - maxBackoff / 8) + 1);
+                    helper.assertTrue(ran <= allowed,
+                            ran + " runs, at most " + allowed + ": ports are not backing off");
+                }), mean -> PORTS + " blocked tank ports take " + millis(mean) + " ms per tick, over the "
+                        + millis(IDLE_FLUIDS_BUDGET_NANOS) + " ms budget"))
+                .thenExecute(() -> {
+                    for (TestTanks.PortEntity port : ports) {
+                        helper.assertValueEqual(port.output.amount(), 4000L, "water in a port");
                     }
                 }).thenSucceed();
     }
